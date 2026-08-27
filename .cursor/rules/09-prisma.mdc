@@ -1,0 +1,25 @@
+---
+description: Prisma schema and migration conventions
+globs: packages/db/**/*,**/schema.prisma
+alwaysApply: false
+---
+
+# Prisma / database
+
+## Schema
+
+- Postgres only for primary product data.
+- Money: `BigInt` / integer minor units or `Decimal` — never `Float`.
+- Prefer explicit `@id`, timestamps (`createdAt` / `updatedAt`), and indexes for query paths.
+- Relations: define both sides when Prisma requires it; keep naming consistent (`camelCase` fields, `PascalCase` models).
+
+## Migrations
+
+- Every schema change gets a migration committed with the PR.
+- Use `migrate deploy` in shared/deployed environments — not `db push` for production paths.
+- Migrations must be forward-only and safe to apply once; avoid destructive changes without an explicit backfill plan.
+
+## Access
+
+- Prisma client lives in `packages/db` and is injected into Nest via the existing Prisma module.
+- Do not create a second Prisma client factory inside feature services.

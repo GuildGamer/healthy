@@ -1,0 +1,37 @@
+---
+description: How the AI must work in this repo — search first, do not invent stack
+alwaysApply: true
+---
+
+# Agent discipline
+
+## Before writing code
+
+1. Identify the owning package (`apps/*` or `packages/*`).
+2. Read neighboring modules for the local pattern.
+3. Reuse existing utilities, errors, DTOs, and services — do not duplicate.
+4. If the change crosses API surface, update `packages/contract` first.
+
+## Do not invent
+
+- Do not add a new library when an existing one covers the need.
+- Do not switch Nest ↔ Hono, Prisma ↔ Drizzle, Expo ↔ bare RN, Astro ↔ Next
+  without an explicit human decision.
+- Do not create parallel “v2” modules beside working ones.
+- Do not introduce monorepo tooling beyond pnpm + Turborepo already in use.
+
+## Match local style
+
+Match file layout, naming, import style, and result patterns already present in the
+touched package. Consistency beats personal preference.
+
+## Plan before broad edits
+
+For multi-package or architectural changes: outline the approach, list files, then
+edit. Do not spray speculative scaffolding.
+
+## After edits
+
+- Keep types strict — no `any`, no implicit `any`.
+- Do not leave dead code, unused deps, or placeholder TODOs that encode unfinished design.
+- Prefer fixing structure now if a bad pattern is easy and safe to correct.

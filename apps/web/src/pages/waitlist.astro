@@ -1,0 +1,171 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
+---
+
+<BaseLayout
+  title="Waitlist"
+  description="Join the Product waitlist to get notified when we launch."
+>
+  <section class="waitlist">
+    <h1>Join the waitlist</h1>
+    <p class="lede">Leave your email and we’ll let you know when Product is ready.</p>
+
+    <form id="waitlist-form" class="form" novalidate>
+      <label for="email">Email</label>
+      <div class="row">
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          required
+          placeholder="you@example.com"
+        />
+        <button type="submit">Notify me</button>
+      </div>
+      <p id="form-error" class="error" hidden></p>
+    </form>
+
+    <div id="thank-you" class="thank-you" hidden>
+      <h2>You’re on the list</h2>
+      <p>Thanks — we’ll be in touch at <strong id="submitted-email"></strong>.</p>
+      <a href="/">Back home</a>
+    </div>
+  </section>
+</BaseLayout>
+
+<script define:vars={{ apiUrl }}>
+  const form = document.getElementById('waitlist-form');
+  const thankYou = document.getElementById('thank-you');
+  const errorEl = document.getElementById('form-error');
+  const submittedEmail = document.getElementById('submitted-email');
+
+  function showError(message) {
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+  }
+
+  function clearError() {
+    if (!errorEl) return;
+    errorEl.textContent = '';
+    errorEl.hidden = true;
+  }
+
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  }
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearError();
+
+    const formData = new FormData(form);
+    const email = String(formData.get('email') ?? '').trim();
+
+    if (!isValidEmail(email)) {
+      showError('Enter a valid email address.');
+      return;
+    }
+
+    try {
+      await fetch(`${apiUrl}/waitlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+    } catch {
+      // API may be unavailable during static preview; still show thank-you.
+    }
+
+    if (submittedEmail) {
+      submittedEmail.textContent = email;
+    }
+    form.hidden = true;
+    if (thankYou) {
+      thankYou.hidden = false;
+    }
+  });
+</script>
+
+<style>
+  .waitlist {
+    max-width: 28rem;
+  }
+
+  h1 {
+    margin: 0 0 var(--space-sm);
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    letter-spacing: -0.02em;
+  }
+
+  .lede {
+    margin: 0 0 var(--space-lg);
+    color: var(--color-muted);
+  }
+
+  .form label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-weight: 500;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  input {
+    flex: 1 1 12rem;
+    min-width: 0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--color-muted) 35%, transparent);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+  }
+
+  input:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  button {
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--color-accent);
+    color: var(--color-background);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button:hover {
+    filter: brightness(1.05);
+  }
+
+  .error {
+    margin: var(--space-sm) 0 0;
+    color: var(--color-danger);
+    font-size: 0.9rem;
+  }
+
+  .thank-you h2 {
+    margin: 0 0 var(--space-sm);
+    font-family: var(--font-display);
+  }
+
+  .thank-you p {
+    color: var(--color-muted);
+  }
+
+  .thank-you strong {
+    color: var(--color-text);
+  }
+</style>

@@ -1,0 +1,38 @@
+---
+description: Auth defaults, secrets, and monetary correctness
+alwaysApply: true
+---
+
+# Security and money
+
+## Auth is fail-closed
+
+Routes are protected by default. Public endpoints must be explicitly marked
+(`@AllowAnonymous` and/or absence of `requireAuth` on the procedure — follow the
+existing Nest + oRPC split in `apps/api`).
+
+Never add a new public route “temporarily” without the explicit opt-out pattern.
+
+## Secrets
+
+- No secrets in git, logs, client bundles, or error messages.
+- Use env vars; document new keys in `.env.example` only as empty placeholders.
+- Client apps only get `EXPO_PUBLIC_*` / public web vars that are safe to expose.
+
+## Input
+
+Validate at the boundary (Zod contract / DTO). Do not trust client fields for
+identity, roles, prices, or entitlements — derive those server-side.
+
+## Money
+
+Never use `number` / floating-point for money.
+
+- Persist as integer **minor units** (e.g. cents) or Prisma `Decimal`.
+- Compute in integer minor units or a decimal library.
+- Format for display only at the UI edge.
+
+## Environment
+
+Use explicit flags (`isProd`, `isLocal`), not stringly `NODE_ENV === 'something'`
+scattered through domain logic.

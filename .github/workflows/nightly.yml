@@ -1,0 +1,30 @@
+name: Nightly E2E
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  web-playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @product/brand build
+      - run: pnpm --filter @product/web build
+      - run: pnpm --filter @product/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @product/web test:e2e
+
+  # Mobile Maestro runs via EAS Workflows (.eas/workflows) when Expo project is linked.
+  maestro-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Configure EAS workflow .eas/workflows/e2e-android.yml after linking the Expo project"

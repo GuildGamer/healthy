@@ -1,0 +1,43 @@
+---
+description: Decision philosophy when no strict rule covers the case
+alwaysApply: true
+---
+
+# Philosophy
+
+These principles govern every decision, including cases with no explicit rule.
+
+## Prefer the existing path
+
+Before inventing anything, find how this repo already solves the nearest problem.
+Copy that shape. New abstractions need a second use-case, not a first.
+
+## High-level speed, low-level control
+
+Optimize for a clear product loop (`make`, contracts, typed clients) without hiding
+mechanics. Generated or orchestrated steps must remain inspectable: echo commands,
+commit generated OpenAPI, keep escape hatches (`expo prebuild`, Docker, split script).
+
+## Explicit over clever
+
+Prefer boring, readable code. Guard clauses over nested conditionals. Descriptive
+names over abbreviations. Small focused functions (~50 lines). Readability beats
+cleverness every time.
+
+## Boundaries are product features
+
+Package and layer boundaries exist to prevent drift. Do not reach across them with
+shortcuts (`any`, relative imports into another app’s `src`, shared “utils” dumping
+grounds, provider-specific types in domain code).
+
+## Fail closed
+
+Security, money, auth, and migrations fail closed. Default deny. Prefer a rejected
+build over a silent wrong runtime.
+
+## When unsure
+
+1. Search the repo and docs (`README`, `docs/`, `.cursor/rules/`).
+2. Prefer the smallest change that preserves architecture.
+3. Ask before introducing a new framework, package boundary, or deployment path.
+4. Never “improve” by rewriting a working convention into a different style.

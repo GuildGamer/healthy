@@ -1,0 +1,24 @@
+name: e2e-android
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/client/**'
+      - 'packages/contract/**'
+      - 'packages/brand/**'
+  workflow_dispatch: {}
+
+jobs:
+  build_android_for_e2e:
+    type: build
+    params:
+      platform: android
+      profile: e2e-test
+
+  maestro_smoke:
+    needs: [build_android_for_e2e]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_android_for_e2e.outputs.build_id }}
+      flow_path: ['.maestro/home.yml']

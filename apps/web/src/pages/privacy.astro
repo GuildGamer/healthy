@@ -1,0 +1,66 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Privacy"
+  description="How Product collects, uses, and protects your information."
+>
+  <article class="legal">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: August 27, 2026</p>
+
+    <p>
+      This privacy policy describes how Product (“we”, “us”) handles information when you visit our
+      website or join our waitlist. This is a placeholder policy for early access and will be updated
+      before launch.
+    </p>
+
+    <h2>Information we collect</h2>
+    <p>
+      If you join the waitlist, we collect the email address you provide. We may also collect basic
+      technical data such as browser type and approximate location from server logs.
+    </p>
+
+    <h2>How we use information</h2>
+    <p>
+      We use waitlist emails to notify you about product updates, launch availability, and related
+      communications. We do not sell your personal information.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about this policy can be sent to
+      <a href="mailto:privacy@product.example">privacy@product.example</a>.
+    </p>
+  </article>
+</BaseLayout>
+
+<style>
+  .legal {
+    max-width: 40rem;
+  }
+
+  h1 {
+    margin: 0 0 var(--space-sm);
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    letter-spacing: -0.02em;
+  }
+
+  .updated {
+    margin: 0 0 var(--space-lg);
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+
+  h2 {
+    margin: var(--space-xl) 0 var(--space-sm);
+    font-size: 1.25rem;
+  }
+
+  p {
+    margin: 0 0 var(--space-md);
+    color: var(--color-muted);
+  }
+</style>

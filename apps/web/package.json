@@ -1,0 +1,27 @@
+{
+  "name": "@product/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "echo \"lint: web skipped\""
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.3.0",
+    "@product/brand": "workspace:*",
+    "astro": "^5.5.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@playwright/test": "^1.51.0",
+    "@product/tsconfig": "workspace:*",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

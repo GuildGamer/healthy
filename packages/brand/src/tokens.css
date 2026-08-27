@@ -1,0 +1,15 @@
+:root {
+  --color-background: #0b1220;
+  --color-surface: #121a2b;
+  --color-text: #f4f7fb;
+  --color-muted: #9aa8bf;
+  --color-accent: #3ddc97;
+  --color-danger: #ff6b6b;
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-display: Fraunces, Georgia, serif;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+}

@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: product
+          POSTGRES_PASSWORD: product
+          POSTGRES_DB: product
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U product -d product"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://product:product@localhost:5432/product?schema=public
+      BETTER_AUTH_SECRET: ci-secret
+      BETTER_AUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @product/db generate
+      - run: pnpm --filter @product/contract build
+      - run: pnpm --filter @product/db build
+      - run: pnpm --filter @product/client build
+      - run: pnpm --filter @product/brand build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @product/api build
+      - run: pnpm --filter @product/web build
+      - run: pnpm --filter @product/db migrate:deploy
+      - name: OpenAPI check
+        run: pnpm openapi:check
+      - name: OpenAPI breaking change gate
+        if: github.event_name == 'pull_request'
+        run: |
+          curl -sSL https://github.com/Tufin/oasdiff/releases/download/v1.10.23/oasdiff_1.10.23_linux_amd64.tar.gz | tar -xz oasdiff
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          if git show "origin/${{ github.base_ref }}:apps/api/openapi/openapi.json" > /tmp/base-openapi.json 2>/dev/null; then
+            ./oasdiff breaking /tmp/base-openapi.json apps/api/openapi/openapi.json --fail-on ERR
+          else
+            echo "No base OpenAPI found; skipping breaking-change gate"
+          fi
+
+  mobile-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @product/contract build
+      - run: pnpm --filter @product/client build
+      - run: pnpm --filter @product/brand build
+      - run: pnpm --filter @product/mobile typecheck
+      - run: pnpm --filter @product/mobile test

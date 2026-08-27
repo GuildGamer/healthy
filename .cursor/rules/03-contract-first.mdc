@@ -1,0 +1,34 @@
+---
+description: Contract-first API changes — oRPC + Zod is the source of truth
+globs: packages/contract/**/*,packages/client/**/*,apps/api/**/*
+alwaysApply: false
+---
+
+# Contract-first API
+
+## Source of truth
+
+`packages/contract` owns the public API. Zod schemas + oRPC procedures are the
+contract. Clients and OpenAPI are derived — never hand-rolled in parallel.
+
+## Change order
+
+1. Edit `packages/contract`.
+2. Implement in `apps/api` via `@Implement` / `implement(...).handler`.
+3. Consume via `@product/client` (mobile/web) — no raw `fetch` for contract routes.
+4. Regenerate/check OpenAPI (`pnpm openapi:generate` / `openapi:check`).
+
+## Compatibility
+
+App-store clients linger. Breaking changes need an explicit versioning/migration plan.
+CI `oasdiff` must stay green; do not “fix” it by deleting the baseline.
+
+## Controllers stay thin
+
+oRPC handlers delegate to services. No Prisma, no policy, no multi-step workflows
+inside the handler beyond mapping context → service call → result.
+
+## Errors to clients
+
+Map domain failures to stable contract errors. Never return raw stack traces,
+Prisma messages, or provider payloads to API consumers.

@@ -1,0 +1,27 @@
+{
+  "name": "product",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "openapi:generate": "pnpm --filter @product/api openapi:generate",
+    "openapi:check": "pnpm --filter @product/api openapi:check",
+    "db:generate": "pnpm --filter @product/db generate",
+    "db:migrate": "pnpm --filter @product/db migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @product/db migrate:deploy"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.2"
+  }
+}

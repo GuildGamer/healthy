@@ -1,0 +1,28 @@
+---
+description: Astro marketing site — static-first, separate from the mobile app
+globs: apps/web/**/*
+alwaysApply: false
+---
+
+# Website (Astro)
+
+## Role
+
+`apps/web` is the **marketing / legal / waitlist** surface. It is not the mobile app
+and not a full product SPA unless the human explicitly expands scope.
+
+## Stack discipline
+
+- Static-first Astro pages.
+- Use React islands only when interactivity truly needs them.
+- Do not introduce Next.js, Remix, or a design-system rewrite for marketing pages.
+
+## Sharing
+
+- Brand tokens/assets: `@product/brand`.
+- Do **not** share React Native components with the website.
+- API calls (waitlist, etc.) go through the contract/client — not ad-hoc backends in Astro.
+
+## SEO and legal
+
+Every public page needs sound metadata. Privacy/terms stay real pages, not placeholders that ship empty.

@@ -1,0 +1,31 @@
+{
+  "name": "@product/db",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "studio": "prisma studio",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint: db skipped\""
+  },
+  "dependencies": {
+    "@prisma/client": "^6.5.0"
+  },
+  "devDependencies": {
+    "@product/tsconfig": "workspace:*",
+    "prisma": "^6.5.0",
+    "typescript": "^5.8.2"
+  }
+}

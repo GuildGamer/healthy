@@ -1,0 +1,23 @@
+{
+  "name": "@product/infra",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint: infra skipped\"",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy --all"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.189.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "@product/tsconfig": "workspace:*",
+    "@types/node": "^22.13.11",
+    "aws-cdk": "^2.1007.0",
+    "typescript": "^5.8.2"
+  }
+}

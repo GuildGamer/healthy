@@ -1,0 +1,31 @@
+---
+description: Expo mobile conventions — CNG, clients, no Expo Go as product path
+globs: apps/mobile/**/*
+alwaysApply: false
+---
+
+# Mobile (Expo)
+
+## Runtime
+
+- Use **development builds** (`expo-dev-client`). Expo Go is not the product path.
+- Keep Continuous Native Generation: do not commit `ios/` or `android/` unless there is an explicit decision to eject from CNG.
+- Rebuild native only after native deps, app config, or SDK changes.
+
+## Data and API
+
+- Call the backend through `@product/client` / contract types.
+- No duplicate hand-written API types in the app.
+- Auth tokens and session handling follow Better Auth mobile patterns already in the repo — do not invent a parallel auth client.
+
+## UI
+
+- Prefer expo-router file routes already in `app/`.
+- Shared visual tokens come from `@product/brand` where applicable — do not fork a second palette.
+- Avoid premature `useMemo` / `useCallback` unless profiling or repo convention requires it.
+
+## Release lanes
+
+- JS-only: EAS Update.
+- Native changes: store build + review.
+- See `docs/releases.md`.

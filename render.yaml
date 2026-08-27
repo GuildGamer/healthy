@@ -1,0 +1,41 @@
+# Render Blueprint — same API Docker image as AWS path.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: product-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /readyz
+    preDeployCommand: pnpm --filter @product/db migrate:deploy
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: product-db
+          property: connectionString
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: BETTER_AUTH_URL
+        sync: false
+
+  - type: web
+    name: product-web
+    runtime: static
+    rootDir: apps/web
+    buildCommand: pnpm --filter @product/web build
+    staticPublishPath: dist
+    envVars:
+      - key: PUBLIC_API_URL
+        sync: false
+
+databases:
+  - name: product-db
+    plan: basic_256mb
+    databaseName: product
+    user: product

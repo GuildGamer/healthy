@@ -1,0 +1,6 @@
+appId: com.product.app
+---
+- launchApp
+- assertVisible: "Product"
+- assertVisible: "Mobile home"
+- assertVisible: "Check API health"

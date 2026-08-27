@@ -1,0 +1,37 @@
+---
+description: Monorepo package boundaries and portable deployment
+alwaysApply: true
+---
+
+# Monorepo and deploy
+
+## Package boundaries
+
+| Package | May depend on |
+|---------|----------------|
+| `packages/contract` | Zod, oRPC contract only |
+| `packages/client` | `contract` |
+| `packages/db` | Prisma only (no Nest, no Expo) |
+| `packages/brand` | nothing app-specific |
+| `apps/api` | `contract`, `db`, Nest |
+| `apps/mobile` | `client`, `contract`, `brand` |
+| `apps/web` | `client`/`contract` as needed, `brand` |
+
+Apps must not import each other’s `src`. Shared code goes in `packages/*`.
+
+## Workspace protocol
+
+Internal deps use `workspace:*`. Do not publish private packages unless splitting repos.
+
+## Deploy portability
+
+- One API Docker image for Render and AWS.
+- Bind `0.0.0.0`, honor `PORT`.
+- Separate liveness vs readiness (DB on readiness only).
+- Migrations via pre-deploy (`prisma migrate deploy`), never on process boot.
+- No AWS/Render SDK types inside domain/services.
+
+## Tooling
+
+Node/pnpm via `.mise.toml`. Root scripts orchestrate; package scripts own the work.
+`Makefile` targets must echo the underlying command.

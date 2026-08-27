@@ -1,0 +1,36 @@
+{
+  "name": "@product/client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint: client skipped\""
+  },
+  "dependencies": {
+    "@orpc/client": "^1.8.0",
+    "@orpc/contract": "^1.8.0",
+    "@orpc/openapi-client": "^1.8.0",
+    "@product/contract": "workspace:*",
+    "@tanstack/react-query": "^5.69.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@product/tsconfig": "workspace:*",
+    "@types/react": "^19.0.12",
+    "react": "^19.0.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2"
+  }
+}

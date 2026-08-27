@@ -1,0 +1,33 @@
+---
+description: What to test, where, and what not to over-test
+alwaysApply: true
+---
+
+# Testing
+
+## Prefer this pyramid
+
+1. **Service / domain unit tests** — business rules, money math, result mapping.
+2. **API + DB integration** — real Postgres when persistence is the subject (no fake repos).
+3. **UI component tests** — behavior and accessibility, not broad snapshots.
+4. **E2E (Maestro / Playwright)** — only irreplaceable user journeys.
+
+Fewer reliable tests beat many flaky ones.
+
+## Mobile
+
+- Development builds, not Expo Go, for production-shaped testing.
+- Stable `testID` / accessibility labels for Maestro.
+- Do not expand E2E to cover what a unit test already proves.
+
+## Website
+
+Playwright for nav, forms, metadata, responsive smoke, and a11y. Vitest for pure helpers.
+
+## Contract
+
+Every API surface change must keep `openapi:check` and CI compatibility gates green.
+
+## Jobs and mutations
+
+Background work and money-moving operations must be idempotent and safe to retry — cover that in tests when adding them.

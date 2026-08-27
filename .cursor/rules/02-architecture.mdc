@@ -1,0 +1,54 @@
+---
+description: Layer ownership, Nest module shape, and separation of concerns
+alwaysApply: true
+---
+
+# Architecture
+
+## Layer ownership
+
+| Layer | Owns | Must not own |
+|-------|------|--------------|
+| Controller / `@Implement` | Wire HTTP/RPC → service | Business rules, DB queries |
+| Service | Business logic, orchestration, typed results | Framework transport details |
+| Repository / Prisma access | Persistence | Domain policy |
+| Contract (`packages/contract`) | Public API shapes | Implementation |
+| Client (`packages/client`) | Typed consumption | Business rules |
+| DTO / types / enums / errors / constants | Definitions | Logic |
+
+## NestJS module layout
+
+```
+feature/
+├── feature.controller.ts   # thin
+├── feature.service.ts      # logic + Result types
+├── feature.module.ts
+├── dto/
+├── types/
+├── enums/
+├── constants/
+├── errors/
+└── index.ts                # barrel at module boundary
+```
+
+Keep DTOs, types, enums, constants, errors, and decorators **outside** service files.
+
+## Service results
+
+Expected failures return typed results — do not throw for normal business outcomes.
+
+```typescript
+type Result<T, E = DomainError> =
+  | { success: true; data: T }
+  | { success: false; error: E };
+```
+
+## Dependency injection
+
+Inject external dependencies. Do not `new` clients, Prisma, or SDKs inside services
+except inside Nest providers/factories.
+
+## Side effects
+
+Emails, push, webhooks, and jobs are decoupled via events/queues/handlers — not
+inline in the middle of domain mutations unless the operation is trivially local.

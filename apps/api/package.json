@@ -1,0 +1,43 @@
+{
+  "name": "@product/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint: api skipped\"",
+    "test": "vitest run",
+    "openapi:generate": "tsx scripts/generate-openapi.ts",
+    "openapi:check": "tsx scripts/generate-openapi.ts --check"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.12",
+    "@nestjs/core": "^11.0.12",
+    "@nestjs/platform-express": "^11.0.12",
+    "@orpc/contract": "^1.8.0",
+    "@orpc/nest": "^1.8.0",
+    "@orpc/openapi": "^1.8.0",
+    "@orpc/server": "^1.8.0",
+    "@orpc/zod": "^1.8.0",
+    "@product/contract": "workspace:*",
+    "@product/db": "workspace:*",
+    "@thallesp/nestjs-better-auth": "^1.0.0",
+    "better-auth": "^1.2.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.5",
+    "@nestjs/schematics": "^11.0.2",
+    "@product/tsconfig": "workspace:*",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.11",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

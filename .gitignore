@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+.next/
+.turbo/
+.expo/
+web-build/
+.astro/
+
+# Native (CNG — generate on demand)
+apps/mobile/ios/
+apps/mobile/android/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+.history/
+
+# Coverage / test
+coverage/
+test-results/
+playwright-report/
+.maestro/tests/
+
+# Infra
+cdk.out/
+*.js.map
+
+# Misc
+*.tsbuildinfo
+.vercel

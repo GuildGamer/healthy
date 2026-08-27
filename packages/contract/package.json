@@ -1,0 +1,31 @@
+{
+  "name": "@product/contract",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint: contract skipped\"",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@orpc/contract": "^1.8.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@product/tsconfig": "workspace:*",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}
