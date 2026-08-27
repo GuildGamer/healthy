@@ -12,13 +12,17 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@better-auth/expo": "^1.7.2",
     "@product/brand": "workspace:*",
     "@product/client": "workspace:*",
+    "@tanstack/react-query": "^5.69.0",
+    "better-auth": "^1.2.5",
     "expo": "~53.0.27",
     "expo-constants": "~17.1.8",
     "expo-dev-client": "~5.2.4",
     "expo-linking": "~7.1.7",
     "expo-router": "~5.1.11",
+    "expo-secure-store": "^57.0.2",
     "expo-status-bar": "~2.2.3",
     "expo-system-ui": "~5.0.11",
     "react": "19.0.0",

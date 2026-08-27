@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     package: 'com.product.app',
   },
-  plugins: ['expo-router', 'expo-dev-client'],
+  plugins: ['expo-router', 'expo-dev-client', 'expo-secure-store'],
   experiments: {
     typedRoutes: true,
   },

@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { prisma, type PrismaClient } from '@product/db';
-import { PRISMA } from './prisma.tokens';
+import { PRISMA } from './prisma.tokens.js';
 
 @Global()
 @Module({

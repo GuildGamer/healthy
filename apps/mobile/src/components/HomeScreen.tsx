@@ -1,8 +1,7 @@
 import { colors, spacing } from '@product/brand';
-import { createApiClient } from '@product/client';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { API_BASE_URL } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 export function HomeScreen() {
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
@@ -13,8 +12,7 @@ export function HomeScreen() {
     setHealthStatus(null);
 
     try {
-      const client = createApiClient({ baseUrl: API_BASE_URL });
-      const result = await client.health();
+      const result = await apiClient.health();
       setHealthStatus(`${result.status} · ${result.service}`);
     } catch {
       setHealthStatus('unreachable');

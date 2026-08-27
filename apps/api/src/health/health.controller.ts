@@ -1,8 +1,14 @@
-import { Controller, Get, HttpCode, Inject } from '@nestjs/common';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  Inject,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { Public } from '@thallesp/nestjs-better-auth';
 import type { PrismaClient } from '@product/db';
-import { PRISMA } from '../prisma/prisma.tokens';
-import { HealthService } from './health.service';
+import { PRISMA } from '../prisma/prisma.tokens.js';
+import { HealthService } from './health.service.js';
 
 @Controller()
 export class HealthController {
@@ -12,21 +18,28 @@ export class HealthController {
   ) {}
 
   /** Process liveness — no dependency checks. */
-  @AllowAnonymous()
+  @Public()
   @Get('/livez')
   @HttpCode(200)
   livez(): { status: 'ok' } {
     return { status: 'ok' };
   }
 
-  /** Readiness — verifies database connectivity. */
-  @AllowAnonymous()
+  /** Readiness — verifies database connectivity. Returns 503 when DB is down. */
+  @Public()
   @Get('/readyz')
-  async readyz(): Promise<{ status: 'ok' | 'degraded'; database: boolean }> {
+  async readyz(): Promise<{ status: 'ok'; database: true }> {
     const database = await this.healthService.checkDatabase(this.prisma);
+    if (!database) {
+      throw new ServiceUnavailableException({
+        status: 'degraded',
+        database: false,
+      });
+    }
+
     return {
-      status: database ? 'ok' : 'degraded',
-      database,
+      status: 'ok',
+      database: true,
     };
   }
 }

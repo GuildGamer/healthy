@@ -2,6 +2,7 @@
   "name": "@product/api",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
@@ -14,14 +15,15 @@
     "openapi:check": "tsx scripts/generate-openapi.ts --check"
   },
   "dependencies": {
+    "@better-auth/expo": "^1.7.2",
     "@nestjs/common": "^11.0.12",
     "@nestjs/core": "^11.0.12",
     "@nestjs/platform-express": "^11.0.12",
-    "@orpc/contract": "^1.8.0",
-    "@orpc/nest": "^1.8.0",
-    "@orpc/openapi": "^1.8.0",
-    "@orpc/server": "^1.8.0",
-    "@orpc/zod": "^1.8.0",
+    "@orpc/contract": "^1.15.0",
+    "@orpc/nest": "^1.15.0",
+    "@orpc/openapi": "^1.15.0",
+    "@orpc/server": "^1.15.0",
+    "@orpc/zod": "^1.15.0",
     "@product/contract": "workspace:*",
     "@product/db": "workspace:*",
     "@thallesp/nestjs-better-auth": "^1.0.0",
@@ -35,7 +37,7 @@
     "@nestjs/schematics": "^11.0.2",
     "@product/tsconfig": "workspace:*",
     "@types/express": "^5.0.1",
-    "@types/node": "^22.13.11",
+    "@types/node": "^22.20.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"

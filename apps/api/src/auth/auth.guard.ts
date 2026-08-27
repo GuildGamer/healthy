@@ -5,31 +5,26 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AllowAnonymous, OptionalAuth, Public } from '@thallesp/nestjs-better-auth';
+import { Optional, Public } from '@thallesp/nestjs-better-auth';
 import { fromNodeHeaders } from 'better-auth/node';
-import { auth } from './auth';
+import { auth } from './auth.js';
 
 /**
  * Global guard: routes are protected by default.
- * Use @AllowAnonymous() / @Public() to open a route.
- * Use @OptionalAuth() when auth is optional.
+ * Use @Public() to open a route.
+ * Use @Optional() when auth is optional.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const isPublic =
-      this.reflector.getAllAndOverride<boolean>(Public, [
-        context.getHandler(),
-        context.getClass(),
-      ]) ||
-      this.reflector.getAllAndOverride<boolean>(AllowAnonymous, [
-        context.getHandler(),
-        context.getClass(),
-      ]);
+    const isPublic = this.reflector.getAllAndOverride<boolean>(Public, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
-    const isOptional = this.reflector.getAllAndOverride<boolean>(OptionalAuth, [
+    const isOptional = this.reflector.getAllAndOverride<boolean>(Optional, [
       context.getHandler(),
       context.getClass(),
     ]);

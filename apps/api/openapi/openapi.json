@@ -1,12 +1,13 @@
 {
-  "openapi": "3.1.0",
   "info": {
     "title": "Product API",
     "version": "0.0.1"
   },
+  "openapi": "3.1.1",
   "paths": {
     "/health": {
       "get": {
+        "operationId": "health",
         "responses": {
           "200": {
             "description": "OK",
@@ -15,11 +16,22 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": { "const": "ok" },
-                    "service": { "type": "string" },
-                    "timestamp": { "type": "string", "format": "date-time" }
+                    "status": {
+                      "const": "ok"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
                   },
-                  "required": ["status", "service", "timestamp"]
+                  "required": [
+                    "status",
+                    "service",
+                    "timestamp"
+                  ]
                 }
               }
             }
@@ -29,6 +41,7 @@
     },
     "/me": {
       "get": {
+        "operationId": "me",
         "responses": {
           "200": {
             "description": "OK",
@@ -37,11 +50,29 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": { "type": "string" },
-                    "email": { "type": "string", "format": "email" },
-                    "name": { "type": ["string", "null"] }
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
                   },
-                  "required": ["id", "email", "name"]
+                  "required": [
+                    "id",
+                    "email",
+                    "name"
+                  ]
                 }
               }
             }
@@ -51,6 +82,7 @@
     },
     "/waitlist": {
       "post": {
+        "operationId": "waitlist",
         "requestBody": {
           "required": true,
           "content": {
@@ -58,10 +90,18 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "email": { "type": "string", "format": "email" },
-                  "source": { "type": "string", "maxLength": 100 }
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "source": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
                 },
-                "required": ["email"]
+                "required": [
+                  "email"
+                ]
               }
             }
           }
@@ -74,10 +114,18 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": { "type": "string" },
-                    "email": { "type": "string", "format": "email" }
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    }
                   },
-                  "required": ["id", "email"]
+                  "required": [
+                    "id",
+                    "email"
+                  ]
                 }
               }
             }

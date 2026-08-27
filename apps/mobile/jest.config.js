@@ -5,8 +5,12 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/.maestro/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@product/brand$': '<rootDir>/../../packages/brand/src/index.ts',
+    '^@product/client$': '<rootDir>/../../packages/client/src/index.ts',
+    '^@product/contract$': '<rootDir>/../../packages/contract/src/index.ts',
   },
+  // Empty ignore list forces Babel to transform pnpm-nested Expo/RN packages.
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|@product/.*)',
+    '/node_modules/react-native-reanimated/plugin/',
   ],
 };

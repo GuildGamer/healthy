@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MeService } from '../src/me/me.service';
+import { MeService } from './me.service.js';
 
 describe('MeService', () => {
   it('returns the authenticated user', () => {

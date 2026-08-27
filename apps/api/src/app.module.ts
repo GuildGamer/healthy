@@ -1,15 +1,20 @@
-import { Module } from '@nestjs/common';
+import { ExecutionContext, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ORPCModule } from '@orpc/nest';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
-import { AuthGuard } from './auth/auth.guard';
-import { auth } from './auth/auth';
-import { HealthController } from './health/health.controller';
-import { HealthService } from './health/health.service';
-import { OrpcController } from './orpc/orpc.controller';
-import { MeService } from './me/me.service';
-import { PrismaModule } from './prisma/prisma.module';
-import { WaitlistService } from './waitlist/waitlist.service';
+import { AuthGuard } from './auth/auth.guard.js';
+import { auth } from './auth/auth.js';
+import { HealthController } from './health/health.controller.js';
+import { HealthService } from './health/health.service.js';
+import { MeService } from './me/me.service.js';
+import { OrpcController } from './orpc/orpc.controller.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { WaitlistService } from './waitlist/waitlist.service.js';
+
+type RequestWithAuth = {
+  user?: { id: string; email: string; name?: string | null };
+  session?: unknown;
+};
 
 @Module({
   imports: [
@@ -20,11 +25,10 @@ import { WaitlistService } from './waitlist/waitlist.service';
       disableGlobalAuthGuard: true,
     }),
     ORPCModule.forRoot({
-      context: (executionContext) => {
-        const request = executionContext.switchToHttp().getRequest<{
-          user?: { id: string; email: string; name?: string | null };
-          session?: unknown;
-        }>();
+      context: (executionContext: ExecutionContext) => {
+        const request = executionContext
+          .switchToHttp()
+          .getRequest<RequestWithAuth>();
         return {
           user: request.user ?? null,
           session: request.session ?? null,

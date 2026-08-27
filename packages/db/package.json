@@ -16,16 +16,22 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "migrate:status": "prisma migrate status",
+    "seed": "tsx prisma/seed.ts",
     "studio": "prisma studio",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"lint: db skipped\""
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0"
   },
   "devDependencies": {
     "@product/tsconfig": "workspace:*",
+    "@types/node": "^26.4.0",
     "prisma": "^6.5.0",
+    "tsx": "^4.23.12",
     "typescript": "^5.8.2"
   }
 }

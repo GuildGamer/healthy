@@ -1,15 +1,16 @@
 {
   "extends": "@product/tsconfig/node.json",
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "outDir": "dist",
     "rootDir": "src",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

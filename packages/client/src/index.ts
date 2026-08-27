@@ -2,19 +2,22 @@ import { createORPCClient } from '@orpc/client';
 import type { ContractRouterClient } from '@orpc/contract';
 import type { JsonifiedClient } from '@orpc/openapi-client';
 import { OpenAPILink } from '@orpc/openapi-client/fetch';
+import { createTanstackQueryUtils } from '@orpc/tanstack-query';
 import { appContract, type AppContract } from '@product/contract';
 
 export type ApiClient = JsonifiedClient<ContractRouterClient<AppContract>>;
 
 export type CreateApiClientOptions = {
   baseUrl: string;
-  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
-  fetch?: typeof globalThis.fetch;
+  headers?:
+    | Record<string, string>
+    | (() => Record<string, string> | Promise<Record<string, string>>);
+  fetch?: typeof fetch;
 };
 
 export function createApiClient(options: CreateApiClientOptions): ApiClient {
   const link = new OpenAPILink(appContract, {
-    url: options.baseUrl,
+    url: options.baseUrl.replace(/\/$/, ''),
     headers: options.headers,
     fetch: options.fetch,
   });
@@ -22,5 +25,15 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
   return createORPCClient(link);
 }
 
-export { appContract };
-export type { AppContract, HealthOutput, MeOutput } from '@product/contract';
+export function createApiQueryUtils(client: ApiClient) {
+  return createTanstackQueryUtils(client);
+}
+
+export { appContract, createTanstackQueryUtils };
+export type {
+  AppContract,
+  HealthOutput,
+  MeOutput,
+  WaitlistInput,
+  WaitlistOutput,
+} from '@product/contract';
