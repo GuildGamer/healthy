@@ -1,6 +1,7 @@
-import { ExecutionContext, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ORPCModule } from '@orpc/nest';
+import { onError } from '@orpc/server';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AuthGuard } from './auth/auth.guard.js';
 import { auth } from './auth/auth.js';
@@ -11,11 +12,6 @@ import { OrpcController } from './orpc/orpc.controller.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { WaitlistService } from './waitlist/waitlist.service.js';
 
-type RequestWithAuth = {
-  user?: { id: string; email: string; name?: string | null };
-  session?: unknown;
-};
-
 @Module({
   imports: [
     PrismaModule,
@@ -25,15 +21,18 @@ type RequestWithAuth = {
       disableGlobalAuthGuard: true,
     }),
     ORPCModule.forRoot({
-      context: (executionContext: ExecutionContext) => {
-        const request = executionContext
-          .switchToHttp()
-          .getRequest<RequestWithAuth>();
-        return {
-          user: request.user ?? null,
-          session: request.session ?? null,
-        };
-      },
+      // Prefer request capture via Nest @Req() closures in controllers.
+      // A function here is invoked by oRPC without Nest's ExecutionContext.
+      context: (_clientContext: unknown) => ({
+        user: null,
+        session: null,
+      }),
+      interceptors: [
+        onError((error: unknown) => {
+          // eslint-disable-next-line no-console
+          console.error('[orpc]', error);
+        }),
+      ],
     }),
   ],
   controllers: [HealthController, OrpcController],

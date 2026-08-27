@@ -20,7 +20,7 @@ Optional: [mise](https://mise.jdx.dev/) to auto-pin Node/pnpm.
 
 ```bash
 pnpm install
-make up          # Postgres
+make up          # Postgres on host port 5433 (avoids local :5432 collisions)
 make migrate     # Prisma migrations
 make api         # NestJS on :3000
 make mobile      # Expo

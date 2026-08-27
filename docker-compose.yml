@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: product
       POSTGRES_DB: product
     ports:
-      - '5432:5432'
+      # Host 5433 avoids colliding with a local Postgres already bound on 5432.
+      - '5433:5432'
     volumes:
       - product_pg:/var/lib/postgresql/data
     healthcheck:

@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ORPCError } from '@orpc/server';
 
 export type AuthenticatedUser = {
   id: string;
@@ -14,7 +15,9 @@ export class MeService {
     name: string | null;
   } {
     if (!user) {
-      throw new UnauthorizedException('Authentication required');
+      throw new ORPCError('UNAUTHORIZED', {
+        message: 'Authentication required',
+      });
     }
 
     return {

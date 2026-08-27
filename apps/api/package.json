@@ -26,7 +26,7 @@
     "@orpc/zod": "^1.15.0",
     "@product/contract": "workspace:*",
     "@product/db": "workspace:*",
-    "@thallesp/nestjs-better-auth": "^1.0.0",
+    "@thallesp/nestjs-better-auth": "^2.7.0",
     "better-auth": "^1.2.5",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
