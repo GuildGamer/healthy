@@ -1,9 +1,13 @@
-import { createApiClient, createApiQueryUtils } from '@product/client';
+import {
+  createApiClient,
+  createApiQueryUtils,
+  type ApiClient,
+} from '@product/client';
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-export const apiClient = createApiClient({
+export const apiClient: ApiClient = createApiClient({
   baseUrl: API_BASE_URL,
 });
 
