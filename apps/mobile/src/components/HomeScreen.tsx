@@ -23,7 +23,7 @@ export function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Product</Text>
+      <Text style={styles.title}>Healthy</Text>
       <Text style={styles.subtitle}>Mobile home</Text>
 
       <View

@@ -25,9 +25,12 @@ export default function RootLayout() {
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
           contentStyle: { backgroundColor: colors.background },
-          title: 'Product',
+          title: 'Healthy',
         }}
-      />
+      >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      </Stack>
     </QueryClientProvider>
   );
 }

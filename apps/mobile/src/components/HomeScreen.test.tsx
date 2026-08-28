@@ -13,7 +13,7 @@ describe('HomeScreen', () => {
   it('renders home screen title and health action', () => {
     render(<HomeScreen />);
 
-    expect(screen.getByText('Product')).toBeOnTheScreen();
+    expect(screen.getByText('Healthy')).toBeOnTheScreen();
     expect(screen.getByText('Mobile home')).toBeOnTheScreen();
     expect(screen.getByText('Check API health')).toBeOnTheScreen();
   });
