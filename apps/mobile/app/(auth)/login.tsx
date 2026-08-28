@@ -6,7 +6,7 @@ export default function Login() {
 
   return (
     <LoginScreen
-      onAuthenticated={() => router.replace('/home')}
+      onAuthenticated={() => router.replace('/(tabs)')}
       onBackPress={() => router.back()}
       onSignUpPress={() => router.push('/sign-up')}
     />

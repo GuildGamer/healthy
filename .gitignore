@@ -5,6 +5,7 @@ node_modules/
 # Builds
 dist/
 build/
+packages/db/src/generated/
 .next/
 .turbo/
 .expo/
@@ -37,6 +38,9 @@ playwright-report/
 # Infra
 cdk.out/
 *.js.map
+
+# Local process supervision (make lane-b)
+.run/
 
 # Misc
 *.tsbuildinfo

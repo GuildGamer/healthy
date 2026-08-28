@@ -1,24 +1,28 @@
 generator client {
-  provider = "prisma-client-js"
+  provider            = "prisma-client"
+  output              = "../src/generated"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 /// Better Auth core tables
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  profile       UserProfile?
+  id                   String             @id
+  name                 String
+  email                String             @unique
+  emailVerified        Boolean            @default(false)
+  image                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  sessions             Session[]
+  accounts             Account[]
+  profile              UserProfile?
+  challengeAssignments UserChallenge[]
+  pointLedger          PointLedgerEntry[]
 
   @@map("user")
 }
@@ -39,6 +43,8 @@ model Session {
 
 model Account {
   id                    String    @id
+  /// Stable account namespace (Better Auth 1.7+); e.g. local:credential for email/password.
+  issuer                String
   accountId             String
   providerId            String
   userId                String
@@ -53,6 +59,7 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  @@unique([issuer, accountId])
   @@map("account")
 }
 
@@ -67,18 +74,95 @@ model Verification {
   @@map("verification")
 }
 
-/// Application profile data linked to Better Auth user.
+/// Application profile linked to the Better Auth user.
 model UserProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  displayName  String?
-  /// Monetary example: always store minor units (cents), never floats.
-  balanceMinor Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName       String?
+  /// Redeemable currency later — minor units only, never floats.
+  balanceMinor      Int              @default(0)
+  /// Habit-loop points — integers only; mutated via PointLedgerEntry.
+  pointsBalance     Int              @default(0)
+  currentStreakDays Int              @default(0)
+  /// Chronic-condition preferences used to tailor challenges.
+  healthCategories  HealthCategory[] @default([])
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@map("user_profiles")
+}
+
+enum HealthCategory {
+  hypertension
+  diabetes
+  asthma
+  general
+}
+
+enum ChallengeFrequency {
+  daily
+}
+
+enum UserChallengeStatus {
+  pending
+  in_progress
+  completed
+}
+
+model Challenge {
+  id           String             @id @default(cuid())
+  slug         String             @unique
+  title        String
+  description  String
+  category     HealthCategory
+  rewardPoints Int
+  frequency    ChallengeFrequency @default(daily)
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  assignments  UserChallenge[]
+
+  @@index([isActive, category])
+  @@map("challenges")
+}
+
+/// Per-user daily assignment of a catalog challenge.
+model UserChallenge {
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId   String
+  challenge     Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  /// UTC calendar day `YYYY-MM-DD` for daily challenges.
+  dayKey        String
+  status        UserChallengeStatus @default(pending)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  ledgerEntries PointLedgerEntry[]
+
+  @@unique([userId, challengeId, dayKey])
+  @@index([userId, dayKey])
+  @@map("user_challenges")
+}
+
+/// Append-only points movements. `UserProfile.pointsBalance` is a cached total.
+model PointLedgerEntry {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  delta           Int
+  reason          String
+  /// Prevents double-award on retries, e.g. `challenge_complete:{userChallengeId}`.
+  idempotencyKey  String         @unique
+  userChallengeId String?
+  userChallenge   UserChallenge? @relation(fields: [userChallengeId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+
+  @@index([userId, createdAt])
+  @@map("point_ledger_entries")
 }
 
 model WaitlistEntry {

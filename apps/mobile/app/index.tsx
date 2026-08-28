@@ -19,7 +19,7 @@ export default function Index() {
   }
 
   if (session) {
-    return <Redirect href="/home" />;
+    return <Redirect href="/(tabs)" />;
   }
 
   return <Redirect href="/onboarding" />;

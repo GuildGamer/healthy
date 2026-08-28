@@ -1,24 +1,49 @@
 import Feather from '@expo/vector-icons/Feather';
+import type { HealthCategory } from '@product/client';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FormButton, OptionCard } from '@/components/forms';
+import { FormButton, FormErrorBanner, OptionCard } from '@/components/forms';
 import { healthCategories } from './constants/health-categories';
 
 interface CategorySelectionScreenProps {
-  onContinue: (selectedCategoryIds: readonly string[]) => void;
+  onContinue: (selectedCategoryIds: readonly HealthCategory[]) => Promise<void> | void;
 }
 
-export function CategorySelectionScreen({ onContinue }: CategorySelectionScreenProps) {
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<readonly string[]>([]);
+const SAVE_FAILED_MESSAGE =
+  'We could not save your selections. Check your connection and try again.';
 
-  function toggleCategory(categoryId: string) {
+export function CategorySelectionScreen({ onContinue }: CategorySelectionScreenProps) {
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<readonly HealthCategory[]>(
+    [],
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function toggleCategory(categoryId: HealthCategory) {
     setSelectedCategoryIds((current) =>
       current.includes(categoryId)
         ? current.filter((id) => id !== categoryId)
         : [...current, categoryId],
     );
+  }
+
+  async function handleContinue() {
+    if (selectedCategoryIds.length === 0 || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await onContinue(selectedCategoryIds);
+    } catch {
+      setErrorMessage(SAVE_FAILED_MESSAGE);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -29,6 +54,8 @@ export function CategorySelectionScreen({ onContinue }: CategorySelectionScreenP
           Select the health conditions you want to manage with Healthy. This helps us show you
           relevant challenges.
         </Text>
+
+        {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
 
         <View style={styles.options}>
           {healthCategories.map((category) => (
@@ -52,7 +79,8 @@ export function CategorySelectionScreen({ onContinue }: CategorySelectionScreenP
         <FormButton
           disabled={selectedCategoryIds.length === 0}
           label="Continue"
-          onPress={() => onContinue(selectedCategoryIds)}
+          loading={isSubmitting}
+          onPress={handleContinue}
           testID="category-continue"
         />
       </View>
@@ -67,18 +95,17 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
+    gap: spacing.md,
   },
   title: {
     color: colors.text,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
-    marginBottom: spacing.sm,
   },
   subtitle: {
     color: colors.muted,
     fontSize: fontSize.md,
     lineHeight: 24,
-    marginBottom: spacing.lg,
   },
   options: {
     gap: spacing.sm,

@@ -66,12 +66,466 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
                     "id",
                     "email",
-                    "name"
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/categories": {
+      "put": {
+        "operationId": "updateCategories",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categories": {
+                    "type": "array",
+                    "items": {
+                      "enum": [
+                        "hypertension",
+                        "diabetes",
+                        "asthma",
+                        "general"
+                      ],
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 4
+                  }
+                },
+                "required": [
+                  "categories"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/today": {
+      "get": {
+        "operationId": "listTodayChallenges",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dayKey": {
+                      "type": "string"
+                    },
+                    "challenges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "rewardPoints": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "status": {
+                            "enum": [
+                              "pending",
+                              "in_progress",
+                              "completed"
+                            ],
+                            "type": "string"
+                          },
+                          "dayKey": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "challengeId",
+                          "title",
+                          "description",
+                          "category",
+                          "rewardPoints",
+                          "status",
+                          "dayKey"
+                        ]
+                      }
+                    },
+                    "completedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "totalCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "dayKey",
+                    "challenges",
+                    "completedCount",
+                    "totalCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/start": {
+      "post": {
+        "operationId": "startChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userChallengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "userChallengeId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "challengeId": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "rewardPoints": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "status": {
+                          "enum": [
+                            "pending",
+                            "in_progress",
+                            "completed"
+                          ],
+                          "type": "string"
+                        },
+                        "dayKey": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "challengeId",
+                        "title",
+                        "description",
+                        "category",
+                        "rewardPoints",
+                        "status",
+                        "dayKey"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "challenge"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/complete": {
+      "post": {
+        "operationId": "completeChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userChallengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "userChallengeId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "challengeId": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "rewardPoints": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "status": {
+                          "enum": [
+                            "pending",
+                            "in_progress",
+                            "completed"
+                          ],
+                          "type": "string"
+                        },
+                        "dayKey": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "challengeId",
+                        "title",
+                        "description",
+                        "category",
+                        "rewardPoints",
+                        "status",
+                        "dayKey"
+                      ]
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "pointsAwarded": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "challenge",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "pointsAwarded"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activity": {
+      "get": {
+        "operationId": "listActivity",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "delta": {
+                            "type": "integer"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "delta",
+                          "reason",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
                   ]
                 }
               }

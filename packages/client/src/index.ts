@@ -31,9 +31,20 @@ export function createApiQueryUtils(client: ApiClient) {
 
 export { appContract, createTanstackQueryUtils };
 export type {
+  ActivityItem,
   AppContract,
+  CompleteChallengeInput,
+  CompleteChallengeOutput,
+  HealthCategory,
   HealthOutput,
+  ListActivityOutput,
+  ListTodayChallengesOutput,
   MeOutput,
+  StartChallengeInput,
+  StartChallengeOutput,
+  TodayChallenge,
+  UpdateCategoriesInput,
+  UserChallengeStatus,
   WaitlistInput,
   WaitlistOutput,
 } from '@product/contract';

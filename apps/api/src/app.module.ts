@@ -5,6 +5,7 @@ import { onError } from '@orpc/server';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AuthGuard } from './auth/auth.guard.js';
 import { auth } from './auth/auth.js';
+import { ChallengesService } from './challenges/challenges.service.js';
 import { HealthController } from './health/health.controller.js';
 import { HealthService } from './health/health.service.js';
 import { MeService } from './me/me.service.js';
@@ -39,6 +40,7 @@ import { WaitlistService } from './waitlist/waitlist.service.js';
   providers: [
     HealthService,
     MeService,
+    ChallengesService,
     WaitlistService,
     {
       provide: APP_GUARD,

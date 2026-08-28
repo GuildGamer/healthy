@@ -9,6 +9,10 @@ export const colors = {
   accentPressed: '#31B87E',
   /** Tinted fill behind selected controls — accent at low opacity over background. */
   accentSurface: '#112A2E',
+  /** Tonal fill for low-emphasis controls on `surface` — accent at 15%. */
+  accentContainer: '#18373B',
+  /** Pressed state of `accentContainer` — accent at 26%. */
+  accentContainerPressed: '#1D4C47',
   /** Foreground for content sitting on an accent-filled surface. */
   onAccent: '#0B1220',
   danger: '#FF6B6B',

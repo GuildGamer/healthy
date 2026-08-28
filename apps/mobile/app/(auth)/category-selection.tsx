@@ -1,8 +1,17 @@
+import type { HealthCategory } from '@product/client';
 import { useRouter } from 'expo-router';
 import { CategorySelectionScreen } from '@/components/auth';
+import { apiClient } from '@/lib/api';
 
 export default function CategorySelection() {
   const router = useRouter();
 
-  return <CategorySelectionScreen onContinue={() => router.replace('/home')} />;
+  async function handleContinue(categories: readonly HealthCategory[]) {
+    await apiClient.updateCategories({
+      categories: [...categories],
+    });
+    router.replace('/(tabs)');
+  }
+
+  return <CategorySelectionScreen onContinue={handleContinue} />;
 }

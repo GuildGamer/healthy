@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help install up down logs migrate migrate-deploy seed api mobile web build typecheck test openapi openapi-check split-repos
+.PHONY: help install up down logs migrate migrate-deploy seed api mobile ios android web e2e-web build typecheck test openapi openapi-check split-repos lane-b lane-b-stop lane-b-restart lane-b-status lane-b-logs
 
 help:
 	@echo "Available targets:"; grep -E '^[a-zA-Z0-9_-]+:' Makefile | cut -d: -f1 | sort
@@ -41,9 +41,43 @@ mobile:
 	@echo "+ pnpm --filter @product/mobile start"
 	@pnpm --filter @product/mobile start
 
+# Lane B (API + Metro) as background jobs. Logs/PIDs under .run/
+# Still use `make api` / `make mobile` for foreground single-process work.
+lane-b:
+	@echo "+ bash scripts/lane-b.sh start"
+	@bash scripts/lane-b.sh start
+
+lane-b-stop:
+	@echo "+ bash scripts/lane-b.sh stop"
+	@bash scripts/lane-b.sh stop
+
+lane-b-restart:
+	@echo "+ bash scripts/lane-b.sh restart"
+	@bash scripts/lane-b.sh restart
+
+lane-b-status:
+	@echo "+ bash scripts/lane-b.sh status"
+	@bash scripts/lane-b.sh status
+
+lane-b-logs:
+	@echo "+ bash scripts/lane-b.sh logs"
+	@bash scripts/lane-b.sh logs
+
+ios:
+	@echo "+ pnpm --filter @product/mobile ios"
+	@pnpm --filter @product/mobile ios
+
+android:
+	@echo "+ pnpm --filter @product/mobile android"
+	@pnpm --filter @product/mobile android
+
 web:
 	@echo "+ pnpm --filter @product/web dev"
 	@pnpm --filter @product/web dev
+
+e2e-web:
+	@echo "+ pnpm --filter @product/web test:e2e"
+	@pnpm --filter @product/web test:e2e
 
 build:
 	@echo "+ pnpm build"
