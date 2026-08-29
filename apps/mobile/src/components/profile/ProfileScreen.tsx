@@ -4,15 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Loader, RefreshableScroll } from '@/components/feedback';
 import { healthCategories } from '@/constants/health-categories';
 import { signOut, useSession } from '@/lib/auth-client';
 import { apiClient } from '@/lib/api';
@@ -41,7 +40,7 @@ function PreferenceRow({
         <Text style={styles.preferenceHint}>{hint}</Text>
       </View>
       {isBusy ? (
-        <ActivityIndicator color={colors.accent} size="small" />
+        <Loader size="small" />
       ) : (
         <Switch
           accessibilityLabel={label}
@@ -156,8 +155,9 @@ export function ProfileScreen() {
   }
 
   return (
-    <ScrollView
+    <RefreshableScroll
       contentContainerStyle={styles.content}
+      onPullRefresh={() => meQuery.refetch()}
       style={styles.container}
       testID="profile-screen"
     >
@@ -186,7 +186,7 @@ export function ProfileScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Username</Text>
           {updateDisplayName.isPending ? (
-            <ActivityIndicator color={colors.accent} size="small" />
+            <Loader size="small" />
           ) : null}
         </View>
         <Text style={styles.sectionHint}>
@@ -323,7 +323,7 @@ export function ProfileScreen() {
       >
         <Text style={styles.logoutLabel}>Sign out</Text>
       </Pressable>
-    </ScrollView>
+    </RefreshableScroll>
   );
 }
 

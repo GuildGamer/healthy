@@ -12,8 +12,20 @@ export function primaryActionLabel(occurrence: {
     return 'Done';
   }
 
+  if (occurrence.status === 'awaiting_evidence') {
+    return 'Submit photo';
+  }
+
   if (occurrence.status === 'in_progress') {
-    return occurrence.completionKind === 'vitals_bp' ? 'Log reading' : 'Finish';
+    if (occurrence.completionKind === 'vitals_bp') {
+      return 'Log reading';
+    }
+
+    if (occurrence.completionKind === 'evidence_photo') {
+      return 'Take selfie';
+    }
+
+    return 'Finish';
   }
 
   return 'Start now';

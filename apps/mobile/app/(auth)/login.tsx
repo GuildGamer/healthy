@@ -1,5 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
-import { LoginScreen, SplashScreen } from '@/components/auth';
+import { LoginScreen } from '@/components/auth';
+import { ScreenLoader } from '@/components/feedback';
 import { useSession } from '@/lib/auth-client';
 
 export default function Login() {
@@ -7,7 +8,7 @@ export default function Login() {
   const { data: session, isPending } = useSession();
 
   if (isPending) {
-    return <SplashScreen />;
+    return <ScreenLoader />;
   }
 
   if (session) {

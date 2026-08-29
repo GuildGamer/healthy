@@ -10,6 +10,7 @@ describe('readEnvironment', () => {
     expect(environment.schedulerMode).toBe('in_process');
     expect(environment.reminderDispatchSecret).toBeNull();
     expect(environment.mail).toEqual({ mode: 'log' });
+    expect(environment.evidenceVision).toEqual({ mode: 'accept' });
   });
 
   it('treats only production as production', () => {
@@ -20,6 +21,7 @@ describe('readEnvironment', () => {
       SMTP_USER: 'mailer',
       SMTP_PASS: 'secret',
       SMTP_FROM: 'noreply@example.com',
+      EVIDENCE_VISION_API_KEY: 'sk-test',
     });
 
     expect(production.isProd).toBe(true);
@@ -97,8 +99,43 @@ describe('readEnvironment', () => {
   });
 
   it('refuses production without a complete SMTP transport', () => {
-    expect(() => readEnvironment({ NODE_ENV: 'production' })).toThrow(
-      /required in production/,
-    );
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        EVIDENCE_VISION_API_KEY: 'sk-test',
+      }),
+    ).toThrow(/required in production/);
+  });
+
+  it('treats a missing vision key as the local accept stub', () => {
+    const environment = readEnvironment({ EVIDENCE_VISION_API_KEY: '0' });
+
+    expect(environment.evidenceVision).toEqual({ mode: 'accept' });
+  });
+
+  it('reads an OpenAI vision key', () => {
+    const environment = readEnvironment({
+      EVIDENCE_VISION_API_KEY: 'sk-live',
+      EVIDENCE_VISION_MODEL: 'gpt-4o',
+    });
+
+    expect(environment.evidenceVision).toEqual({
+      mode: 'openai',
+      apiKey: 'sk-live',
+      model: 'gpt-4o',
+    });
+  });
+
+  it('refuses production without a vision key', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        SMTP_HOST: 'smtp.example.com',
+        SMTP_PORT: '587',
+        SMTP_USER: 'mailer',
+        SMTP_PASS: 'secret',
+        SMTP_FROM: 'noreply@example.com',
+      }),
+    ).toThrow(/EVIDENCE_VISION_API_KEY is required/);
   });
 });

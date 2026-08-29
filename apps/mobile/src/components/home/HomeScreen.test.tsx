@@ -65,6 +65,7 @@ function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
     instruction: 'A brisk walk after lunch.',
     icon: 'walk',
     periodKey: '2026-08-28',
+    evidenceRequest: null,
     ...overrides,
   };
 }
@@ -259,6 +260,32 @@ describe('HomeScreen', () => {
     fireEvent.press(await screen.findByTestId('advance-challenge-uc-bp'));
 
     expect(useRouter().push).toHaveBeenCalledWith('/challenge/c-bp/log');
+    expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
+
+    await cleanup();
+  });
+
+  it('opens the evidence screen when Finish is a gym photo', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [
+        challenge({
+          id: 'uc-gym',
+          challengeId: 'c-gym',
+          status: 'in_progress',
+          completionKind: 'evidence_photo',
+          title: 'Complete a gym session',
+        }),
+      ],
+      completedCount: 0,
+      totalCount: 1,
+    });
+
+    const { cleanup } = renderHome();
+
+    fireEvent.press(await screen.findByTestId('advance-challenge-uc-gym'));
+
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c-gym/evidence');
     expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
 
     await cleanup();

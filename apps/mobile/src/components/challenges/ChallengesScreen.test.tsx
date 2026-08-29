@@ -43,6 +43,7 @@ function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
     instruction: 'A brisk walk after lunch.',
     icon: 'walk',
     periodKey: '2026-08-28',
+    evidenceRequest: null,
     ...overrides,
   };
 }

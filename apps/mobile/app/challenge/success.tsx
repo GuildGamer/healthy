@@ -1,5 +1,5 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { SplashScreen } from '@/components/auth';
+import { ScreenLoader } from '@/components/feedback';
 import { ChallengeSuccessScreen } from '@/components/challenges';
 import { useSession } from '@/lib/auth-client';
 
@@ -14,14 +14,15 @@ function parseCount(value: string | undefined): number {
 
 export default function ChallengeSuccessRoute() {
   const { data: session, isPending } = useSession();
-  const { title, points, streak } = useLocalSearchParams<{
+  const { title, points, streak, penalty } = useLocalSearchParams<{
     title?: string;
     points?: string;
     streak?: string;
+    penalty?: string;
   }>();
 
   if (isPending) {
-    return <SplashScreen />;
+    return <ScreenLoader />;
   }
 
   if (!session) {
@@ -31,6 +32,7 @@ export default function ChallengeSuccessRoute() {
   return (
     <ChallengeSuccessScreen
       currentStreakDays={parseCount(streak)}
+      penaltyApplied={parseCount(penalty)}
       pointsAwarded={parseCount(points)}
       title={title || 'Challenge'}
     />

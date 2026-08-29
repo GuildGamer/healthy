@@ -27,6 +27,7 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
     status: 'pending',
     startedAt: null,
     completedAt: null,
+    surpriseEvidenceRequest: null,
     challenge: {
       title: 'Walk 20 minutes',
       description: 'A brisk walk after lunch.',
@@ -35,6 +36,9 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
       completionKind: 'check_in',
       instruction: 'Step outside and walk for twenty minutes.',
       icon: 'walk',
+      surpriseEvidenceChancePercent: 0,
+      surpriseEvidenceWindowSeconds: 60,
+      surpriseEvidencePenaltyPoints: 25,
       ...(challengeOverrides as Record<string, unknown> | undefined),
     },
     ...rest,
@@ -48,6 +52,7 @@ function createPrismaMock(
     userChallenge: {
       findUnique: vi.fn().mockResolvedValue(assignment),
       findUniqueOrThrow: vi.fn().mockResolvedValue(assignment),
+      findMany: vi.fn().mockResolvedValue([]),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   };
@@ -193,7 +198,7 @@ describe('ChallengesService.listToday', () => {
 
     await new ChallengesService(prisma as never).listToday(user);
 
-    const [argument] = prisma.userChallenge.findMany.mock.calls[0] as [
+    const [argument] = prisma.userChallenge.findMany.mock.calls.at(-1) as [
       { where: { OR: Array<{ frequency: string }> } },
     ];
     expect(argument.where.OR.map((clause) => clause.frequency)).toEqual([
@@ -295,5 +300,46 @@ describe('ChallengesService.complete', () => {
       ORPCError,
     );
     expect(prisma.userChallenge.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a gym challenge that has no photo yet', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+      },
+    });
+    const prisma = createPrismaMock(assignment);
+    const service = new ChallengesService(prisma as never);
+
+    await expect(service.complete(user, 'uc1')).rejects.toBeInstanceOf(
+      ORPCError,
+    );
+  });
+
+  it('rejects a gym photo the validator does not accept', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+      },
+    });
+    const prisma = createPrismaMock(assignment);
+    const service = new ChallengesService(prisma as never, {
+      validateGymPhoto: async () => ({
+        accepted: false,
+        reason: 'That photo does not look like a gym session.',
+      }),
+      validatePhoto: async () => ({ accepted: true }),
+    });
+
+    await expect(
+      service.complete(user, 'uc1', undefined, {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      }),
+    ).rejects.toBeInstanceOf(ORPCError);
   });
 });

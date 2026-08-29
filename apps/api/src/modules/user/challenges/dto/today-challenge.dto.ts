@@ -5,6 +5,12 @@ import type {
   UserChallengeStatus,
 } from '@product/db';
 
+export type SurpriseEvidenceRequestDto = {
+  expiresAt: string;
+  windowSeconds: number;
+  penaltyPoints: number;
+};
+
 export type TodayChallengeDto = {
   id: string;
   challengeId: string;
@@ -18,6 +24,7 @@ export type TodayChallengeDto = {
   instruction: string;
   icon: string;
   periodKey: string;
+  evidenceRequest: SurpriseEvidenceRequestDto | null;
 };
 
 export type ListTodayChallengesDto = {
@@ -36,6 +43,8 @@ export type CompleteChallengeDto = {
   pointsBalance: number;
   currentStreakDays: number;
   pointsAwarded: number;
+  evidenceRequest: SurpriseEvidenceRequestDto | null;
+  penaltyApplied: number;
 };
 
 export type ActivityItemDto = {

@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { SplashScreen } from '@/components/auth';
+import { ScreenLoader } from '@/components/feedback';
 import { ProfileScreen } from '@/components/profile';
 import { useSession } from '@/lib/auth-client';
 
@@ -7,7 +7,7 @@ export default function ProfileTab() {
   const { data: session, isPending } = useSession();
 
   if (isPending) {
-    return <SplashScreen />;
+    return <ScreenLoader />;
   }
 
   if (!session) {

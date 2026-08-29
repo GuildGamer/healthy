@@ -2,14 +2,8 @@ import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import type { HealthCategory } from '@product/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Loader } from '@/components/feedback';
 import { healthCategories } from '@/constants/health-categories';
 import { apiClient } from '@/lib/api';
 
@@ -88,7 +82,7 @@ export function ManageCategoriesScreen() {
       </Text>
 
       {meQuery.isPending ? (
-        <ActivityIndicator color={colors.accent} />
+        <Loader />
       ) : (
         <View style={styles.card}>
           {healthCategories.map((category, index) => (

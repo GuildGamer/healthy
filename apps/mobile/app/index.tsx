@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { SplashScreen } from '@/components/auth';
 import { useSession } from '@/lib/auth-client';
 
-const SPLASH_DURATION_MS = 2000;
+const SPLASH_DURATION_MS = 3000;
 
 export default function Index() {
   const { data: session, isPending } = useSession();
@@ -15,7 +15,7 @@ export default function Index() {
   }, []);
 
   if (!isSplashComplete || isPending) {
-    return <SplashScreen />;
+    return <SplashScreen animate />;
   }
 
   if (session) {

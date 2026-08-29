@@ -1,5 +1,6 @@
 import type { UserChallengeStatus } from '@product/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { apiClient } from '@/lib/api';
 
 type AdvanceChallengeInput = {
@@ -12,6 +13,7 @@ type AdvanceChallengeInput = {
  * the challenges card expose, so the status ladder lives in one place.
  */
 export function useAdvanceChallenge() {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -21,12 +23,16 @@ export function useAdvanceChallenge() {
       }
       return apiClient.startChallenge({ userChallengeId });
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['me'] }),
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
+
+      if ('evidenceRequest' in result && result.evidenceRequest) {
+        router.push(`/challenge/${result.challenge.challengeId}/verify`);
+      }
     },
   });
 

@@ -18,6 +18,18 @@ describe('primaryActionLabel', () => {
       }),
     ).toBe('Log reading');
     expect(
+      primaryActionLabel({
+        status: 'in_progress',
+        completionKind: 'evidence_photo',
+      }),
+    ).toBe('Take selfie');
+    expect(
+      primaryActionLabel({
+        status: 'awaiting_evidence',
+        completionKind: 'check_in',
+      }),
+    ).toBe('Submit photo');
+    expect(
       primaryActionLabel({ status: 'completed', completionKind: 'vitals_bp' }),
     ).toBe('Done');
   });

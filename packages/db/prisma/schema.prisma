@@ -125,14 +125,23 @@ enum ChallengeFrequency {
 enum UserChallengeStatus {
   pending
   in_progress
+  awaiting_evidence
   completed
 }
 
+/// How a finished occurrence settled. Null on rows completed before this existed.
+enum UserChallengeCompletionOutcome {
+  rewarded
+  penalized
+}
+
 /// How the user finishes an occurrence. `check_in` is Start / Finish;
-/// `vitals_bp` opens the designed blood-pressure form.
+/// `vitals_bp` opens the designed blood-pressure form;
+/// `evidence_photo` requires a gym photo the API validates.
 enum ChallengeCompletionKind {
   check_in
   vitals_bp
+  evidence_photo
 }
 
 model Challenge {
@@ -152,6 +161,13 @@ model Challenge {
   instruction      String                    @default("")
   /// Material Community Icons glyph name. Admin-set so each challenge has its own mark.
   icon             String                    @default("checkbox-marked-circle-outline")
+  /// 0–100. Chance a check-in or vitals finish asks for a surprise photo.
+  /// `evidence_photo` challenges ignore this — the photo is the completion.
+  surpriseEvidenceChancePercent Int          @default(0)
+  /// Seconds the member has to submit the surprise photo.
+  surpriseEvidenceWindowSeconds Int          @default(60)
+  /// Points deducted when they skip, time out, or fail the surprise photo.
+  surpriseEvidencePenaltyPoints Int          @default(25)
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
   assignments      UserChallenge[]
@@ -246,12 +262,14 @@ model UserChallenge {
   /// so daily-only queries such as the streak need no join.
   frequency     ChallengeFrequency   @default(daily)
   status        UserChallengeStatus  @default(pending)
+  completionOutcome UserChallengeCompletionOutcome?
   startedAt     DateTime?
   completedAt   DateTime?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   ledgerEntries PointLedgerEntry[]
   vitalReading  VitalReading?
+  surpriseEvidenceRequest SurpriseEvidenceRequest?
 
   @@unique([userId, challengeId, periodKey])
   @@index([userId, periodKey])
@@ -259,9 +277,34 @@ model UserChallenge {
   @@map("user_challenges")
 }
 
+enum SurpriseEvidenceStatus {
+  pending
+  submitted
+  skipped
+  expired
+}
+
+/// One surprise-photo window for an occurrence. Unique so retries do not re-roll.
+model SurpriseEvidenceRequest {
+  id              String                  @id @default(cuid())
+  userChallengeId String                  @unique
+  userChallenge   UserChallenge           @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  windowSeconds   Int
+  penaltyPoints   Int
+  expiresAt       DateTime
+  status          SurpriseEvidenceStatus  @default(pending)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([expiresAt, status])
+  @@map("surprise_evidence_requests")
+}
+
 enum NotificationKind {
   reminder
   success
+  evidence
+  penalty
 }
 
 /// In-app inbox item. The Home bell opens this list, not reminder settings.

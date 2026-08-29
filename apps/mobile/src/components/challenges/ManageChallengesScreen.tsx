@@ -7,20 +7,18 @@ import {
   colors,
   fontSize,
   fontWeight,
-  radii,
   spacing,
 } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
+import { Loader, RefreshableScroll, ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { ChallengeIcon } from './ChallengeIcon';
 import { frequencyLabel } from './constants/frequency-labels';
@@ -76,19 +74,16 @@ export function ManageChallengesScreen() {
   });
 
   if (catalogQuery.isLoading) {
-    return (
-      <View style={styles.centred} testID="manage-challenges-loading">
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
+    return <ScreenLoader testID="manage-challenges-loading" />;
   }
 
   const challenges = catalogQuery.data?.challenges ?? [];
   const groups = groupByCategory(challenges);
 
   return (
-    <ScrollView
+    <RefreshableScroll
       contentContainerStyle={styles.content}
+      onPullRefresh={() => catalogQuery.refetch()}
       style={styles.container}
       testID="manage-challenges-screen"
     >
@@ -103,32 +98,30 @@ export function ManageChallengesScreen() {
             {categoryTitle[group.category]}
           </Text>
 
-          <View style={styles.card}>
-            {group.challenges.map((challenge, index) => (
-              <ChallengeOption
-                challenge={challenge}
-                isBusy={
-                  setEnrollment.isPending &&
-                  setEnrollment.variables?.challengeId === challenge.challengeId
-                }
-                key={challenge.challengeId}
-                onOpen={() =>
-                  router.push(`/challenge/${challenge.challengeId}`)
-                }
-                onSetEnrolled={(isEnrolled) =>
-                  setEnrollment.mutate({
-                    challengeId: challenge.challengeId,
-                    isEnrolled,
-                    frequency: challenge.frequency,
-                  })
-                }
-                showDivider={index < group.challenges.length - 1}
-              />
-            ))}
-          </View>
+          {group.challenges.map((challenge, index) => (
+            <ChallengeOption
+              challenge={challenge}
+              isBusy={
+                setEnrollment.isPending &&
+                setEnrollment.variables?.challengeId === challenge.challengeId
+              }
+              key={challenge.challengeId}
+              onOpen={() =>
+                router.push(`/challenge/${challenge.challengeId}`)
+              }
+              onSetEnrolled={(isEnrolled) =>
+                setEnrollment.mutate({
+                  challengeId: challenge.challengeId,
+                  isEnrolled,
+                  frequency: challenge.frequency,
+                })
+              }
+              showDivider={index < group.challenges.length - 1}
+            />
+          ))}
         </View>
       ))}
-    </ScrollView>
+    </RefreshableScroll>
   );
 }
 
@@ -146,35 +139,35 @@ function ChallengeOption({
   showDivider: boolean;
 }) {
   return (
-    <View
-      style={[styles.option, showDivider ? styles.optionDivided : null]}
-      testID={`catalog-challenge-${challenge.challengeId}`}
-    >
-      <ChallengeIcon category={challenge.category} name={challenge.icon} />
-      <Pressable
-        accessibilityRole="button"
-        onPress={onOpen}
-        style={styles.optionText}
-      >
-        <Text style={styles.optionTitle}>{challenge.title}</Text>
-        <Text style={styles.optionDescription}>{challenge.description}</Text>
-        <Text style={styles.optionMeta}>
-          +{challenge.rewardPoints} · {frequencyLabel[challenge.frequency]}
-        </Text>
-      </Pressable>
+    <View testID={`catalog-challenge-${challenge.challengeId}`}>
+      <View style={styles.option}>
+        <ChallengeIcon category={challenge.category} name={challenge.icon} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={onOpen}
+          style={styles.optionText}
+        >
+          <Text style={styles.optionTitle}>{challenge.title}</Text>
+          <Text style={styles.optionDescription}>{challenge.description}</Text>
+          <Text style={styles.optionMeta}>
+            +{challenge.rewardPoints} · {frequencyLabel[challenge.frequency]}
+          </Text>
+        </Pressable>
 
-      {isBusy ? (
-        <ActivityIndicator color={colors.accent} size="small" />
-      ) : (
-        <Switch
-          accessibilityLabel={challenge.title}
-          onValueChange={onSetEnrolled}
-          testID={`toggle-challenge-${challenge.challengeId}`}
-          thumbColor={colors.surface}
-          trackColor={{ false: colors.disabledSurface, true: colors.accent }}
-          value={challenge.isEnrolled}
-        />
-      )}
+        {isBusy ? (
+          <Loader size="small" />
+        ) : (
+          <Switch
+            accessibilityLabel={challenge.title}
+            onValueChange={onSetEnrolled}
+            testID={`toggle-challenge-${challenge.challengeId}`}
+            thumbColor={colors.surface}
+            trackColor={{ false: colors.disabledSurface, true: colors.accent }}
+            value={challenge.isEnrolled}
+          />
+        )}
+      </View>
+      {showDivider ? <View style={styles.divider} /> : null}
     </View>
   );
 }
@@ -184,43 +177,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  centred: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
   content: {
-    padding: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     gap: spacing.lg,
   },
   intro: {
     color: colors.muted,
     fontSize: fontSize.sm,
     lineHeight: 20,
+    paddingHorizontal: spacing.lg,
   },
   section: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   sectionTitle: {
     color: colors.text,
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    overflow: 'hidden',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  optionDivided: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
   },
   optionText: {
     flex: 1,

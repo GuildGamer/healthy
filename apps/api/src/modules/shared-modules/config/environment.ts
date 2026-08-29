@@ -24,6 +24,14 @@ export type MailConfig =
       from: string;
     };
 
+/**
+ * Local and development use `0` (or blank) so gym photos are accepted
+ * without a model key. Production refuses to start until a key is set.
+ */
+export type EvidenceVisionConfig =
+  | { mode: 'accept' }
+  | { mode: 'openai'; apiKey: string; model: string };
+
 export type Environment = {
   isProd: boolean;
   isLocal: boolean;
@@ -33,6 +41,7 @@ export type Environment = {
   /** Only needed once the Expo project enforces token-authenticated pushes. */
   expoAccessToken: string | null;
   mail: MailConfig;
+  evidenceVision: EvidenceVisionConfig;
 };
 
 function readOptional(value: string | undefined): string | null {
@@ -93,6 +102,27 @@ function readMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfig {
   return { mode: 'log' };
 }
 
+const DEFAULT_VISION_MODEL = 'gpt-4o-mini';
+
+function readEvidenceVision(
+  source: NodeJS.ProcessEnv,
+  isProd: boolean,
+): EvidenceVisionConfig {
+  const apiKey = readConfigured(source.EVIDENCE_VISION_API_KEY);
+  const model =
+    readConfigured(source.EVIDENCE_VISION_MODEL) ?? DEFAULT_VISION_MODEL;
+
+  if (apiKey) {
+    return { mode: 'openai', apiKey, model };
+  }
+
+  if (isProd) {
+    throw new Error('EVIDENCE_VISION_API_KEY is required in production');
+  }
+
+  return { mode: 'accept' };
+}
+
 function readSchedulerMode(value: string | undefined): SchedulerMode {
   const mode = readOptional(value) ?? 'in_process';
 
@@ -127,5 +157,6 @@ export function readEnvironment(
     reminderDispatchSecret,
     expoAccessToken: readOptional(source.EXPO_ACCESS_TOKEN),
     mail: readMail(source, isProd),
+    evidenceVision: readEvidenceVision(source, isProd),
   };
 }

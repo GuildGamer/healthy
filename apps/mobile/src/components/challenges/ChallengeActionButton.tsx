@@ -44,8 +44,10 @@ export function ChallengeActionButton({
     );
   }
 
-  const isInProgress = status === 'in_progress';
+  const isInProgress =
+    status === 'in_progress' || status === 'awaiting_evidence';
   const foreground = isInProgress ? colors.onAccent : colors.accent;
+  const label = status === 'awaiting_evidence' ? 'Photo' : isInProgress ? 'Finish' : 'Start';
 
   return (
     <Pressable
@@ -69,9 +71,7 @@ export function ChallengeActionButton({
       {isBusy ? (
         <ActivityIndicator color={foreground} size="small" />
       ) : (
-        <Text style={[styles.label, { color: foreground }]}>
-          {isInProgress ? 'Finish' : 'Start'}
-        </Text>
+        <Text style={[styles.label, { color: foreground }]}>{label}</Text>
       )}
     </Pressable>
   );

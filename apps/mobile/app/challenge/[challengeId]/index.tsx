@@ -1,5 +1,5 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { SplashScreen } from '@/components/auth';
+import { ScreenLoader } from '@/components/feedback';
 import { ChallengeDetailScreen } from '@/components/challenges';
 import { useSession } from '@/lib/auth-client';
 
@@ -8,7 +8,7 @@ export default function ChallengeDetailRoute() {
   const { challengeId } = useLocalSearchParams<{ challengeId: string }>();
 
   if (isPending) {
-    return <SplashScreen />;
+    return <ScreenLoader />;
   }
 
   if (!session) {

@@ -10,33 +10,46 @@ type ChallengeSuccessScreenProps = {
   title: string;
   pointsAwarded: number;
   currentStreakDays: number;
+  penaltyApplied?: number;
 };
 
 export function ChallengeSuccessScreen({
   title,
   pointsAwarded,
   currentStreakDays,
+  penaltyApplied = 0,
 }: ChallengeSuccessScreenProps) {
   const router = useRouter();
+  const wasPenalized = penaltyApplied > 0;
 
   return (
     <SafeAreaView style={styles.container} testID="challenge-success-screen">
       <View style={styles.content}>
         <View style={styles.badgeOuter}>
           <View style={styles.badgeInner}>
-            <Feather color={colors.onAccent} name="check" size={36} />
+            <Feather
+              color={colors.onAccent}
+              name={wasPenalized ? 'alert-circle' : 'check'}
+              size={36}
+            />
           </View>
         </View>
 
-        <Text style={styles.kicker}>Challenge complete</Text>
+        <Text style={styles.kicker}>
+          {wasPenalized ? 'Photo check missed' : 'Challenge complete'}
+        </Text>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>
-          Nice work. The points are yours.
+          {wasPenalized
+            ? `${penaltyApplied} points were deducted. Tomorrow is a fresh start.`
+            : 'Nice work. The points are yours.'}
         </Text>
 
         <View style={styles.stats}>
           <View style={styles.stat}>
-            <Text style={styles.statValue}>+{pointsAwarded}</Text>
+            <Text style={styles.statValue}>
+              {wasPenalized ? `-${penaltyApplied}` : `+${pointsAwarded}`}
+            </Text>
             <Text style={styles.statLabel}>points</Text>
           </View>
           <View style={styles.statDivider} />

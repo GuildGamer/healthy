@@ -18,10 +18,13 @@ type ChallengeSeed = {
   defaultFrequency: 'daily' | 'weekly' | 'monthly';
   /** Enrolled automatically when a user picks this category. */
   isDefault: boolean;
-  completionKind?: 'check_in' | 'vitals_bp';
+  completionKind?: 'check_in' | 'vitals_bp' | 'evidence_photo';
   /** Material Community Icons glyph name. */
   icon: string;
   instruction?: string;
+  surpriseEvidenceChancePercent?: number;
+  surpriseEvidenceWindowSeconds?: number;
+  surpriseEvidencePenaltyPoints?: number;
 };
 
 /**
@@ -38,9 +41,12 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: true,
     completionKind: 'vitals_bp',
+    icon: 'heart-pulse',
     instruction:
       'Sit still for a minute, then measure and log your systolic and diastolic reading.',
-    icon: 'heart-pulse',
+    surpriseEvidenceChancePercent: 50,
+    surpriseEvidenceWindowSeconds: 60,
+    surpriseEvidencePenaltyPoints: 25,
   },
   {
     slug: 'take-morning-medication',
@@ -51,6 +57,8 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: true,
     icon: 'pill',
+    surpriseEvidenceChancePercent: 25,
+    surpriseEvidencePenaltyPoints: 25,
   },
   {
     slug: 'low-sodium-meal',
@@ -170,6 +178,8 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 100,
     defaultFrequency: 'daily',
     isDefault: true,
+    surpriseEvidenceChancePercent: 20,
+    surpriseEvidencePenaltyPoints: 10,
     icon: 'cup-water',
   },
   {
@@ -180,7 +190,22 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 150,
     defaultFrequency: 'daily',
     isDefault: true,
+    surpriseEvidenceChancePercent: 25,
+    surpriseEvidencePenaltyPoints: 25,
     icon: 'walk',
+  },
+  {
+    slug: 'gym-session',
+    title: 'Complete a gym session',
+    description: 'Train at the gym and prove it with a photo.',
+    category: 'general',
+    rewardPoints: 200,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    completionKind: 'evidence_photo',
+    instruction:
+      'Take a photo of yourself at the gym or clearly mid-workout.',
+    icon: 'dumbbell',
   },
   {
     slug: 'sleep-log',
@@ -240,6 +265,12 @@ async function main(): Promise<void> {
         ...challenge,
         completionKind,
         instruction,
+        surpriseEvidenceChancePercent:
+          challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds:
+          challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints:
+          challenge.surpriseEvidencePenaltyPoints ?? 25,
       },
       update: {
         title: challenge.title,
@@ -252,6 +283,12 @@ async function main(): Promise<void> {
         completionKind,
         instruction,
         icon: challenge.icon,
+        surpriseEvidenceChancePercent:
+          challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds:
+          challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints:
+          challenge.surpriseEvidencePenaltyPoints ?? 25,
       },
     });
   }

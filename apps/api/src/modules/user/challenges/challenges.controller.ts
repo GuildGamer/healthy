@@ -34,7 +34,16 @@ export class ChallengesController {
         user,
         input.userChallengeId,
         input.vitals,
+        input.evidence,
       );
+    });
+  }
+
+  @Implement(appContract.skipChallengeEvidence)
+  skipChallengeEvidence(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.skipChallengeEvidence).handler(async ({ input }) => {
+      return this.challengesService.skipEvidence(user, input.userChallengeId);
     });
   }
 

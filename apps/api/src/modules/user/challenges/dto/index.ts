@@ -4,5 +4,6 @@ export type {
   ListActivityDto,
   ListTodayChallengesDto,
   StartChallengeDto,
+  SurpriseEvidenceRequestDto,
   TodayChallengeDto,
 } from './today-challenge.dto.js';

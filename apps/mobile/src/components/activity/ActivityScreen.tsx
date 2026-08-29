@@ -2,18 +2,11 @@ import {
   colors,
   fontSize,
   fontWeight,
-  radii,
   spacing,
 } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Loader, RefreshableScroll } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 
 export function ActivityScreen() {
@@ -23,45 +16,46 @@ export function ActivityScreen() {
   });
 
   const items = activityQuery.data?.items ?? [];
-
   return (
-    <ScrollView
+    <RefreshableScroll
       contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          onRefresh={() => activityQuery.refetch()}
-          refreshing={activityQuery.isRefetching}
-          tintColor={colors.accent}
-        />
-      }
+      onPullRefresh={() => activityQuery.refetch()}
       style={styles.container}
     >
       <Text style={styles.subtitle}>Points you have earned recently</Text>
 
       {activityQuery.isLoading ? (
-        <ActivityIndicator color={colors.accent} style={styles.loader} />
+        <View style={styles.loader}>
+          <Loader />
+        </View>
       ) : items.length === 0 ? (
         <Text style={styles.empty}>
           Complete a challenge to see your first points activity.
         </Text>
       ) : (
-        <View style={styles.list}>
-          {items.map((item) => (
-            <View key={item.id} style={styles.row} testID={`activity-${item.id}`}>
+        items.map((item, index) => (
+          <View key={item.id}>
+            <View style={styles.row} testID={`activity-${item.id}`}>
               <View style={styles.rowBody}>
                 <Text style={styles.reason}>{item.reason}</Text>
                 <Text style={styles.timestamp}>
                   {new Date(item.createdAt).toLocaleString()}
                 </Text>
               </View>
-              <Text style={styles.delta}>
+              <Text
+                style={[
+                  styles.delta,
+                  item.delta < 0 ? styles.deltaPenalty : null,
+                ]}
+              >
                 {item.delta > 0 ? `+${item.delta}` : String(item.delta)}
               </Text>
             </View>
-          ))}
-        </View>
+            {index === items.length - 1 ? null : <View style={styles.divider} />}
+          </View>
+        ))
       )}
-    </ScrollView>
+    </RefreshableScroll>
   );
 }
 
@@ -71,29 +65,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   subtitle: {
     color: colors.muted,
     fontSize: fontSize.sm,
-  },
-  list: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    overflow: 'hidden',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
   },
   rowBody: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   reason: {
@@ -106,13 +96,22 @@ const styles = StyleSheet.create({
   },
   delta: {
     color: colors.accent,
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
+  },
+  deltaPenalty: {
+    color: colors.danger,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
   },
   empty: {
     color: colors.muted,
     textAlign: 'center',
     marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
     lineHeight: 22,
   },
   loader: {

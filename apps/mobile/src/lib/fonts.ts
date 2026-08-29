@@ -4,9 +4,9 @@ import {
 } from '@expo-google-fonts/archivo-black';
 
 /**
- * Reserved for hero numerals — the streak count. Deliberately not a brand
- * token: the identifier below is the name Expo registers at runtime, which is
- * not what a browser would ask for, so web would need its own mapping.
+ * Display face for streak numerals and the splash wordmark. Deliberately not a
+ * brand token: the identifier below is the name Expo registers at runtime,
+ * which is not what a browser would ask for, so web would need its own mapping.
  */
 export const displayFontFamily = 'ArchivoBlack_400Regular';
 

@@ -9,3 +9,5 @@ export interface PasswordRequirement {
 }
 
 export type FormButtonVariant = 'primary' | 'secondary';
+
+export type ToastTone = 'success' | 'error' | 'warning' | 'info';

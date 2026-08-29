@@ -749,7 +749,9 @@
                           "kind": {
                             "enum": [
                               "reminder",
-                              "success"
+                              "success",
+                              "evidence",
+                              "penalty"
                             ],
                             "type": "string"
                           },
@@ -936,6 +938,7 @@
                             "enum": [
                               "pending",
                               "in_progress",
+                              "awaiting_evidence",
                               "completed"
                             ],
                             "type": "string"
@@ -951,7 +954,8 @@
                           "completionKind": {
                             "enum": [
                               "check_in",
-                              "vitals_bp"
+                              "vitals_bp",
+                              "evidence_photo"
                             ],
                             "type": "string"
                           },
@@ -966,6 +970,35 @@
                           },
                           "periodKey": {
                             "type": "string"
+                          },
+                          "evidenceRequest": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "expiresAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "windowSeconds": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "penaltyPoints": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": [
+                                  "expiresAt",
+                                  "windowSeconds",
+                                  "penaltyPoints"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -980,7 +1013,8 @@
                           "completionKind",
                           "instruction",
                           "icon",
-                          "periodKey"
+                          "periodKey",
+                          "evidenceRequest"
                         ]
                       }
                     },
@@ -1058,7 +1092,8 @@
                           "completionKind": {
                             "enum": [
                               "check_in",
-                              "vitals_bp"
+                              "vitals_bp",
+                              "evidence_photo"
                             ],
                             "type": "string"
                           },
@@ -1210,7 +1245,8 @@
                           "completionKind": {
                             "enum": [
                               "check_in",
-                              "vitals_bp"
+                              "vitals_bp",
+                              "evidence_photo"
                             ],
                             "type": "string"
                           },
@@ -1583,6 +1619,7 @@
                           "enum": [
                             "pending",
                             "in_progress",
+                            "awaiting_evidence",
                             "completed"
                           ],
                           "type": "string"
@@ -1598,7 +1635,8 @@
                         "completionKind": {
                           "enum": [
                             "check_in",
-                            "vitals_bp"
+                            "vitals_bp",
+                            "evidence_photo"
                           ],
                           "type": "string"
                         },
@@ -1613,6 +1651,35 @@
                         },
                         "periodKey": {
                           "type": "string"
+                        },
+                        "evidenceRequest": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "expiresAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "windowSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "penaltyPoints": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "expiresAt",
+                                "windowSeconds",
+                                "penaltyPoints"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -1627,7 +1694,8 @@
                         "completionKind",
                         "instruction",
                         "icon",
-                        "periodKey"
+                        "periodKey",
+                        "evidenceRequest"
                       ]
                     }
                   },
@@ -1682,6 +1750,27 @@
                       "systolic",
                       "diastolic"
                     ]
+                  },
+                  "evidence": {
+                    "type": "object",
+                    "properties": {
+                      "mimeType": {
+                        "enum": [
+                          "image/jpeg",
+                          "image/png"
+                        ],
+                        "type": "string"
+                      },
+                      "imageBase64": {
+                        "type": "string",
+                        "minLength": 32,
+                        "maxLength": 2000000
+                      }
+                    },
+                    "required": [
+                      "mimeType",
+                      "imageBase64"
+                    ]
                   }
                 },
                 "required": [
@@ -1731,6 +1820,7 @@
                           "enum": [
                             "pending",
                             "in_progress",
+                            "awaiting_evidence",
                             "completed"
                           ],
                           "type": "string"
@@ -1746,7 +1836,8 @@
                         "completionKind": {
                           "enum": [
                             "check_in",
-                            "vitals_bp"
+                            "vitals_bp",
+                            "evidence_photo"
                           ],
                           "type": "string"
                         },
@@ -1761,6 +1852,35 @@
                         },
                         "periodKey": {
                           "type": "string"
+                        },
+                        "evidenceRequest": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "expiresAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "windowSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "penaltyPoints": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "expiresAt",
+                                "windowSeconds",
+                                "penaltyPoints"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -1775,7 +1895,8 @@
                         "completionKind",
                         "instruction",
                         "icon",
-                        "periodKey"
+                        "periodKey",
+                        "evidenceRequest"
                       ]
                     },
                     "pointsBalance": {
@@ -1789,13 +1910,250 @@
                     "pointsAwarded": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "evidenceRequest": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "windowSeconds": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "penaltyPoints": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "expiresAt",
+                            "windowSeconds",
+                            "penaltyPoints"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "penaltyApplied": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
                     "challenge",
                     "pointsBalance",
                     "currentStreakDays",
-                    "pointsAwarded"
+                    "pointsAwarded",
+                    "evidenceRequest",
+                    "penaltyApplied"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/evidence/skip": {
+      "post": {
+        "operationId": "skipChallengeEvidence",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userChallengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "userChallengeId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "challengeId": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "rewardPoints": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "status": {
+                          "enum": [
+                            "pending",
+                            "in_progress",
+                            "awaiting_evidence",
+                            "completed"
+                          ],
+                          "type": "string"
+                        },
+                        "frequency": {
+                          "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly"
+                          ],
+                          "type": "string"
+                        },
+                        "completionKind": {
+                          "enum": [
+                            "check_in",
+                            "vitals_bp",
+                            "evidence_photo"
+                          ],
+                          "type": "string"
+                        },
+                        "instruction": {
+                          "type": "string"
+                        },
+                        "icon": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "periodKey": {
+                          "type": "string"
+                        },
+                        "evidenceRequest": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "expiresAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "windowSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "penaltyPoints": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "expiresAt",
+                                "windowSeconds",
+                                "penaltyPoints"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "challengeId",
+                        "title",
+                        "description",
+                        "category",
+                        "rewardPoints",
+                        "status",
+                        "frequency",
+                        "completionKind",
+                        "instruction",
+                        "icon",
+                        "periodKey",
+                        "evidenceRequest"
+                      ]
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "pointsAwarded": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "evidenceRequest": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "windowSeconds": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "penaltyPoints": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "expiresAt",
+                            "windowSeconds",
+                            "penaltyPoints"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "penaltyApplied": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "challenge",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "pointsAwarded",
+                    "evidenceRequest",
+                    "penaltyApplied"
                   ]
                 }
               }

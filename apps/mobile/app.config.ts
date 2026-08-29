@@ -27,6 +27,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-notifications',
     'expo-font',
+    [
+      'expo-image-picker',
+      {
+        cameraPermission:
+          'Healthy uses the camera so you can prove a gym session.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

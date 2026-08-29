@@ -4,20 +4,12 @@ import {
   colors,
   fontSize,
   fontWeight,
-  radii,
   spacing,
 } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Loader, RefreshableScroll } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { ChallengeActionButton } from './ChallengeActionButton';
 import { ChallengeIcon } from './ChallengeIcon';
@@ -37,17 +29,10 @@ export function ChallengesScreen() {
   const challenges = challengesQuery.data?.challenges ?? [];
   const completedCount = challengesQuery.data?.completedCount ?? 0;
   const totalCount = challengesQuery.data?.totalCount ?? 0;
-
   return (
-    <ScrollView
+    <RefreshableScroll
       contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          onRefresh={() => challengesQuery.refetch()}
-          refreshing={challengesQuery.isRefetching}
-          tintColor={colors.accent}
-        />
-      }
+      onPullRefresh={() => challengesQuery.refetch()}
       style={styles.container}
     >
       <Text style={styles.subtitle}>
@@ -57,7 +42,9 @@ export function ChallengesScreen() {
       </Text>
 
       {challengesQuery.isLoading ? (
-        <ActivityIndicator color={colors.accent} style={styles.loader} />
+        <View style={styles.loader}>
+          <Loader />
+        </View>
       ) : challenges.length === 0 ? (
         <Pressable
           accessibilityRole="button"
@@ -71,11 +58,12 @@ export function ChallengesScreen() {
           <Text style={styles.addLink}>Add a challenge</Text>
         </Pressable>
       ) : (
-        <View style={styles.list}>
-          {challenges.map((challenge) => (
-            <ChallengeCard
+        <View>
+          {challenges.map((challenge, index) => (
+            <ChallengeRow
               challenge={challenge}
               isBusy={isAdvancing(challenge.id)}
+              isLast={index === challenges.length - 1}
               key={challenge.id}
               onAdvance={() => {
                 const route = completionRoute(challenge);
@@ -97,59 +85,69 @@ export function ChallengesScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => router.push('/manage-challenges')}
+            style={styles.addRow}
             testID="add-challenge"
           >
             <Text style={styles.addLink}>Add a challenge</Text>
           </Pressable>
         </View>
       )}
-    </ScrollView>
+    </RefreshableScroll>
   );
 }
 
-function ChallengeCard({
+function ChallengeRow({
   challenge,
   isBusy,
+  isLast,
   onAdvance,
   onOpen,
 }: {
   challenge: TodayChallenge;
   isBusy: boolean;
+  isLast: boolean;
   onAdvance: () => void;
   onOpen: () => void;
 }) {
   return (
-    <Pressable
-      accessibilityHint="Opens schedule and reminders"
-      accessibilityLabel={challenge.title}
-      accessibilityRole="button"
-      onPress={onOpen}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      testID={`open-challenge-${challenge.challengeId}`}
-    >
-      <View style={styles.cardHeader}>
+    <View>
+      <Pressable
+        accessibilityHint="Opens schedule and reminders"
+        accessibilityLabel={challenge.title}
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        testID={`open-challenge-${challenge.challengeId}`}
+      >
         <ChallengeIcon
           category={challenge.category}
           completed={challenge.status === 'completed'}
           name={challenge.icon}
         />
-        <Text style={styles.cardTitle}>{challenge.title}</Text>
-        <Text style={styles.points}>+{challenge.rewardPoints}</Text>
-        <Feather color={colors.border} name="chevron-right" size={18} />
-      </View>
-      <Text style={styles.cardDescription}>{challenge.description}</Text>
-      <View style={styles.cardFooter}>
-        <Text style={styles.category}>
-          {challenge.category} &middot; {frequencyBadge[challenge.frequency]}
-        </Text>
+        <View style={styles.rowBody}>
+          <View style={styles.titleLine}>
+            <Text numberOfLines={1} style={styles.title}>
+              {challenge.title}
+            </Text>
+            <Text style={styles.points}>+{challenge.rewardPoints}</Text>
+          </View>
+          <Text numberOfLines={2} style={styles.description}>
+            {challenge.description}
+          </Text>
+          <Text style={styles.meta}>
+            {challenge.category} &middot; {frequencyBadge[challenge.frequency]}
+          </Text>
+        </View>
         <ChallengeActionButton
           isBusy={isBusy}
           onPress={onAdvance}
           status={challenge.status}
           testID={`advance-challenge-${challenge.id}`}
         />
-      </View>
-    </Pressable>
+        <Feather color={colors.border} name="chevron-right" size={16} />
+      </Pressable>
+      {isLast ? null : <View style={styles.divider} />}
+    </View>
   );
 }
 
@@ -159,12 +157,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   subtitle: {
     color: colors.muted,
     fontSize: fontSize.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  addRow: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   addLink: {
     color: colors.accent,
@@ -177,56 +181,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
-  list: {
-    gap: spacing.md,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  cardPressed: {
-    backgroundColor: colors.surfaceRaised,
-  },
-  cardHeader: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  cardTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+  rowPressed: {
+    backgroundColor: colors.surface,
+  },
+  rowBody: {
     flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  titleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  title: {
+    flex: 1,
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
   points: {
     color: colors.accent,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
+    flexShrink: 0,
   },
-  cardDescription: {
+  description: {
     color: colors.muted,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
+    fontSize: fontSize.xs,
+    lineHeight: 18,
   },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginTop: spacing.xs,
-  },
-  category: {
+  meta: {
     color: colors.muted,
     fontSize: fontSize.xs,
     textTransform: 'capitalize',
   },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+  },
   empty: {
     color: colors.muted,
     textAlign: 'center',
-    marginTop: spacing.xl,
   },
   loader: {
     marginTop: spacing.xl,

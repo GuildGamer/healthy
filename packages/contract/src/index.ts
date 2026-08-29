@@ -11,12 +11,17 @@ export const healthCategorySchema = z.enum([
 export const userChallengeStatusSchema = z.enum([
   'pending',
   'in_progress',
+  'awaiting_evidence',
   'completed',
 ]);
 
 export const challengeFrequencySchema = z.enum(['daily', 'weekly', 'monthly']);
 
-export const challengeCompletionKindSchema = z.enum(['check_in', 'vitals_bp']);
+export const challengeCompletionKindSchema = z.enum([
+  'check_in',
+  'vitals_bp',
+  'evidence_photo',
+]);
 
 /**
  * Material Community Icons glyph name. Admin picks from that pack so the
@@ -120,7 +125,19 @@ export const updateNotificationSettingsInputSchema = z.object({
   showOnLeaderboard: z.boolean(),
 });
 
-export const notificationKindSchema = z.enum(['reminder', 'success']);
+export const notificationKindSchema = z.enum([
+  'reminder',
+  'success',
+  'evidence',
+  'penalty',
+]);
+
+/** Open surprise-photo window after a check-in or vitals completion. */
+export const surpriseEvidenceRequestSchema = z.object({
+  expiresAt: z.string().datetime(),
+  windowSeconds: z.number().int().positive(),
+  penaltyPoints: z.number().int().nonnegative(),
+});
 
 export const inboxNotificationSchema = z.object({
   id: z.string(),
@@ -200,6 +217,8 @@ export const todayChallengeSchema = z.object({
    * daily, the Monday for weekly, the 1st for monthly.
    */
   periodKey: z.string(),
+  /** Present while a surprise photo window is still open. */
+  evidenceRequest: surpriseEvidenceRequestSchema.nullable(),
 });
 
 export const listTodayChallengesOutputSchema = z.object({
@@ -247,9 +266,16 @@ export const startChallengeOutputSchema = z.object({
   challenge: todayChallengeSchema,
 });
 
+/** JPEG or PNG, base64 only. The API validates and does not store the bytes. */
+export const challengeEvidenceSchema = z.object({
+  mimeType: z.enum(['image/jpeg', 'image/png']),
+  imageBase64: z.string().min(32).max(2_000_000),
+});
+
 export const completeChallengeInputSchema = z.object({
   userChallengeId: z.string().min(1),
   vitals: challengeVitalsSchema.optional(),
+  evidence: challengeEvidenceSchema.optional(),
 });
 
 export const completeChallengeOutputSchema = z.object({
@@ -257,6 +283,13 @@ export const completeChallengeOutputSchema = z.object({
   pointsBalance: z.number().int().nonnegative(),
   currentStreakDays: z.number().int().nonnegative(),
   pointsAwarded: z.number().int().nonnegative(),
+  /** Null unless this completion opened or is still waiting on a surprise photo. */
+  evidenceRequest: surpriseEvidenceRequestSchema.nullable(),
+  penaltyApplied: z.number().int().nonnegative(),
+});
+
+export const skipChallengeEvidenceInputSchema = z.object({
+  userChallengeId: z.string().min(1),
 });
 
 export const activityItemSchema = z.object({
@@ -327,6 +360,11 @@ export const completeChallengeContract = oc
   .input(completeChallengeInputSchema)
   .output(completeChallengeOutputSchema);
 
+export const skipChallengeEvidenceContract = oc
+  .route({ method: 'POST', path: '/challenges/evidence/skip' })
+  .input(skipChallengeEvidenceInputSchema)
+  .output(completeChallengeOutputSchema);
+
 export const listChallengeCatalogContract = oc
   .route({ method: 'GET', path: '/challenges/catalog' })
   .output(challengeCatalogOutputSchema);
@@ -395,6 +433,7 @@ export const appContract = {
   unregisterPushDevice: unregisterPushDeviceContract,
   startChallenge: startChallengeContract,
   completeChallenge: completeChallengeContract,
+  skipChallengeEvidence: skipChallengeEvidenceContract,
   listActivity: listActivityContract,
   waitlist: waitlistContract,
 };
@@ -427,6 +466,7 @@ export type ChallengeCompletionKind = z.infer<
   typeof challengeCompletionKindSchema
 >;
 export type ChallengeVitals = z.infer<typeof challengeVitalsSchema>;
+export type ChallengeEvidence = z.infer<typeof challengeEvidenceSchema>;
 export type TodayChallenge = z.infer<typeof todayChallengeSchema>;
 export type CatalogChallenge = z.infer<typeof catalogChallengeSchema>;
 export type ChallengeCatalogOutput = z.infer<
@@ -441,6 +481,12 @@ export type StartChallengeInput = z.infer<typeof startChallengeInputSchema>;
 export type StartChallengeOutput = z.infer<typeof startChallengeOutputSchema>;
 export type CompleteChallengeInput = z.infer<typeof completeChallengeInputSchema>;
 export type CompleteChallengeOutput = z.infer<typeof completeChallengeOutputSchema>;
+export type SurpriseEvidenceRequest = z.infer<
+  typeof surpriseEvidenceRequestSchema
+>;
+export type SkipChallengeEvidenceInput = z.infer<
+  typeof skipChallengeEvidenceInputSchema
+>;
 export type ActivityItem = z.infer<typeof activityItemSchema>;
 export type ListActivityOutput = z.infer<typeof listActivityOutputSchema>;
 export type WaitlistInput = z.infer<typeof waitlistInputSchema>;

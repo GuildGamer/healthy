@@ -1,6 +1,6 @@
 import type { ListNotificationsOutput } from '@product/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { apiClient } from '@/lib/api';
 import { NotificationsScreen } from './NotificationsScreen';
 
@@ -13,8 +13,16 @@ jest.mock('@/lib/api', () => ({
   apiQuery: {},
 }));
 
+const mockBack = jest.fn();
+const mockReplace = jest.fn();
+
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => callback(),
+  useRouter: () => ({
+    canGoBack: () => true,
+    back: mockBack,
+    replace: mockReplace,
+  }),
 }));
 
 const mockedApi = apiClient as unknown as {
@@ -56,6 +64,8 @@ function renderInbox() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockBack.mockClear();
+  mockReplace.mockClear();
   mockedApi.markNotificationsRead.mockResolvedValue({ unreadCount: 0 });
 });
 
@@ -65,7 +75,7 @@ describe('NotificationsScreen', () => {
     const { cleanup } = renderInbox();
 
     expect(await screen.findByTestId('notifications-empty')).toBeOnTheScreen();
-    expect(screen.getByText(/all caught up/)).toBeOnTheScreen();
+    expect(screen.getByText('No notifications')).toBeOnTheScreen();
 
     await cleanup();
   });
@@ -94,6 +104,16 @@ describe('NotificationsScreen', () => {
     await waitFor(() => {
       expect(mockedApi.markNotificationsRead).toHaveBeenCalled();
     });
+
+    await cleanup();
+  });
+
+  it('goes back from the in-screen header', async () => {
+    mockedApi.listNotifications.mockResolvedValue(inbox());
+    const { cleanup } = renderInbox();
+
+    fireEvent.press(await screen.findByTestId('notifications-back'));
+    expect(mockBack).toHaveBeenCalled();
 
     await cleanup();
   });

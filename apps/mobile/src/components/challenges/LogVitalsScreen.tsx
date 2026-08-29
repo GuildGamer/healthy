@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { ScreenLoader } from '@/components/feedback';
 import {
   FormButton,
   FormErrorBanner,
@@ -77,12 +77,18 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
+      if (result.evidenceRequest) {
+        router.replace(`/challenge/${challengeId}/verify`);
+        return;
+      }
+
       router.replace({
         pathname: '/challenge/success',
         params: {
           title: occurrence?.title ?? 'Challenge',
           points: String(result.pointsAwarded),
           streak: String(result.currentStreakDays),
+          penalty: String(result.penaltyApplied),
         },
       });
     },
@@ -94,11 +100,7 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
   });
 
   if (todayQuery.isPending) {
-    return (
-      <View style={styles.centred} testID="log-vitals-loading">
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
+    return <ScreenLoader testID="log-vitals-loading" />;
   }
 
   if (!occurrence) {

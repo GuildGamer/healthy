@@ -1,14 +1,15 @@
 import Feather from '@expo/vector-icons/Feather';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, fontSize, fontWeight } from '@product/brand';
 import { Redirect, Tabs } from 'expo-router';
-import { SplashScreen } from '@/components/auth';
+import { ScreenLoader } from '@/components/feedback';
 import { useSession } from '@/lib/auth-client';
 
 export default function TabsLayout() {
   const { data: session, isPending, isRefetching } = useSession();
 
   if (isPending || (!session && isRefetching)) {
-    return <SplashScreen />;
+    return <ScreenLoader />;
   }
 
   if (!session) {
@@ -72,7 +73,7 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Feather color={color} name="user" size={size} />
+            <Ionicons color={color} name="person-circle" size={size} />
           ),
         }}
       />

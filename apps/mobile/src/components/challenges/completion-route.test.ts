@@ -11,6 +11,26 @@ describe('completionRoute', () => {
     ).toBe('/challenge/c-bp/log');
   });
 
+  it('opens the evidence screen for an in-progress gym challenge', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-gym',
+        status: 'in_progress',
+        completionKind: 'evidence_photo',
+      }),
+    ).toBe('/challenge/c-gym/evidence');
+  });
+
+  it('opens the photo check when a surprise window is open', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-walk',
+        status: 'awaiting_evidence',
+        completionKind: 'check_in',
+      }),
+    ).toBe('/challenge/c-walk/verify');
+  });
+
   it('leaves Start and check-in Finish on the card', () => {
     expect(
       completionRoute({

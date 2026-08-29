@@ -1,11 +1,14 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import { toChallengeIcon } from '@product/contract';
 import type {
+  Challenge,
   ChallengeCompletionKind,
   ChallengeFrequency,
   HealthCategory,
   PrismaClient,
+  SurpriseEvidenceRequest,
+  UserChallenge,
   UserChallengeStatus,
 } from '@product/db';
 import {
@@ -19,14 +22,36 @@ import {
 } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import {
+  createAcceptEvidenceValidator,
+  EVIDENCE_VALIDATOR,
+  type EvidenceValidator,
+} from '../../shared-modules/evidence/index.js';
 import type {
   CompleteChallengeDto,
   ListActivityDto,
   ListTodayChallengesDto,
   StartChallengeDto,
+  SurpriseEvidenceRequestDto,
   TodayChallengeDto,
 } from './dto/index.js';
+import {
+  requireEvidenceFor,
+  type ChallengeEvidenceInput,
+} from './evidence.js';
+import {
+  clampedPenalty,
+  requireSurprisePhoto,
+  shouldRequestSurpriseEvidence,
+  surprisePhotoExpectation,
+} from './surprise-evidence.js';
+import { SURPRISE_EVIDENCE_ROLL } from './surprise-evidence.tokens.js';
 import { requireVitalsFor, type ChallengeVitalsInput } from './vitals.js';
+
+type AssignmentRecord = UserChallenge & {
+  challenge: Challenge;
+  surpriseEvidenceRequest: SurpriseEvidenceRequest | null;
+};
 
 /** The period key currently open for each cadence, in the user's own zone. */
 type DueWindow = Record<ChallengeFrequency, string>;
@@ -34,7 +59,18 @@ type DueWindow = Record<ChallengeFrequency, string>;
 
 @Injectable()
 export class ChallengesService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  private readonly surpriseRoll: () => number;
+
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Inject(EVIDENCE_VALIDATOR)
+    private readonly evidenceValidator: EvidenceValidator = createAcceptEvidenceValidator(),
+    @Optional()
+    @Inject(SURPRISE_EVIDENCE_ROLL)
+    surpriseRoll?: () => number,
+  ) {
+    this.surpriseRoll = surpriseRoll ?? Math.random;
+  }
 
   /**
    * Everything due right now: today's daily challenges plus any weekly or
@@ -48,11 +84,12 @@ export class ChallengesService {
     const timeZone = await this.timeZoneFor(user.id);
     const window = this.dueWindow(timeZone);
 
+    await this.settleExpiredEvidence(user.id);
     await this.materialiseDueOccurrences(user.id, window);
 
     const assignments = await this.prisma.userChallenge.findMany({
       where: this.dueFilter(user.id, window),
-      include: { challenge: true },
+      include: { challenge: true, surpriseEvidenceRequest: true },
       orderBy: [{ frequency: 'asc' }, { challenge: { title: 'asc' } }],
     });
 
@@ -89,7 +126,7 @@ export class ChallengesService {
 
     const started = await this.prisma.userChallenge.findUniqueOrThrow({
       where: { id: assignment.id },
-      include: { challenge: true },
+      include: { challenge: true, surpriseEvidenceRequest: true },
     });
 
     return { challenge: this.toTodayChallenge(started) };
@@ -99,22 +136,190 @@ export class ChallengesService {
     currentUser: AuthenticatedUser | null | undefined,
     userChallengeId: string,
     vitals?: ChallengeVitalsInput,
+    evidence?: ChallengeEvidenceInput,
   ): Promise<CompleteChallengeDto> {
     const user = requireUser(currentUser);
+    await this.settleExpiredEvidence(user.id);
     const assignment = await this.findOwnedAssignment(user.id, userChallengeId);
 
     if (assignment.status === 'completed') {
-      const profile = await this.ensureProfile(user.id);
-      return {
-        challenge: this.toTodayChallenge(assignment),
-        pointsBalance: profile.pointsBalance,
-        currentStreakDays: profile.currentStreakDays,
+      return this.completionSnapshot(user.id, assignment, {
         pointsAwarded: 0,
-      };
+        penaltyApplied: 0,
+      });
+    }
+
+    if (assignment.status === 'awaiting_evidence') {
+      return this.finishSurprisePhoto(user, assignment, evidence);
     }
 
     const reading = requireVitalsFor(assignment.challenge.completionKind, vitals);
+    const photo = requireEvidenceFor(
+      assignment.challenge.completionKind,
+      evidence,
+    );
 
+    if (photo) {
+      const verdict = await this.evidenceValidator.validateGymPhoto(photo);
+      if (!verdict.accepted) {
+        throw new ORPCError('BAD_REQUEST', { message: verdict.reason });
+      }
+    }
+
+    if (
+      shouldRequestSurpriseEvidence({
+        completionKind: assignment.challenge.completionKind,
+        chancePercent: assignment.challenge.surpriseEvidenceChancePercent,
+        unitSample: this.surpriseRoll(),
+      })
+    ) {
+      return this.openSurpriseRequest(user, assignment, reading);
+    }
+
+    return this.rewardCompletion(user, assignment, reading);
+  }
+
+  async skipEvidence(
+    currentUser: AuthenticatedUser | null | undefined,
+    userChallengeId: string,
+  ): Promise<CompleteChallengeDto> {
+    const user = requireUser(currentUser);
+    await this.settleExpiredEvidence(user.id);
+    const assignment = await this.findOwnedAssignment(user.id, userChallengeId);
+
+    if (assignment.status === 'completed') {
+      return this.completionSnapshot(user.id, assignment, {
+        pointsAwarded: 0,
+        penaltyApplied: 0,
+      });
+    }
+
+    if (assignment.status !== 'awaiting_evidence') {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'This challenge is not waiting for a photo',
+      });
+    }
+
+    return this.penalizeEvidence(assignment, 'skipped');
+  }
+
+  private async finishSurprisePhoto(
+    user: AuthenticatedUser,
+    assignment: AssignmentRecord,
+    evidence: ChallengeEvidenceInput | undefined,
+  ): Promise<CompleteChallengeDto> {
+    const request = assignment.surpriseEvidenceRequest;
+    if (!request || request.status !== 'pending') {
+      return this.penalizeEvidence(assignment, 'expired');
+    }
+
+    if (request.expiresAt.getTime() <= Date.now()) {
+      return this.penalizeEvidence(assignment, 'expired');
+    }
+
+    const photo = requireSurprisePhoto(evidence);
+    const verdict = await this.evidenceValidator.validatePhoto(
+      photo,
+      surprisePhotoExpectation({
+        completionKind: assignment.challenge.completionKind,
+        title: assignment.challenge.title,
+        instruction: assignment.challenge.instruction,
+      }),
+    );
+
+    if (!verdict.accepted) {
+      throw new ORPCError('BAD_REQUEST', { message: verdict.reason });
+    }
+
+    await this.prisma.surpriseEvidenceRequest.update({
+      where: { id: request.id },
+      data: { status: 'submitted' },
+    });
+
+    return this.rewardCompletion(user, assignment, null);
+  }
+
+  private async openSurpriseRequest(
+    user: AuthenticatedUser,
+    assignment: AssignmentRecord,
+    reading: ChallengeVitalsInput | null,
+  ): Promise<CompleteChallengeDto> {
+    const windowSeconds = assignment.challenge.surpriseEvidenceWindowSeconds;
+    const penaltyPoints = assignment.challenge.surpriseEvidencePenaltyPoints;
+    const expiresAt = new Date(Date.now() + windowSeconds * 1000);
+    const idempotencyKey = `challenge_evidence_request:${assignment.id}`;
+
+    const opened = await this.prisma.$transaction(async (tx) => {
+      if (reading) {
+        await tx.vitalReading.upsert({
+          where: { userChallengeId: assignment.id },
+          create: {
+            userChallengeId: assignment.id,
+            systolic: reading.systolic,
+            diastolic: reading.diastolic,
+            pulse: reading.pulse,
+            notes: reading.notes,
+          },
+          update: {
+            systolic: reading.systolic,
+            diastolic: reading.diastolic,
+            pulse: reading.pulse,
+            notes: reading.notes,
+            recordedAt: new Date(),
+          },
+        });
+      }
+
+      const request = await tx.surpriseEvidenceRequest.upsert({
+        where: { userChallengeId: assignment.id },
+        create: {
+          userChallengeId: assignment.id,
+          windowSeconds,
+          penaltyPoints,
+          expiresAt,
+        },
+        update: {},
+      });
+
+      const updated = await tx.userChallenge.update({
+        where: { id: assignment.id },
+        data: {
+          status: 'awaiting_evidence',
+          startedAt: assignment.startedAt ?? new Date(),
+        },
+        include: { challenge: true, surpriseEvidenceRequest: true },
+      });
+
+      await tx.notification.upsert({
+        where: { idempotencyKey },
+        create: {
+          userId: user.id,
+          kind: 'evidence',
+          title: 'Photo check',
+          body: `Send a photo for ${assignment.challenge.title} in the next ${windowSeconds} seconds.`,
+          idempotencyKey,
+        },
+        update: {},
+      });
+
+      return { updated, request };
+    });
+
+    return this.completionSnapshot(user.id, opened.updated, {
+      pointsAwarded: 0,
+      penaltyApplied: 0,
+      evidenceRequest: this.toEvidenceRequestDto(
+        opened.request,
+        'awaiting_evidence',
+      ),
+    });
+  }
+
+  private async rewardCompletion(
+    user: AuthenticatedUser,
+    assignment: AssignmentRecord,
+    reading: ChallengeVitalsInput | null,
+  ): Promise<CompleteChallengeDto> {
     const timeZone = await this.timeZoneFor(user.id);
     const todayKey = dayKeyFor(timeZone);
     const idempotencyKey = `challenge_complete:${assignment.id}`;
@@ -131,24 +336,18 @@ export class ChallengesService {
         });
         const refreshed = await tx.userChallenge.findUniqueOrThrow({
           where: { id: assignment.id },
-          include: { challenge: true },
+          include: { challenge: true, surpriseEvidenceRequest: true },
         });
-        return {
-          challenge: this.toTodayChallenge(refreshed),
-          pointsBalance: profile.pointsBalance,
-          currentStreakDays: profile.currentStreakDays,
-          pointsAwarded: 0,
-        };
+        return this.toCompleteDto(refreshed, profile, 0, 0);
       }
 
-      // Read before the write, so "was anything already done today" is not
-      // confused by the row this call is about to complete.
       const dailyDoneBefore = await tx.userChallenge.count({
         where: {
           userId: user.id,
           frequency: 'daily',
           periodKey: todayKey,
           status: 'completed',
+          completionOutcome: { not: 'penalized' },
         },
       });
 
@@ -156,10 +355,11 @@ export class ChallengesService {
         where: { id: assignment.id },
         data: {
           status: 'completed',
+          completionOutcome: 'rewarded',
           startedAt: assignment.startedAt ?? new Date(),
           completedAt: new Date(),
         },
-        include: { challenge: true },
+        include: { challenge: true, surpriseEvidenceRequest: true },
       });
 
       if (reading) {
@@ -226,13 +426,154 @@ export class ChallengesService {
         },
       });
 
-      return {
-        challenge: this.toTodayChallenge(completed),
-        pointsBalance: profile.pointsBalance,
-        currentStreakDays: profile.currentStreakDays,
-        pointsAwarded: rewardPoints,
-      };
+      return this.toCompleteDto(completed, profile, rewardPoints, 0);
     });
+  }
+
+  private async penalizeEvidence(
+    assignment: AssignmentRecord,
+    resolution: 'skipped' | 'expired',
+  ): Promise<CompleteChallengeDto> {
+    const request = assignment.surpriseEvidenceRequest;
+    const penaltyPoints = request?.penaltyPoints ?? assignment.challenge.surpriseEvidencePenaltyPoints;
+    const idempotencyKey = `challenge_evidence_penalty:${assignment.id}`;
+
+    return this.prisma.$transaction(async (tx) => {
+      const existingLedger = await tx.pointLedgerEntry.findUnique({
+        where: { idempotencyKey },
+      });
+
+      if (existingLedger) {
+        const profile = await tx.userProfile.findUniqueOrThrow({
+          where: { userId: assignment.userId },
+        });
+        const refreshed = await tx.userChallenge.findUniqueOrThrow({
+          where: { id: assignment.id },
+          include: { challenge: true, surpriseEvidenceRequest: true },
+        });
+        return this.toCompleteDto(refreshed, profile, 0, Math.abs(existingLedger.delta));
+      }
+
+      if (request) {
+        await tx.surpriseEvidenceRequest.update({
+          where: { id: request.id },
+          data: { status: resolution },
+        });
+      }
+
+      const completed = await tx.userChallenge.update({
+        where: { id: assignment.id },
+        data: {
+          status: 'completed',
+          completionOutcome: 'penalized',
+          startedAt: assignment.startedAt ?? new Date(),
+          completedAt: new Date(),
+        },
+        include: { challenge: true, surpriseEvidenceRequest: true },
+      });
+
+      const profileBefore = await tx.userProfile.upsert({
+        where: { userId: assignment.userId },
+        create: { userId: assignment.userId },
+        update: {},
+      });
+      const applied = clampedPenalty(profileBefore.pointsBalance, penaltyPoints);
+
+      await tx.pointLedgerEntry.create({
+        data: {
+          userId: assignment.userId,
+          delta: -applied,
+          reason:
+            resolution === 'expired'
+              ? `Missed photo: ${assignment.challenge.title}`
+              : `Skipped photo: ${assignment.challenge.title}`,
+          idempotencyKey,
+          userChallengeId: assignment.id,
+        },
+      });
+
+      await tx.notification.upsert({
+        where: { idempotencyKey },
+        create: {
+          userId: assignment.userId,
+          kind: 'penalty',
+          title: 'Photo check missed',
+          body:
+            applied > 0
+              ? `${applied} points deducted for ${assignment.challenge.title}.`
+              : `The photo window closed for ${assignment.challenge.title}.`,
+          idempotencyKey,
+        },
+        update: {},
+      });
+
+      const profile = await tx.userProfile.update({
+        where: { userId: assignment.userId },
+        data: { pointsBalance: { decrement: applied } },
+      });
+
+      return this.toCompleteDto(completed, profile, 0, applied);
+    });
+  }
+
+  private async settleExpiredEvidence(userId: string): Promise<void> {
+    const overdue = await this.prisma.userChallenge.findMany({
+      where: {
+        userId,
+        status: 'awaiting_evidence',
+        surpriseEvidenceRequest: {
+          status: 'pending',
+          expiresAt: { lte: new Date() },
+        },
+      },
+      include: { challenge: true, surpriseEvidenceRequest: true },
+    });
+
+    for (const assignment of overdue) {
+      if (assignment.status !== 'awaiting_evidence') {
+        continue;
+      }
+
+      await this.penalizeEvidence(assignment, 'expired');
+    }
+  }
+
+  private async completionSnapshot(
+    userId: string,
+    assignment: AssignmentRecord,
+    extras: {
+      pointsAwarded: number;
+      penaltyApplied: number;
+      evidenceRequest?: SurpriseEvidenceRequestDto | null;
+    },
+  ): Promise<CompleteChallengeDto> {
+    const profile = await this.ensureProfile(userId);
+    const challenge = this.toTodayChallenge(assignment);
+    return {
+      challenge,
+      pointsBalance: profile.pointsBalance,
+      currentStreakDays: profile.currentStreakDays,
+      pointsAwarded: extras.pointsAwarded,
+      evidenceRequest: extras.evidenceRequest ?? challenge.evidenceRequest,
+      penaltyApplied: extras.penaltyApplied,
+    };
+  }
+
+  private toCompleteDto(
+    assignment: AssignmentRecord,
+    profile: { pointsBalance: number; currentStreakDays: number },
+    pointsAwarded: number,
+    penaltyApplied: number,
+  ): CompleteChallengeDto {
+    const challenge = this.toTodayChallenge(assignment);
+    return {
+      challenge,
+      pointsBalance: profile.pointsBalance,
+      currentStreakDays: profile.currentStreakDays,
+      pointsAwarded,
+      evidenceRequest: challenge.evidenceRequest,
+      penaltyApplied,
+    };
   }
 
   async listActivity(
@@ -280,6 +621,7 @@ export class ChallengesService {
         frequency: 'daily',
         periodKey: previousDayKey(input.todayKey),
         status: 'completed',
+        completionOutcome: { not: 'penalized' },
       },
       select: { id: true },
     });
@@ -347,7 +689,7 @@ export class ChallengesService {
   private async findOwnedAssignment(userId: string, userChallengeId: string) {
     const assignment = await this.prisma.userChallenge.findUnique({
       where: { id: userChallengeId },
-      include: { challenge: true },
+      include: { challenge: true, surpriseEvidenceRequest: true },
     });
 
     if (!assignment || assignment.userId !== userId) {
@@ -373,6 +715,7 @@ export class ChallengesService {
     periodKey: string;
     frequency: ChallengeFrequency;
     status: UserChallengeStatus;
+    surpriseEvidenceRequest?: SurpriseEvidenceRequest | null;
     challenge: {
       title: string;
       description: string;
@@ -396,6 +739,29 @@ export class ChallengesService {
       instruction: assignment.challenge.instruction || assignment.challenge.description,
       icon: toChallengeIcon(assignment.challenge.icon),
       periodKey: assignment.periodKey,
+      evidenceRequest: this.toEvidenceRequestDto(
+        assignment.surpriseEvidenceRequest,
+        assignment.status,
+      ),
+    };
+  }
+
+  private toEvidenceRequestDto(
+    request: SurpriseEvidenceRequest | null | undefined,
+    status: UserChallengeStatus,
+  ): SurpriseEvidenceRequestDto | null {
+    if (status !== 'awaiting_evidence' || !request || request.status !== 'pending') {
+      return null;
+    }
+
+    if (request.expiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+
+    return {
+      expiresAt: request.expiresAt.toISOString(),
+      windowSeconds: request.windowSeconds,
+      penaltyPoints: request.penaltyPoints,
     };
   }
 }

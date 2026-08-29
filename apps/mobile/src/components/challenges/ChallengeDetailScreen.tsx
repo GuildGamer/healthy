@@ -15,6 +15,7 @@ import {
 import { healthCategories } from '@/constants/health-categories';
 import { apiClient } from '@/lib/api';
 import { formatReminderMinute } from '@/lib/notifications';
+import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import {
   frequencyLabel,
@@ -144,6 +145,11 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       await queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] });
       if (occurrence?.completionKind === 'vitals_bp') {
         router.push(`/challenge/${challengeId}/log`);
+        return;
+      }
+
+      if (occurrence?.completionKind === 'evidence_photo') {
+        router.push(`/challenge/${challengeId}/evidence`);
       }
     },
     onError: () => {
@@ -161,12 +167,19 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
+
+      if (result.evidenceRequest) {
+        router.push(`/challenge/${challengeId}/verify`);
+        return;
+      }
+
       router.push({
         pathname: '/challenge/success',
         params: {
           title: challenge?.title ?? 'Challenge',
           points: String(result.pointsAwarded),
           streak: String(result.currentStreakDays),
+          penalty: String(result.penaltyApplied),
         },
       });
     },
@@ -176,11 +189,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
   });
 
   if (catalogQuery.isPending) {
-    return (
-      <View style={styles.centred} testID="challenge-detail-loading">
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
+    return <ScreenLoader testID="challenge-detail-loading" />;
   }
 
   if (!challenge) {
@@ -192,11 +201,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
   }
 
   if (!hasLoadedDraft) {
-    return (
-      <View style={styles.centred} testID="challenge-detail-loading">
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
+    return <ScreenLoader testID="challenge-detail-loading" />;
   }
 
   const isDirty =
@@ -226,9 +231,19 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       return;
     }
 
+    if (occurrence.status === 'awaiting_evidence') {
+      router.push(`/challenge/${challengeId}/verify`);
+      return;
+    }
+
     if (occurrence.status === 'in_progress') {
       if (occurrence.completionKind === 'vitals_bp') {
         router.push(`/challenge/${challengeId}/log`);
+        return;
+      }
+
+      if (occurrence.completionKind === 'evidence_photo') {
+        router.push(`/challenge/${challengeId}/evidence`);
         return;
       }
 
@@ -269,6 +284,12 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
         <Text style={styles.hint}>
           At random intervals you may be asked to photograph your device
           screen showing the reading.
+        </Text>
+      ) : null}
+
+      {occurrence?.completionKind === 'evidence_photo' ? (
+        <Text style={styles.hint}>
+          Take a selfie at the gym or during the workout.
         </Text>
       ) : null}
 

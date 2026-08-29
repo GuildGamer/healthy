@@ -27,6 +27,8 @@ type CatalogSpec = {
   isDefault?: boolean;
   rewardPoints?: number;
   completionKind?: ChallengeCompletionKind;
+  surpriseEvidenceChancePercent?: number;
+  surpriseEvidencePenaltyPoints?: number;
 };
 
 async function seedUser(timeZone = 'UTC'): Promise<void> {
@@ -58,6 +60,8 @@ async function seedCatalog(specs: CatalogSpec[]): Promise<void> {
         spec.completionKind === 'vitals_bp'
           ? 'Sit still and log your reading.'
           : '',
+      surpriseEvidenceChancePercent: spec.surpriseEvidenceChancePercent ?? 0,
+      surpriseEvidencePenaltyPoints: spec.surpriseEvidencePenaltyPoints ?? 25,
     })),
   });
 }
@@ -294,6 +298,88 @@ describe('ChallengesService against Postgres', () => {
       pulse: 70,
       notes: 'Morning',
     });
+  });
+
+  it('requires a gym photo on complete', async () => {
+    await seedEnrolledUser([
+      { slug: 'gym-session', completionKind: 'evidence_photo' },
+    ]);
+    const [assignment] = (await challenges.listToday(user)).challenges;
+
+    expect(assignment?.completionKind).toBe('evidence_photo');
+    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(
+      /gym photo/,
+    );
+
+    const result = await challenges.complete(
+      user,
+      assignment!.id,
+      undefined,
+      {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      },
+    );
+
+    expect(result.pointsAwarded).toBe(20);
+  });
+
+  it('opens a surprise photo window when the challenge chance is 100', async () => {
+    await seedEnrolledUser([
+      {
+        slug: 'always-photo',
+        surpriseEvidenceChancePercent: 100,
+        surpriseEvidencePenaltyPoints: 10,
+        rewardPoints: 40,
+      },
+    ]);
+    const [assignment] = (await challenges.listToday(user)).challenges;
+
+    const requested = await challenges.complete(user, assignment!.id);
+
+    expect(requested.pointsAwarded).toBe(0);
+    expect(requested.challenge.status).toBe('awaiting_evidence');
+    expect(requested.evidenceRequest?.penaltyPoints).toBe(10);
+
+    const submitted = await challenges.complete(
+      user,
+      assignment!.id,
+      undefined,
+      {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      },
+    );
+
+    expect(submitted.pointsAwarded).toBe(40);
+    expect(submitted.challenge.status).toBe('completed');
+    expect(submitted.evidenceRequest).toBeNull();
+  });
+
+  it('applies a penalty when the surprise photo is skipped', async () => {
+    await seedUser();
+    await prisma.userProfile.update({
+      where: { userId: user.id },
+      data: { pointsBalance: 50 },
+    });
+    await seedCatalog([
+      {
+        slug: 'skip-photo',
+        surpriseEvidenceChancePercent: 100,
+        surpriseEvidencePenaltyPoints: 10,
+      },
+    ]);
+    await enrollments.enrollDefaultsFor(user.id, ['general']);
+    const [assignment] = (await challenges.listToday(user)).challenges;
+    await challenges.complete(user, assignment!.id);
+
+    const skipped = await challenges.skipEvidence(user, assignment!.id);
+
+    expect(skipped.penaltyApplied).toBe(10);
+    expect(skipped.pointsAwarded).toBe(0);
+    expect(skipped.pointsBalance).toBe(40);
+    expect(skipped.challenge.status).toBe('completed');
+    expect(skipped.currentStreakDays).toBe(0);
   });
 
   it('keeps an in-progress challenge visible after the categories change', async () => {

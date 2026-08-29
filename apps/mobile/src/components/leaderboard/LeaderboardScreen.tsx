@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { colors, fontSize, fontWeight, spacing } from '@product/brand';
 import type { LeaderboardEntry } from '@product/client';
 import { useQuery } from '@tanstack/react-query';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { RefreshableScroll, ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 
 /** Only the podium earns a coloured medal; below that the rank number reads better. */
@@ -30,21 +31,30 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-function Row({ entry }: { entry: LeaderboardEntry }) {
+function Row({
+  entry,
+  isLast,
+}: {
+  entry: LeaderboardEntry;
+  isLast: boolean;
+}) {
   return (
-    <View
-      style={[styles.row, entry.isCurrentUser ? styles.rowCurrent : null]}
-      testID={`leaderboard-row-${entry.rank}`}
-    >
-      <RankBadge rank={entry.rank} />
-      <Text
-        numberOfLines={1}
-        style={[styles.name, entry.isCurrentUser ? styles.nameCurrent : null]}
+    <View>
+      <View
+        style={[styles.row, entry.isCurrentUser ? styles.rowCurrent : null]}
+        testID={`leaderboard-row-${entry.rank}`}
       >
-        {entry.displayName}
-        {entry.isCurrentUser ? '  (you)' : ''}
-      </Text>
-      <Text style={styles.points}>{entry.points.toLocaleString()}</Text>
+        <RankBadge rank={entry.rank} />
+        <Text
+          numberOfLines={1}
+          style={[styles.name, entry.isCurrentUser ? styles.nameCurrent : null]}
+        >
+          {entry.displayName}
+          {entry.isCurrentUser ? '  (you)' : ''}
+        </Text>
+        <Text style={styles.points}>{entry.points.toLocaleString()}</Text>
+      </View>
+      {isLast ? null : <View style={styles.divider} />}
     </View>
   );
 }
@@ -56,11 +66,7 @@ export function LeaderboardScreen() {
   });
 
   if (leaderboardQuery.isPending) {
-    return (
-      <View style={styles.centred} testID="leaderboard-loading">
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
+    return <ScreenLoader testID="leaderboard-loading" />;
   }
 
   const entries = leaderboardQuery.data?.entries ?? [];
@@ -70,8 +76,9 @@ export function LeaderboardScreen() {
     !entries.some((entry) => entry.isCurrentUser);
 
   return (
-    <ScrollView
+    <RefreshableScroll
       contentContainerStyle={styles.content}
+      onPullRefresh={() => leaderboardQuery.refetch()}
       style={styles.container}
       testID="leaderboard-screen"
     >
@@ -88,9 +95,13 @@ export function LeaderboardScreen() {
           </Text>
         </View>
       ) : (
-        <View style={styles.card}>
-          {entries.map((entry) => (
-            <Row entry={entry} key={entry.rank} />
+        <View>
+          {entries.map((entry, index) => (
+            <Row
+              entry={entry}
+              isLast={index === entries.length - 1}
+              key={entry.rank}
+            />
           ))}
         </View>
       )}
@@ -101,7 +112,7 @@ export function LeaderboardScreen() {
           {leaderboardQuery.data?.currentUserPoints ?? 0} points this week.
         </Text>
       ) : null}
-    </ScrollView>
+    </RefreshableScroll>
   );
 }
 
@@ -110,34 +121,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  centred: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   intro: {
     color: colors.muted,
     fontSize: fontSize.sm,
     lineHeight: 20,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    overflow: 'hidden',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
   },
   rowCurrent: {
     backgroundColor: colors.accentSurface,
@@ -168,11 +173,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: fontSize.sm,
     textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
   },
   empty: {
     alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   emptyTitle: {
     color: colors.text,
