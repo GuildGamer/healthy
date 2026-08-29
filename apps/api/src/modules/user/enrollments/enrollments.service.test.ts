@@ -1,4 +1,5 @@
 import { ORPCError } from '@orpc/server';
+import { DEFAULT_CHALLENGE_ICON } from '@product/contract';
 import { describe, expect, it, vi } from 'vitest';
 import { EnrollmentsService } from './enrollments.service.js';
 
@@ -14,6 +15,7 @@ type CatalogRow = {
   defaultFrequency: string;
   completionKind: string;
   instruction: string;
+  icon: string;
 };
 
 function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
@@ -27,6 +29,7 @@ function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
     defaultFrequency: 'daily',
     completionKind: 'check_in',
     instruction: 'Ten minutes outside.',
+    icon: 'walk',
     ...overrides,
   };
 }
@@ -95,8 +98,19 @@ describe('EnrollmentsService.listCatalog', () => {
     expect(result.challenges[0]).toMatchObject({
       frequency: 'weekly',
       isEnrolled: false,
+      icon: 'walk',
     });
     expect(result.enrolledCount).toBe(0);
+  });
+
+  it('falls back when the catalog icon is empty', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow({ icon: '' })],
+    });
+
+    const result = await createService(prisma).listCatalog(user);
+
+    expect(result.challenges[0]?.icon).toBe(DEFAULT_CHALLENGE_ICON);
   });
 
   it("prefers the user's own cadence over the catalog default", async () => {

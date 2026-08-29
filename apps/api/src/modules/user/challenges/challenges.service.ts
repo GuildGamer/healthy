@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
+import { toChallengeIcon } from '@product/contract';
 import type {
   ChallengeCompletionKind,
   ChallengeFrequency,
@@ -379,6 +380,7 @@ export class ChallengesService {
       rewardPoints: number;
       completionKind: ChallengeCompletionKind;
       instruction: string;
+      icon: string;
     };
   }): TodayChallengeDto {
     return {
@@ -392,6 +394,7 @@ export class ChallengesService {
       frequency: assignment.frequency,
       completionKind: assignment.challenge.completionKind,
       instruction: assignment.challenge.instruction || assignment.challenge.description,
+      icon: toChallengeIcon(assignment.challenge.icon),
       periodKey: assignment.periodKey,
     };
   }

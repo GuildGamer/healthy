@@ -19,6 +19,8 @@ type ChallengeSeed = {
   /** Enrolled automatically when a user picks this category. */
   isDefault: boolean;
   completionKind?: 'check_in' | 'vitals_bp';
+  /** Material Community Icons glyph name. */
+  icon: string;
   instruction?: string;
 };
 
@@ -38,6 +40,7 @@ const challengeSeeds: ChallengeSeed[] = [
     completionKind: 'vitals_bp',
     instruction:
       'Sit still for a minute, then measure and log your systolic and diastolic reading.',
+    icon: 'heart-pulse',
   },
   {
     slug: 'take-morning-medication',
@@ -47,6 +50,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 150,
     defaultFrequency: 'daily',
     isDefault: true,
+    icon: 'pill',
   },
   {
     slug: 'low-sodium-meal',
@@ -56,6 +60,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 120,
     defaultFrequency: 'daily',
     isDefault: false,
+    icon: 'food-apple',
   },
   {
     slug: 'blood-pressure-week-review',
@@ -65,6 +70,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 350,
     defaultFrequency: 'weekly',
     isDefault: true,
+    icon: 'chart-line',
   },
   {
     slug: 'blood-pressure-clinic-check',
@@ -74,6 +80,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 500,
     defaultFrequency: 'monthly',
     isDefault: false,
+    icon: 'hospital-building',
   },
   {
     slug: 'glucose-check',
@@ -83,6 +90,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 200,
     defaultFrequency: 'daily',
     isDefault: true,
+    icon: 'water-check',
   },
   {
     slug: 'log-carbohydrates',
@@ -92,6 +100,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 120,
     defaultFrequency: 'daily',
     isDefault: false,
+    icon: 'food',
   },
   {
     slug: 'diabetic-foot-check',
@@ -101,6 +110,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 350,
     defaultFrequency: 'weekly',
     isDefault: true,
+    icon: 'shoe-sneaker',
   },
   {
     slug: 'hba1c-review',
@@ -110,6 +120,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 500,
     defaultFrequency: 'monthly',
     isDefault: false,
+    icon: 'flask',
   },
   {
     slug: 'asthma-inhaler-check',
@@ -119,6 +130,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 150,
     defaultFrequency: 'daily',
     isDefault: true,
+    icon: 'lungs',
   },
   {
     slug: 'peak-flow-reading',
@@ -128,6 +140,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 180,
     defaultFrequency: 'daily',
     isDefault: false,
+    icon: 'weather-windy',
   },
   {
     slug: 'asthma-trigger-review',
@@ -137,6 +150,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 300,
     defaultFrequency: 'weekly',
     isDefault: false,
+    icon: 'alert-circle-outline',
   },
   {
     slug: 'asthma-action-plan-review',
@@ -146,6 +160,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 500,
     defaultFrequency: 'monthly',
     isDefault: false,
+    icon: 'clipboard-text-outline',
   },
   {
     slug: 'log-water-intake',
@@ -155,6 +170,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 100,
     defaultFrequency: 'daily',
     isDefault: true,
+    icon: 'cup-water',
   },
   {
     slug: 'ten-minute-walk',
@@ -164,6 +180,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 150,
     defaultFrequency: 'daily',
     isDefault: true,
+    icon: 'walk',
   },
   {
     slug: 'sleep-log',
@@ -173,6 +190,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 100,
     defaultFrequency: 'daily',
     isDefault: false,
+    icon: 'sleep',
   },
   {
     slug: 'weekly-weigh-in',
@@ -182,6 +200,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 300,
     defaultFrequency: 'weekly',
     isDefault: true,
+    icon: 'scale-bathroom',
   },
   {
     slug: 'medication-refill',
@@ -191,6 +210,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 400,
     defaultFrequency: 'monthly',
     isDefault: true,
+    icon: 'medical-bag',
   },
 ];
 
@@ -231,6 +251,7 @@ async function main(): Promise<void> {
         isActive: true,
         completionKind,
         instruction,
+        icon: challenge.icon,
       },
     });
   }

@@ -17,6 +17,7 @@ export type CatalogChallengeDto = {
   frequency: ChallengeFrequency;
   completionKind: ChallengeCompletionKind;
   instruction: string;
+  icon: string;
   isEnrolled: boolean;
   /** Empty unless enrolled; the times this challenge nudges at. */
   reminders: ChallengeReminderDto[];

@@ -1,4 +1,5 @@
 import { ORPCError } from '@orpc/server';
+import { DEFAULT_CHALLENGE_ICON } from '@product/contract';
 import { describe, expect, it, vi } from 'vitest';
 import { ChallengesService } from './challenges.service.js';
 
@@ -16,6 +17,7 @@ function localDayKey(timeZone: string): string {
 }
 
 function createAssignment(overrides: Record<string, unknown> = {}) {
+  const { challenge: challengeOverrides, ...rest } = overrides;
   return {
     id: 'uc1',
     userId: 'u1',
@@ -32,8 +34,10 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
       rewardPoints: 20,
       completionKind: 'check_in',
       instruction: 'Step outside and walk for twenty minutes.',
+      icon: 'walk',
+      ...(challengeOverrides as Record<string, unknown> | undefined),
     },
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -232,6 +236,7 @@ describe('ChallengesService.start', () => {
       rewardPoints: 20,
       status: 'in_progress',
       frequency: 'daily',
+      icon: 'walk',
     });
     expect(prisma.userChallenge.updateMany).toHaveBeenCalledWith({
       where: { id: 'uc1', status: 'pending' },
@@ -251,6 +256,26 @@ describe('ChallengesService.start', () => {
     const result = await service.start(user, 'uc1');
 
     expect(result.challenge.status).toBe('completed');
+  });
+
+  it('falls back when the catalog icon is empty', async () => {
+    const prisma = createPrismaMock(
+      createAssignment({
+        challenge: { icon: '' },
+      }),
+    );
+    prisma.userChallenge.findUniqueOrThrow.mockResolvedValue(
+      createAssignment({
+        status: 'in_progress',
+        startedAt: new Date(),
+        challenge: { icon: '' },
+      }),
+    );
+    const service = new ChallengesService(prisma as never);
+
+    const result = await service.start(user, 'uc1');
+
+    expect(result.challenge.icon).toBe(DEFAULT_CHALLENGE_ICON);
   });
 });
 

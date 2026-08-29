@@ -150,6 +150,8 @@ model Challenge {
   completionKind   ChallengeCompletionKind   @default(check_in)
   /// Designed "What to do" copy. Description stays the longer about text.
   instruction      String                    @default("")
+  /// Material Community Icons glyph name. Admin-set so each challenge has its own mark.
+  icon             String                    @default("checkbox-marked-circle-outline")
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
   assignments      UserChallenge[]

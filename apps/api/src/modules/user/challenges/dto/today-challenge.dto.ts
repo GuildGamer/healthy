@@ -16,6 +16,7 @@ export type TodayChallengeDto = {
   frequency: ChallengeFrequency;
   completionKind: ChallengeCompletionKind;
   instruction: string;
+  icon: string;
   periodKey: string;
 };
 

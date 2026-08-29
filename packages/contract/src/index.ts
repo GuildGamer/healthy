@@ -18,6 +18,23 @@ export const challengeFrequencySchema = z.enum(['daily', 'weekly', 'monthly']);
 
 export const challengeCompletionKindSchema = z.enum(['check_in', 'vitals_bp']);
 
+/**
+ * Material Community Icons glyph name. Admin picks from that pack so the
+ * catalog can cover walks, pills, meters, and whatever comes next.
+ */
+export const DEFAULT_CHALLENGE_ICON = 'checkbox-marked-circle-outline';
+
+export const challengeIconSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+
+export function toChallengeIcon(value: string | null | undefined): string {
+  const parsed = challengeIconSchema.safeParse((value ?? '').trim());
+  return parsed.success ? parsed.data : DEFAULT_CHALLENGE_ICON;
+}
+
 export const challengeVitalsSchema = z.object({
   systolic: z.number().int().min(50).max(250),
   diastolic: z.number().int().min(30).max(180),
@@ -177,6 +194,7 @@ export const todayChallengeSchema = z.object({
   frequency: challengeFrequencySchema,
   completionKind: challengeCompletionKindSchema,
   instruction: z.string(),
+  icon: challengeIconSchema,
   /**
    * First day of the period this occurrence belongs to: the day itself for
    * daily, the Monday for weekly, the 1st for monthly.
@@ -202,6 +220,7 @@ export const catalogChallengeSchema = z.object({
   frequency: challengeFrequencySchema,
   completionKind: challengeCompletionKindSchema,
   instruction: z.string(),
+  icon: challengeIconSchema,
   isEnrolled: z.boolean(),
   /** Empty unless enrolled; the times this challenge nudges at. */
   reminders: z.array(challengeReminderSchema),

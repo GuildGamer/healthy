@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { apiClient } from '@/lib/api';
 import { ChallengeActionButton } from './ChallengeActionButton';
+import { ChallengeIcon } from './ChallengeIcon';
 import { completionRoute } from './completion-route';
 import { frequencyBadge } from './constants/frequency-labels';
 import { useAdvanceChallenge } from './useAdvanceChallenge';
@@ -127,6 +128,11 @@ function ChallengeCard({
       testID={`open-challenge-${challenge.challengeId}`}
     >
       <View style={styles.cardHeader}>
+        <ChallengeIcon
+          category={challenge.category}
+          completed={challenge.status === 'completed'}
+          name={challenge.icon}
+        />
         <Text style={styles.cardTitle}>{challenge.title}</Text>
         <Text style={styles.points}>+{challenge.rewardPoints}</Text>
         <Feather color={colors.border} name="chevron-right" size={18} />

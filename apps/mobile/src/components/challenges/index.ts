@@ -1,4 +1,5 @@
 export { ChallengeActionButton } from './ChallengeActionButton';
+export { ChallengeIcon } from './ChallengeIcon';
 export { completionRoute } from './completion-route';
 export { ChallengeDetailScreen } from './ChallengeDetailScreen';
 export { ChallengeSuccessScreen } from './ChallengeSuccessScreen';

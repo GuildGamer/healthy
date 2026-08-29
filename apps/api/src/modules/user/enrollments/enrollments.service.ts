@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
+import { toChallengeIcon } from '@product/contract';
 import type {
   ChallengeFrequency,
   HealthCategory,
@@ -76,6 +77,7 @@ export class EnrollmentsService {
         frequency: enrollment?.frequency ?? challenge.defaultFrequency,
         completionKind: challenge.completionKind,
         instruction: challenge.instruction || challenge.description,
+        icon: toChallengeIcon(challenge.icon),
         isEnrolled: enrollment?.isActive ?? false,
         // A deactivated enrolment keeps its reminders in the database, but
         // showing them would imply nudges that will never fire.

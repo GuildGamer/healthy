@@ -41,6 +41,7 @@ function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
     frequency: 'daily',
     completionKind: 'check_in',
     instruction: 'A brisk walk after lunch.',
+    icon: 'walk',
     periodKey: '2026-08-28',
     ...overrides,
   };

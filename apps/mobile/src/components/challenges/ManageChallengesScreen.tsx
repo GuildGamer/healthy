@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import { apiClient } from '@/lib/api';
+import { ChallengeIcon } from './ChallengeIcon';
 import { frequencyLabel } from './constants/frequency-labels';
 
 const categoryTitle: Record<HealthCategory, string> = {
@@ -149,6 +150,7 @@ function ChallengeOption({
       style={[styles.option, showDivider ? styles.optionDivided : null]}
       testID={`catalog-challenge-${challenge.challengeId}`}
     >
+      <ChallengeIcon category={challenge.category} name={challenge.icon} />
       <Pressable
         accessibilityRole="button"
         onPress={onOpen}

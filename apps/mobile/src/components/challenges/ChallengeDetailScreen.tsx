@@ -25,6 +25,7 @@ import {
   defaultReminderMinute,
   maxRemindersPerChallenge,
 } from './constants/reminder-times';
+import { ChallengeIcon } from './ChallengeIcon';
 import { TimePickerModal } from './TimePickerModal';
 
 function sameMinutes(left: number[], right: number[]): boolean {
@@ -244,6 +245,11 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       testID="challenge-detail-screen"
     >
       <View style={styles.heroRow}>
+        <ChallengeIcon
+          category={challenge.category}
+          name={challenge.icon}
+          size="md"
+        />
         <Text style={styles.title}>{challenge.title}</Text>
         <Text style={styles.categoryBadge}>{categoryName}</Text>
       </View>
@@ -411,7 +417,7 @@ const styles = StyleSheet.create({
   },
   heroRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   title: {
