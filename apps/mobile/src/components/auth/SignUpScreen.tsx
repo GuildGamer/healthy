@@ -18,7 +18,7 @@ import {
   PasswordField,
   TextField,
 } from '@/components/forms';
-import { signUp } from '@/lib/auth-client';
+import { signUp, waitForSession } from '@/lib/auth-client';
 import { AuthScreenHeader } from './AuthScreenHeader';
 
 interface SignUpScreenProps {
@@ -92,6 +92,12 @@ export function SignUpScreen({ onSignedUp, onLoginPress, onBackPress }: SignUpSc
       });
 
       if (error) {
+        setErrorMessage(SIGN_UP_FAILED_MESSAGE);
+        return;
+      }
+
+      const hasSession = await waitForSession();
+      if (!hasSession) {
         setErrorMessage(SIGN_UP_FAILED_MESSAGE);
         return;
       }

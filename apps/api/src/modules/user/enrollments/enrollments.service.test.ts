@@ -1,0 +1,280 @@
+import { ORPCError } from '@orpc/server';
+import { describe, expect, it, vi } from 'vitest';
+import { EnrollmentsService } from './enrollments.service.js';
+
+const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
+
+type CatalogRow = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  rewardPoints: number;
+  defaultFrequency: string;
+  completionKind: string;
+  instruction: string;
+};
+
+function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
+  return {
+    id: 'c1',
+    slug: 'walk',
+    title: 'Take a walk',
+    description: 'Ten minutes outside.',
+    category: 'general',
+    rewardPoints: 100,
+    defaultFrequency: 'daily',
+    completionKind: 'check_in',
+    instruction: 'Ten minutes outside.',
+    ...overrides,
+  };
+}
+
+function createPrismaMock(options: {
+  categories?: string[] | null;
+  catalog?: CatalogRow[];
+  enrollments?: Array<{
+    challengeId: string;
+    frequency: string;
+    isActive: boolean;
+  }>;
+  challenge?: Record<string, unknown> | null;
+}) {
+  return {
+    userProfile: {
+      findUnique: vi.fn().mockResolvedValue(
+        options.categories === null
+          ? null
+          : { healthCategories: options.categories ?? ['general'] },
+      ),
+    },
+    challenge: {
+      findMany: vi.fn().mockResolvedValue(options.catalog ?? []),
+      findUnique: vi.fn().mockResolvedValue(
+        options.challenge === undefined
+          ? { id: 'c1', isActive: true, defaultFrequency: 'daily' }
+          : options.challenge,
+      ),
+    },
+    challengeEnrollment: {
+      findMany: vi.fn().mockResolvedValue(
+        (options.enrollments ?? []).map((enrollment) => ({
+          ...enrollment,
+          reminders: [],
+        })),
+      ),
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+  };
+}
+
+function createRemindersMock() {
+  return { seedDefaultReminders: vi.fn().mockResolvedValue(undefined) };
+}
+
+function createService(prisma: ReturnType<typeof createPrismaMock>) {
+  return new EnrollmentsService(
+    prisma as never,
+    createRemindersMock() as never,
+  );
+}
+
+describe('EnrollmentsService.listCatalog', () => {
+  it('falls back to the catalog cadence for a challenge with no enrolment', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow({ defaultFrequency: 'weekly' })],
+    });
+
+    const result = await createService(prisma).listCatalog(
+      user,
+    );
+
+    expect(result.challenges[0]).toMatchObject({
+      frequency: 'weekly',
+      isEnrolled: false,
+    });
+    expect(result.enrolledCount).toBe(0);
+  });
+
+  it("prefers the user's own cadence over the catalog default", async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow({ defaultFrequency: 'daily' })],
+      enrollments: [{ challengeId: 'c1', frequency: 'weekly', isActive: true }],
+    });
+
+    const result = await createService(prisma).listCatalog(
+      user,
+    );
+
+    expect(result.challenges[0]).toMatchObject({
+      frequency: 'weekly',
+      isEnrolled: true,
+    });
+    expect(result.enrolledCount).toBe(1);
+  });
+
+  it('treats a deactivated enrolment as not enrolled', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+      enrollments: [{ challengeId: 'c1', frequency: 'daily', isActive: false }],
+    });
+
+    const result = await createService(prisma).listCatalog(
+      user,
+    );
+
+    expect(result.challenges[0]?.isEnrolled).toBe(false);
+    expect(result.enrolledCount).toBe(0);
+  });
+
+  it('narrows to the chosen conditions plus general health', async () => {
+    const prisma = createPrismaMock({ categories: ['asthma'] });
+
+    await createService(prisma).listCatalog(user);
+
+    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
+      { where: { category: { in: string[] } } },
+    ];
+    expect(argument.where.category.in.sort()).toEqual(['asthma', 'general']);
+  });
+
+  it('shows every category before onboarding has chosen any', async () => {
+    const prisma = createPrismaMock({ categories: [] });
+
+    await createService(prisma).listCatalog(user);
+
+    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
+      { where: { category: { in: string[] } } },
+    ];
+    expect(argument.where.category.in).toHaveLength(4);
+  });
+
+  it('rejects unauthenticated callers', async () => {
+    const prisma = createPrismaMock({});
+
+    await expect(
+      createService(prisma).listCatalog(null),
+    ).rejects.toBeInstanceOf(ORPCError);
+  });
+});
+
+describe('EnrollmentsService.setEnrollment', () => {
+  it('rejects a challenge that does not exist', async () => {
+    const prisma = createPrismaMock({ challenge: null });
+
+    await expect(
+      createService(prisma).setEnrollment(user, 'nope', true),
+    ).rejects.toBeInstanceOf(ORPCError);
+    expect(prisma.challengeEnrollment.upsert).not.toHaveBeenCalled();
+  });
+
+  it('refuses to enrol in a retired challenge', async () => {
+    const prisma = createPrismaMock({
+      challenge: { id: 'c1', isActive: false, defaultFrequency: 'daily' },
+    });
+
+    await expect(
+      createService(prisma).setEnrollment(user, 'c1', true),
+    ).rejects.toBeInstanceOf(ORPCError);
+  });
+
+  it('stores the requested cadence', async () => {
+    const prisma = createPrismaMock({ catalog: [catalogRow()] });
+
+    await createService(prisma).setEnrollment(
+      user,
+      'c1',
+      true,
+      'monthly',
+    );
+
+    const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
+      { create: { frequency: string }; update: { frequency: string } },
+    ];
+    expect(argument.create.frequency).toBe('monthly');
+    expect(argument.update.frequency).toBe('monthly');
+  });
+
+  it('falls back to the catalog cadence when none is given', async () => {
+    const prisma = createPrismaMock({
+      challenge: { id: 'c1', isActive: true, defaultFrequency: 'weekly' },
+      catalog: [catalogRow()],
+    });
+
+    await createService(prisma).setEnrollment(
+      user,
+      'c1',
+      true,
+    );
+
+    const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
+      { create: { frequency: string } },
+    ];
+    expect(argument.create.frequency).toBe('weekly');
+  });
+
+  it('deactivates rather than deletes when opting out', async () => {
+    const prisma = createPrismaMock({ catalog: [catalogRow()] });
+
+    await createService(prisma).setEnrollment(
+      user,
+      'c1',
+      false,
+    );
+
+    const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
+      { update: { isActive: boolean } },
+    ];
+    expect(argument.update.isActive).toBe(false);
+  });
+});
+
+describe('EnrollmentsService.enrollDefaultsFor', () => {
+  it('enrols only the challenges flagged as defaults', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+    });
+    prisma.challenge.findMany.mockResolvedValue([
+      { id: 'c1', defaultFrequency: 'daily' },
+    ]);
+
+    await createService(prisma).enrollDefaultsFor(user.id, [
+      'general',
+    ]);
+
+    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
+      { where: Record<string, unknown> },
+    ];
+    expect(argument.where).toMatchObject({ isDefault: true, isActive: true });
+  });
+
+  it('never revives an enrolment the user turned off', async () => {
+    const prisma = createPrismaMock({});
+    prisma.challenge.findMany.mockResolvedValue([
+      { id: 'c1', defaultFrequency: 'daily' },
+    ]);
+
+    await createService(prisma).enrollDefaultsFor(user.id, [
+      'general',
+    ]);
+
+    const [argument] = prisma.challengeEnrollment.createMany.mock.calls[0] as [
+      { skipDuplicates: boolean },
+    ];
+    expect(argument.skipDuplicates).toBe(true);
+  });
+
+  it('writes nothing when the categories have no default challenges', async () => {
+    const prisma = createPrismaMock({});
+    prisma.challenge.findMany.mockResolvedValue([]);
+
+    await createService(prisma).enrollDefaultsFor(user.id, [
+      'general',
+    ]);
+
+    expect(prisma.challengeEnrollment.createMany).not.toHaveBeenCalled();
+  });
+});

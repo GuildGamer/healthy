@@ -17,6 +17,15 @@ export const colors = {
   onAccent: '#0B1220',
   danger: '#FF6B6B',
   warning: '#FB923C',
+  /**
+   * Streak flame, as its own role so celebration never rides on `warning`.
+   * Deliberately darker than `warning`: against `accent` the lighter orange
+   * lands at a 1.28:1 luminance ratio, too close to resolve, and the edge
+   * appears to shimmer. This sits at 2.9:1.
+   */
+  streak: '#C2410C',
+  /** Hot core layered inside `streak` to give the flat glyph depth. */
+  streakCore: '#FBBF24',
   disabledSurface: '#1B2437',
   disabledText: '#5A6884',
 } as const;

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormButton, FormErrorBanner, OptionCard } from '@/components/forms';
-import { healthCategories } from './constants/health-categories';
+import { healthCategories } from '@/constants/health-categories';
 
 interface CategorySelectionScreenProps {
   onContinue: (selectedCategoryIds: readonly HealthCategory[]) => Promise<void> | void;

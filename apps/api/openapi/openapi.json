@@ -86,6 +86,29 @@
                     "currentStreakDays": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -94,7 +117,14 @@
                     "name",
                     "categories",
                     "pointsBalance",
-                    "currentStreakDays"
+                    "currentStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard"
                   ]
                 }
               }
@@ -179,6 +209,29 @@
                     "currentStreakDays": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -187,7 +240,646 @@
                     "name",
                     "categories",
                     "pointsBalance",
-                    "currentStreakDays"
+                    "currentStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/timezone": {
+      "put": {
+        "operationId": "updateTimeZone",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timeZone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "timeZone"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/reminder": {
+      "put": {
+        "operationId": "updateReminder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "reminderMinute": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1439
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "reminderMinute"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/notification-settings": {
+      "put": {
+        "operationId": "updateNotificationSettings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reminderEnabled": {
+                    "type": "boolean"
+                  },
+                  "evidenceRemindersEnabled": {
+                    "type": "boolean"
+                  },
+                  "promotionalMessagesEnabled": {
+                    "type": "boolean"
+                  },
+                  "showOnLeaderboard": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "reminderEnabled",
+                  "evidenceRemindersEnabled",
+                  "promotionalMessagesEnabled",
+                  "showOnLeaderboard"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/display-name": {
+      "put": {
+        "operationId": "updateDisplayName",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 24,
+                    "pattern": "^[\\p{L}\\p{N} ._-]+$"
+                  }
+                },
+                "required": [
+                  "displayName"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "listNotifications",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notifications": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": [
+                              "reminder",
+                              "success"
+                            ],
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "isRead": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "title",
+                          "body",
+                          "isRead",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "unreadCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "notifications",
+                    "unreadCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read": {
+      "post": {
+        "operationId": "markNotificationsRead",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unreadCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "unreadCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leaderboard": {
+      "get": {
+        "operationId": "listLeaderboard",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "weekStart": {
+                      "type": "string"
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "points": {
+                            "type": "integer"
+                          },
+                          "isCurrentUser": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "rank",
+                          "displayName",
+                          "points",
+                          "isCurrentUser"
+                        ]
+                      }
+                    },
+                    "currentUserRank": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "currentUserPoints": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "weekStart",
+                    "entries",
+                    "currentUserRank",
+                    "currentUserPoints"
                   ]
                 }
               }
@@ -248,7 +940,25 @@
                             ],
                             "type": "string"
                           },
-                          "dayKey": {
+                          "frequency": {
+                            "enum": [
+                              "daily",
+                              "weekly",
+                              "monthly"
+                            ],
+                            "type": "string"
+                          },
+                          "completionKind": {
+                            "enum": [
+                              "check_in",
+                              "vitals_bp"
+                            ],
+                            "type": "string"
+                          },
+                          "instruction": {
+                            "type": "string"
+                          },
+                          "periodKey": {
                             "type": "string"
                           }
                         },
@@ -260,7 +970,10 @@
                           "category",
                           "rewardPoints",
                           "status",
-                          "dayKey"
+                          "frequency",
+                          "completionKind",
+                          "instruction",
+                          "periodKey"
                         ]
                       }
                     },
@@ -278,6 +991,507 @@
                     "challenges",
                     "completedCount",
                     "totalCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/catalog": {
+      "get": {
+        "operationId": "listChallengeCatalog",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "rewardPoints": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "frequency": {
+                            "enum": [
+                              "daily",
+                              "weekly",
+                              "monthly"
+                            ],
+                            "type": "string"
+                          },
+                          "completionKind": {
+                            "enum": [
+                              "check_in",
+                              "vitals_bp"
+                            ],
+                            "type": "string"
+                          },
+                          "instruction": {
+                            "type": "string"
+                          },
+                          "isEnrolled": {
+                            "type": "boolean"
+                          },
+                          "reminders": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "minuteOfDay": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1439
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "minuteOfDay"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "challengeId",
+                          "slug",
+                          "title",
+                          "description",
+                          "category",
+                          "rewardPoints",
+                          "frequency",
+                          "completionKind",
+                          "instruction",
+                          "isEnrolled",
+                          "reminders"
+                        ]
+                      }
+                    },
+                    "enrolledCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "challenges",
+                    "enrolledCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/enrollment": {
+      "put": {
+        "operationId": "setChallengeEnrollment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "challengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "isEnrolled": {
+                    "type": "boolean"
+                  },
+                  "frequency": {
+                    "enum": [
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "challengeId",
+                  "isEnrolled"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "rewardPoints": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "frequency": {
+                            "enum": [
+                              "daily",
+                              "weekly",
+                              "monthly"
+                            ],
+                            "type": "string"
+                          },
+                          "completionKind": {
+                            "enum": [
+                              "check_in",
+                              "vitals_bp"
+                            ],
+                            "type": "string"
+                          },
+                          "instruction": {
+                            "type": "string"
+                          },
+                          "isEnrolled": {
+                            "type": "boolean"
+                          },
+                          "reminders": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "minuteOfDay": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1439
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "minuteOfDay"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "challengeId",
+                          "slug",
+                          "title",
+                          "description",
+                          "category",
+                          "rewardPoints",
+                          "frequency",
+                          "completionKind",
+                          "instruction",
+                          "isEnrolled",
+                          "reminders"
+                        ]
+                      }
+                    },
+                    "enrolledCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "challenges",
+                    "enrolledCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/reminders": {
+      "post": {
+        "operationId": "addChallengeReminder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "challengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minuteOfDay": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1439
+                  }
+                },
+                "required": [
+                  "challengeId",
+                  "minuteOfDay"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challengeId": {
+                      "type": "string"
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "minuteOfDay": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1439
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minuteOfDay"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "challengeId",
+                    "reminders"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeChallengeReminder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reminderId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "reminderId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challengeId": {
+                      "type": "string"
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "minuteOfDay": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1439
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minuteOfDay"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "challengeId",
+                    "reminders"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/push-devices": {
+      "post": {
+        "operationId": "registerPushDevice",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expoPushToken": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "platform": {
+                    "enum": [
+                      "ios",
+                      "android"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "expoPushToken",
+                  "platform"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "expoPushToken": {
+                      "type": "string"
+                    },
+                    "platform": {
+                      "enum": [
+                        "ios",
+                        "android"
+                      ],
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "expoPushToken",
+                    "platform",
+                    "isActive"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unregisterPushDevice",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expoPushToken": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "expoPushToken"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "success"
                   ]
                 }
               }
@@ -352,7 +1566,25 @@
                           ],
                           "type": "string"
                         },
-                        "dayKey": {
+                        "frequency": {
+                          "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly"
+                          ],
+                          "type": "string"
+                        },
+                        "completionKind": {
+                          "enum": [
+                            "check_in",
+                            "vitals_bp"
+                          ],
+                          "type": "string"
+                        },
+                        "instruction": {
+                          "type": "string"
+                        },
+                        "periodKey": {
                           "type": "string"
                         }
                       },
@@ -364,7 +1596,10 @@
                         "category",
                         "rewardPoints",
                         "status",
-                        "dayKey"
+                        "frequency",
+                        "completionKind",
+                        "instruction",
+                        "periodKey"
                       ]
                     }
                   },
@@ -391,6 +1626,34 @@
                   "userChallengeId": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "vitals": {
+                    "type": "object",
+                    "properties": {
+                      "systolic": {
+                        "type": "integer",
+                        "minimum": 50,
+                        "maximum": 250
+                      },
+                      "diastolic": {
+                        "type": "integer",
+                        "minimum": 30,
+                        "maximum": 180
+                      },
+                      "pulse": {
+                        "type": "integer",
+                        "minimum": 30,
+                        "maximum": 220
+                      },
+                      "notes": {
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "systolic",
+                      "diastolic"
+                    ]
                   }
                 },
                 "required": [
@@ -444,7 +1707,25 @@
                           ],
                           "type": "string"
                         },
-                        "dayKey": {
+                        "frequency": {
+                          "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly"
+                          ],
+                          "type": "string"
+                        },
+                        "completionKind": {
+                          "enum": [
+                            "check_in",
+                            "vitals_bp"
+                          ],
+                          "type": "string"
+                        },
+                        "instruction": {
+                          "type": "string"
+                        },
+                        "periodKey": {
                           "type": "string"
                         }
                       },
@@ -456,7 +1737,10 @@
                         "category",
                         "rewardPoints",
                         "status",
-                        "dayKey"
+                        "frequency",
+                        "completionKind",
+                        "instruction",
+                        "periodKey"
                       ]
                     },
                     "pointsBalance": {

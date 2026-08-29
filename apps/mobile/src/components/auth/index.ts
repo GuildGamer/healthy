@@ -1,8 +1,11 @@
 export { AuthScreenHeader } from './AuthScreenHeader';
 export { CategorySelectionScreen } from './CategorySelectionScreen';
+export { ForgotPasswordEmailScreen } from './ForgotPasswordEmailScreen';
+export { ForgotPasswordOtpScreen } from './ForgotPasswordOtpScreen';
 export { LoginScreen } from './LoginScreen';
 export { OnboardingScreen } from './OnboardingScreen';
+export { PasswordResetSuccessScreen } from './PasswordResetSuccessScreen';
+export { ResetPasswordScreen } from './ResetPasswordScreen';
 export { SignUpScreen } from './SignUpScreen';
 export { SplashScreen } from './SplashScreen';
-export type { HealthCategoryOption } from './constants/health-categories';
 export type { OnboardingSlide } from './constants/onboarding-slides';

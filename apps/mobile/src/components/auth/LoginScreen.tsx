@@ -17,12 +17,13 @@ import {
   PasswordField,
   TextField,
 } from '@/components/forms';
-import { signIn } from '@/lib/auth-client';
+import { signIn, waitForSession } from '@/lib/auth-client';
 import { AuthScreenHeader } from './AuthScreenHeader';
 
 interface LoginScreenProps {
   onAuthenticated: () => void;
   onSignUpPress: () => void;
+  onForgotPasswordPress: () => void;
   onBackPress: () => void;
 }
 
@@ -30,7 +31,12 @@ const SIGN_IN_FAILED_MESSAGE = 'We could not log you in. Check your details and 
 const NETWORK_FAILED_MESSAGE =
   'We could not reach the server. Check your connection and try again.';
 
-export function LoginScreen({ onAuthenticated, onSignUpPress, onBackPress }: LoginScreenProps) {
+export function LoginScreen({
+  onAuthenticated,
+  onSignUpPress,
+  onForgotPasswordPress,
+  onBackPress,
+}: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,6 +54,12 @@ export function LoginScreen({ onAuthenticated, onSignUpPress, onBackPress }: Log
       const { error } = await signIn.email({ email: email.trim(), password });
 
       if (error) {
+        setErrorMessage(SIGN_IN_FAILED_MESSAGE);
+        return;
+      }
+
+      const hasSession = await waitForSession();
+      if (!hasSession) {
         setErrorMessage(SIGN_IN_FAILED_MESSAGE);
         return;
       }
@@ -99,6 +111,15 @@ export function LoginScreen({ onAuthenticated, onSignUpPress, onBackPress }: Log
             />
           </FormField>
 
+          <Pressable
+            accessibilityRole="button"
+            onPress={onForgotPasswordPress}
+            style={styles.forgotRow}
+            testID="login-forgot-password"
+          >
+            <Text style={styles.linkText}>Forgot Password?</Text>
+          </Pressable>
+
           <FormButton
             disabled={!canSubmit}
             label="Log In"
@@ -134,6 +155,9 @@ const styles = StyleSheet.create({
   linkText: {
     color: colors.accent,
     fontSize: fontSize.sm,
+  },
+  forgotRow: {
+    alignSelf: 'flex-end',
   },
   footer: {
     flexDirection: 'row',

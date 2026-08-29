@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help install up down logs migrate migrate-deploy seed api mobile ios android web e2e-web build typecheck test openapi openapi-check split-repos lane-b lane-b-stop lane-b-restart lane-b-status lane-b-logs
+.PHONY: help install up down logs migrate migrate-deploy seed api mobile ios android web e2e-web build typecheck test test-integration openapi openapi-check split-repos lane-b lane-b-stop lane-b-restart lane-b-status lane-b-logs
 
 help:
 	@echo "Available targets:"; grep -E '^[a-zA-Z0-9_-]+:' Makefile | cut -d: -f1 | sort
@@ -90,6 +90,10 @@ typecheck:
 test:
 	@echo "+ pnpm test"
 	@pnpm test
+
+test-integration:
+	@echo "+ pnpm --filter @product/api test:integration"
+	@pnpm --filter @product/api test:integration
 
 openapi:
 	@echo "+ pnpm openapi:generate"

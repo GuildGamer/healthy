@@ -1,6 +1,12 @@
-appId: com.product.app
+appId: com.healthy.app
 ---
+# A signed-out launch shows the splash for two seconds, then onboarding.
 - launchApp
-- assertVisible: "Product"
-- assertVisible: "Mobile home"
-- assertVisible: "Check API health"
+- assertVisible:
+    id: 'splash-screen'
+- extendedWaitUntil:
+    visible:
+      id: 'onboarding-advance'
+    timeout: 10000
+- assertVisible:
+    id: 'onboarding-login'

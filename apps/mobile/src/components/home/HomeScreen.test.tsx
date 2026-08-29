@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import type { ReactElement } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { apiClient } from '@/lib/api';
 import { HomeScreen } from './HomeScreen';
 
@@ -18,8 +19,10 @@ jest.mock('@/lib/api', () => ({
   apiClient: {
     me: jest.fn(),
     listTodayChallenges: jest.fn(),
+    listNotifications: jest.fn(),
     startChallenge: jest.fn(),
     completeChallenge: jest.fn(),
+    updateTimeZone: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -32,15 +35,20 @@ jest.mock('@/lib/auth-client', () => ({
   }),
 }));
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn() }),
-}));
+jest.mock('expo-router', () => {
+  const push = jest.fn();
+  return {
+    useRouter: () => ({ push }),
+  };
+});
 
 const mockedApi = apiClient as unknown as {
   me: jest.Mock;
   listTodayChallenges: jest.Mock;
+  listNotifications: jest.Mock;
   startChallenge: jest.Mock;
   completeChallenge: jest.Mock;
+  updateTimeZone: jest.Mock;
 };
 
 function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
@@ -52,7 +60,10 @@ function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
     category: 'general',
     rewardPoints: 20,
     status: 'pending',
-    dayKey: '2026-08-28',
+    frequency: 'daily',
+    completionKind: 'check_in',
+    instruction: 'A brisk walk after lunch.',
+    periodKey: '2026-08-28',
     ...overrides,
   };
 }
@@ -98,6 +109,17 @@ beforeEach(() => {
     categories: ['hypertension'],
     pointsBalance: 150,
     currentStreakDays: 7,
+    // Matches the device zone under test, so no sync request is triggered.
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    reminderEnabled: false,
+    reminderMinute: 1140,
+    evidenceRemindersEnabled: true,
+    promotionalMessagesEnabled: false,
+    showOnLeaderboard: true,
+  });
+  mockedApi.listNotifications.mockResolvedValue({
+    notifications: [],
+    unreadCount: 0,
   });
   mockedApi.listTodayChallenges.mockResolvedValue({
     dayKey: '2026-08-28',
@@ -116,8 +138,45 @@ describe('HomeScreen', () => {
     expect(screen.getByText('Leaderboard')).toBeOnTheScreen();
     expect(screen.getByText('Health Tips')).toBeOnTheScreen();
     expect(screen.getByText("Today's Challenges")).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('previews the daily tip on the Health Tips row', async () => {
+    const { cleanup } = renderHome();
+
+    // 'hypertension' is the only selected category, so the rotation is limited
+    // to its three tips plus the general ones.
+    expect(await screen.findByText('Health Tips')).toBeOnTheScreen();
     expect(
-      screen.getByText('Reduce salt today for better blood pressure control.'),
+      screen.getByText(
+        /Reduce salt|reading at the same time|after your largest meal|glass of water|every hour|sleep and wake/,
+      ),
+    ).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('opens notifications from the bell, not reminder settings', async () => {
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByLabelText('Notifications')).toBeOnTheScreen();
+    expect(screen.getByTestId('open-notifications')).toBeOnTheScreen();
+    expect(screen.getByTestId('open-profile')).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('badges the bell when the inbox has unread items', async () => {
+    mockedApi.listNotifications.mockResolvedValue({
+      notifications: [],
+      unreadCount: 2,
+    });
+
+    const { cleanup } = renderHome();
+
+    expect(
+      await screen.findByLabelText('2 unread notifications'),
     ).toBeOnTheScreen();
 
     await cleanup();
@@ -140,6 +199,7 @@ describe('HomeScreen', () => {
     expect(await screen.findByText('Start')).toBeOnTheScreen();
     expect(screen.getByText('Finish')).toBeOnTheScreen();
     expect(screen.getByText('Done')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-see-all-challenges')).toBeNull();
 
     await cleanup();
   });
@@ -176,4 +236,77 @@ describe('HomeScreen', () => {
 
     await cleanup();
   });
+
+  it('opens the log screen when Finish is a blood-pressure reading', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [
+        challenge({
+          id: 'uc-bp',
+          challengeId: 'c-bp',
+          status: 'in_progress',
+          completionKind: 'vitals_bp',
+          title: 'Check blood pressure',
+        }),
+      ],
+      completedCount: 0,
+      totalCount: 1,
+    });
+
+    const { cleanup } = renderHome();
+
+    fireEvent.press(await screen.findByTestId('advance-challenge-uc-bp'));
+
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c-bp/log');
+    expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
+
+    await cleanup();
+  });
+
+  it('keeps extra today challenges on the Challenges tab', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [
+        challenge({ id: 'uc1', challengeId: 'c1', title: 'Walk 20 minutes' }),
+        challenge({ id: 'uc2', challengeId: 'c2', title: 'Drink water' }),
+        challenge({ id: 'uc3', challengeId: 'c3', title: 'Take evening stretch' }),
+        challenge({ id: 'uc4', challengeId: 'c4', title: 'Log breakfast' }),
+        challenge({ id: 'uc5', challengeId: 'c5', title: 'Evening walk' }),
+        challenge({ id: 'uc6', challengeId: 'c6', title: 'Wind-down stretch' }),
+      ],
+      completedCount: 0,
+      totalCount: 6,
+    });
+
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByText('Walk 20 minutes')).toBeOnTheScreen();
+    expect(screen.getByText('Drink water')).toBeOnTheScreen();
+    expect(screen.getByText('Take evening stretch')).toBeOnTheScreen();
+    expect(screen.getByText('Log breakfast')).toBeOnTheScreen();
+    expect(screen.getByText('Evening walk')).toBeOnTheScreen();
+    expect(screen.queryByText('Wind-down stretch')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('home-see-all-challenges'));
+    expect(useRouter().push).toHaveBeenCalledWith('/(tabs)/challenges');
+
+    await cleanup();
+  });
+
+  it('opens challenge details from the row body', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [challenge({})],
+      completedCount: 0,
+      totalCount: 1,
+    });
+
+    const { cleanup } = renderHome();
+
+    fireEvent.press(await screen.findByTestId('open-challenge-c1'));
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c1');
+
+    await cleanup();
+  });
 });
+

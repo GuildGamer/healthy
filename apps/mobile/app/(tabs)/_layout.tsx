@@ -1,8 +1,20 @@
 import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight } from '@product/brand';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { SplashScreen } from '@/components/auth';
+import { useSession } from '@/lib/auth-client';
 
 export default function TabsLayout() {
+  const { data: session, isPending, isRefetching } = useSession();
+
+  if (isPending || (!session && isRefetching)) {
+    return <SplashScreen />;
+  }
+
+  if (!session) {
+    return <Redirect href="/login" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

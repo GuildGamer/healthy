@@ -3,23 +3,31 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Healthy',
-  slug: 'product',
-  scheme: 'product',
+  slug: 'healthy',
+  scheme: 'healthy',
   version: '1.0.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
+  icon: './assets/icon.png',
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.product.app',
+    bundleIdentifier: 'com.healthy.app',
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: '#0B1220',
+      foregroundImage: './assets/icon.png',
+      backgroundColor: '#3DDC97',
     },
-    package: 'com.product.app',
+    package: 'com.healthy.app',
   },
-  plugins: ['expo-router', 'expo-dev-client', 'expo-secure-store'],
+  plugins: [
+    'expo-router',
+    'expo-dev-client',
+    'expo-secure-store',
+    'expo-notifications',
+    'expo-font',
+  ],
   experiments: {
     typedRoutes: true,
   },

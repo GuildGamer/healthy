@@ -11,18 +11,21 @@ datasource db {
 
 /// Better Auth core tables
 model User {
-  id                   String             @id
+  id                   String                @id
   name                 String
-  email                String             @unique
-  emailVerified        Boolean            @default(false)
+  email                String                @unique
+  emailVerified        Boolean               @default(false)
   image                String?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   sessions             Session[]
   accounts             Account[]
   profile              UserProfile?
   challengeAssignments UserChallenge[]
+  challengeEnrollments ChallengeEnrollment[]
   pointLedger          PointLedgerEntry[]
+  pushDevices          PushDevice[]
+  notifications        Notification[]
 
   @@map("user")
 }
@@ -85,6 +88,19 @@ model UserProfile {
   /// Habit-loop points — integers only; mutated via PointLedgerEntry.
   pointsBalance     Int              @default(0)
   currentStreakDays Int              @default(0)
+  /// IANA zone deciding when the user's challenge day rolls over.
+  timeZone          String           @default("UTC")
+  /// Master switch. Off silences every challenge reminder without losing the
+  /// per-challenge times the user set up.
+  reminderEnabled   Boolean          @default(false)
+  /// Local wall-clock minutes past midnight, so it survives zone changes. Seeds
+  /// the first reminder on a new enrolment; per-challenge times override it.
+  reminderMinute    Int              @default(1140)
+  /// Designed Profile toggles. Evidence and promotional have no delivery yet.
+  evidenceRemindersEnabled     Boolean @default(true)
+  promotionalMessagesEnabled   Boolean @default(false)
+  /// Opt-out. Hidden users still see the board; others do not see them on it.
+  showOnLeaderboard Boolean          @default(true)
   /// Chronic-condition preferences used to tailor challenges.
   healthCategories  HealthCategory[] @default([])
   createdAt         DateTime         @default(now())
@@ -102,6 +118,8 @@ enum HealthCategory {
 
 enum ChallengeFrequency {
   daily
+  weekly
+  monthly
 }
 
 enum UserChallengeStatus {
@@ -110,42 +128,173 @@ enum UserChallengeStatus {
   completed
 }
 
+/// How the user finishes an occurrence. `check_in` is Start / Finish;
+/// `vitals_bp` opens the designed blood-pressure form.
+enum ChallengeCompletionKind {
+  check_in
+  vitals_bp
+}
+
 model Challenge {
-  id           String             @id @default(cuid())
-  slug         String             @unique
-  title        String
-  description  String
-  category     HealthCategory
-  rewardPoints Int
-  frequency    ChallengeFrequency @default(daily)
-  isActive     Boolean            @default(true)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  assignments  UserChallenge[]
+  id               String                @id @default(cuid())
+  slug             String                @unique
+  title            String
+  description      String
+  category         HealthCategory
+  rewardPoints     Int
+  /// Starting cadence for a new enrolment; each user may override it.
+  defaultFrequency ChallengeFrequency    @default(daily)
+  /// Enrolled automatically when a user picks this challenge's category.
+  isDefault        Boolean                   @default(false)
+  isActive         Boolean                   @default(true)
+  completionKind   ChallengeCompletionKind   @default(check_in)
+  /// Designed "What to do" copy. Description stays the longer about text.
+  instruction      String                    @default("")
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  assignments      UserChallenge[]
+  enrollments      ChallengeEnrollment[]
 
   @@index([isActive, category])
   @@map("challenges")
 }
 
-/// Per-user daily assignment of a catalog challenge.
-model UserChallenge {
-  id            String              @id @default(cuid())
+/// A user's standing opt-in to a catalog challenge, with their own cadence.
+model ChallengeEnrollment {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId String
+  challenge   Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  frequency   ChallengeFrequency
+  /// Deactivated rather than deleted so completion history keeps its context.
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  assignments UserChallenge[]
+  reminders   ChallengeReminder[]
+
+  @@unique([userId, challengeId])
+  @@index([userId, isActive])
+  @@map("challenge_enrollments")
+}
+
+/// One reminder time on an enrolment. Several rows give a challenge several
+/// nudges, the way a calendar event can carry more than one alert.
+model ChallengeReminder {
+  id           String              @id @default(cuid())
+  enrollmentId String
+  enrollment   ChallengeEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  /// Local wall-clock minutes past midnight, so it survives a zone change.
+  minuteOfDay  Int
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  deliveries   ReminderDelivery[]
+
+  /// Adding the same time twice is a no-op rather than a duplicate nudge.
+  @@unique([enrollmentId, minuteOfDay])
+  @@index([minuteOfDay])
+  @@map("challenge_reminders")
+}
+
+/// Records that a reminder was sent for a period, which is what makes the
+/// dispatcher safe to run again over an overlapping window.
+model ReminderDelivery {
+  id         String            @id @default(cuid())
+  reminderId String
+  reminder   ChallengeReminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  /// The period the nudge belonged to, matching `UserChallenge.periodKey`.
+  periodKey  String
+  sentAt     DateTime          @default(now())
+
+  @@unique([reminderId, periodKey])
+  @@map("reminder_deliveries")
+}
+
+/// An Expo push token for one installation. Tokens are retired rather than
+/// deleted, so a device that returns keeps its history.
+model PushDevice {
+  id            String   @id @default(cuid())
   userId        String
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expoPushToken String   @unique
+  platform      String
+  isActive      Boolean  @default(true)
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, isActive])
+  @@map("push_devices")
+}
+
+/// One occurrence of an enrolled challenge, scoped to the period it is due in.
+model UserChallenge {
+  id            String               @id @default(cuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   challengeId   String
-  challenge     Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  /// UTC calendar day `YYYY-MM-DD` for daily challenges.
-  dayKey        String
-  status        UserChallengeStatus @default(pending)
+  challenge     Challenge            @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  enrollmentId  String?
+  enrollment    ChallengeEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  /// First day of the period this occurrence belongs to, `YYYY-MM-DD` in the
+  /// user's zone. Daily is the day itself, weekly the Monday, monthly the 1st.
+  periodKey     String
+  /// Copied from the enrolment so history survives a later cadence change, and
+  /// so daily-only queries such as the streak need no join.
+  frequency     ChallengeFrequency   @default(daily)
+  status        UserChallengeStatus  @default(pending)
   startedAt     DateTime?
   completedAt   DateTime?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   ledgerEntries PointLedgerEntry[]
+  vitalReading  VitalReading?
 
-  @@unique([userId, challengeId, dayKey])
-  @@index([userId, dayKey])
+  @@unique([userId, challengeId, periodKey])
+  @@index([userId, periodKey])
+  @@index([userId, frequency, status])
   @@map("user_challenges")
+}
+
+enum NotificationKind {
+  reminder
+  success
+}
+
+/// In-app inbox item. The Home bell opens this list, not reminder settings.
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind           NotificationKind
+  title          String
+  body           String
+  readAt         DateTime?
+  /// Same key as the event that produced the row, so retries do not duplicate.
+  idempotencyKey String           @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/// One blood-pressure log for a vitals occurrence. Unique on the occurrence
+/// so completing again is an upsert, not a second reading.
+model VitalReading {
+  id              String        @id @default(cuid())
+  userChallengeId String        @unique
+  userChallenge   UserChallenge @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  systolic        Int
+  diastolic       Int
+  pulse           Int?
+  notes           String?
+  recordedAt      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("vital_readings")
 }
 
 /// Append-only points movements. `UserProfile.pointsBalance` is a cached total.

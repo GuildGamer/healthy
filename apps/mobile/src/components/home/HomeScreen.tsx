@@ -23,12 +23,19 @@ import {
 } from 'react-native';
 import {
   ChallengeActionButton,
+  completionRoute,
+  frequencyBadge,
   useAdvanceChallenge,
 } from '@/components/challenges';
+import { selectDailyTip } from '@/components/tips';
 import { useSession } from '@/lib/auth-client';
+import { useSyncTimeZone } from '@/lib/time-zone';
+import { usePushDeviceSync } from '@/lib/use-push-device';
+import { displayFontFamily } from '@/lib/fonts';
 import { apiClient } from '@/lib/api';
 import heroPattern from '@/assets/hero-pattern.png';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { previewTodayChallenges } from './preview-today-challenges';
 
 /** Figma uses 12px gaps (`space-y-3`) between home sections. */
 const SECTION_GAP = 12;
@@ -40,6 +47,22 @@ const CARD_RADIUS = 12;
  * cutting the pattern in half.
  */
 const HERO_CONTENT_WIDTH = '62%';
+
+const FLAME_SIZE = 28;
+const FLAME_CORE_SIZE = 16;
+/** The glyph's ink is centred in its box, so centring the boxes centres them. */
+const FLAME_CORE_LEFT = (FLAME_SIZE - FLAME_CORE_SIZE) / 2;
+/**
+ * The glyph leaves ~12% of its box empty beneath the ink, so the smaller copy
+ * has to be lifted by that difference before its base lines up with the outer
+ * flame's, plus a touch more to seat the hot spot just above the base.
+ */
+const FLAME_CORE_BOTTOM = 3;
+/**
+ * Optical, not a spacing token: Archivo Black's tight sidebearings make the
+ * 8px step read as a detached flame, and 4px crowds it.
+ */
+const FLAME_GAP = 6;
 
 const categoryVisual: Record<
   TodayChallenge['category'],
@@ -57,6 +80,14 @@ function firstNameFrom(name: string | null | undefined, email: string): string {
     return trimmed.split(/\s+/)[0] ?? trimmed;
   }
   return email.split('@')[0] ?? 'there';
+}
+
+function formatHomeDate(at: Date = new Date()): string {
+  return at.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 function CategoryIcon({
@@ -84,23 +115,44 @@ function ChallengeRow({
   challenge,
   isBusy,
   onAdvance,
+  onOpen,
 }: {
   challenge: TodayChallenge;
   isBusy: boolean;
   onAdvance: () => void;
+  onOpen: () => void;
 }) {
   const isDone = challenge.status === 'completed';
 
   return (
     <View style={styles.challengeRow} testID={`home-challenge-${challenge.id}`}>
-      <CategoryIcon category={challenge.category} completed={isDone} />
-
-      <View style={styles.challengeBody}>
-        <Text numberOfLines={1} style={styles.challengeTitle}>
-          {challenge.title}
-        </Text>
-        <Text style={styles.challengeMeta}>+{challenge.rewardPoints} pts</Text>
-      </View>
+      <Pressable
+        accessibilityHint="Opens schedule and reminders"
+        accessibilityLabel={challenge.title}
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={({ pressed }) => [
+          styles.challengeBody,
+          pressed && styles.challengeBodyPressed,
+        ]}
+        testID={`open-challenge-${challenge.challengeId}`}
+      >
+        <View style={styles.challengeOpen}>
+          <CategoryIcon category={challenge.category} completed={isDone} />
+          <View style={styles.challengeText}>
+            <Text numberOfLines={1} style={styles.challengeTitle}>
+              {challenge.title}
+            </Text>
+            <Text style={styles.challengeMeta}>
+              +{challenge.rewardPoints} pts
+              {challenge.frequency === 'daily'
+                ? ''
+                : ` · ${frequencyBadge[challenge.frequency]}`}
+            </Text>
+          </View>
+          <Feather color={colors.border} name="chevron-right" size={16} />
+        </View>
+      </Pressable>
 
       <ChallengeActionButton
         isBusy={isBusy}
@@ -117,11 +169,13 @@ function QuickRow({
   label,
   onPress,
   showDivider,
+  subtitle,
 }: {
   icon: 'trophy' | 'bulb';
   label: string;
   onPress: () => void;
   showDivider?: boolean;
+  subtitle?: string;
 }) {
   return (
     <>
@@ -133,7 +187,14 @@ function QuickRow({
             <Ionicons color={colors.warning} name="bulb" size={14} />
           )}
         </View>
-        <Text style={styles.quickLabel}>{label}</Text>
+        <View style={styles.quickBody}>
+          <Text style={styles.quickLabel}>{label}</Text>
+          {subtitle ? (
+            <Text numberOfLines={1} style={styles.quickSubtitle}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
         <Feather color={colors.border} name="chevron-right" size={16} />
       </Pressable>
       {showDivider ? <View style={styles.rowDivider} /> : null}
@@ -157,6 +218,8 @@ export function HomeScreen() {
     queryFn: () => apiClient.listTodayChallenges(),
   });
 
+  useSyncTimeZone(meQuery.data?.timeZone);
+
   const displayName = firstNameFrom(
     meQuery.data?.name ?? session?.user.name,
     meQuery.data?.email ?? session?.user.email ?? 'friend',
@@ -164,9 +227,21 @@ export function HomeScreen() {
   const pointsBalance = meQuery.data?.pointsBalance ?? 0;
   const streakDays = meQuery.data?.currentStreakDays ?? 0;
   const challenges = challengesQuery.data?.challenges ?? [];
+  const previewChallenges = previewTodayChallenges(challenges);
   const completedCount = challengesQuery.data?.completedCount ?? 0;
   const totalCount = challengesQuery.data?.totalCount ?? 0;
-  const hasUnread = true;
+  const todayTip = selectDailyTip(
+    meQuery.data?.categories ?? [],
+    challengesQuery.data?.dayKey ?? '',
+  );
+
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => apiClient.listNotifications(),
+  });
+  const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
+
+  usePushDeviceSync(meQuery.data?.reminderEnabled ?? false);
 
   return (
     <ScrollView
@@ -174,9 +249,17 @@ export function HomeScreen() {
       refreshControl={
         <RefreshControl
           onRefresh={async () => {
-            await Promise.all([meQuery.refetch(), challengesQuery.refetch()]);
+            await Promise.all([
+              meQuery.refetch(),
+              challengesQuery.refetch(),
+              notificationsQuery.refetch(),
+            ]);
           }}
-          refreshing={meQuery.isRefetching || challengesQuery.isRefetching}
+          refreshing={
+            meQuery.isRefetching ||
+            challengesQuery.isRefetching ||
+            notificationsQuery.isRefetching
+          }
           tintColor={colors.accent}
         />
       }
@@ -184,19 +267,35 @@ export function HomeScreen() {
       testID="home-screen"
     >
       <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <Text style={styles.greeting}>Hi, {displayName}</Text>
-        <Pressable
-          accessibilityLabel="Notifications"
-          accessibilityRole="button"
-          style={[styles.bellWrap, hasUnread ? styles.bellWrapUnread : null]}
-        >
-          <Feather
-            color={hasUnread ? colors.accent : colors.muted}
-            name="bell"
-            size={20}
-          />
-          {hasUnread ? <View style={styles.unreadDot} /> : null}
-        </Pressable>
+        <View style={styles.greetingBlock}>
+          <Text style={styles.greeting}>Hi, {displayName}</Text>
+          <Text style={styles.headerDate}>{formatHomeDate()}</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityLabel={
+              unreadCount > 0
+                ? `${unreadCount} unread notifications`
+                : 'Notifications'
+            }
+            accessibilityRole="button"
+            onPress={() => router.push('/notifications')}
+            style={styles.bellWrap}
+            testID="open-notifications"
+          >
+            <Feather color={colors.muted} name="bell" size={20} />
+            {unreadCount > 0 ? <View style={styles.unreadBadge} /> : null}
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Profile"
+            accessibilityRole="button"
+            onPress={() => router.push('/(tabs)/profile')}
+            style={styles.avatarWrap}
+            testID="open-profile"
+          >
+            <Feather color={colors.accent} name="user" size={18} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.body}>
@@ -213,12 +312,19 @@ export function HomeScreen() {
           >
             <View style={styles.heroContent}>
               <View style={styles.streakRow}>
-                <MaterialCommunityIcons
-                  color={colors.warning}
-                  name="fire"
-                  size={24}
-                  style={styles.flameIcon}
-                />
+                <View style={styles.flame}>
+                  <MaterialCommunityIcons
+                    color={colors.streak}
+                    name="fire"
+                    size={FLAME_SIZE}
+                  />
+                  <MaterialCommunityIcons
+                    color={colors.streakCore}
+                    name="fire"
+                    size={FLAME_CORE_SIZE}
+                    style={styles.flameCore}
+                  />
+                </View>
                 <Text style={styles.streakValue}>{streakDays}</Text>
               </View>
               <Text style={styles.heroMeta}>
@@ -237,43 +343,75 @@ export function HomeScreen() {
           <QuickRow
             icon="trophy"
             label="Leaderboard"
-            onPress={() => undefined}
+            onPress={() => router.push('/leaderboard')}
             showDivider
           />
           <QuickRow
             icon="bulb"
             label="Health Tips"
-            onPress={() => undefined}
+            onPress={() => router.push('/tips')}
+            subtitle={todayTip?.title}
           />
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today&apos;s Challenges</Text>
-            <Pressable onPress={() => router.push('/(tabs)/challenges')}>
-              <Text style={styles.seeAll}>See all</Text>
-            </Pressable>
+            {challenges.length > previewChallenges.length ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/(tabs)/challenges')}
+                testID="home-see-all-challenges"
+              >
+                <Text style={styles.seeAll}>See all</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <View style={styles.challengeCard}>
             {challengesQuery.isLoading ? (
               <ActivityIndicator color={colors.accent} style={styles.loader} />
             ) : challenges.length === 0 ? (
-              <Text style={styles.empty}>No challenges for today yet.</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/manage-challenges')}
+                style={styles.firstRun}
+                testID="home-choose-challenges"
+              >
+                <Feather color={colors.accent} name="plus-circle" size={20} />
+                <View style={styles.firstRunText}>
+                  <Text style={styles.firstRunTitle}>
+                    Choose your challenges
+                  </Text>
+                  <Text style={styles.firstRunSubtitle}>
+                    Pick what you want to work on and how often.
+                  </Text>
+                </View>
+                <Feather color={colors.muted} name="chevron-right" size={18} />
+              </Pressable>
             ) : (
-              challenges.map((challenge, index) => (
+              previewChallenges.map((challenge, index) => (
                 <View key={challenge.id}>
                   <ChallengeRow
                     challenge={challenge}
                     isBusy={isAdvancing(challenge.id)}
-                    onAdvance={() =>
+                    onAdvance={() => {
+                      const route = completionRoute(challenge);
+                      if (route) {
+                        router.push(route);
+                        return;
+                      }
+
                       advance({
                         userChallengeId: challenge.id,
                         status: challenge.status,
-                      })
+                      });
+                    }}
+                    onOpen={() =>
+                      router.push(`/challenge/${challenge.challengeId}`)
                     }
                   />
-                  {index < challenges.length - 1 ? (
+                  {index < previewChallenges.length - 1 ? (
                     <View style={styles.rowDivider} />
                   ) : null}
                 </View>
@@ -282,12 +420,6 @@ export function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.tipBanner}>
-          <Ionicons color={colors.warning} name="bulb" size={20} style={styles.tipIcon} />
-          <Text style={styles.tipText}>
-            Reduce salt today for better blood pressure control.
-          </Text>
-        </View>
       </View>
     </ScrollView>
   );
@@ -309,28 +441,45 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
+  greetingBlock: {
+    flex: 1,
+    gap: 2,
+  },
   greeting: {
     color: colors.text,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
-    flex: 1,
+  },
+  headerDate: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   bellWrap: {
     padding: spacing.sm,
     borderRadius: radii.full,
     backgroundColor: colors.surfaceRaised,
   },
-  bellWrapUnread: {
-    backgroundColor: colors.accentSurface,
-  },
-  unreadDot: {
+  unreadBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.danger,
+    backgroundColor: colors.accent,
+  },
+  avatarWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accentSurface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   body: {
     paddingHorizontal: spacing.lg,
@@ -354,18 +503,32 @@ const styles = StyleSheet.create({
   },
   streakRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.sm,
+    // Baseline, not flex-end: the icon is a glyph too, so this stays aligned
+    // if the numeral face or its line height ever changes again.
+    alignItems: 'baseline',
+    gap: FLAME_GAP,
     marginBottom: 4,
   },
-  flameIcon: {
-    marginBottom: 4,
+  /**
+   * Wrapping the pair gives the core a coordinate space that is the outer
+   * flame's box rather than the whole row, which is taller because of the
+   * numeral's line height.
+   */
+  flame: {
+    position: 'relative',
+  },
+  flameCore: {
+    position: 'absolute',
+    left: FLAME_CORE_LEFT,
+    bottom: FLAME_CORE_BOTTOM,
   },
   streakValue: {
     color: colors.onAccent,
+    fontFamily: displayFontFamily,
     fontSize: 34,
-    fontWeight: fontWeight.semibold,
-    lineHeight: 34,
+    // No fontWeight: the face is already black, and asking for a weight it has
+    // no file for makes Android synthesise a smeared bold.
+    lineHeight: 38,
   },
   heroMeta: {
     color: colors.onAccent,
@@ -414,10 +577,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  quickBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
   quickLabel: {
     color: colors.text,
     fontSize: fontSize.sm,
-    flex: 1,
+  },
+  quickSubtitle: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
   },
   section: {
     gap: 12,
@@ -459,6 +630,18 @@ const styles = StyleSheet.create({
   challengeBody: {
     flex: 1,
     minWidth: 0,
+  },
+  challengeBodyPressed: {
+    opacity: 0.7,
+  },
+  challengeOpen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  challengeText: {
+    flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   challengeTitle: {
@@ -474,30 +657,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginLeft: spacing.md,
   },
-  tipBanner: {
+  firstRun: {
+    alignItems: 'center',
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: '#3A2E1A',
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: '#5C4A28',
+    gap: spacing.md,
     padding: spacing.md,
   },
-  tipIcon: {
-    marginTop: 2,
-  },
-  tipText: {
-    color: '#FDE68A',
-    fontSize: fontSize.sm,
+  firstRunText: {
     flex: 1,
-    lineHeight: 20,
+    gap: 2,
   },
-  empty: {
-    color: colors.muted,
+  firstRunTitle: {
+    color: colors.text,
     fontSize: fontSize.sm,
-    padding: spacing.lg,
-    textAlign: 'center',
+    fontWeight: fontWeight.semibold,
+  },
+  firstRunSubtitle: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
   },
   loader: {
     padding: spacing.lg,

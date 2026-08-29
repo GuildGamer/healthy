@@ -1,3 +1,4 @@
+import Feather from '@expo/vector-icons/Feather';
 import type { TodayChallenge } from '@product/client';
 import {
   colors,
@@ -7,8 +8,10 @@ import {
   spacing,
 } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -17,9 +20,12 @@ import {
 } from 'react-native';
 import { apiClient } from '@/lib/api';
 import { ChallengeActionButton } from './ChallengeActionButton';
+import { completionRoute } from './completion-route';
+import { frequencyBadge } from './constants/frequency-labels';
 import { useAdvanceChallenge } from './useAdvanceChallenge';
 
 export function ChallengesScreen() {
+  const router = useRouter();
   const { advance, isAdvancing } = useAdvanceChallenge();
 
   const challengesQuery = useQuery({
@@ -45,14 +51,24 @@ export function ChallengesScreen() {
     >
       <Text style={styles.subtitle}>
         {totalCount > 0
-          ? `${completedCount}/${totalCount} completed today`
-          : 'Daily challenges tailored to your health goals'}
+          ? `${completedCount}/${totalCount} completed · tap a challenge to edit`
+          : 'Challenges tailored to your health goals'}
       </Text>
 
       {challengesQuery.isLoading ? (
         <ActivityIndicator color={colors.accent} style={styles.loader} />
       ) : challenges.length === 0 ? (
-        <Text style={styles.empty}>No challenges available yet.</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/manage-challenges')}
+          style={styles.emptyAction}
+          testID="add-challenge"
+        >
+          <Text style={styles.empty}>
+            You have not picked any challenges yet.
+          </Text>
+          <Text style={styles.addLink}>Add a challenge</Text>
+        </Pressable>
       ) : (
         <View style={styles.list}>
           {challenges.map((challenge) => (
@@ -60,14 +76,30 @@ export function ChallengesScreen() {
               challenge={challenge}
               isBusy={isAdvancing(challenge.id)}
               key={challenge.id}
-              onAdvance={() =>
+              onAdvance={() => {
+                const route = completionRoute(challenge);
+                if (route) {
+                  router.push(route);
+                  return;
+                }
+
                 advance({
                   userChallengeId: challenge.id,
                   status: challenge.status,
-                })
+                });
+              }}
+              onOpen={() =>
+                router.push(`/challenge/${challenge.challengeId}`)
               }
             />
           ))}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/manage-challenges')}
+            testID="add-challenge"
+          >
+            <Text style={styles.addLink}>Add a challenge</Text>
+          </Pressable>
         </View>
       )}
     </ScrollView>
@@ -78,20 +110,32 @@ function ChallengeCard({
   challenge,
   isBusy,
   onAdvance,
+  onOpen,
 }: {
   challenge: TodayChallenge;
   isBusy: boolean;
   onAdvance: () => void;
+  onOpen: () => void;
 }) {
   return (
-    <View style={styles.card} testID={`challenge-card-${challenge.id}`}>
+    <Pressable
+      accessibilityHint="Opens schedule and reminders"
+      accessibilityLabel={challenge.title}
+      accessibilityRole="button"
+      onPress={onOpen}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      testID={`open-challenge-${challenge.challengeId}`}
+    >
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{challenge.title}</Text>
         <Text style={styles.points}>+{challenge.rewardPoints}</Text>
+        <Feather color={colors.border} name="chevron-right" size={18} />
       </View>
       <Text style={styles.cardDescription}>{challenge.description}</Text>
       <View style={styles.cardFooter}>
-        <Text style={styles.category}>{challenge.category}</Text>
+        <Text style={styles.category}>
+          {challenge.category} &middot; {frequencyBadge[challenge.frequency]}
+        </Text>
         <ChallengeActionButton
           isBusy={isBusy}
           onPress={onAdvance}
@@ -99,7 +143,7 @@ function ChallengeCard({
           testID={`advance-challenge-${challenge.id}`}
         />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -116,6 +160,18 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: fontSize.sm,
   },
+  addLink: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+    paddingVertical: spacing.sm,
+  },
+  emptyAction: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
   list: {
     gap: spacing.md,
   },
@@ -125,10 +181,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
+  cardPressed: {
+    backgroundColor: colors.surfaceRaised,
+  },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   cardTitle: {
     color: colors.text,
@@ -150,6 +209,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
     marginTop: spacing.xs,
   },
   category: {

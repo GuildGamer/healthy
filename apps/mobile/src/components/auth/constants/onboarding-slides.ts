@@ -15,7 +15,7 @@ export const onboardingSlides: readonly OnboardingSlide[] = [
   {
     icon: 'award',
     title: 'Earn points',
-    description: 'Earn points and redeem for airtime or data bundles.',
+    description: 'Earn points for completing daily challenges.',
   },
   {
     icon: 'gift',
