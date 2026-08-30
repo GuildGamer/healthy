@@ -45,3 +45,9 @@ cdk.out/
 # Misc
 *.tsbuildinfo
 .vercel
+
+# Local design / Figma export experiments (do not commit)
+apps/mobile/assets/.preview-*.png
+apps/mobile/src/assets/.preview-*.png
+apps/mobile/src/assets/preview-hero-*.png
+apps/mobile/src/assets/previews/
