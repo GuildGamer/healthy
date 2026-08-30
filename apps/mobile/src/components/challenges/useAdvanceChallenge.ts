@@ -27,6 +27,7 @@ export function useAdvanceChallenge() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['me'] }),
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
+        queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
 

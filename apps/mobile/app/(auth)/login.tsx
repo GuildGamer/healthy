@@ -1,7 +1,12 @@
 import { Redirect, useRouter } from 'expo-router';
 import { LoginScreen } from '@/components/auth';
 import { ScreenLoader } from '@/components/feedback';
-import { useSession } from '@/lib/auth-client';
+import {
+  isEmailVerified,
+  readEmailVerified,
+  useSession,
+} from '@/lib/auth-client';
+import { postAuthRoute } from '@/lib/post-auth-route';
 
 export default function Login() {
   const router = useRouter();
@@ -12,12 +17,14 @@ export default function Login() {
   }
 
   if (session) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href={postAuthRoute(isEmailVerified(session))} />;
   }
 
   return (
     <LoginScreen
-      onAuthenticated={() => router.replace('/(tabs)')}
+      onAuthenticated={async () =>
+        router.replace(postAuthRoute(await readEmailVerified()))
+      }
       onBackPress={() => router.back()}
       onForgotPasswordPress={() => router.push('/forgot-password')}
       onSignUpPress={() => router.push('/sign-up')}

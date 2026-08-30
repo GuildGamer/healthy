@@ -1,7 +1,9 @@
 export type {
   ActivityItemDto,
+  ChallengeHistoryEntryDto,
   CompleteChallengeDto,
   ListActivityDto,
+  ListChallengeHistoryDto,
   ListTodayChallengesDto,
   StartChallengeDto,
   TodayChallengeDto,

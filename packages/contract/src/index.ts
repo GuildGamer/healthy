@@ -1,5 +1,82 @@
 import { oc } from '@orpc/contract';
 import { z } from 'zod';
+import {
+  challengeCaptureSchema,
+  deviceActivitySchema,
+  deviceMetricSchema,
+  healthLinkStatusSchema,
+  updateHealthLinkInputSchema,
+} from './challenge-capture.js';
+import {
+  challengeCarbsSchema,
+  challengeDraftSchema,
+  challengeGlucoseSchema,
+  challengePeakFlowSchema,
+  challengeProgressSchema,
+  challengeWaterSchema,
+  glucoseContextSchema,
+  saveChallengeDraftInputSchema,
+  waterUnitSchema,
+} from './challenge-logging.js';
+
+export {
+  activityMeetsTarget,
+  challengeCaptureKindSchema,
+  challengeCaptureSchema,
+  challengeTargetSchema,
+  defaultCaptureKindFor,
+  deviceActivitySchema,
+  deviceActivitySourceSchema,
+  deviceMetricSchema,
+  emptyChallengeTarget,
+  healthLinkStatusSchema,
+  isDeviceCapture,
+  selfReportCapture,
+  toChallengeCapture,
+  updateHealthLinkInputSchema,
+} from './challenge-capture.js';
+export type {
+  ChallengeCapture,
+  ChallengeCaptureKind,
+  ChallengeTarget,
+  DeviceActivity,
+  DeviceActivitySource,
+  DeviceMetric,
+  HealthLinkStatus,
+  UpdateHealthLinkInput,
+} from './challenge-capture.js';
+
+export {
+  DEFAULT_IN_PROGRESS_NUDGE_DELAY_MINUTES,
+  IN_PROGRESS_NUDGE_DELAY_MAX,
+  IN_PROGRESS_NUDGE_DELAY_MIN,
+  assertDraftMatchesKind,
+  challengeCarbsDraftSchema,
+  challengeCarbsSchema,
+  challengeDraftSchema,
+  challengeGlucoseDraftSchema,
+  challengeGlucoseSchema,
+  challengePeakFlowDraftSchema,
+  challengePeakFlowSchema,
+  challengeProgressSchema,
+  challengeVitalsDraftSchema,
+  challengeWaterDraftSchema,
+  challengeWaterSchema,
+  fieldProgress,
+  glucoseContextSchema,
+  saveChallengeDraftInputSchema,
+  waterUnitSchema,
+} from './challenge-logging.js';
+export type {
+  ChallengeCarbs,
+  ChallengeDraft,
+  ChallengeFieldProgress,
+  ChallengeGlucose,
+  ChallengePeakFlow,
+  ChallengeWater,
+  GlucoseContext,
+  WaterUnit,
+} from './challenge-logging.js';
 
 export const healthCategorySchema = z.enum([
   'hypertension',
@@ -21,6 +98,10 @@ export const challengeCompletionKindSchema = z.enum([
   'check_in',
   'vitals_bp',
   'evidence_photo',
+  'glucose',
+  'peak_flow',
+  'water',
+  'carbs',
 ]);
 
 /**
@@ -70,6 +151,10 @@ export const meOutputSchema = z.object({
   evidenceRemindersEnabled: z.boolean(),
   promotionalMessagesEnabled: z.boolean(),
   showOnLeaderboard: z.boolean(),
+  inProgressNudgeEnabled: z.boolean(),
+  inProgressNudgeDelayMinutes: z.number().int().min(5).max(1_440),
+  /** Whether this installation may read Health / Health Connect samples. */
+  healthLinkStatus: healthLinkStatusSchema,
 });
 
 export const updateCategoriesInputSchema = z.object({
@@ -91,11 +176,21 @@ export const leaderboardEntrySchema = z.object({
   isCurrentUser: z.boolean(),
 });
 
+export const leaderboardPeriodSchema = z.enum(['week', 'month', 'all']);
+
+export const listLeaderboardInputSchema = z.object({
+  period: leaderboardPeriodSchema.default('week'),
+  category: healthCategorySchema.optional(),
+});
+
 export const listLeaderboardOutputSchema = z.object({
   /** ISO date of the Monday the current ranking period opened, in UTC. */
   weekStart: z.string(),
+  period: leaderboardPeriodSchema,
+  /** First day of the selected window, or null for all-time. */
+  periodStart: z.string().nullable(),
   entries: z.array(leaderboardEntrySchema),
-  /** Null until the caller has earned a point this week. */
+  /** Null until the caller has earned a point in this window. */
   currentUserRank: z.number().int().positive().nullable(),
   currentUserPoints: z.number().int(),
 });
@@ -123,6 +218,8 @@ export const updateNotificationSettingsInputSchema = z.object({
   evidenceRemindersEnabled: z.boolean(),
   promotionalMessagesEnabled: z.boolean(),
   showOnLeaderboard: z.boolean(),
+  inProgressNudgeEnabled: z.boolean(),
+  inProgressNudgeDelayMinutes: z.number().int().min(5).max(1_440),
 });
 
 export const notificationKindSchema = z.enum([
@@ -219,6 +316,12 @@ export const todayChallengeSchema = z.object({
   periodKey: z.string(),
   /** Present while a surprise photo window is still open. */
   evidenceRequest: surpriseEvidenceRequestSchema.nullable(),
+  /** Partial log saved as the member types. Null until the first draft write. */
+  draft: challengeDraftSchema.nullable(),
+  /** Required fields filled / required fields. Check-in and gym photo are 0/1. */
+  progress: challengeProgressSchema,
+  /** How this challenge expects proof — independent of completionKind. */
+  capture: challengeCaptureSchema,
 });
 
 export const listTodayChallengesOutputSchema = z.object({
@@ -243,6 +346,7 @@ export const catalogChallengeSchema = z.object({
   isEnrolled: z.boolean(),
   /** Empty unless enrolled; the times this challenge nudges at. */
   reminders: z.array(challengeReminderSchema),
+  capture: challengeCaptureSchema,
 });
 
 export const challengeCatalogOutputSchema = z.object({
@@ -276,6 +380,11 @@ export const completeChallengeInputSchema = z.object({
   userChallengeId: z.string().min(1),
   vitals: challengeVitalsSchema.optional(),
   evidence: challengeEvidenceSchema.optional(),
+  glucose: challengeGlucoseSchema.optional(),
+  peakFlow: challengePeakFlowSchema.optional(),
+  water: challengeWaterSchema.optional(),
+  carbs: challengeCarbsSchema.optional(),
+  deviceActivity: deviceActivitySchema.optional(),
 });
 
 export const completeChallengeOutputSchema = z.object({
@@ -303,6 +412,71 @@ export const listActivityOutputSchema = z.object({
   items: z.array(activityItemSchema),
 });
 
+export const challengeHistoryOutcomeSchema = z.enum(['rewarded', 'penalized']);
+
+export const challengeHistoryEvidenceSchema = z.enum([
+  'submitted',
+  'skipped',
+  'expired',
+]);
+
+export const challengeHistoryLogSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('check_in') }),
+  z.object({
+    kind: z.literal('vitals_bp'),
+    systolic: z.number().int(),
+    diastolic: z.number().int(),
+    pulse: z.number().int().nullable(),
+    notes: z.string().nullable(),
+  }),
+  z.object({
+    kind: z.literal('glucose'),
+    mmolL: z.number(),
+    context: glucoseContextSchema,
+  }),
+  z.object({
+    kind: z.literal('peak_flow'),
+    bestLitresPerMinute: z.number().int(),
+  }),
+  z.object({
+    kind: z.literal('water'),
+    amount: z.number().int(),
+    unit: waterUnitSchema,
+  }),
+  z.object({
+    kind: z.literal('carbs'),
+    grams: z.number().int().nullable(),
+    note: z.string().nullable(),
+  }),
+  z.object({ kind: z.literal('evidence_photo') }),
+  z.object({
+    kind: z.literal('device'),
+    metric: deviceMetricSchema,
+    durationSeconds: z.number().int().nullable(),
+    distanceMeters: z.number().int().nullable(),
+    count: z.number().int().nullable(),
+  }),
+]);
+
+export const challengeHistoryEntrySchema = z.object({
+  id: z.string(),
+  periodKey: z.string(),
+  completedAt: z.string().datetime(),
+  outcome: challengeHistoryOutcomeSchema,
+  pointsDelta: z.number().int(),
+  log: challengeHistoryLogSchema.nullable(),
+  evidence: challengeHistoryEvidenceSchema.nullable(),
+});
+
+export const listChallengeHistoryInputSchema = z.object({
+  challengeId: z.string().min(1),
+});
+
+export const listChallengeHistoryOutputSchema = z.object({
+  challengeId: z.string(),
+  entries: z.array(challengeHistoryEntrySchema),
+});
+
 export const healthContract = oc
   .route({ method: 'GET', path: '/health' })
   .output(healthOutputSchema);
@@ -321,6 +495,7 @@ export const updateTimeZoneContract = oc
 
 export const listLeaderboardContract = oc
   .route({ method: 'GET', path: '/leaderboard' })
+  .input(listLeaderboardInputSchema)
   .output(listLeaderboardOutputSchema);
 
 export const updateDisplayNameContract = oc
@@ -336,6 +511,11 @@ export const updateReminderContract = oc
 export const updateNotificationSettingsContract = oc
   .route({ method: 'PUT', path: '/me/notification-settings' })
   .input(updateNotificationSettingsInputSchema)
+  .output(meOutputSchema);
+
+export const updateHealthLinkContract = oc
+  .route({ method: 'PUT', path: '/me/health-link' })
+  .input(updateHealthLinkInputSchema)
   .output(meOutputSchema);
 
 export const listNotificationsContract = oc
@@ -364,6 +544,11 @@ export const skipChallengeEvidenceContract = oc
   .route({ method: 'POST', path: '/challenges/evidence/skip' })
   .input(skipChallengeEvidenceInputSchema)
   .output(completeChallengeOutputSchema);
+
+export const saveChallengeDraftContract = oc
+  .route({ method: 'PUT', path: '/challenges/draft' })
+  .input(saveChallengeDraftInputSchema)
+  .output(startChallengeOutputSchema);
 
 export const listChallengeCatalogContract = oc
   .route({ method: 'GET', path: '/challenges/catalog' })
@@ -398,6 +583,11 @@ export const listActivityContract = oc
   .route({ method: 'GET', path: '/activity' })
   .output(listActivityOutputSchema);
 
+export const listChallengeHistoryContract = oc
+  .route({ method: 'GET', path: '/challenges/history' })
+  .input(listChallengeHistoryInputSchema)
+  .output(listChallengeHistoryOutputSchema);
+
 export const waitlistInputSchema = z.object({
   email: z.string().email(),
   source: z.string().max(100).optional(),
@@ -420,6 +610,7 @@ export const appContract = {
   updateTimeZone: updateTimeZoneContract,
   updateReminder: updateReminderContract,
   updateNotificationSettings: updateNotificationSettingsContract,
+  updateHealthLink: updateHealthLinkContract,
   updateDisplayName: updateDisplayNameContract,
   listNotifications: listNotificationsContract,
   markNotificationsRead: markNotificationsReadContract,
@@ -434,7 +625,9 @@ export const appContract = {
   startChallenge: startChallengeContract,
   completeChallenge: completeChallengeContract,
   skipChallengeEvidence: skipChallengeEvidenceContract,
+  saveChallengeDraft: saveChallengeDraftContract,
   listActivity: listActivityContract,
+  listChallengeHistory: listChallengeHistoryContract,
   waitlist: waitlistContract,
 };
 
@@ -460,6 +653,8 @@ export type UpdateDisplayNameInput = z.infer<
   typeof updateDisplayNameInputSchema
 >;
 export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>;
+export type LeaderboardPeriod = z.infer<typeof leaderboardPeriodSchema>;
+export type ListLeaderboardInput = z.input<typeof listLeaderboardInputSchema>;
 export type ListLeaderboardOutput = z.infer<typeof listLeaderboardOutputSchema>;
 export type ChallengeFrequency = z.infer<typeof challengeFrequencySchema>;
 export type ChallengeCompletionKind = z.infer<
@@ -467,6 +662,9 @@ export type ChallengeCompletionKind = z.infer<
 >;
 export type ChallengeVitals = z.infer<typeof challengeVitalsSchema>;
 export type ChallengeEvidence = z.infer<typeof challengeEvidenceSchema>;
+export type SaveChallengeDraftInput = z.infer<
+  typeof saveChallengeDraftInputSchema
+>;
 export type TodayChallenge = z.infer<typeof todayChallengeSchema>;
 export type CatalogChallenge = z.infer<typeof catalogChallengeSchema>;
 export type ChallengeCatalogOutput = z.infer<
@@ -489,6 +687,20 @@ export type SkipChallengeEvidenceInput = z.infer<
 >;
 export type ActivityItem = z.infer<typeof activityItemSchema>;
 export type ListActivityOutput = z.infer<typeof listActivityOutputSchema>;
+export type ChallengeHistoryOutcome = z.infer<
+  typeof challengeHistoryOutcomeSchema
+>;
+export type ChallengeHistoryEvidence = z.infer<
+  typeof challengeHistoryEvidenceSchema
+>;
+export type ChallengeHistoryLog = z.infer<typeof challengeHistoryLogSchema>;
+export type ChallengeHistoryEntry = z.infer<typeof challengeHistoryEntrySchema>;
+export type ListChallengeHistoryInput = z.input<
+  typeof listChallengeHistoryInputSchema
+>;
+export type ListChallengeHistoryOutput = z.infer<
+  typeof listChallengeHistoryOutputSchema
+>;
 export type WaitlistInput = z.infer<typeof waitlistInputSchema>;
 export type WaitlistOutput = z.infer<typeof waitlistOutputSchema>;
 export type ChallengeReminder = z.infer<typeof challengeReminderSchema>;

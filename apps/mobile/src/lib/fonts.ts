@@ -2,6 +2,7 @@ import {
   ArchivoBlack_400Regular,
   useFonts,
 } from '@expo-google-fonts/archivo-black';
+import { Platform } from 'react-native';
 
 /**
  * Display face for streak numerals and the splash wordmark. Deliberately not a
@@ -9,6 +10,16 @@ import {
  * which is not what a browser would ask for, so web would need its own mapping.
  */
 export const displayFontFamily = 'ArchivoBlack_400Regular';
+
+/**
+ * Brand display stack is Fraunces → Georgia → serif. RN cannot load a CSS font
+ * list, so the tip quote uses the system serif that already sits in that stack.
+ */
+export const tipQuoteFontFamily = Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  default: 'Georgia',
+});
 
 export function useDisplayFont(): boolean {
   const [areFontsLoaded, fontError] = useFonts({ ArchivoBlack_400Regular });

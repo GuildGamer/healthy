@@ -29,15 +29,24 @@ export const auth = betterAuth({
       expiresIn: 300,
       disableSignUp: true,
       sendVerificationOnSignUp: false,
+      changeEmail: { enabled: true },
       ...(pinnedOtp ? { generateOTP: () => pinnedOtp } : {}),
       async sendVerificationOTP({ email, otp, type }) {
-        if (type !== 'forget-password') {
+        // Fire-and-forget so the response time does not leak whether the
+        // address is registered. Delivery errors stay on the server.
+        if (type === 'forget-password') {
+          void mailer.sendPasswordResetOtp({ to: email, otp });
           return;
         }
 
-        // Fire-and-forget so the response time does not leak whether the
-        // address is registered. Delivery errors stay on the server.
-        void mailer.sendPasswordResetOtp({ to: email, otp });
+        if (type === 'email-verification') {
+          void mailer.sendEmailVerificationOtp({ to: email, otp });
+          return;
+        }
+
+        if (type === 'change-email') {
+          void mailer.sendChangeEmailOtp({ to: email, otp });
+        }
       },
     }),
   ],

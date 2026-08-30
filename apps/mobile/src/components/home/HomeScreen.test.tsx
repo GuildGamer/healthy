@@ -20,6 +20,7 @@ jest.mock('@/lib/api', () => ({
     me: jest.fn(),
     listTodayChallenges: jest.fn(),
     listNotifications: jest.fn(),
+    listLeaderboard: jest.fn(),
     startChallenge: jest.fn(),
     completeChallenge: jest.fn(),
     updateTimeZone: jest.fn(),
@@ -46,6 +47,7 @@ const mockedApi = apiClient as unknown as {
   me: jest.Mock;
   listTodayChallenges: jest.Mock;
   listNotifications: jest.Mock;
+  listLeaderboard: jest.Mock;
   startChallenge: jest.Mock;
   completeChallenge: jest.Mock;
   updateTimeZone: jest.Mock;
@@ -66,6 +68,13 @@ function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
     icon: 'walk',
     periodKey: '2026-08-28',
     evidenceRequest: null,
+    draft: null,
+    progress: { filled: 0, required: 1 },
+    capture: {
+      kind: 'self_report',
+      metric: null,
+      target: { durationMinutes: null, distanceMeters: null, count: null },
+    },
     ...overrides,
   };
 }
@@ -118,6 +127,9 @@ beforeEach(() => {
     evidenceRemindersEnabled: true,
     promotionalMessagesEnabled: false,
     showOnLeaderboard: true,
+    inProgressNudgeEnabled: true,
+    inProgressNudgeDelayMinutes: 30,
+    healthLinkStatus: 'unknown',
   });
   mockedApi.listNotifications.mockResolvedValue({
     notifications: [],
@@ -129,32 +141,80 @@ beforeEach(() => {
     completedCount: 0,
     totalCount: 0,
   });
+  mockedApi.listLeaderboard.mockResolvedValue({
+    weekStart: '2026-08-24',
+    period: 'week',
+    periodStart: '2026-08-24',
+    entries: [],
+    currentUserRank: 8,
+    currentUserPoints: 150,
+  });
 });
 
 describe('HomeScreen', () => {
-  it('renders Figma home structure with flame streak and quick links', async () => {
+  it('renders Figma home structure with flame streak and today', async () => {
     const { cleanup } = renderHome();
 
     expect(await screen.findByText('Hi, Ada')).toBeOnTheScreen();
     expect(screen.getByText(/day streak/)).toBeOnTheScreen();
-    expect(screen.getByText('Leaderboard')).toBeOnTheScreen();
-    expect(screen.getByText('Health Tips')).toBeOnTheScreen();
+    expect(await screen.findByText('Rank 8 this week')).toBeOnTheScreen();
+    expect(screen.getByTestId('home-rank-trophy')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-rank-medal')).toBeNull();
     expect(screen.getByText("Today's Challenges")).toBeOnTheScreen();
 
     await cleanup();
   });
 
-  it('previews the daily tip on the Health Tips row', async () => {
+  it('stages the daily tip as a quote, not a menu row', async () => {
     const { cleanup } = renderHome();
 
     // 'hypertension' is the only selected category, so the rotation is limited
     // to its three tips plus the general ones.
-    expect(await screen.findByText('Health Tips')).toBeOnTheScreen();
+    expect(await screen.findByTestId('home-daily-tip')).toBeOnTheScreen();
+    expect(
+      await screen.findByText(/Blood pressure|Everyday health/),
+    ).toBeOnTheScreen();
     expect(
       screen.getByText(
         /Reduce salt|reading at the same time|after your largest meal|glass of water|every hour|sleep and wake/,
       ),
     ).toBeOnTheScreen();
+    expect(screen.queryByText('Health Tips')).toBeNull();
+    expect(screen.queryByText('Leaderboard')).toBeNull();
+
+    await cleanup();
+  });
+
+  it('pins a medal on the rank line when you are on the podium', async () => {
+    mockedApi.listLeaderboard.mockResolvedValue({
+      weekStart: '2026-08-24',
+      period: 'week',
+      periodStart: '2026-08-24',
+      entries: [],
+      currentUserRank: 1,
+      currentUserPoints: 150,
+    });
+
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByText('Rank 1 this week')).toBeOnTheScreen();
+    expect(screen.getByTestId('home-rank-medal')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-rank-trophy')).toBeNull();
+
+    await cleanup();
+  });
+
+  it('opens the board and tips from the rank line and tip card', async () => {
+    const { cleanup } = renderHome();
+
+    fireEvent.press(await screen.findByTestId('home-leaderboard'));
+    expect(useRouter().push).toHaveBeenCalledWith('/leaderboard');
+
+    fireEvent.press(screen.getByTestId('home-daily-tip'));
+    expect(useRouter().push).toHaveBeenCalledWith('/tips');
+
+    fireEvent.press(screen.getByTestId('home-points-card'));
+    expect(useRouter().push).toHaveBeenCalledWith('/points');
 
     await cleanup();
   });
@@ -198,43 +258,34 @@ describe('HomeScreen', () => {
 
     const { cleanup } = renderHome();
 
-    expect(await screen.findByText('Start')).toBeOnTheScreen();
-    expect(screen.getByText('Finish')).toBeOnTheScreen();
+    expect(await screen.findByText('Log')).toBeOnTheScreen();
+    expect(screen.getByText('Confirm')).toBeOnTheScreen();
     expect(screen.getByText('Done')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-progress-uc1')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-progress-uc3')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-see-all-challenges')).toBeNull();
 
     await cleanup();
   });
 
-  it('starts a pending challenge and completes one already in progress', async () => {
+  it('opens the confirm screen instead of completing a check-in on the card', async () => {
     mockedApi.listTodayChallenges.mockResolvedValue({
       dayKey: '2026-08-28',
       challenges: [
-        challenge({ id: 'uc1', status: 'pending' }),
-        challenge({ id: 'uc2', status: 'in_progress' }),
+        challenge({ id: 'uc1', challengeId: 'c1', status: 'pending' }),
+        challenge({ id: 'uc2', challengeId: 'c2', status: 'in_progress' }),
       ],
       completedCount: 0,
       totalCount: 2,
-    });
-    mockedApi.startChallenge.mockResolvedValue({
-      challenge: challenge({ id: 'uc1', status: 'in_progress' }),
     });
 
     const { cleanup } = renderHome();
 
     fireEvent.press(await screen.findByTestId('advance-challenge-uc1'));
-    await waitFor(() => {
-      expect(mockedApi.startChallenge).toHaveBeenCalledWith({
-        userChallengeId: 'uc1',
-      });
-    });
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c1/confirm');
 
     fireEvent.press(screen.getByTestId('advance-challenge-uc2'));
-    await waitFor(() => {
-      expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
-        userChallengeId: 'uc2',
-      });
-    });
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c2/confirm');
 
     await cleanup();
   });

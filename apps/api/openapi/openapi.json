@@ -109,6 +109,22 @@
                     },
                     "showOnLeaderboard": {
                       "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -124,7 +140,10 @@
                     "reminderMinute",
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
-                    "showOnLeaderboard"
+                    "showOnLeaderboard",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus"
                   ]
                 }
               }
@@ -232,6 +251,22 @@
                     },
                     "showOnLeaderboard": {
                       "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -247,7 +282,10 @@
                     "reminderMinute",
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
-                    "showOnLeaderboard"
+                    "showOnLeaderboard",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus"
                   ]
                 }
               }
@@ -346,6 +384,22 @@
                     },
                     "showOnLeaderboard": {
                       "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -361,7 +415,10 @@
                     "reminderMinute",
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
-                    "showOnLeaderboard"
+                    "showOnLeaderboard",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus"
                   ]
                 }
               }
@@ -464,6 +521,22 @@
                     },
                     "showOnLeaderboard": {
                       "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -479,7 +552,10 @@
                     "reminderMinute",
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
-                    "showOnLeaderboard"
+                    "showOnLeaderboard",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus"
                   ]
                 }
               }
@@ -509,13 +585,23 @@
                   },
                   "showOnLeaderboard": {
                     "type": "boolean"
+                  },
+                  "inProgressNudgeEnabled": {
+                    "type": "boolean"
+                  },
+                  "inProgressNudgeDelayMinutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 1440
                   }
                 },
                 "required": [
                   "reminderEnabled",
                   "evidenceRemindersEnabled",
                   "promotionalMessagesEnabled",
-                  "showOnLeaderboard"
+                  "showOnLeaderboard",
+                  "inProgressNudgeEnabled",
+                  "inProgressNudgeDelayMinutes"
                 ]
               }
             }
@@ -588,6 +674,22 @@
                     },
                     "showOnLeaderboard": {
                       "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -603,7 +705,145 @@
                     "reminderMinute",
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
-                    "showOnLeaderboard"
+                    "showOnLeaderboard",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/health-link": {
+      "put": {
+        "operationId": "updateHealthLink",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "connected",
+                      "denied"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus"
                   ]
                 }
               }
@@ -703,6 +943,22 @@
                     },
                     "showOnLeaderboard": {
                       "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -718,7 +974,10 @@
                     "reminderMinute",
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
-                    "showOnLeaderboard"
+                    "showOnLeaderboard",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus"
                   ]
                 }
               }
@@ -824,6 +1083,38 @@
     "/leaderboard": {
       "get": {
         "operationId": "listLeaderboard",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "default": "week",
+              "enum": [
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "hypertension",
+                "diabetes",
+                "asthma",
+                "general"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -834,6 +1125,24 @@
                   "properties": {
                     "weekStart": {
                       "type": "string"
+                    },
+                    "period": {
+                      "enum": [
+                        "week",
+                        "month",
+                        "all"
+                      ],
+                      "type": "string"
+                    },
+                    "periodStart": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "entries": {
                       "type": "array",
@@ -879,6 +1188,8 @@
                   },
                   "required": [
                     "weekStart",
+                    "period",
+                    "periodStart",
                     "entries",
                     "currentUserRank",
                     "currentUserPoints"
@@ -955,7 +1266,11 @@
                             "enum": [
                               "check_in",
                               "vitals_bp",
-                              "evidence_photo"
+                              "evidence_photo",
+                              "glucose",
+                              "peak_flow",
+                              "water",
+                              "carbs"
                             ],
                             "type": "string"
                           },
@@ -999,6 +1314,268 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "draft": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "vitals_bp"
+                                      },
+                                      "fields": {
+                                        "type": "object",
+                                        "properties": {
+                                          "systolic": {
+                                            "type": "integer"
+                                          },
+                                          "diastolic": {
+                                            "type": "integer"
+                                          },
+                                          "pulse": {
+                                            "type": "integer"
+                                          },
+                                          "notes": {
+                                            "type": "string",
+                                            "maxLength": 500
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "fields"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "glucose"
+                                      },
+                                      "fields": {
+                                        "type": "object",
+                                        "properties": {
+                                          "mmolL": {
+                                            "type": "number",
+                                            "minimum": 1,
+                                            "maximum": 40
+                                          },
+                                          "context": {
+                                            "enum": [
+                                              "fasting",
+                                              "before_meal",
+                                              "after_meal"
+                                            ],
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "fields"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "peak_flow"
+                                      },
+                                      "fields": {
+                                        "type": "object",
+                                        "properties": {
+                                          "bestLitresPerMinute": {
+                                            "type": "integer",
+                                            "minimum": 50,
+                                            "maximum": 900
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "fields"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "water"
+                                      },
+                                      "fields": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amount": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 10000
+                                          },
+                                          "unit": {
+                                            "enum": [
+                                              "glasses",
+                                              "ml"
+                                            ],
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "fields"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "carbs"
+                                      },
+                                      "fields": {
+                                        "type": "object",
+                                        "properties": {
+                                          "grams": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 500
+                                          },
+                                          "note": {
+                                            "type": "string",
+                                            "maxLength": 500
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "fields"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "evidence_photo"
+                                      },
+                                      "fields": {
+                                        "type": "object"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "fields"
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "progress": {
+                            "type": "object",
+                            "properties": {
+                              "filled": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "required": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "filled",
+                              "required"
+                            ]
+                          },
+                          "capture": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "self_report",
+                                  "structured_log",
+                                  "photo",
+                                  "device_sample",
+                                  "device_session"
+                                ],
+                                "type": "string"
+                              },
+                              "metric": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "walk",
+                                      "run",
+                                      "cycle",
+                                      "steps",
+                                      "sleep",
+                                      "weight",
+                                      "heart_rate"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "target": {
+                                "type": "object",
+                                "properties": {
+                                  "durationMinutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "distanceMeters": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "count": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "durationMinutes",
+                                  "distanceMeters",
+                                  "count"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "metric",
+                              "target"
+                            ]
                           }
                         },
                         "required": [
@@ -1014,7 +1591,10 @@
                           "instruction",
                           "icon",
                           "periodKey",
-                          "evidenceRequest"
+                          "evidenceRequest",
+                          "draft",
+                          "progress",
+                          "capture"
                         ]
                       }
                     },
@@ -1093,7 +1673,11 @@
                             "enum": [
                               "check_in",
                               "vitals_bp",
-                              "evidence_photo"
+                              "evidence_photo",
+                              "glucose",
+                              "peak_flow",
+                              "water",
+                              "carbs"
                             ],
                             "type": "string"
                           },
@@ -1128,6 +1712,88 @@
                                 "minuteOfDay"
                               ]
                             }
+                          },
+                          "capture": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "self_report",
+                                  "structured_log",
+                                  "photo",
+                                  "device_sample",
+                                  "device_session"
+                                ],
+                                "type": "string"
+                              },
+                              "metric": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "walk",
+                                      "run",
+                                      "cycle",
+                                      "steps",
+                                      "sleep",
+                                      "weight",
+                                      "heart_rate"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "target": {
+                                "type": "object",
+                                "properties": {
+                                  "durationMinutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "distanceMeters": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "count": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "durationMinutes",
+                                  "distanceMeters",
+                                  "count"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "metric",
+                              "target"
+                            ]
                           }
                         },
                         "required": [
@@ -1142,7 +1808,8 @@
                           "instruction",
                           "icon",
                           "isEnrolled",
-                          "reminders"
+                          "reminders",
+                          "capture"
                         ]
                       }
                     },
@@ -1246,7 +1913,11 @@
                             "enum": [
                               "check_in",
                               "vitals_bp",
-                              "evidence_photo"
+                              "evidence_photo",
+                              "glucose",
+                              "peak_flow",
+                              "water",
+                              "carbs"
                             ],
                             "type": "string"
                           },
@@ -1281,6 +1952,88 @@
                                 "minuteOfDay"
                               ]
                             }
+                          },
+                          "capture": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "self_report",
+                                  "structured_log",
+                                  "photo",
+                                  "device_sample",
+                                  "device_session"
+                                ],
+                                "type": "string"
+                              },
+                              "metric": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "walk",
+                                      "run",
+                                      "cycle",
+                                      "steps",
+                                      "sleep",
+                                      "weight",
+                                      "heart_rate"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "target": {
+                                "type": "object",
+                                "properties": {
+                                  "durationMinutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "distanceMeters": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "count": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "durationMinutes",
+                                  "distanceMeters",
+                                  "count"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "metric",
+                              "target"
+                            ]
                           }
                         },
                         "required": [
@@ -1295,7 +2048,8 @@
                           "instruction",
                           "icon",
                           "isEnrolled",
-                          "reminders"
+                          "reminders",
+                          "capture"
                         ]
                       }
                     },
@@ -1636,7 +2390,11 @@
                           "enum": [
                             "check_in",
                             "vitals_bp",
-                            "evidence_photo"
+                            "evidence_photo",
+                            "glucose",
+                            "peak_flow",
+                            "water",
+                            "carbs"
                           ],
                           "type": "string"
                         },
@@ -1680,6 +2438,268 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "draft": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "vitals_bp"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "systolic": {
+                                          "type": "integer"
+                                        },
+                                        "diastolic": {
+                                          "type": "integer"
+                                        },
+                                        "pulse": {
+                                          "type": "integer"
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "glucose"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "mmolL": {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 40
+                                        },
+                                        "context": {
+                                          "enum": [
+                                            "fasting",
+                                            "before_meal",
+                                            "after_meal"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "peak_flow"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "bestLitresPerMinute": {
+                                          "type": "integer",
+                                          "minimum": 50,
+                                          "maximum": 900
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "water"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "amount": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 10000
+                                        },
+                                        "unit": {
+                                          "enum": [
+                                            "glasses",
+                                            "ml"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "carbs"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "grams": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 500
+                                        },
+                                        "note": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "evidence_photo"
+                                    },
+                                    "fields": {
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "filled": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "filled",
+                            "required"
+                          ]
+                        },
+                        "capture": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "self_report",
+                                "structured_log",
+                                "photo",
+                                "device_sample",
+                                "device_session"
+                              ],
+                              "type": "string"
+                            },
+                            "metric": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "walk",
+                                    "run",
+                                    "cycle",
+                                    "steps",
+                                    "sleep",
+                                    "weight",
+                                    "heart_rate"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "durationMinutes": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "distanceMeters": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "count": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "durationMinutes",
+                                "distanceMeters",
+                                "count"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "metric",
+                            "target"
+                          ]
                         }
                       },
                       "required": [
@@ -1695,7 +2715,10 @@
                         "instruction",
                         "icon",
                         "periodKey",
-                        "evidenceRequest"
+                        "evidenceRequest",
+                        "draft",
+                        "progress",
+                        "capture"
                       ]
                     }
                   },
@@ -1771,6 +2794,136 @@
                       "mimeType",
                       "imageBase64"
                     ]
+                  },
+                  "glucose": {
+                    "type": "object",
+                    "properties": {
+                      "mmolL": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 40
+                      },
+                      "context": {
+                        "enum": [
+                          "fasting",
+                          "before_meal",
+                          "after_meal"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "mmolL",
+                      "context"
+                    ]
+                  },
+                  "peakFlow": {
+                    "type": "object",
+                    "properties": {
+                      "bestLitresPerMinute": {
+                        "type": "integer",
+                        "minimum": 50,
+                        "maximum": 900
+                      }
+                    },
+                    "required": [
+                      "bestLitresPerMinute"
+                    ]
+                  },
+                  "water": {
+                    "type": "object",
+                    "properties": {
+                      "amount": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10000
+                      },
+                      "unit": {
+                        "enum": [
+                          "glasses",
+                          "ml"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "unit"
+                    ]
+                  },
+                  "carbs": {
+                    "type": "object",
+                    "properties": {
+                      "grams": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 500
+                      },
+                      "note": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    }
+                  },
+                  "deviceActivity": {
+                    "type": "object",
+                    "properties": {
+                      "source": {
+                        "enum": [
+                          "healthkit",
+                          "health_connect",
+                          "in_app_gps",
+                          "pedometer",
+                          "manual"
+                        ],
+                        "type": "string"
+                      },
+                      "metric": {
+                        "enum": [
+                          "walk",
+                          "run",
+                          "cycle",
+                          "steps",
+                          "sleep",
+                          "weight",
+                          "heart_rate"
+                        ],
+                        "type": "string"
+                      },
+                      "durationSeconds": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 86400
+                      },
+                      "distanceMeters": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 200000
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 200000
+                      },
+                      "startedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "endedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "externalId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    },
+                    "required": [
+                      "source",
+                      "metric"
+                    ]
                   }
                 },
                 "required": [
@@ -1837,7 +2990,11 @@
                           "enum": [
                             "check_in",
                             "vitals_bp",
-                            "evidence_photo"
+                            "evidence_photo",
+                            "glucose",
+                            "peak_flow",
+                            "water",
+                            "carbs"
                           ],
                           "type": "string"
                         },
@@ -1881,6 +3038,268 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "draft": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "vitals_bp"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "systolic": {
+                                          "type": "integer"
+                                        },
+                                        "diastolic": {
+                                          "type": "integer"
+                                        },
+                                        "pulse": {
+                                          "type": "integer"
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "glucose"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "mmolL": {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 40
+                                        },
+                                        "context": {
+                                          "enum": [
+                                            "fasting",
+                                            "before_meal",
+                                            "after_meal"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "peak_flow"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "bestLitresPerMinute": {
+                                          "type": "integer",
+                                          "minimum": 50,
+                                          "maximum": 900
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "water"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "amount": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 10000
+                                        },
+                                        "unit": {
+                                          "enum": [
+                                            "glasses",
+                                            "ml"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "carbs"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "grams": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 500
+                                        },
+                                        "note": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "evidence_photo"
+                                    },
+                                    "fields": {
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "filled": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "filled",
+                            "required"
+                          ]
+                        },
+                        "capture": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "self_report",
+                                "structured_log",
+                                "photo",
+                                "device_sample",
+                                "device_session"
+                              ],
+                              "type": "string"
+                            },
+                            "metric": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "walk",
+                                    "run",
+                                    "cycle",
+                                    "steps",
+                                    "sleep",
+                                    "weight",
+                                    "heart_rate"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "durationMinutes": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "distanceMeters": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "count": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "durationMinutes",
+                                "distanceMeters",
+                                "count"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "metric",
+                            "target"
+                          ]
                         }
                       },
                       "required": [
@@ -1896,7 +3315,10 @@
                         "instruction",
                         "icon",
                         "periodKey",
-                        "evidenceRequest"
+                        "evidenceRequest",
+                        "draft",
+                        "progress",
+                        "capture"
                       ]
                     },
                     "pointsBalance": {
@@ -2039,7 +3461,11 @@
                           "enum": [
                             "check_in",
                             "vitals_bp",
-                            "evidence_photo"
+                            "evidence_photo",
+                            "glucose",
+                            "peak_flow",
+                            "water",
+                            "carbs"
                           ],
                           "type": "string"
                         },
@@ -2083,6 +3509,268 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "draft": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "vitals_bp"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "systolic": {
+                                          "type": "integer"
+                                        },
+                                        "diastolic": {
+                                          "type": "integer"
+                                        },
+                                        "pulse": {
+                                          "type": "integer"
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "glucose"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "mmolL": {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 40
+                                        },
+                                        "context": {
+                                          "enum": [
+                                            "fasting",
+                                            "before_meal",
+                                            "after_meal"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "peak_flow"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "bestLitresPerMinute": {
+                                          "type": "integer",
+                                          "minimum": 50,
+                                          "maximum": 900
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "water"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "amount": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 10000
+                                        },
+                                        "unit": {
+                                          "enum": [
+                                            "glasses",
+                                            "ml"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "carbs"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "grams": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 500
+                                        },
+                                        "note": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "evidence_photo"
+                                    },
+                                    "fields": {
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "filled": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "filled",
+                            "required"
+                          ]
+                        },
+                        "capture": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "self_report",
+                                "structured_log",
+                                "photo",
+                                "device_sample",
+                                "device_session"
+                              ],
+                              "type": "string"
+                            },
+                            "metric": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "walk",
+                                    "run",
+                                    "cycle",
+                                    "steps",
+                                    "sleep",
+                                    "weight",
+                                    "heart_rate"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "durationMinutes": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "distanceMeters": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "count": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "durationMinutes",
+                                "distanceMeters",
+                                "count"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "metric",
+                            "target"
+                          ]
                         }
                       },
                       "required": [
@@ -2098,7 +3786,10 @@
                         "instruction",
                         "icon",
                         "periodKey",
-                        "evidenceRequest"
+                        "evidenceRequest",
+                        "draft",
+                        "progress",
+                        "capture"
                       ]
                     },
                     "pointsBalance": {
@@ -2162,6 +3853,584 @@
         }
       }
     },
+    "/challenges/draft": {
+      "put": {
+        "operationId": "saveChallengeDraft",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userChallengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "draft": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "vitals_bp"
+                          },
+                          "fields": {
+                            "type": "object",
+                            "properties": {
+                              "systolic": {
+                                "type": "integer"
+                              },
+                              "diastolic": {
+                                "type": "integer"
+                              },
+                              "pulse": {
+                                "type": "integer"
+                              },
+                              "notes": {
+                                "type": "string",
+                                "maxLength": 500
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "fields"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "glucose"
+                          },
+                          "fields": {
+                            "type": "object",
+                            "properties": {
+                              "mmolL": {
+                                "type": "number",
+                                "minimum": 1,
+                                "maximum": 40
+                              },
+                              "context": {
+                                "enum": [
+                                  "fasting",
+                                  "before_meal",
+                                  "after_meal"
+                                ],
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "fields"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "peak_flow"
+                          },
+                          "fields": {
+                            "type": "object",
+                            "properties": {
+                              "bestLitresPerMinute": {
+                                "type": "integer",
+                                "minimum": 50,
+                                "maximum": 900
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "fields"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "water"
+                          },
+                          "fields": {
+                            "type": "object",
+                            "properties": {
+                              "amount": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 10000
+                              },
+                              "unit": {
+                                "enum": [
+                                  "glasses",
+                                  "ml"
+                                ],
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "fields"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "carbs"
+                          },
+                          "fields": {
+                            "type": "object",
+                            "properties": {
+                              "grams": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 500
+                              },
+                              "note": {
+                                "type": "string",
+                                "maxLength": 500
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "fields"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "evidence_photo"
+                          },
+                          "fields": {
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "fields"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "userChallengeId",
+                  "draft"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "challengeId": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "rewardPoints": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "status": {
+                          "enum": [
+                            "pending",
+                            "in_progress",
+                            "awaiting_evidence",
+                            "completed"
+                          ],
+                          "type": "string"
+                        },
+                        "frequency": {
+                          "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly"
+                          ],
+                          "type": "string"
+                        },
+                        "completionKind": {
+                          "enum": [
+                            "check_in",
+                            "vitals_bp",
+                            "evidence_photo",
+                            "glucose",
+                            "peak_flow",
+                            "water",
+                            "carbs"
+                          ],
+                          "type": "string"
+                        },
+                        "instruction": {
+                          "type": "string"
+                        },
+                        "icon": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "periodKey": {
+                          "type": "string"
+                        },
+                        "evidenceRequest": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "expiresAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "windowSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "penaltyPoints": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "expiresAt",
+                                "windowSeconds",
+                                "penaltyPoints"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "draft": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "vitals_bp"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "systolic": {
+                                          "type": "integer"
+                                        },
+                                        "diastolic": {
+                                          "type": "integer"
+                                        },
+                                        "pulse": {
+                                          "type": "integer"
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "glucose"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "mmolL": {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 40
+                                        },
+                                        "context": {
+                                          "enum": [
+                                            "fasting",
+                                            "before_meal",
+                                            "after_meal"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "peak_flow"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "bestLitresPerMinute": {
+                                          "type": "integer",
+                                          "minimum": 50,
+                                          "maximum": 900
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "water"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "amount": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 10000
+                                        },
+                                        "unit": {
+                                          "enum": [
+                                            "glasses",
+                                            "ml"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "carbs"
+                                    },
+                                    "fields": {
+                                      "type": "object",
+                                      "properties": {
+                                        "grams": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 500
+                                        },
+                                        "note": {
+                                          "type": "string",
+                                          "maxLength": 500
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "evidence_photo"
+                                    },
+                                    "fields": {
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "fields"
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "filled": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "filled",
+                            "required"
+                          ]
+                        },
+                        "capture": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "self_report",
+                                "structured_log",
+                                "photo",
+                                "device_sample",
+                                "device_session"
+                              ],
+                              "type": "string"
+                            },
+                            "metric": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "walk",
+                                    "run",
+                                    "cycle",
+                                    "steps",
+                                    "sleep",
+                                    "weight",
+                                    "heart_rate"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "durationMinutes": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "distanceMeters": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "count": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "durationMinutes",
+                                "distanceMeters",
+                                "count"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "metric",
+                            "target"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "challengeId",
+                        "title",
+                        "description",
+                        "category",
+                        "rewardPoints",
+                        "status",
+                        "frequency",
+                        "completionKind",
+                        "instruction",
+                        "icon",
+                        "periodKey",
+                        "evidenceRequest",
+                        "draft",
+                        "progress",
+                        "capture"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "challenge"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/activity": {
       "get": {
         "operationId": "listActivity",
@@ -2203,6 +4472,323 @@
                   },
                   "required": [
                     "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges/history": {
+      "get": {
+        "operationId": "listChallengeHistory",
+        "parameters": [
+          {
+            "name": "challengeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challengeId": {
+                      "type": "string"
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "periodKey": {
+                            "type": "string"
+                          },
+                          "completedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "outcome": {
+                            "enum": [
+                              "rewarded",
+                              "penalized"
+                            ],
+                            "type": "string"
+                          },
+                          "pointsDelta": {
+                            "type": "integer"
+                          },
+                          "log": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "check_in"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "vitals_bp"
+                                      },
+                                      "systolic": {
+                                        "type": "integer"
+                                      },
+                                      "diastolic": {
+                                        "type": "integer"
+                                      },
+                                      "pulse": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "notes": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "systolic",
+                                      "diastolic",
+                                      "pulse",
+                                      "notes"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "glucose"
+                                      },
+                                      "mmolL": {
+                                        "type": "number"
+                                      },
+                                      "context": {
+                                        "enum": [
+                                          "fasting",
+                                          "before_meal",
+                                          "after_meal"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "mmolL",
+                                      "context"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "peak_flow"
+                                      },
+                                      "bestLitresPerMinute": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "bestLitresPerMinute"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "water"
+                                      },
+                                      "amount": {
+                                        "type": "integer"
+                                      },
+                                      "unit": {
+                                        "enum": [
+                                          "glasses",
+                                          "ml"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "amount",
+                                      "unit"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "carbs"
+                                      },
+                                      "grams": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "note": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "grams",
+                                      "note"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "evidence_photo"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "device"
+                                      },
+                                      "metric": {
+                                        "enum": [
+                                          "walk",
+                                          "run",
+                                          "cycle",
+                                          "steps",
+                                          "sleep",
+                                          "weight",
+                                          "heart_rate"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "durationSeconds": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "distanceMeters": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "count": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "metric",
+                                      "durationSeconds",
+                                      "distanceMeters",
+                                      "count"
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "evidence": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "submitted",
+                                  "skipped",
+                                  "expired"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "periodKey",
+                          "completedAt",
+                          "outcome",
+                          "pointsDelta",
+                          "log",
+                          "evidence"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "challengeId",
+                    "entries"
                   ]
                 }
               }

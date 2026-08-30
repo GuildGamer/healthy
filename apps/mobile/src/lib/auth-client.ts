@@ -40,8 +40,36 @@ function asActionResult(result: { error?: { message?: string } | null }): AuthAc
   return { error: result.error ?? null };
 }
 
-export async function updateUser(input: { name: string }): Promise<AuthActionResult> {
-  return asActionResult(await client.updateUser(input));
+export async function updateUser(input: {
+  name?: string;
+  image?: string | null;
+}): Promise<AuthActionResult> {
+  const result = asActionResult(await client.updateUser(input));
+  if (!result.error) {
+    await client.getSession();
+  }
+
+  return result;
+}
+
+export async function requestEmailChange(
+  newEmail: string,
+): Promise<AuthActionResult> {
+  return asActionResult(
+    await client.emailOtp.requestEmailChange({ newEmail }),
+  );
+}
+
+export async function confirmEmailChange(input: {
+  newEmail: string;
+  otp: string;
+}): Promise<AuthActionResult> {
+  const result = asActionResult(await client.emailOtp.changeEmail(input));
+  if (!result.error) {
+    await client.getSession();
+  }
+
+  return result;
 }
 
 export async function requestPasswordResetEmail(
@@ -69,4 +97,38 @@ export async function resetPasswordWithOtp(input: {
   password: string;
 }): Promise<AuthActionResult> {
   return asActionResult(await client.emailOtp.resetPassword(input));
+}
+
+export async function sendSignupVerificationOtp(
+  email: string,
+): Promise<AuthActionResult> {
+  return asActionResult(
+    await client.emailOtp.sendVerificationOtp({
+      email,
+      type: 'email-verification',
+    }),
+  );
+}
+
+export async function verifySignupEmail(input: {
+  email: string;
+  otp: string;
+}): Promise<AuthActionResult> {
+  const result = asActionResult(await client.emailOtp.verifyEmail(input));
+  if (!result.error) {
+    await client.getSession();
+  }
+
+  return result;
+}
+
+export function isEmailVerified(
+  session: { user: { emailVerified?: boolean } } | null | undefined,
+): boolean {
+  return session?.user.emailVerified === true;
+}
+
+export async function readEmailVerified(): Promise<boolean> {
+  const result = await client.getSession();
+  return isEmailVerified(result.data);
 }

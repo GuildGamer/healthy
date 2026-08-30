@@ -17,7 +17,14 @@ export class ReminderDispatchController {
   @UseGuards(InternalSecretGuard)
   @Post('dispatch')
   @HttpCode(200)
-  dispatch(): Promise<DispatchSummaryDto> {
-    return this.dispatcher.dispatchDue();
+  async dispatch(): Promise<DispatchSummaryDto> {
+    const reminders = await this.dispatcher.dispatchDue();
+    const nudges = await this.dispatcher.dispatchInProgressNudges();
+
+    return {
+      dueCount: reminders.dueCount + nudges.dueCount,
+      sentCount: reminders.sentCount + nudges.sentCount,
+      suppressedCount: reminders.suppressedCount + nudges.suppressedCount,
+    };
   }
 }

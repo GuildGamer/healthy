@@ -16,7 +16,7 @@ export function FormErrorBanner({ message, tone = 'error' }: FormErrorBannerProp
       return;
     }
 
-    host.show({ message, persist: tone === 'error', tone });
+    host.show({ message, tone });
     return () => host.hide();
   }, [host, message, tone]);
 

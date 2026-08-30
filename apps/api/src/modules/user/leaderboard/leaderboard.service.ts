@@ -1,16 +1,24 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { PrismaClient } from '@product/db';
+import type { HealthCategory } from '@product/contract';
+import type { Prisma, PrismaClient } from '@product/db';
 import {
   type AuthenticatedUser,
   requireUser,
 } from '../../../shared/types/authenticated-user.js';
-import { startOfUtcWeek, weekStartKey } from '../../../shared/utils/week.js';
+import {
+  rankingWindow,
+  weekStartKey,
+} from '../../../shared/utils/week.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { LEADERBOARD_SIZE } from './constants/leaderboard.js';
-import type { LeaderboardEntryDto, ListLeaderboardDto } from './dto/index.js';
+import type {
+  LeaderboardEntryDto,
+  ListLeaderboardDto,
+  ListLeaderboardQuery,
+} from './dto/index.js';
 import { publicNameFor } from './pseudonym.js';
 
-type WeeklyTotal = {
+type UserTotal = {
   userId: string;
   points: number;
 };
@@ -22,10 +30,19 @@ export class LeaderboardService {
   async listWeekly(
     currentUser: AuthenticatedUser | null | undefined,
   ): Promise<ListLeaderboardDto> {
-    const user = requireUser(currentUser);
-    const weekStart = startOfUtcWeek();
+    return this.list(currentUser, { period: 'week' });
+  }
 
-    const topTotals = await this.weeklyTotals(weekStart, LEADERBOARD_SIZE);
+  async list(
+    currentUser: AuthenticatedUser | null | undefined,
+    query: ListLeaderboardQuery = {},
+  ): Promise<ListLeaderboardDto> {
+    const user = requireUser(currentUser);
+    const period = query.period ?? 'week';
+    const { start, periodStart } = rankingWindow(period);
+    const where = this.ledgerWhere(start, query.category);
+
+    const topTotals = await this.totals(where, LEADERBOARD_SIZE);
     const displayNames = await this.displayNamesFor(
       topTotals.map((total) => total.userId),
     );
@@ -37,23 +54,29 @@ export class LeaderboardService {
       isCurrentUser: total.userId === user.id,
     }));
 
-    const currentUserPoints = await this.pointsThisWeek(user.id, weekStart);
+    const currentUserPoints = await this.pointsFor(
+      user.id,
+      start,
+      query.category,
+    );
     const currentUserRank = await this.rankFor(
       user.id,
       currentUserPoints,
-      weekStart,
+      where,
       entries,
     );
 
     return {
       weekStart: weekStartKey(),
+      period,
+      periodStart,
       entries,
       currentUserRank,
       currentUserPoints,
     };
   }
 
-  private visibleOnLeaderboard() {
+  private visibleOnLeaderboard(): Prisma.PointLedgerEntryWhereInput {
     return {
       OR: [
         { user: { profile: { is: null } } },
@@ -62,16 +85,32 @@ export class LeaderboardService {
     };
   }
 
-  private async weeklyTotals(
-    weekStart: Date,
+  private ledgerWhere(
+    start: Date | null,
+    category?: HealthCategory,
+  ): Prisma.PointLedgerEntryWhereInput {
+    return {
+      ...(start ? { createdAt: { gte: start } } : {}),
+      ...(category
+        ? {
+            userChallenge: {
+              is: {
+                challenge: { category },
+              },
+            },
+          }
+        : {}),
+      ...this.visibleOnLeaderboard(),
+    };
+  }
+
+  private async totals(
+    where: Prisma.PointLedgerEntryWhereInput,
     take: number,
-  ): Promise<WeeklyTotal[]> {
+  ): Promise<UserTotal[]> {
     const grouped = await this.prisma.pointLedgerEntry.groupBy({
       by: ['userId'],
-      where: {
-        createdAt: { gte: weekStart },
-        ...this.visibleOnLeaderboard(),
-      },
+      where,
       _sum: { delta: true },
       // userId breaks ties so equal scores keep a stable order between reads.
       orderBy: [{ _sum: { delta: 'desc' } }, { userId: 'asc' }],
@@ -101,12 +140,25 @@ export class LeaderboardService {
     );
   }
 
-  private async pointsThisWeek(
+  private async pointsFor(
     userId: string,
-    weekStart: Date,
+    start: Date | null,
+    category?: HealthCategory,
   ): Promise<number> {
     const total = await this.prisma.pointLedgerEntry.aggregate({
-      where: { userId, createdAt: { gte: weekStart } },
+      where: {
+        userId,
+        ...(start ? { createdAt: { gte: start } } : {}),
+        ...(category
+          ? {
+              userChallenge: {
+                is: {
+                  challenge: { category },
+                },
+              },
+            }
+          : {}),
+      },
       _sum: { delta: true },
     });
 
@@ -121,7 +173,7 @@ export class LeaderboardService {
   private async rankFor(
     userId: string,
     points: number,
-    weekStart: Date,
+    where: Prisma.PointLedgerEntryWhereInput,
     entries: LeaderboardEntryDto[],
   ): Promise<number | null> {
     if (points === 0) {
@@ -136,9 +188,8 @@ export class LeaderboardService {
     const ahead = await this.prisma.pointLedgerEntry.groupBy({
       by: ['userId'],
       where: {
-        createdAt: { gte: weekStart },
+        ...where,
         userId: { not: userId },
-        ...this.visibleOnLeaderboard(),
       },
       _sum: { delta: true },
       having: { delta: { _sum: { gt: points } } },

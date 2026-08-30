@@ -90,4 +90,9 @@ describe('canRequestSurpriseEvidence', () => {
     expect(canRequestSurpriseEvidence('vitals_bp')).toBe(true);
     expect(canRequestSurpriseEvidence('evidence_photo')).toBe(false);
   });
+
+  it('never asks after a device walk or step count', () => {
+    expect(canRequestSurpriseEvidence('check_in', 'device_session')).toBe(false);
+    expect(canRequestSurpriseEvidence('check_in', 'device_sample')).toBe(false);
+  });
 });

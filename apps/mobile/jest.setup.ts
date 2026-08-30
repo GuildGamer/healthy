@@ -16,3 +16,47 @@ jest.mock('expo-notifications', () => ({
   AndroidImportance: { DEFAULT: 3 },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
+
+jest.mock('expo-image-picker', () => ({
+  CameraType: { front: 'front', back: 'back' },
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({
+    granted: true,
+  })),
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+  launchImageLibraryAsync: jest.fn(async () => ({
+    canceled: true,
+    assets: null,
+  })),
+}));
+
+jest.mock('expo-location', () => ({
+  Accuracy: { Balanced: 3 },
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
+  requestForegroundPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+  })),
+  watchPositionAsync: jest.fn(async () => ({ remove: jest.fn() })),
+}));
+
+jest.mock('expo-sensors', () => ({
+  Pedometer: {
+    isAvailableAsync: jest.fn(async () => false),
+    getPermissionsAsync: jest.fn(async () => ({ granted: false })),
+    requestPermissionsAsync: jest.fn(async () => ({ granted: false })),
+    getStepCountAsync: jest.fn(async () => ({ steps: 0 })),
+  },
+}));
+
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  function MockMapView(props: Record<string, unknown>) {
+    return React.createElement(View, props);
+  }
+  function MockPolyline() {
+    return null;
+  }
+  MockMapView.Polyline = MockPolyline;
+  return { __esModule: true, default: MockMapView, Polyline: MockPolyline };
+});

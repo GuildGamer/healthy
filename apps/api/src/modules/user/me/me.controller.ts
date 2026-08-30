@@ -54,6 +54,14 @@ export class MeController {
     });
   }
 
+  @Implement(appContract.updateHealthLink)
+  updateHealthLink(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.updateHealthLink).handler(async ({ input }) => {
+      return this.meService.updateHealthLink(user, input.status);
+    });
+  }
+
   @Implement(appContract.updateNotificationSettings)
   updateNotificationSettings(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;

@@ -18,11 +18,30 @@ import {
   TextField,
 } from '@/components/forms';
 import { apiClient } from '@/lib/api';
-import { updateUser, useSession } from '@/lib/auth-client';
+import { requestEmailChange, updateUser, useSession } from '@/lib/auth-client';
+import { ChangePhotoSheet } from './ChangePhotoSheet';
+import { ProfileAvatar, avatarNameFor } from './ProfileAvatar';
+import { useUpdateProfilePhoto } from './useUpdateProfilePhoto';
 
-const SAVE_FAILED_MESSAGE = 'We could not save your name. Try again.';
+const SAVE_FAILED_MESSAGE = 'We could not save your details. Try again.';
+const EMAIL_SEND_FAILED_MESSAGE =
+  'We could not send a code to that email. Try again.';
+const INVALID_EMAIL_MESSAGE = 'Enter a valid email address.';
 const NETWORK_FAILED_MESSAGE =
   'We could not reach the server. Check your connection and try again.';
+
+function looksLikeEmail(value: string): boolean {
+  return value.includes('@');
+}
+
+function emailChangeErrorMessage(message: string | undefined): string {
+  const normalized = message?.toLowerCase() ?? '';
+  if (normalized.includes('invalid email')) {
+    return INVALID_EMAIL_MESSAGE;
+  }
+
+  return EMAIL_SEND_FAILED_MESSAGE;
+}
 
 export function EditProfileScreen() {
   const router = useRouter();
@@ -34,14 +53,22 @@ export function EditProfileScreen() {
   });
 
   const savedName = meQuery.data?.name ?? session?.user.name ?? '';
-  const email = meQuery.data?.email ?? session?.user.email ?? '';
+  const savedEmail = meQuery.data?.email ?? session?.user.email ?? '';
   const [draftName, setDraftName] = useState<string | null>(null);
+  const [draftEmail, setDraftEmail] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [didSave, setDidSave] = useState(false);
+  const photo = useUpdateProfilePhoto();
 
   const nameValue = draftName ?? savedName;
-  const canSave =
-    nameValue.trim().length > 0 && nameValue.trim() !== savedName.trim();
+  const emailValue = draftEmail ?? savedEmail;
+  const trimmedName = nameValue.trim();
+  const trimmedEmail = emailValue.trim();
+  const nameChanged = trimmedName.length > 0 && trimmedName !== savedName.trim();
+  const emailChanged =
+    trimmedEmail.length > 0 &&
+    trimmedEmail.toLowerCase() !== savedEmail.trim().toLowerCase();
+  const canSave = nameChanged || emailChanged;
 
   useEffect(() => {
     if (!didSave) {
@@ -56,17 +83,42 @@ export function EditProfileScreen() {
   }, [didSave, router]);
 
   const save = useMutation({
-    mutationFn: async (name: string) => {
-      const { error } = await updateUser({ name });
-
-      if (error) {
-        throw new Error(SAVE_FAILED_MESSAGE);
+    mutationFn: async () => {
+      if (emailChanged && !looksLikeEmail(trimmedEmail)) {
+        throw new Error(INVALID_EMAIL_MESSAGE);
       }
+
+      if (nameChanged) {
+        const { error } = await updateUser({ name: trimmedName });
+        if (error) {
+          throw new Error(SAVE_FAILED_MESSAGE);
+        }
+      }
+
+      if (!emailChanged) {
+        return 'name' as const;
+      }
+
+      const { error } = await requestEmailChange(trimmedEmail);
+      if (error) {
+        throw new Error(emailChangeErrorMessage(error.message));
+      }
+
+      return 'email' as const;
     },
-    onSuccess: async () => {
+    onSuccess: async (changed) => {
       setErrorMessage(null);
-      setDidSave(true);
       await queryClient.invalidateQueries({ queryKey: ['me'] });
+
+      if (changed === 'email') {
+        router.push({
+          pathname: '/change-email',
+          params: { email: trimmedEmail },
+        });
+        return;
+      }
+
+      setDidSave(true);
     },
     onError: (error: unknown) => {
       setErrorMessage(
@@ -98,9 +150,15 @@ export function EditProfileScreen() {
         testID="edit-profile-screen"
       >
         <View style={styles.avatarBlock}>
-          <View style={styles.avatar}>
-            <Feather color={colors.accent} name="user" size={32} />
-          </View>
+          <ProfileAvatar
+            imageUri={session?.user.image}
+            name={avatarNameFor({
+              displayName: meQuery.data?.displayName,
+              name: savedName,
+            })}
+            onEditPress={photo.openSheet}
+            testID="edit-profile-avatar"
+          />
         </View>
 
         {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
@@ -119,14 +177,20 @@ export function EditProfileScreen() {
         </FormField>
 
         <FormField
-          hint="Used to log in. Changing it will come with email verification."
+          hint="We'll send a code to the new address before it changes."
           label="Email"
+          required
         >
           <TextField
-            editable={false}
+            autoCapitalize="none"
+            autoComplete="email"
+            autoCorrect={false}
+            keyboardType="email-address"
             leadingIcon="mail"
+            onChangeText={setDraftEmail}
+            placeholder="your@email.com"
             testID="edit-profile-email"
-            value={email}
+            value={emailValue}
           />
         </FormField>
 
@@ -134,10 +198,17 @@ export function EditProfileScreen() {
           disabled={!canSave}
           label="Save"
           loading={save.isPending}
-          onPress={() => save.mutate(nameValue.trim())}
+          onPress={() => save.mutate()}
           testID="edit-profile-save"
         />
       </ScrollView>
+      <ChangePhotoSheet
+        errorMessage={photo.errorMessage}
+        isSaving={photo.isSaving}
+        onClose={photo.closeSheet}
+        onPick={photo.pickFrom}
+        visible={photo.sheetOpen}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -154,14 +225,6 @@ const styles = StyleSheet.create({
   avatarBlock: {
     alignItems: 'center',
     paddingVertical: spacing.sm,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accentSurface,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sectionLabel: {
     color: colors.muted,

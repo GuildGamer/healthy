@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { useRouter } from 'expo-router';
 import type { ReactElement } from 'react';
 import { apiClient } from '@/lib/api';
-import { captureSelfie } from '@/lib/capture-selfie';
+import { setCaptureResult } from '@/lib/capture-session';
 import { LogEvidenceScreen } from './LogEvidenceScreen';
 
 jest.mock('@/lib/api', () => ({
@@ -14,23 +15,24 @@ jest.mock('@/lib/api', () => ({
 }));
 
 jest.mock('expo-router', () => {
-  const replace = jest.fn();
+  const { useEffect } = require('react');
+  const mockPush = jest.fn();
   return {
-    useRouter: () => ({ replace, back: jest.fn() }),
+    useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      useEffect(() => {
+        const cleanup = effect();
+        return typeof cleanup === 'function' ? cleanup : undefined;
+      });
+    },
   };
 });
-
-jest.mock('@/lib/capture-selfie', () => ({
-  captureSelfie: jest.fn(),
-}));
 
 const mockedApi = apiClient as unknown as {
   listTodayChallenges: jest.Mock;
   startChallenge: jest.Mock;
   completeChallenge: jest.Mock;
 };
-
-const mockedCapture = jest.mocked(captureSelfie);
 
 function renderScreen() {
   const client = new QueryClient({
@@ -67,6 +69,17 @@ describe('LogEvidenceScreen', () => {
           icon: 'dumbbell',
           periodKey: '2026-08-29',
           evidenceRequest: null,
+          draft: null,
+          progress: { filled: 0, required: 1 },
+          capture: {
+            kind: 'photo',
+            metric: null,
+            target: {
+              durationMinutes: null,
+              distanceMeters: null,
+              count: null,
+            },
+          },
         },
       ],
       completedCount: 0,
@@ -78,19 +91,26 @@ describe('LogEvidenceScreen', () => {
     });
   });
 
-  it('submits the captured photo', async () => {
-    mockedCapture.mockResolvedValue({
-      status: 'captured',
-      photo: {
-        mimeType: 'image/jpeg',
-        imageBase64: 'a'.repeat(32),
-        previewUri: 'file://gym.jpg',
-      },
+  it('opens the in-app camera for a selfie', async () => {
+    renderScreen();
+
+    fireEvent.press(await screen.findByTestId('evidence-take-photo'));
+
+    expect(useRouter().push).toHaveBeenCalledWith({
+      pathname: '/challenge/[challengeId]/camera',
+      params: { challengeId: 'c-gym', intent: 'selfie' },
+    });
+  });
+
+  it('submits a photo returned from the camera', async () => {
+    setCaptureResult('c-gym', {
+      mimeType: 'image/jpeg',
+      imageBase64: 'a'.repeat(32),
+      previewUri: 'file://gym.jpg',
     });
 
     renderScreen();
 
-    fireEvent.press(await screen.findByTestId('evidence-take-photo'));
     expect(await screen.findByTestId('evidence-preview')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('evidence-submit'));

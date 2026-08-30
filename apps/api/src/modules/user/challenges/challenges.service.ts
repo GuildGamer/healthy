@@ -1,15 +1,21 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
-import { toChallengeIcon } from '@product/contract';
-import type {
-  Challenge,
-  ChallengeCompletionKind,
-  ChallengeFrequency,
-  HealthCategory,
-  PrismaClient,
-  SurpriseEvidenceRequest,
-  UserChallenge,
-  UserChallengeStatus,
+import {
+  fieldProgress,
+  toChallengeCapture,
+  toChallengeIcon,
+  type DeviceActivity,
+} from '@product/contract';
+import {
+  Prisma,
+  type Challenge,
+  type ChallengeCompletionKind,
+  type ChallengeFrequency,
+  type HealthCategory,
+  type PrismaClient,
+  type SurpriseEvidenceRequest,
+  type UserChallenge,
+  type UserChallengeStatus,
 } from '@product/db';
 import {
   type AuthenticatedUser,
@@ -30,6 +36,7 @@ import {
 import type {
   CompleteChallengeDto,
   ListActivityDto,
+  ListChallengeHistoryDto,
   ListTodayChallengesDto,
   StartChallengeDto,
   SurpriseEvidenceRequestDto,
@@ -46,6 +53,15 @@ import {
   surprisePhotoExpectation,
 } from './surprise-evidence.js';
 import { SURPRISE_EVIDENCE_ROLL } from './surprise-evidence.tokens.js';
+import { parseStoredDraft, requireMatchingDraft } from './draft.js';
+import { requireDeviceActivityFor } from './device-activity.js';
+import {
+  CHALLENGE_HISTORY_LIMIT,
+  historyEvidence,
+  historyLog,
+  historyOutcome,
+} from './history.js';
+import { requireLogFor, type ChallengeLogPayload } from './logs.js';
 import { requireVitalsFor, type ChallengeVitalsInput } from './vitals.js';
 
 type AssignmentRecord = UserChallenge & {
@@ -137,6 +153,13 @@ export class ChallengesService {
     userChallengeId: string,
     vitals?: ChallengeVitalsInput,
     evidence?: ChallengeEvidenceInput,
+    logFields?: {
+      glucose?: Parameters<typeof requireLogFor>[1]['glucose'];
+      peakFlow?: Parameters<typeof requireLogFor>[1]['peakFlow'];
+      water?: Parameters<typeof requireLogFor>[1]['water'];
+      carbs?: Parameters<typeof requireLogFor>[1]['carbs'];
+    },
+    deviceActivity?: DeviceActivity,
   ): Promise<CompleteChallengeDto> {
     const user = requireUser(currentUser);
     await this.settleExpiredEvidence(user.id);
@@ -158,6 +181,12 @@ export class ChallengesService {
       assignment.challenge.completionKind,
       evidence,
     );
+    const log = requireLogFor(
+      assignment.challenge.completionKind,
+      logFields ?? {},
+    );
+    const capture = toChallengeCapture(assignment.challenge);
+    const activity = requireDeviceActivityFor(capture, deviceActivity);
 
     if (photo) {
       const verdict = await this.evidenceValidator.validateGymPhoto(photo);
@@ -169,6 +198,7 @@ export class ChallengesService {
     if (
       shouldRequestSurpriseEvidence({
         completionKind: assignment.challenge.completionKind,
+        captureKind: capture.kind,
         chancePercent: assignment.challenge.surpriseEvidenceChancePercent,
         unitSample: this.surpriseRoll(),
       })
@@ -176,7 +206,42 @@ export class ChallengesService {
       return this.openSurpriseRequest(user, assignment, reading);
     }
 
-    return this.rewardCompletion(user, assignment, reading);
+    return this.rewardCompletion(user, assignment, reading, log, activity);
+  }
+
+  /**
+   * Writes partial form fields. Starts the occurrence if it was still pending
+   * so a finish nudge has a clock. Never awards points.
+   */
+  async saveDraft(
+    currentUser: AuthenticatedUser | null | undefined,
+    userChallengeId: string,
+    draft: Parameters<typeof requireMatchingDraft>[1],
+  ): Promise<StartChallengeDto> {
+    const user = requireUser(currentUser);
+    const assignment = await this.findOwnedAssignment(user.id, userChallengeId);
+
+    if (assignment.status === 'completed') {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'This challenge is already finished',
+      });
+    }
+
+    requireMatchingDraft(assignment.challenge.completionKind, draft);
+
+    const updated = await this.prisma.userChallenge.update({
+      where: { id: assignment.id },
+      data: {
+        draft,
+        draftUpdatedAt: new Date(),
+        status:
+          assignment.status === 'pending' ? 'in_progress' : assignment.status,
+        startedAt: assignment.startedAt ?? new Date(),
+      },
+      include: { challenge: true, surpriseEvidenceRequest: true },
+    });
+
+    return { challenge: this.toTodayChallenge(updated) };
   }
 
   async skipEvidence(
@@ -319,6 +384,8 @@ export class ChallengesService {
     user: AuthenticatedUser,
     assignment: AssignmentRecord,
     reading: ChallengeVitalsInput | null,
+    log: ChallengeLogPayload | null = null,
+    activity: DeviceActivity | null = null,
   ): Promise<CompleteChallengeDto> {
     const timeZone = await this.timeZoneFor(user.id);
     const todayKey = dayKeyFor(timeZone);
@@ -358,9 +425,29 @@ export class ChallengesService {
           completionOutcome: 'rewarded',
           startedAt: assignment.startedAt ?? new Date(),
           completedAt: new Date(),
+          draft: Prisma.DbNull,
+          draftUpdatedAt: null,
         },
         include: { challenge: true, surpriseEvidenceRequest: true },
       });
+
+      if (log) {
+        await tx.challengeLog.upsert({
+          where: { userChallengeId: assignment.id },
+          create: {
+            userChallengeId: assignment.id,
+            payload: log,
+          },
+          update: {
+            payload: log,
+            recordedAt: new Date(),
+          },
+        });
+      }
+
+      if (activity) {
+        await this.persistDeviceActivity(tx, user.id, assignment.id, activity);
+      }
 
       if (reading) {
         await tx.vitalReading.upsert({
@@ -597,6 +684,54 @@ export class ChallengesService {
     };
   }
 
+  async listHistory(
+    currentUser: AuthenticatedUser | null | undefined,
+    challengeId: string,
+  ): Promise<ListChallengeHistoryDto> {
+    const user = requireUser(currentUser);
+
+    const assignments = await this.prisma.userChallenge.findMany({
+      where: {
+        userId: user.id,
+        challengeId,
+        status: 'completed',
+      },
+      orderBy: [{ completedAt: 'desc' }, { periodKey: 'desc' }],
+      take: CHALLENGE_HISTORY_LIMIT,
+      include: {
+        challenge: { select: { completionKind: true } },
+        vitalReading: true,
+        challengeLog: true,
+        deviceActivityLog: true,
+        surpriseEvidenceRequest: true,
+        ledgerEntries: { select: { delta: true } },
+      },
+    });
+
+    return {
+      challengeId,
+      entries: assignments.map((assignment) => ({
+        id: assignment.id,
+        periodKey: assignment.periodKey,
+        completedAt: (
+          assignment.completedAt ?? assignment.updatedAt
+        ).toISOString(),
+        outcome: historyOutcome(assignment.completionOutcome),
+        pointsDelta: assignment.ledgerEntries.reduce(
+          (total, entry) => total + entry.delta,
+          0,
+        ),
+        log: historyLog({
+          completionKind: assignment.challenge.completionKind,
+          vitalReading: assignment.vitalReading,
+          challengeLogPayload: assignment.challengeLog?.payload,
+          deviceActivity: assignment.deviceActivityLog,
+        }),
+        evidence: historyEvidence(assignment.surpriseEvidenceRequest?.status),
+      })),
+    };
+  }
+
   /**
    * Only daily challenges carry the streak. A monthly check-up completed once
    * should not imply a month of consecutive daily effort.
@@ -709,12 +844,59 @@ export class ChallengesService {
     });
   }
 
+  private async persistDeviceActivity(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    userChallengeId: string,
+    activity: DeviceActivity,
+  ): Promise<void> {
+    if (activity.externalId) {
+      const existing = await tx.deviceActivityLog.findUnique({
+        where: {
+          userId_externalId: {
+            userId,
+            externalId: activity.externalId,
+          },
+        },
+        select: { userChallengeId: true },
+      });
+
+      if (existing && existing.userChallengeId !== userChallengeId) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'That workout was already used for another challenge',
+        });
+      }
+    }
+
+    const fields = {
+      source: activity.source,
+      metric: activity.metric,
+      durationSeconds: activity.durationSeconds ?? null,
+      distanceMeters: activity.distanceMeters ?? null,
+      count: activity.count ?? null,
+      startedAt: activity.startedAt ? new Date(activity.startedAt) : null,
+      endedAt: activity.endedAt ? new Date(activity.endedAt) : null,
+      externalId: activity.externalId ?? null,
+    };
+
+    await tx.deviceActivityLog.upsert({
+      where: { userChallengeId },
+      create: {
+        userId,
+        userChallengeId,
+        ...fields,
+      },
+      update: fields,
+    });
+  }
+
   private toTodayChallenge(assignment: {
     id: string;
     challengeId: string;
     periodKey: string;
     frequency: ChallengeFrequency;
     status: UserChallengeStatus;
+    draft?: unknown;
     surpriseEvidenceRequest?: SurpriseEvidenceRequest | null;
     challenge: {
       title: string;
@@ -724,8 +906,15 @@ export class ChallengesService {
       completionKind: ChallengeCompletionKind;
       instruction: string;
       icon: string;
+      captureKind?: string;
+      deviceMetric?: string | null;
+      targetDurationMinutes?: number | null;
+      targetDistanceMeters?: number | null;
+      targetCount?: number | null;
     };
   }): TodayChallengeDto {
+    const draft = parseStoredDraft(assignment.draft);
+    const capture = toChallengeCapture(assignment.challenge);
     return {
       id: assignment.id,
       challengeId: assignment.challengeId,
@@ -743,6 +932,13 @@ export class ChallengesService {
         assignment.surpriseEvidenceRequest,
         assignment.status,
       ),
+      draft,
+      progress: fieldProgress({
+        completionKind: assignment.challenge.completionKind,
+        status: assignment.status,
+        draft,
+      }),
+      capture,
     };
   }
 

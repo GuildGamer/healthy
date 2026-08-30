@@ -1,3 +1,4 @@
+import type { HealthLinkStatus } from '@product/contract';
 import type { HealthCategory } from '@product/db';
 
 export type MeDto = {
@@ -14,4 +15,7 @@ export type MeDto = {
   evidenceRemindersEnabled: boolean;
   promotionalMessagesEnabled: boolean;
   showOnLeaderboard: boolean;
+  inProgressNudgeEnabled: boolean;
+  inProgressNudgeDelayMinutes: number;
+  healthLinkStatus: HealthLinkStatus;
 };

@@ -44,6 +44,13 @@ function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
     icon: 'walk',
     periodKey: '2026-08-28',
     evidenceRequest: null,
+    draft: null,
+    progress: { filled: 0, required: 1 },
+    capture: {
+      kind: 'self_report',
+      metric: null,
+      target: { durationMinutes: null, distanceMeters: null, count: null },
+    },
     ...overrides,
   };
 }
@@ -121,21 +128,42 @@ describe('ChallengesScreen', () => {
     await cleanup();
   });
 
-  it('keeps Start on the card so today can still be advanced', async () => {
-    mockedApi.startChallenge.mockResolvedValue({
-      challenge: challenge({ status: 'in_progress' }),
-    });
-
+  it('opens the confirm screen for a check-in instead of completing on the card', async () => {
     const { cleanup } = renderChallenges();
 
     fireEvent.press(await screen.findByTestId('advance-challenge-uc1'));
 
-    await waitFor(() => {
-      expect(mockedApi.startChallenge).toHaveBeenCalledWith({
-        userChallengeId: 'uc1',
-      });
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c1/confirm');
+    expect(mockedApi.startChallenge).not.toHaveBeenCalled();
+
+    await cleanup();
+  });
+
+  it('keeps finished challenges tucked away until they ask', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [
+        challenge({ id: 'uc-open', title: 'Walk 20 minutes' }),
+        challenge({
+          id: 'uc-done',
+          challengeId: 'c-done',
+          title: 'Drink water',
+          status: 'completed',
+        }),
+      ],
+      completedCount: 1,
+      totalCount: 2,
     });
-    expect(useRouter().push).not.toHaveBeenCalled();
+
+    const { cleanup } = renderChallenges();
+
+    expect(await screen.findByText('1 of 2 today')).toBeOnTheScreen();
+    expect(screen.getByText('Walk 20 minutes')).toBeOnTheScreen();
+    expect(screen.queryByText('Drink water')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('show-done-challenges'));
+
+    expect(screen.getByText('Drink water')).toBeOnTheScreen();
 
     await cleanup();
   });

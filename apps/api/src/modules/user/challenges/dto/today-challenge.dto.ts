@@ -1,4 +1,12 @@
 import type {
+  ChallengeCapture,
+  ChallengeDraft,
+  ChallengeFieldProgress,
+  ChallengeHistoryEvidence,
+  ChallengeHistoryLog,
+  ChallengeHistoryOutcome,
+} from '@product/contract';
+import type {
   ChallengeCompletionKind,
   ChallengeFrequency,
   HealthCategory,
@@ -25,6 +33,9 @@ export type TodayChallengeDto = {
   icon: string;
   periodKey: string;
   evidenceRequest: SurpriseEvidenceRequestDto | null;
+  draft: ChallengeDraft | null;
+  progress: ChallengeFieldProgress;
+  capture: ChallengeCapture;
 };
 
 export type ListTodayChallengesDto = {
@@ -56,4 +67,19 @@ export type ActivityItemDto = {
 
 export type ListActivityDto = {
   items: ActivityItemDto[];
+};
+
+export type ChallengeHistoryEntryDto = {
+  id: string;
+  periodKey: string;
+  completedAt: string;
+  outcome: ChallengeHistoryOutcome;
+  pointsDelta: number;
+  log: ChallengeHistoryLog | null;
+  evidence: ChallengeHistoryEvidence | null;
+};
+
+export type ListChallengeHistoryDto = {
+  challengeId: string;
+  entries: ChallengeHistoryEntryDto[];
 };

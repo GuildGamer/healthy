@@ -44,3 +44,28 @@ export function selectDailyTip(
   const dayNumber = Math.floor(timestamp / MILLISECONDS_PER_DAY);
   return relevant[dayNumber % relevant.length] ?? null;
 }
+
+export type TipCategoryGroup = {
+  category: HealthCategory;
+  tips: HealthTip[];
+};
+
+/** Keeps catalog order so Blood pressure sits above Everyday health, not mixed. */
+export function groupTipsByCategory(
+  tips: readonly HealthTip[],
+): TipCategoryGroup[] {
+  const groups: TipCategoryGroup[] = [];
+
+  for (const tip of tips) {
+    const current = groups.at(-1);
+
+    if (current?.category === tip.category) {
+      current.tips.push(tip);
+      continue;
+    }
+
+    groups.push({ category: tip.category, tips: [tip] });
+  }
+
+  return groups;
+}

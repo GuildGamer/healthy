@@ -42,7 +42,8 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="home" options={{ headerShown: false }} />
-          <Stack.Screen name="tips" options={{ title: 'Health Tips' }} />
+          <Stack.Screen name="tips" options={{ title: 'Tips' }} />
+          <Stack.Screen name="points" options={{ title: 'Points' }} />
           <Stack.Screen
             name="notifications"
             options={{ headerShown: false, title: 'Notifications' }}
@@ -52,6 +53,10 @@ export default function RootLayout() {
             options={{ title: 'Health Categories' }}
           />
           <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
+          <Stack.Screen
+            name="change-email"
+            options={{ headerShown: false, title: 'Change email' }}
+          />
           <Stack.Screen name="leaderboard" options={{ title: 'Leaderboard' }} />
           <Stack.Screen
             name="manage-challenges"
@@ -68,6 +73,10 @@ export default function RootLayout() {
           <Stack.Screen
             name="challenge/[challengeId]/evidence"
             options={{ title: 'Gym photo' }}
+          />
+          <Stack.Screen
+            name="challenge/[challengeId]/camera"
+            options={{ headerShown: false, title: 'Camera' }}
           />
           <Stack.Screen
             name="challenge/[challengeId]/verify"

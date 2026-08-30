@@ -73,6 +73,9 @@ describe('MeService', () => {
       evidenceRemindersEnabled: true,
       promotionalMessagesEnabled: false,
       showOnLeaderboard: true,
+      inProgressNudgeEnabled: true,
+      inProgressNudgeDelayMinutes: 30,
+      healthLinkStatus: 'unknown',
     });
   });
 
@@ -105,6 +108,9 @@ describe('MeService', () => {
       evidenceRemindersEnabled: true,
       promotionalMessagesEnabled: false,
       showOnLeaderboard: true,
+      inProgressNudgeEnabled: true,
+      inProgressNudgeDelayMinutes: 30,
+      healthLinkStatus: 'unknown',
     });
   });
 
@@ -270,12 +276,16 @@ describe('MeService', () => {
         evidenceRemindersEnabled: false,
         promotionalMessagesEnabled: true,
         showOnLeaderboard: false,
+        inProgressNudgeEnabled: true,
+        inProgressNudgeDelayMinutes: 30,
       }),
     ).resolves.toMatchObject({
       reminderEnabled: true,
       evidenceRemindersEnabled: false,
       promotionalMessagesEnabled: true,
       showOnLeaderboard: false,
+      inProgressNudgeEnabled: true,
+      inProgressNudgeDelayMinutes: 30,
     });
 
     expect(prisma.userProfile.upsert).toHaveBeenCalledWith({
@@ -286,12 +296,16 @@ describe('MeService', () => {
         evidenceRemindersEnabled: false,
         promotionalMessagesEnabled: true,
         showOnLeaderboard: false,
+        inProgressNudgeEnabled: true,
+        inProgressNudgeDelayMinutes: 30,
       },
       update: {
         reminderEnabled: true,
         evidenceRemindersEnabled: false,
         promotionalMessagesEnabled: true,
         showOnLeaderboard: false,
+        inProgressNudgeEnabled: true,
+        inProgressNudgeDelayMinutes: 30,
       },
     });
   });

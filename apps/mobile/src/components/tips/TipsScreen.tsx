@@ -1,30 +1,72 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import {
+  colors,
+  fontSize,
+  fontWeight,
+  radii,
+  spacing,
+} from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { ChallengeIcon } from '@/components/challenges/ChallengeIcon';
+import { Loader, RefreshableScroll } from '@/components/feedback';
+import {
+  healthCategoryMark,
+  healthCategoryName,
+} from '@/constants/health-categories';
 import { apiClient } from '@/lib/api';
+import { tipQuoteFontFamily } from '@/lib/fonts';
 import type { HealthTip } from './constants/health-tips';
-import { selectDailyTip, tipsForCategories } from './select-daily-tip';
+import {
+  groupTipsByCategory,
+  selectDailyTip,
+  tipsForCategories,
+} from './select-daily-tip';
+import { TipSectionSwitch } from './TipSectionSwitch';
+import {
+  groupsForScope,
+  resolveTipScope,
+  type TipSectionScope,
+} from './tip-section-scope';
 
-function TipCard({ tip, isToday }: { tip: HealthTip; isToday: boolean }) {
+function FeaturedTip({ tip }: { tip: HealthTip }) {
   return (
-    <View
-      style={[styles.card, isToday ? styles.cardToday : null]}
-      testID={`tip-${tip.id}`}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.icon}>
-          <Ionicons color={colors.accent} name="bulb" size={16} />
+    <View style={styles.featured} testID={`tip-${tip.id}`}>
+      <Text style={styles.eyebrow}>
+        Today · {healthCategoryName(tip.category)}
+      </Text>
+      <Text style={styles.quote}>{tip.title}</Text>
+      <Text style={styles.featuredBody}>{tip.body}</Text>
+    </View>
+  );
+}
+
+function TipRow({
+  isLast,
+  tip,
+}: {
+  isLast: boolean;
+  tip: HealthTip;
+}) {
+  return (
+    <View>
+      <View style={styles.row} testID={`tip-${tip.id}`}>
+        <ChallengeIcon
+          category={tip.category}
+          name={healthCategoryMark(tip.category)}
+        />
+        <View style={styles.rowText}>
+          <Text style={styles.rowTitle}>{tip.title}</Text>
+          <Text style={styles.rowBody}>{tip.body}</Text>
         </View>
-        {isToday ? <Text style={styles.badge}>Today</Text> : null}
       </View>
-      <Text style={styles.title}>{tip.title}</Text>
-      <Text style={styles.body}>{tip.body}</Text>
+      {isLast ? null : <View style={styles.divider} />}
     </View>
   );
 }
 
 export function TipsScreen() {
+  const [scope, setScope] = useState<TipSectionScope>('all');
   const meQuery = useQuery({
     queryKey: ['me'],
     queryFn: () => apiClient.me(),
@@ -38,10 +80,21 @@ export function TipsScreen() {
   const dayKey = challengesQuery.data?.dayKey ?? '';
   const tips = tipsForCategories(categories);
   const todayTip = selectDailyTip(categories, dayKey);
+  const moreTips = tips.filter((tip) => tip.id !== todayTip?.id);
+  const groups = groupTipsByCategory(moreTips);
+  const activeScope = resolveTipScope(scope, groups);
+  const visibleGroups = groupsForScope(groups, activeScope);
+  const showFeatured =
+    todayTip != null &&
+    (activeScope === 'all' || activeScope === todayTip.category);
+  const isLoading = meQuery.isPending || challengesQuery.isPending;
 
   return (
-    <ScrollView
+    <RefreshableScroll
       contentContainerStyle={styles.content}
+      onPullRefresh={() =>
+        Promise.all([meQuery.refetch(), challengesQuery.refetch()])
+      }
       style={styles.container}
       testID="tips-screen"
     >
@@ -49,10 +102,39 @@ export function TipsScreen() {
         Small, practical changes for the conditions you are tracking.
       </Text>
 
-      {tips.map((tip) => (
-        <TipCard isToday={tip.id === todayTip?.id} key={tip.id} tip={tip} />
+      {isLoading && tips.length === 0 ? (
+        <View style={styles.loader}>
+          <Loader />
+        </View>
+      ) : null}
+
+      <View style={styles.stage}>
+        {showFeatured && todayTip ? <FeaturedTip tip={todayTip} /> : null}
+
+        <TipSectionSwitch
+          groups={groups}
+          onSelect={setScope}
+          scope={activeScope}
+        />
+      </View>
+
+      {visibleGroups.map((group) => (
+        <View key={group.category} style={styles.section}>
+          {activeScope === 'all' ? (
+            <Text style={styles.sectionTitle}>
+              {healthCategoryName(group.category)}
+            </Text>
+          ) : null}
+          {group.tips.map((tip, index) => (
+            <TipRow
+              isLast={index === group.tips.length - 1}
+              key={tip.id}
+              tip={tip}
+            />
+          ))}
+        </View>
       ))}
-    </ScrollView>
+    </RefreshableScroll>
   );
 }
 
@@ -62,51 +144,83 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
   },
   intro: {
     color: colors.muted,
     fontSize: fontSize.sm,
     lineHeight: 20,
+    paddingHorizontal: spacing.lg,
   },
-  card: {
+  stage: {
+    gap: 10,
+  },
+  featured: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     gap: spacing.sm,
   },
-  cardToday: {
-    borderColor: colors.accent,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  icon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    backgroundColor: colors.accentContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badge: {
+  eyebrow: {
     color: colors.accent,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.medium,
+    letterSpacing: 0.3,
   },
-  title: {
+  quote: {
     color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontFamily: tipQuoteFontFamily,
+    fontSize: fontSize.lg,
+    lineHeight: 28,
   },
-  body: {
+  featuredBody: {
     color: colors.muted,
     fontSize: fontSize.sm,
     lineHeight: 20,
+  },
+  section: {
+    gap: spacing.xs,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  rowText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  rowTitle: {
+    color: colors.text,
+    fontFamily: tipQuoteFontFamily,
+    fontSize: fontSize.md,
+    lineHeight: 22,
+  },
+  rowBody: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+    lineHeight: 18,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+  },
+  loader: {
+    marginTop: spacing.xl,
   },
 });

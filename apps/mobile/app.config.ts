@@ -13,6 +13,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.healthy.app',
+    infoPlist: {
+      NSLocationWhenInUseUsageDescription:
+        'Healthy uses your location to record walking and running routes.',
+      NSMotionUsageDescription:
+        'Healthy uses motion data to count steps from this phone.',
+    },
   },
   android: {
     adaptiveIcon: {
@@ -20,6 +26,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#3DDC97',
     },
     package: 'com.healthy.app',
+    permissions: [
+      'ACCESS_COARSE_LOCATION',
+      'ACCESS_FINE_LOCATION',
+      'ACTIVITY_RECOGNITION',
+    ],
   },
   plugins: [
     'expo-router',
@@ -28,10 +39,27 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-notifications',
     'expo-font',
     [
-      'expo-image-picker',
+      'expo-camera',
       {
         cameraPermission:
           'Healthy uses the camera so you can prove a gym session.',
+        recordAudioAndroid: false,
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        cameraPermission:
+          'Healthy uses the camera for gym proof and your profile photo.',
+        photosPermission:
+          'Healthy uses your photos so you can set a profile picture.',
+      },
+    ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Healthy uses your location to record walking and running routes.',
       },
     ],
   ],

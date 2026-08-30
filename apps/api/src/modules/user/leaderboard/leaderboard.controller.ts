@@ -13,8 +13,8 @@ export class LeaderboardController {
   @Implement(appContract.listLeaderboard)
   listLeaderboard(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;
-    return implement(appContract.listLeaderboard).handler(async () => {
-      return this.leaderboardService.listWeekly(user);
+    return implement(appContract.listLeaderboard).handler(async ({ input }) => {
+      return this.leaderboardService.list(user, input);
     });
   }
 }

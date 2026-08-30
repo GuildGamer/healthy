@@ -1,17 +1,17 @@
 import { completionRoute } from './completion-route';
 
 describe('completionRoute', () => {
-  it('opens the log screen only for an in-progress blood-pressure challenge', () => {
+  it('opens the log screen for a blood-pressure challenge that is still open', () => {
     expect(
       completionRoute({
         challengeId: 'c-bp',
-        status: 'in_progress',
+        status: 'pending',
         completionKind: 'vitals_bp',
       }),
     ).toBe('/challenge/c-bp/log');
   });
 
-  it('opens the evidence screen for an in-progress gym challenge', () => {
+  it('opens the evidence screen for a gym challenge', () => {
     expect(
       completionRoute({
         challengeId: 'c-gym',
@@ -19,6 +19,39 @@ describe('completionRoute', () => {
         completionKind: 'evidence_photo',
       }),
     ).toBe('/challenge/c-gym/evidence');
+  });
+
+  it('opens the confirm screen for a check-in', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-walk',
+        status: 'pending',
+        completionKind: 'check_in',
+      }),
+    ).toBe('/challenge/c-walk/confirm');
+  });
+
+  it('opens the session screen for a walk or step challenge', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-walk',
+        status: 'pending',
+        completionKind: 'check_in',
+        capture: {
+          kind: 'device_session',
+        },
+      }),
+    ).toBe('/challenge/c-walk/session');
+    expect(
+      completionRoute({
+        challengeId: 'c-steps',
+        status: 'in_progress',
+        completionKind: 'check_in',
+        capture: {
+          kind: 'device_sample',
+        },
+      }),
+    ).toBe('/challenge/c-steps/session');
   });
 
   it('opens the photo check when a surprise window is open', () => {
@@ -29,22 +62,5 @@ describe('completionRoute', () => {
         completionKind: 'check_in',
       }),
     ).toBe('/challenge/c-walk/verify');
-  });
-
-  it('leaves Start and check-in Finish on the card', () => {
-    expect(
-      completionRoute({
-        challengeId: 'c-bp',
-        status: 'pending',
-        completionKind: 'vitals_bp',
-      }),
-    ).toBeNull();
-    expect(
-      completionRoute({
-        challengeId: 'c-walk',
-        status: 'in_progress',
-        completionKind: 'check_in',
-      }),
-    ).toBeNull();
   });
 });

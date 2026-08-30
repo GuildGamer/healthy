@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
-import { toChallengeIcon } from '@product/contract';
+import { toChallengeCapture, toChallengeIcon } from '@product/contract';
 import type {
   ChallengeFrequency,
   HealthCategory,
@@ -82,6 +82,7 @@ export class EnrollmentsService {
         // A deactivated enrolment keeps its reminders in the database, but
         // showing them would imply nudges that will never fire.
         reminders: enrollment?.isActive ? enrollment.reminders : [],
+        capture: toChallengeCapture(challenge),
       };
     });
 

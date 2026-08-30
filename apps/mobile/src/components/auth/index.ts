@@ -1,5 +1,6 @@
 export { AuthScreenHeader } from './AuthScreenHeader';
 export { CategorySelectionScreen } from './CategorySelectionScreen';
+export { EmailVerificationOtpScreen } from './EmailVerificationOtpScreen';
 export { ForgotPasswordEmailScreen } from './ForgotPasswordEmailScreen';
 export { ForgotPasswordOtpScreen } from './ForgotPasswordOtpScreen';
 export { LoginScreen } from './LoginScreen';

@@ -11,6 +11,24 @@ describe('createMailer', () => {
     expect(info).toHaveBeenCalledWith(
       '[mail] password reset OTP for ada@example.com: 123456',
     );
+
+    await mailer.sendEmailVerificationOtp({
+      to: 'ada@example.com',
+      otp: '000000',
+    });
+
+    expect(info).toHaveBeenCalledWith(
+      '[mail] email verification OTP for ada@example.com: 000000',
+    );
+
+    await mailer.sendChangeEmailOtp({
+      to: 'ada@new.example',
+      otp: '654321',
+    });
+
+    expect(info).toHaveBeenCalledWith(
+      '[mail] change email OTP for ada@new.example: 654321',
+    );
     info.mockRestore();
   });
 });

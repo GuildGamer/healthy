@@ -1,6 +1,6 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import { ScreenLoader } from '@/components/feedback';
-import { LogVitalsScreen } from '@/components/challenges';
+import { ChallengeLogScreen } from '@/components/challenges';
 import { useSession } from '@/lib/auth-client';
 
 export default function LogVitalsRoute() {
@@ -19,5 +19,5 @@ export default function LogVitalsRoute() {
     return <Redirect href="/(tabs)/challenges" />;
   }
 
-  return <LogVitalsScreen challengeId={challengeId} />;
+  return <ChallengeLogScreen challengeId={challengeId} />;
 }

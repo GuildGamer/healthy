@@ -18,13 +18,30 @@ type ChallengeSeed = {
   defaultFrequency: 'daily' | 'weekly' | 'monthly';
   /** Enrolled automatically when a user picks this category. */
   isDefault: boolean;
-  completionKind?: 'check_in' | 'vitals_bp' | 'evidence_photo';
+  completionKind?:
+    | 'check_in'
+    | 'vitals_bp'
+    | 'evidence_photo'
+    | 'glucose'
+    | 'peak_flow'
+    | 'water'
+    | 'carbs';
   /** Material Community Icons glyph name. */
   icon: string;
   instruction?: string;
   surpriseEvidenceChancePercent?: number;
   surpriseEvidenceWindowSeconds?: number;
   surpriseEvidencePenaltyPoints?: number;
+  captureKind?:
+    | 'self_report'
+    | 'structured_log'
+    | 'photo'
+    | 'device_sample'
+    | 'device_session';
+  deviceMetric?: 'walk' | 'run' | 'cycle' | 'steps' | 'sleep' | 'weight' | 'heart_rate';
+  targetDurationMinutes?: number;
+  targetDistanceMeters?: number;
+  targetCount?: number;
 };
 
 /**
@@ -98,7 +115,9 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 200,
     defaultFrequency: 'daily',
     isDefault: true,
+    completionKind: 'glucose',
     icon: 'water-check',
+    instruction: 'Record a fasting or mealtime glucose reading in mmol/L.',
   },
   {
     slug: 'log-carbohydrates',
@@ -108,7 +127,10 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 120,
     defaultFrequency: 'daily',
     isDefault: false,
+    completionKind: 'carbs',
     icon: 'food',
+    instruction:
+      'Note the carbohydrates in your main meals, as grams or a short description.',
   },
   {
     slug: 'diabetic-foot-check',
@@ -148,7 +170,10 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 180,
     defaultFrequency: 'daily',
     isDefault: false,
+    completionKind: 'peak_flow',
     icon: 'weather-windy',
+    instruction:
+      'Blow into your peak flow meter three times and log the best reading.',
   },
   {
     slug: 'asthma-trigger-review',
@@ -178,9 +203,12 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 100,
     defaultFrequency: 'daily',
     isDefault: true,
+    completionKind: 'water',
     surpriseEvidenceChancePercent: 20,
     surpriseEvidencePenaltyPoints: 10,
     icon: 'cup-water',
+    instruction:
+      'Log how much water you drank today, in glasses or millilitres.',
   },
   {
     slug: 'ten-minute-walk',
@@ -190,9 +218,27 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 150,
     defaultFrequency: 'daily',
     isDefault: true,
-    surpriseEvidenceChancePercent: 25,
-    surpriseEvidencePenaltyPoints: 25,
     icon: 'walk',
+    captureKind: 'device_session',
+    deviceMetric: 'walk',
+    targetDurationMinutes: 10,
+    instruction:
+      'Walk for at least ten minutes. Start a route on your phone, use a matching workout from your watch, or confirm if you already did.',
+  },
+  {
+    slug: 'five-thousand-steps',
+    title: 'Walk 5,000 steps',
+    description: 'Reach five thousand steps today, from your phone or watch.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'shoe-print',
+    captureKind: 'device_sample',
+    deviceMetric: 'steps',
+    targetCount: 5_000,
+    instruction:
+      'Reach 5,000 steps. We can read today’s count from this phone or a connected watch.',
   },
   {
     slug: 'gym-session',
@@ -258,12 +304,20 @@ async function main(): Promise<void> {
   for (const challenge of challengeSeeds) {
     const completionKind = challenge.completionKind ?? 'check_in';
     const instruction = challenge.instruction ?? challenge.description;
+    const captureKind =
+      challenge.captureKind ??
+      (completionKind === 'evidence_photo'
+        ? 'photo'
+        : completionKind === 'check_in'
+          ? 'self_report'
+          : 'structured_log');
 
     await prisma.challenge.upsert({
       where: { slug: challenge.slug },
       create: {
         ...challenge,
         completionKind,
+        captureKind,
         instruction,
         surpriseEvidenceChancePercent:
           challenge.surpriseEvidenceChancePercent ?? 0,
@@ -281,6 +335,11 @@ async function main(): Promise<void> {
         isDefault: challenge.isDefault,
         isActive: true,
         completionKind,
+        captureKind,
+        deviceMetric: challenge.deviceMetric ?? null,
+        targetDurationMinutes: challenge.targetDurationMinutes ?? null,
+        targetDistanceMeters: challenge.targetDistanceMeters ?? null,
+        targetCount: challenge.targetCount ?? null,
         instruction,
         icon: challenge.icon,
         surpriseEvidenceChancePercent:

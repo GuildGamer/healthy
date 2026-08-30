@@ -10,7 +10,7 @@ export default function CategorySelection() {
     await apiClient.updateCategories({
       categories: [...categories],
     });
-    router.replace('/(tabs)');
+    router.replace('/verify-email');
   }
 
   return <CategorySelectionScreen onContinue={handleContinue} />;

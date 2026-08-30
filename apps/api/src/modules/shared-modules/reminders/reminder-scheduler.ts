@@ -36,6 +36,7 @@ export class ReminderScheduler {
 
     try {
       await this.dispatcher.dispatchDue();
+      await this.dispatcher.dispatchInProgressNudges();
     } catch (error) {
       // Throwing here would take down the timer, and reminders would stop
       // silently until the next deploy.

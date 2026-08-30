@@ -13,12 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ToastBanner } from './ToastBanner';
 import type { ToastTone } from './types';
 
-const AUTO_HIDE_MS = 4_000;
+export const TOAST_AUTO_HIDE_MS = 4_000;
 
 interface ShowToastInput {
   message: string;
   tone?: ToastTone;
-  persist?: boolean;
 }
 
 interface ToastHost {
@@ -65,17 +64,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback(
     (input: ShowToastInput) => {
       const tone = input.tone ?? 'info';
-      const persist = input.persist ?? tone === 'error';
 
       clearHideTimer();
       setToast({ message: input.message, tone });
-
-      if (!persist) {
-        hideTimer.current = setTimeout(() => {
-          setToast(null);
-          hideTimer.current = null;
-        }, AUTO_HIDE_MS);
-      }
+      hideTimer.current = setTimeout(() => {
+        setToast(null);
+        hideTimer.current = null;
+      }, TOAST_AUTO_HIDE_MS);
     },
     [clearHideTimer],
   );

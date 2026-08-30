@@ -5,7 +5,10 @@ import {
   createTestPrismaClient,
   resetDatabase,
 } from '../../../../test/integration-db.js';
-import { startOfUtcWeek } from '../../../shared/utils/week.js';
+import {
+  startOfUtcMonth,
+  startOfUtcWeek,
+} from '../../../shared/utils/week.js';
 import { LeaderboardService } from './leaderboard.service.js';
 import { pseudonymFor } from './pseudonym.js';
 
@@ -14,6 +17,8 @@ let leaderboard: LeaderboardService;
 
 const weekStart = startOfUtcWeek();
 const lastWeek = new Date(weekStart.getTime() - 24 * 60 * 60 * 1000);
+const monthStart = startOfUtcMonth();
+const lastMonth = new Date(monthStart.getTime() - 24 * 60 * 60 * 1000);
 
 async function seedUser(id: string, displayName?: string): Promise<void> {
   await prisma.user.create({
@@ -38,6 +43,48 @@ async function award(
       delta,
       reason: 'test',
       idempotencyKey: `${userId}:${delta}:${createdAt.toISOString()}`,
+      createdAt,
+    },
+  });
+}
+
+async function seedChallenge(
+  slug: string,
+  category: 'hypertension' | 'diabetes' | 'asthma' | 'general',
+): Promise<string> {
+  const challenge = await prisma.challenge.create({
+    data: {
+      slug,
+      title: slug,
+      description: 'Do the thing.',
+      category,
+      rewardPoints: 10,
+    },
+  });
+  return challenge.id;
+}
+
+async function awardOnChallenge(
+  userId: string,
+  challengeId: string,
+  delta: number,
+  createdAt: Date = new Date(),
+): Promise<void> {
+  const assignment = await prisma.userChallenge.create({
+    data: {
+      userId,
+      challengeId,
+      periodKey: `${userId}:${challengeId}:${createdAt.toISOString()}`,
+    },
+  });
+
+  await prisma.pointLedgerEntry.create({
+    data: {
+      userId,
+      delta,
+      reason: 'test',
+      idempotencyKey: `${userId}:${delta}:${assignment.id}`,
+      userChallengeId: assignment.id,
       createdAt,
     },
   });
@@ -202,5 +249,80 @@ describe('LeaderboardService against Postgres', () => {
 
     expect(board.entries.map((entry) => entry.displayName)).toEqual(['Bob']);
     expect(board.currentUserRank).toBe(1);
+  });
+
+  it('echoes the week window on the default board', async () => {
+    await seedUser('bob', 'Bob');
+    await award('bob', 10);
+
+    const board = await leaderboard.listWeekly({
+      id: 'bob',
+      email: 'bob@example.com',
+    });
+
+    expect(board.period).toBe('week');
+    expect(board.periodStart).toBe(weekStart.toISOString().slice(0, 10));
+    expect(board.weekStart).toBe(board.periodStart);
+  });
+
+  it('ranks the month without last month points', async () => {
+    await seedUser('alice', 'Alice');
+    await seedUser('bob', 'Bob');
+    await award('alice', 500, lastMonth);
+    await award('bob', 10);
+
+    const board = await leaderboard.list(
+      { id: 'bob', email: 'bob@example.com' },
+      { period: 'month' },
+    );
+
+    expect(board.period).toBe('month');
+    expect(board.periodStart).toBe(monthStart.toISOString().slice(0, 10));
+    expect(board.entries).toHaveLength(1);
+    expect(board.entries[0]).toMatchObject({ displayName: 'Bob', points: 10 });
+  });
+
+  it('includes every ledger row on the all-time board', async () => {
+    await seedUser('alice', 'Alice');
+    await seedUser('bob', 'Bob');
+    await award('alice', 500, lastWeek);
+    await award('bob', 10);
+
+    const board = await leaderboard.list(
+      { id: 'bob', email: 'bob@example.com' },
+      { period: 'all' },
+    );
+
+    expect(board.period).toBe('all');
+    expect(board.periodStart).toBeNull();
+    expect(board.entries.map((entry) => entry.displayName)).toEqual([
+      'Alice',
+      'Bob',
+    ]);
+    expect(board.currentUserPoints).toBe(10);
+  });
+
+  it('limits a condition board to points tied to that category', async () => {
+    await seedUser('alice', 'Alice');
+    await seedUser('bob', 'Bob');
+    await seedUser('carol', 'Carol');
+    const bloodPressure = await seedChallenge('bp-check', 'hypertension');
+    const bloodSugar = await seedChallenge('glucose-log', 'diabetes');
+    await awardOnChallenge('alice', bloodPressure, 40);
+    await awardOnChallenge('bob', bloodSugar, 80);
+    await award('carol', 100);
+
+    const board = await leaderboard.list(
+      { id: 'alice', email: 'alice@example.com' },
+      { period: 'week', category: 'hypertension' },
+    );
+
+    expect(board.entries).toHaveLength(1);
+    expect(board.entries[0]).toMatchObject({
+      displayName: 'Alice',
+      points: 40,
+      isCurrentUser: true,
+    });
+    expect(board.currentUserPoints).toBe(40);
   });
 });

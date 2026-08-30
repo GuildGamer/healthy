@@ -294,6 +294,105 @@ export class ReminderDispatcherService {
     });
   }
 
+  /**
+   * One finish nudge per started occurrence, after the member's delay.
+   * Reuses the same Expo pipeline as clock reminders.
+   */
+  async dispatchInProgressNudges(
+    now: Date = new Date(),
+  ): Promise<DispatchSummaryDto> {
+    const candidates = await this.prisma.userChallenge.findMany({
+      where: {
+        status: { in: ['in_progress', 'awaiting_evidence'] },
+        startedAt: { not: null },
+        inProgressNudgeDelivery: { is: null },
+        user: { profile: { inProgressNudgeEnabled: true } },
+      },
+      select: {
+        id: true,
+        userId: true,
+        challengeId: true,
+        periodKey: true,
+        startedAt: true,
+        challenge: { select: { title: true } },
+        user: {
+          select: {
+            profile: { select: { inProgressNudgeDelayMinutes: true } },
+          },
+        },
+      },
+    });
+
+    const due = candidates.filter((item) => {
+      if (!item.startedAt) {
+        return false;
+      }
+
+      const delayMinutes = item.user.profile?.inProgressNudgeDelayMinutes ?? 30;
+      const readyAt = item.startedAt.getTime() + delayMinutes * 60_000;
+      return readyAt <= now.getTime();
+    });
+
+    if (due.length === 0) {
+      return { dueCount: 0, sentCount: 0, suppressedCount: 0 };
+    }
+
+    const tokensByUserId = await this.activeTokensByUserId(
+      due.map((item) => item.userId),
+    );
+    const messages: PushMessage[] = [];
+    const deliverable: typeof due = [];
+
+    for (const item of due) {
+      const tokens = tokensByUserId.get(item.userId) ?? [];
+      if (tokens.length === 0) {
+        continue;
+      }
+
+      deliverable.push(item);
+      for (const expoPushToken of tokens) {
+        messages.push({
+          expoPushToken,
+          title: item.challenge.title,
+          body: 'You started this — finish the log to keep your streak.',
+          data: { challengeId: item.challengeId, periodKey: item.periodKey },
+        });
+      }
+    }
+
+    if (messages.length === 0) {
+      return { dueCount: due.length, sentCount: 0, suppressedCount: 0 };
+    }
+
+    const result = await this.pushSender.send(messages);
+
+    if (result.sentCount > 0) {
+      await this.prisma.inProgressNudgeDelivery.createMany({
+        data: deliverable.map((item) => ({ userChallengeId: item.id })),
+        skipDuplicates: true,
+      });
+
+      await this.prisma.notification.createMany({
+        data: deliverable.map((item) => ({
+          userId: item.userId,
+          kind: 'reminder' as const,
+          title: item.challenge.title,
+          body: 'You started this — finish the log to keep your streak.',
+          idempotencyKey: `in_progress_nudge:${item.id}`,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    await this.pushDevices.deactivateTokens(result.rejectedTokens);
+
+    return {
+      dueCount: due.length,
+      sentCount: result.sentCount,
+      suppressedCount: due.length - deliverable.length,
+    };
+  }
+
   private bodyFor(frequency: ChallengeFrequency): string {
     if (frequency === 'weekly') {
       return 'Your challenge for this week is waiting.';

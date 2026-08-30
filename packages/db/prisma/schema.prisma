@@ -26,6 +26,7 @@ model User {
   pointLedger          PointLedgerEntry[]
   pushDevices          PushDevice[]
   notifications        Notification[]
+  deviceActivityLogs   DeviceActivityLog[]
 
   @@map("user")
 }
@@ -99,8 +100,14 @@ model UserProfile {
   /// Designed Profile toggles. Evidence and promotional have no delivery yet.
   evidenceRemindersEnabled     Boolean @default(true)
   promotionalMessagesEnabled   Boolean @default(false)
+  /// Finish-what-you-started push after a form is opened and left incomplete.
+  inProgressNudgeEnabled       Boolean @default(true)
+  /// Minutes after start / first draft before that nudge. Product default is 30.
+  inProgressNudgeDelayMinutes  Int     @default(30)
   /// Opt-out. Hidden users still see the board; others do not see them on it.
   showOnLeaderboard Boolean          @default(true)
+  /// Apple Health / Health Connect: unknown until they answer the prompt.
+  healthLinkStatus  HealthLinkStatus @default(unknown)
   /// Chronic-condition preferences used to tailor challenges.
   healthCategories  HealthCategory[] @default([])
   createdAt         DateTime         @default(now())
@@ -135,13 +142,49 @@ enum UserChallengeCompletionOutcome {
   penalized
 }
 
-/// How the user finishes an occurrence. `check_in` is Start / Finish;
-/// `vitals_bp` opens the designed blood-pressure form;
-/// `evidence_photo` requires a gym photo the API validates.
+/// How the user finishes an occurrence. `check_in` confirms on a screen;
+/// log kinds persist a draft as they type; `evidence_photo` is a gym selfie.
 enum ChallengeCompletionKind {
   check_in
   vitals_bp
   evidence_photo
+  glucose
+  peak_flow
+  water
+  carbs
+}
+
+/// Where proof comes from. Orthogonal to completionKind.
+enum ChallengeCaptureKind {
+  self_report
+  structured_log
+  photo
+  device_sample
+  device_session
+}
+
+enum DeviceMetric {
+  walk
+  run
+  cycle
+  steps
+  sleep
+  weight
+  heart_rate
+}
+
+enum DeviceActivitySource {
+  healthkit
+  health_connect
+  in_app_gps
+  pedometer
+  manual
+}
+
+enum HealthLinkStatus {
+  unknown
+  connected
+  denied
 }
 
 model Challenge {
@@ -157,6 +200,11 @@ model Challenge {
   isDefault        Boolean                   @default(false)
   isActive         Boolean                   @default(true)
   completionKind   ChallengeCompletionKind   @default(check_in)
+  captureKind      ChallengeCaptureKind      @default(self_report)
+  deviceMetric     DeviceMetric?
+  targetDurationMinutes Int?
+  targetDistanceMeters  Int?
+  targetCount           Int?
   /// Designed "What to do" copy. Description stays the longer about text.
   instruction      String                    @default("")
   /// Material Community Icons glyph name. Admin-set so each challenge has its own mark.
@@ -265,11 +313,17 @@ model UserChallenge {
   completionOutcome UserChallengeCompletionOutcome?
   startedAt     DateTime?
   completedAt   DateTime?
+  /// Partial log, written as fields change. Cleared on a successful complete.
+  draft         Json?
+  draftUpdatedAt DateTime?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   ledgerEntries PointLedgerEntry[]
   vitalReading  VitalReading?
+  challengeLog  ChallengeLog?
+  deviceActivityLog DeviceActivityLog?
   surpriseEvidenceRequest SurpriseEvidenceRequest?
+  inProgressNudgeDelivery InProgressNudgeDelivery?
 
   @@unique([userId, challengeId, periodKey])
   @@index([userId, periodKey])
@@ -323,6 +377,53 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+/// Client-attested movement sample or GPS session. One per occurrence.
+model DeviceActivityLog {
+  id               String               @id @default(cuid())
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userChallengeId  String               @unique
+  userChallenge    UserChallenge        @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  source           DeviceActivitySource
+  metric           DeviceMetric
+  durationSeconds  Int?
+  distanceMeters   Int?
+  count            Int?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  /// Health workout UUID or client session id. Unique per user when present.
+  externalId       String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@unique([userId, externalId])
+  @@index([userId, metric])
+  @@map("device_activity_logs")
+}
+
+/// Finished log for glucose / peak flow / water / carbs. Unique on the occurrence.
+model ChallengeLog {
+  id              String        @id @default(cuid())
+  userChallengeId String        @unique
+  userChallenge   UserChallenge @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  payload         Json
+  recordedAt      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("challenge_logs")
+}
+
+/// One finish-nudge per occurrence so the dispatcher is safe to retry.
+model InProgressNudgeDelivery {
+  id              String        @id @default(cuid())
+  userChallengeId String        @unique
+  userChallenge   UserChallenge @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  sentAt          DateTime      @default(now())
+
+  @@map("in_progress_nudge_deliveries")
 }
 
 /// One blood-pressure log for a vitals occurrence. Unique on the occurrence

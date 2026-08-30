@@ -42,6 +42,9 @@ export class MeService {
         evidenceRemindersEnabled: true,
         promotionalMessagesEnabled: true,
         showOnLeaderboard: true,
+        inProgressNudgeEnabled: true,
+        inProgressNudgeDelayMinutes: true,
+        healthLinkStatus: true,
       },
     });
 
@@ -65,7 +68,26 @@ export class MeService {
       evidenceRemindersEnabled: profile?.evidenceRemindersEnabled ?? true,
       promotionalMessagesEnabled: profile?.promotionalMessagesEnabled ?? false,
       showOnLeaderboard: profile?.showOnLeaderboard ?? true,
+      inProgressNudgeEnabled: profile?.inProgressNudgeEnabled ?? true,
+      inProgressNudgeDelayMinutes:
+        profile?.inProgressNudgeDelayMinutes ?? 30,
+      healthLinkStatus: profile?.healthLinkStatus ?? 'unknown',
     };
+  }
+
+  async updateHealthLink(
+    currentUser: AuthenticatedUser | null | undefined,
+    status: 'connected' | 'denied',
+  ): Promise<MeDto> {
+    const user = requireUser(currentUser);
+
+    await this.prisma.userProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, healthLinkStatus: status },
+      update: { healthLinkStatus: status },
+    });
+
+    return this.getMe(user);
   }
 
   async updateCategories(
@@ -177,6 +199,8 @@ export class MeService {
       evidenceRemindersEnabled: boolean;
       promotionalMessagesEnabled: boolean;
       showOnLeaderboard: boolean;
+      inProgressNudgeEnabled: boolean;
+      inProgressNudgeDelayMinutes: number;
     },
   ): Promise<MeDto> {
     const user = requireUser(currentUser);
@@ -189,12 +213,16 @@ export class MeService {
         evidenceRemindersEnabled: settings.evidenceRemindersEnabled,
         promotionalMessagesEnabled: settings.promotionalMessagesEnabled,
         showOnLeaderboard: settings.showOnLeaderboard,
+        inProgressNudgeEnabled: settings.inProgressNudgeEnabled,
+        inProgressNudgeDelayMinutes: settings.inProgressNudgeDelayMinutes,
       },
       update: {
         reminderEnabled: settings.reminderEnabled,
         evidenceRemindersEnabled: settings.evidenceRemindersEnabled,
         promotionalMessagesEnabled: settings.promotionalMessagesEnabled,
         showOnLeaderboard: settings.showOnLeaderboard,
+        inProgressNudgeEnabled: settings.inProgressNudgeEnabled,
+        inProgressNudgeDelayMinutes: settings.inProgressNudgeDelayMinutes,
       },
     });
 

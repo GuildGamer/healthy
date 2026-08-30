@@ -16,6 +16,13 @@ function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
     icon: 'walk',
     periodKey: '2026-08-28',
     evidenceRequest: null,
+    draft: null,
+    progress: { filled: 0, required: 1 },
+    capture: {
+      kind: 'self_report',
+      metric: null,
+      target: { durationMinutes: null, distanceMeters: null, count: null },
+    },
     ...overrides,
   };
 }

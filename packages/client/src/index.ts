@@ -29,6 +29,11 @@ export function createApiQueryUtils(client: ApiClient) {
   return createTanstackQueryUtils(client);
 }
 
+export {
+  activityMeetsTarget,
+  isDeviceCapture,
+  selfReportCapture,
+} from '@product/contract';
 export { appContract, createTanstackQueryUtils };
 export type {
   ActivityItem,
@@ -38,10 +43,25 @@ export type {
   ChallengeReminder,
   ChallengeRemindersOutput,
   ChallengeCatalogOutput,
+  ChallengeCapture,
+  ChallengeCaptureKind,
+  ChallengeCarbs,
   ChallengeCompletionKind,
+  ChallengeDraft,
+  ChallengeFieldProgress,
   ChallengeFrequency,
   ChallengeEvidence,
+  ChallengeGlucose,
+  ChallengeTarget,
+  DeviceActivity,
+  DeviceMetric,
+  HealthLinkStatus,
+  ChallengePeakFlow,
   ChallengeVitals,
+  ChallengeWater,
+  GlucoseContext,
+  SaveChallengeDraftInput,
+  WaterUnit,
   CompleteChallengeInput,
   CompleteChallengeOutput,
   SkipChallengeEvidenceInput,
@@ -50,7 +70,11 @@ export type {
   HealthOutput,
   InboxNotification,
   SetChallengeEnrollmentInput,
+  ChallengeHistoryEntry,
+  ChallengeHistoryLog,
   ListActivityOutput,
+  ListChallengeHistoryInput,
+  ListChallengeHistoryOutput,
   ListNotificationsOutput,
   ListTodayChallengesOutput,
   MeOutput,
@@ -61,6 +85,8 @@ export type {
   StartChallengeOutput,
   TodayChallenge,
   LeaderboardEntry,
+  LeaderboardPeriod,
+  ListLeaderboardInput,
   ListLeaderboardOutput,
   UpdateCategoriesInput,
   UpdateDisplayNameInput,

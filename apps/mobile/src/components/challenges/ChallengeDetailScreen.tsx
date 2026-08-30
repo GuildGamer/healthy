@@ -1,5 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
-import type { ChallengeFrequency } from '@product/client';
+import type { ChallengeFrequency, ChallengeHistoryEntry } from '@product/client';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -16,16 +16,28 @@ import { healthCategories } from '@/constants/health-categories';
 import { apiClient } from '@/lib/api';
 import { formatReminderMinute } from '@/lib/notifications';
 import { ScreenLoader } from '@/components/feedback';
-import { FormButton, FormErrorBanner } from '@/components/forms';
+import { FormButton } from '@/components/forms';
 import {
   frequencyLabel,
   frequencyOptions,
 } from './constants/frequency-labels';
+import { completionRoute } from './completion-route';
 import { primaryActionLabel } from './primary-action';
 import {
   defaultReminderMinute,
   maxRemindersPerChallenge,
 } from './constants/reminder-times';
+import { formatPointsDelta } from '@/components/points/points-scope';
+import {
+  CHALLENGE_DETAIL_TABS,
+  type ChallengeDetailTab,
+} from './challenge-detail-tab';
+import {
+  formatHistoryWhen,
+  historyEvidenceCopy,
+  historyLogCopy,
+  mergeTodayIntoHistory,
+} from './challenge-history';
 import { ChallengeIcon } from './ChallengeIcon';
 import { TimePickerModal } from './TimePickerModal';
 
@@ -40,6 +52,73 @@ function sameMinutes(left: number[], right: number[]): boolean {
     .every((minute, index) => minute === sortedRight[index]);
 }
 
+function ChallengeHistoryPanel({
+  entries,
+  isError,
+  isPending,
+}: {
+  entries: ChallengeHistoryEntry[];
+  isError: boolean;
+  isPending: boolean;
+}) {
+  if (isPending && entries.length === 0) {
+    return <Text style={styles.historyEmpty}>Loading past completions.</Text>;
+  }
+
+  if (entries.length === 0) {
+    if (isError) {
+      return (
+        <Text style={styles.historyEmpty} testID="challenge-history-error">
+          Could not load history. Pull back and open this tab again.
+        </Text>
+      );
+    }
+
+    return (
+      <Text style={styles.historyEmpty} testID="challenge-history-empty">
+        Finish this challenge and it will show up here.
+      </Text>
+    );
+  }
+
+  return (
+    <View style={styles.historyList} testID="challenge-history-list">
+      {entries.map((entry, index) => {
+        const evidence = historyEvidenceCopy(entry.evidence);
+        const isLast = index === entries.length - 1;
+
+        return (
+          <View key={entry.id}>
+            <View
+              style={styles.historyRow}
+              testID={`challenge-history-${entry.id}`}
+            >
+              <View style={styles.historyBody}>
+                <Text style={styles.historySummary}>
+                  {historyLogCopy(entry.log)}
+                </Text>
+                <Text style={styles.historyMeta}>
+                  {formatHistoryWhen(entry.completedAt)}
+                  {evidence ? ` · ${evidence}` : ''}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.historyDelta,
+                  entry.pointsDelta < 0 ? styles.historyDeltaPenalty : null,
+                ]}
+              >
+                {formatPointsDelta(entry.pointsDelta)}
+              </Text>
+            </View>
+            {isLast ? null : <View style={styles.historyDivider} />}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -52,6 +131,10 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
     queryKey: ['challenges', 'today'],
     queryFn: () => apiClient.listTodayChallenges(),
   });
+  const historyQuery = useQuery({
+    queryKey: ['challenges', 'history', challengeId],
+    queryFn: () => apiClient.listChallengeHistory({ challengeId }),
+  });
 
   const challenge = catalogQuery.data?.challenges.find(
     (item) => item.challengeId === challengeId,
@@ -60,11 +143,11 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
     (item) => item.challengeId === challengeId,
   );
 
+  const [tab, setTab] = useState<ChallengeDetailTab>('details');
   const [frequency, setFrequency] = useState<ChallengeFrequency>('daily');
   const [minutes, setMinutes] = useState<number[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!challenge || hasLoadedDraft) {
@@ -137,56 +220,6 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
     },
   });
 
-  const start = useMutation({
-    mutationFn: (userChallengeId: string) =>
-      apiClient.startChallenge({ userChallengeId }),
-    onSuccess: async () => {
-      setActionError(null);
-      await queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] });
-      if (occurrence?.completionKind === 'vitals_bp') {
-        router.push(`/challenge/${challengeId}/log`);
-        return;
-      }
-
-      if (occurrence?.completionKind === 'evidence_photo') {
-        router.push(`/challenge/${challengeId}/evidence`);
-      }
-    },
-    onError: () => {
-      setActionError('We could not start this challenge. Try again.');
-    },
-  });
-
-  const completeCheckIn = useMutation({
-    mutationFn: (userChallengeId: string) =>
-      apiClient.completeChallenge({ userChallengeId }),
-    onSuccess: async (result) => {
-      setActionError(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['me'] }),
-        queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
-        queryClient.invalidateQueries({ queryKey: ['activity'] }),
-      ]);
-
-      if (result.evidenceRequest) {
-        router.push(`/challenge/${challengeId}/verify`);
-        return;
-      }
-
-      router.push({
-        pathname: '/challenge/success',
-        params: {
-          title: challenge?.title ?? 'Challenge',
-          points: String(result.pointsAwarded),
-          streak: String(result.currentStreakDays),
-          penalty: String(result.penaltyApplied),
-        },
-      });
-    },
-    onError: () => {
-      setActionError('We could not finish this challenge. Try again.');
-    },
-  });
 
   if (catalogQuery.isPending) {
     return <ScreenLoader testID="challenge-detail-loading" />;
@@ -211,11 +244,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       challenge.reminders.map((reminder) => reminder.minuteOfDay),
     );
   const canAdd = minutes.length < maxRemindersPerChallenge;
-  const isBusy =
-    save.isPending ||
-    stopChallenge.isPending ||
-    start.isPending ||
-    completeCheckIn.isPending;
+  const isBusy = save.isPending || stopChallenge.isPending;
   const categoryName =
     healthCategories.find((item) => item.id === challenge.category)?.name ??
     challenge.category;
@@ -226,28 +255,9 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       return;
     }
 
-    if (occurrence.status === 'pending') {
-      start.mutate(occurrence.id);
-      return;
-    }
-
-    if (occurrence.status === 'awaiting_evidence') {
-      router.push(`/challenge/${challengeId}/verify`);
-      return;
-    }
-
-    if (occurrence.status === 'in_progress') {
-      if (occurrence.completionKind === 'vitals_bp') {
-        router.push(`/challenge/${challengeId}/log`);
-        return;
-      }
-
-      if (occurrence.completionKind === 'evidence_photo') {
-        router.push(`/challenge/${challengeId}/evidence`);
-        return;
-      }
-
-      completeCheckIn.mutate(occurrence.id);
+    const route = completionRoute(occurrence);
+    if (route) {
+      router.push(route);
     }
   }
 
@@ -273,6 +283,50 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
         <Text style={styles.metaDot}> · </Text>
         <Text style={styles.reward}>+{challenge.rewardPoints} pts</Text>
       </Text>
+
+      <View style={styles.tabs} testID="challenge-detail-tabs">
+        {CHALLENGE_DETAIL_TABS.map((option) => {
+          const isSelected = option.id === tab;
+
+          return (
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSelected }}
+              key={option.id}
+              onPress={() => setTab(option.id)}
+              style={styles.tab}
+              testID={`challenge-detail-tab-${option.id}`}
+            >
+              <Text
+                style={[
+                  styles.tabLabel,
+                  isSelected ? styles.tabLabelSelected : null,
+                ]}
+              >
+                {option.label}
+              </Text>
+              <View
+                style={[
+                  styles.tabRule,
+                  isSelected ? styles.tabRuleSelected : null,
+                ]}
+              />
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {tab === 'history' ? (
+        <ChallengeHistoryPanel
+          entries={mergeTodayIntoHistory(
+            historyQuery.data?.entries ?? [],
+            occurrence,
+          )}
+          isError={historyQuery.isError}
+          isPending={historyQuery.isPending}
+        />
+      ) : (
+        <View style={styles.tabPage}>
       <Text style={styles.description}>{challenge.description}</Text>
 
       <Text style={styles.kicker}>What to do</Text>
@@ -293,13 +347,11 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
         </Text>
       ) : null}
 
-      {actionError ? <FormErrorBanner message={actionError} /> : null}
-
       {primaryLabel ? (
         <FormButton
           disabled={occurrence?.status === 'completed' || isBusy}
           label={primaryLabel}
-          loading={start.isPending || completeCheckIn.isPending}
+          loading={isBusy}
           onPress={handlePrimaryAction}
           testID="challenge-detail-start"
         />
@@ -404,6 +456,8 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           <Text style={styles.stopLabel}>Remove from my challenges</Text>
         </Pressable>
       ) : null}
+        </View>
+      )}
 
       <TimePickerModal
         initialMinute={minutes.at(-1) ?? defaultReminderMinute}
@@ -476,6 +530,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     padding: spacing.md,
+  },
+  tabs: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  tab: {
+    paddingBottom: 4,
+  },
+  tabLabel: {
+    color: colors.muted,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+  },
+  tabLabelSelected: {
+    color: colors.accent,
+  },
+  tabRule: {
+    height: 2,
+    marginTop: 4,
+    backgroundColor: 'transparent',
+  },
+  tabRuleSelected: {
+    backgroundColor: colors.accent,
+  },
+  tabPage: {
+    gap: spacing.md,
   },
   description: {
     color: colors.muted,
@@ -566,6 +647,49 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
+  },
+  historyList: {
+    marginHorizontal: -spacing.lg,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  historyBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  historySummary: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+  },
+  historyMeta: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+  },
+  historyDelta: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  historyDeltaPenalty: {
+    color: colors.danger,
+  },
+  historyDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+  },
+  historyEmpty: {
+    color: colors.muted,
+    fontSize: fontSize.sm,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginTop: spacing.xl,
   },
   stopLabel: {
     color: colors.danger,

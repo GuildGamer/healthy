@@ -1,19 +1,26 @@
 import { ORPCError } from '@orpc/server';
+import { isDeviceCapture, type ChallengeCaptureKind } from '@product/contract';
 import type { ChallengeCompletionKind } from '@product/db';
 import type { ChallengeEvidenceInput } from './evidence.js';
 
 export function canRequestSurpriseEvidence(
   completionKind: ChallengeCompletionKind,
+  captureKind?: ChallengeCaptureKind,
 ): boolean {
+  if (captureKind && isDeviceCapture(captureKind)) {
+    return false;
+  }
+
   return completionKind === 'check_in' || completionKind === 'vitals_bp';
 }
 
 export function shouldRequestSurpriseEvidence(input: {
   completionKind: ChallengeCompletionKind;
+  captureKind?: ChallengeCaptureKind;
   chancePercent: number;
   unitSample: number;
 }): boolean {
-  if (!canRequestSurpriseEvidence(input.completionKind)) {
+  if (!canRequestSurpriseEvidence(input.completionKind, input.captureKind)) {
     return false;
   }
 

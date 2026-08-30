@@ -1,9 +1,10 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { SplashScreen } from '@/components/auth';
-import { useSession } from '@/lib/auth-client';
+import { isEmailVerified, useSession } from '@/lib/auth-client';
+import { postAuthRoute } from '@/lib/post-auth-route';
 
-const SPLASH_DURATION_MS = 3000;
+const SPLASH_DURATION_MS = 2300;
 
 export default function Index() {
   const { data: session, isPending } = useSession();
@@ -19,7 +20,7 @@ export default function Index() {
   }
 
   if (session) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href={postAuthRoute(isEmailVerified(session))} />;
   }
 
   return <Redirect href="/onboarding" />;

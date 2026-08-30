@@ -4,19 +4,19 @@ describe('primaryActionLabel', () => {
   it('names the next designed step for each status', () => {
     expect(
       primaryActionLabel({ status: 'pending', completionKind: 'check_in' }),
-    ).toBe('Start now');
+    ).toBe('Log');
     expect(
       primaryActionLabel({
         status: 'in_progress',
         completionKind: 'check_in',
       }),
-    ).toBe('Finish');
+    ).toBe('Confirm');
     expect(
       primaryActionLabel({
         status: 'in_progress',
         completionKind: 'vitals_bp',
       }),
-    ).toBe('Log reading');
+    ).toBe('Resume log');
     expect(
       primaryActionLabel({
         status: 'in_progress',
@@ -32,6 +32,20 @@ describe('primaryActionLabel', () => {
     expect(
       primaryActionLabel({ status: 'completed', completionKind: 'vitals_bp' }),
     ).toBe('Done');
+    expect(
+      primaryActionLabel({
+        status: 'pending',
+        completionKind: 'check_in',
+        capture: { kind: 'device_session' },
+      }),
+    ).toBe('Start');
+    expect(
+      primaryActionLabel({
+        status: 'in_progress',
+        completionKind: 'check_in',
+        capture: { kind: 'device_session' },
+      }),
+    ).toBe('Resume');
   });
 
   it('hides the button when today has no occurrence', () => {

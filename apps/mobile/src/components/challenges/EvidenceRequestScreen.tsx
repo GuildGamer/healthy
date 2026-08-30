@@ -1,13 +1,14 @@
 import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import type { ChallengeEvidence } from '@product/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
-import { captureSelfie } from '@/lib/capture-selfie';
+import { consumeCaptureResult } from '@/lib/capture-session';
 
 const SUBMIT_FAILED_MESSAGE =
   'We could not check that photo. Take another and try again.';
@@ -60,37 +61,22 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ['me'] }),
       queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
+      queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
       queryClient.invalidateQueries({ queryKey: ['activity'] }),
     ]);
 
   const submit = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (evidence: ChallengeEvidence) => {
       if (!occurrence) {
         throw new Error(SUBMIT_FAILED_MESSAGE);
       }
 
-      const captured = await captureSelfie();
-      if (captured.status === 'canceled') {
-        return null;
-      }
-
-      if (captured.status === 'failed') {
-        throw new Error(captured.message);
-      }
-
       return apiClient.completeChallenge({
         userChallengeId: occurrence.id,
-        evidence: {
-          mimeType: captured.photo.mimeType,
-          imageBase64: captured.photo.imageBase64,
-        },
+        evidence,
       });
     },
     onSuccess: async (result) => {
-      if (!result) {
-        return;
-      }
-
       setErrorMessage(null);
       await invalidate();
       router.replace({
@@ -149,6 +135,20 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
     skip.mutate();
   }, [occurrence, secondsLeft, skip]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const captured = consumeCaptureResult(challengeId);
+      if (!captured) {
+        return;
+      }
+
+      submit.mutate({
+        mimeType: captured.mimeType,
+        imageBase64: captured.imageBase64,
+      });
+    }, [challengeId, submit]),
+  );
+
   if (todayQuery.isPending) {
     return <ScreenLoader testID="evidence-request-loading" />;
   }
@@ -198,7 +198,10 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
           loading={submit.isPending}
           onPress={() => {
             setErrorMessage(null);
-            submit.mutate();
+            router.push({
+              pathname: '/challenge/[challengeId]/camera',
+              params: { challengeId, intent: 'proof' },
+            });
           }}
           testID="evidence-request-camera"
         />

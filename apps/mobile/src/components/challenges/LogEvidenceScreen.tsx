@@ -1,16 +1,14 @@
 import type { ChallengeEvidence } from '@product/client';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
-import {
-  captureSelfie,
-  type CapturedSelfie,
-} from '@/lib/capture-selfie';
+import { consumeCaptureResult } from '@/lib/capture-session';
+import type { CapturedSelfie } from '@/lib/capture-selfie';
 
 const SUBMIT_FAILED_MESSAGE =
   'We could not check that photo. Take another and try again.';
@@ -28,6 +26,18 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
 
   const occurrence = todayQuery.data?.challenges.find(
     (item) => item.challengeId === challengeId,
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const captured = consumeCaptureResult(challengeId);
+      if (!captured) {
+        return;
+      }
+
+      setPhoto(captured);
+      setErrorMessage(null);
+    }, [challengeId]),
   );
 
   const submit = useMutation({
@@ -50,6 +60,7 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['me'] }),
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
+        queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
       router.replace({
@@ -68,20 +79,12 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
     },
   });
 
-  async function takeSelfie() {
+  function openCamera() {
     setErrorMessage(null);
-    const captured = await captureSelfie();
-
-    if (captured.status === 'canceled') {
-      return;
-    }
-
-    if (captured.status === 'failed') {
-      setErrorMessage(captured.message);
-      return;
-    }
-
-    setPhoto(captured.photo);
+    router.push({
+      pathname: '/challenge/[challengeId]/camera',
+      params: { challengeId, intent: 'selfie' },
+    });
   }
 
   if (todayQuery.isPending) {
@@ -138,9 +141,7 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
 
       <FormButton
         label="Take selfie"
-        onPress={() => {
-          void takeSelfie();
-        }}
+        onPress={openCamera}
         testID="evidence-take-photo"
       />
 

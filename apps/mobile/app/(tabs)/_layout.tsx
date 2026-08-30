@@ -3,7 +3,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, fontSize, fontWeight } from '@product/brand';
 import { Redirect, Tabs } from 'expo-router';
 import { ScreenLoader } from '@/components/feedback';
-import { useSession } from '@/lib/auth-client';
+import { isEmailVerified, useSession } from '@/lib/auth-client';
+import { postAuthRoute } from '@/lib/post-auth-route';
 
 export default function TabsLayout() {
   const { data: session, isPending, isRefetching } = useSession();
@@ -14,6 +15,10 @@ export default function TabsLayout() {
 
   if (!session) {
     return <Redirect href="/login" />;
+  }
+
+  if (!isEmailVerified(session)) {
+    return <Redirect href={postAuthRoute(false)} />;
   }
 
   return (
@@ -72,6 +77,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons color={color} name="person-circle" size={size} />
           ),

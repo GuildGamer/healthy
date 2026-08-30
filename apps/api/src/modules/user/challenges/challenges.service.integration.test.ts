@@ -394,4 +394,90 @@ describe('ChallengesService against Postgres', () => {
       afterChange.challenges.find((challenge) => challenge.id === first!.id),
     ).toMatchObject({ status: 'in_progress' });
   });
+
+  it('lists past completions for one challenge, newest first', async () => {
+    await seedEnrolledUser([{ slug: 'walk' }, { slug: 'water' }]);
+    const today = await challenges.listToday(user);
+    const walk = today.challenges.find((item) => item.title.includes('walk'))!;
+    const water = today.challenges.find((item) => item.title.includes('water'))!;
+
+    await challenges.complete(user, walk.id);
+    await challenges.complete(user, water.id);
+
+    const history = await challenges.listHistory(user, walk.challengeId);
+
+    expect(history.challengeId).toBe(walk.challengeId);
+    expect(history.entries).toHaveLength(1);
+    expect(history.entries[0]).toMatchObject({
+      id: walk.id,
+      periodKey: walk.periodKey,
+      outcome: 'rewarded',
+      pointsDelta: 20,
+      log: { kind: 'check_in' },
+      evidence: null,
+    });
+    expect(history.entries[0]?.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('includes the stored blood-pressure reading on a history row', async () => {
+    await seedEnrolledUser([
+      { slug: 'check-bp', completionKind: 'vitals_bp' },
+    ]);
+    const [assignment] = (await challenges.listToday(user)).challenges;
+    await challenges.complete(user, assignment!.id, {
+      systolic: 120,
+      diastolic: 80,
+      pulse: 70,
+      notes: 'Morning',
+    });
+
+    const history = await challenges.listHistory(user, assignment!.challengeId);
+
+    expect(history.entries[0]?.log).toEqual({
+      kind: 'vitals_bp',
+      systolic: 120,
+      diastolic: 80,
+      pulse: 70,
+      notes: 'Morning',
+    });
+  });
+
+  it('records a skipped photo check as a penalized history row', async () => {
+    await seedUser();
+    await prisma.userProfile.update({
+      where: { userId: user.id },
+      data: { pointsBalance: 50 },
+    });
+    await seedCatalog([
+      {
+        slug: 'history-skip',
+        surpriseEvidenceChancePercent: 100,
+        surpriseEvidencePenaltyPoints: 10,
+      },
+    ]);
+    await enrollments.enrollDefaultsFor(user.id, ['general']);
+    const [assignment] = (await challenges.listToday(user)).challenges;
+    await challenges.complete(user, assignment!.id);
+    await challenges.skipEvidence(user, assignment!.id);
+
+    const history = await challenges.listHistory(user, assignment!.challengeId);
+
+    expect(history.entries[0]).toMatchObject({
+      outcome: 'penalized',
+      pointsDelta: -10,
+      evidence: 'skipped',
+    });
+  });
+
+  it('returns an empty history when the challenge has not been finished', async () => {
+    await seedEnrolledUser([{ slug: 'fresh' }]);
+    const [assignment] = (await challenges.listToday(user)).challenges;
+
+    await expect(
+      challenges.listHistory(user, assignment!.challengeId),
+    ).resolves.toEqual({
+      challengeId: assignment!.challengeId,
+      entries: [],
+    });
+  });
 });

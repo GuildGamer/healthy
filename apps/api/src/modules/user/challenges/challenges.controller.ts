@@ -35,6 +35,25 @@ export class ChallengesController {
         input.userChallengeId,
         input.vitals,
         input.evidence,
+        {
+          glucose: input.glucose,
+          peakFlow: input.peakFlow,
+          water: input.water,
+          carbs: input.carbs,
+        },
+        input.deviceActivity,
+      );
+    });
+  }
+
+  @Implement(appContract.saveChallengeDraft)
+  saveChallengeDraft(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.saveChallengeDraft).handler(async ({ input }) => {
+      return this.challengesService.saveDraft(
+        user,
+        input.userChallengeId,
+        input.draft,
       );
     });
   }
@@ -52,6 +71,14 @@ export class ChallengesController {
     const user = request.user ?? null;
     return implement(appContract.listActivity).handler(async () => {
       return this.challengesService.listActivity(user);
+    });
+  }
+
+  @Implement(appContract.listChallengeHistory)
+  listChallengeHistory(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.listChallengeHistory).handler(async ({ input }) => {
+      return this.challengesService.listHistory(user, input.challengeId);
     });
   }
 }

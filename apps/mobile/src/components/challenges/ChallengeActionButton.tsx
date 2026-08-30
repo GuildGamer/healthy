@@ -1,6 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import type { UserChallengeStatus } from '@product/client';
+import type {
+  ChallengeCaptureKind,
+  ChallengeCompletionKind,
+  UserChallengeStatus,
+} from '@product/client';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,6 +23,8 @@ const VERTICAL_HIT_SLOP = (MIN_TARGET_SIZE - PILL_HEIGHT) / 2;
 
 type ChallengeActionButtonProps = {
   status: UserChallengeStatus;
+  completionKind?: ChallengeCompletionKind;
+  captureKind?: ChallengeCaptureKind;
   isBusy: boolean;
   onPress: () => void;
   testID?: string;
@@ -31,6 +37,8 @@ type ChallengeActionButtonProps = {
  */
 export function ChallengeActionButton({
   status,
+  completionKind = 'check_in',
+  captureKind,
   isBusy,
   onPress,
   testID,
@@ -47,7 +55,20 @@ export function ChallengeActionButton({
   const isInProgress =
     status === 'in_progress' || status === 'awaiting_evidence';
   const foreground = isInProgress ? colors.onAccent : colors.accent;
-  const label = status === 'awaiting_evidence' ? 'Photo' : isInProgress ? 'Finish' : 'Start';
+  const isDevice =
+    captureKind === 'device_session' || captureKind === 'device_sample';
+  const label =
+    status === 'awaiting_evidence'
+      ? 'Photo'
+      : isInProgress
+        ? isDevice
+          ? 'Resume'
+          : completionKind === 'check_in'
+            ? 'Confirm'
+            : 'Resume'
+        : isDevice && captureKind === 'device_session'
+          ? 'Start'
+          : 'Log';
 
   return (
     <Pressable

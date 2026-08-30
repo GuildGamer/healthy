@@ -1,6 +1,6 @@
 import type { ListLeaderboardOutput } from '@product/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { apiClient } from '@/lib/api';
 import { LeaderboardScreen } from './LeaderboardScreen';
 
@@ -14,7 +14,9 @@ const mockedApi = apiClient as unknown as { listLeaderboard: jest.Mock };
 
 function board(overrides: Partial<ListLeaderboardOutput> = {}): ListLeaderboardOutput {
   return {
-    weekStart: '2026-08-31',
+    weekStart: '2026-08-24',
+    period: 'week',
+    periodStart: '2026-08-24',
     entries: [
       { rank: 1, displayName: 'Bright Falcon', points: 90, isCurrentUser: false },
       { rank: 2, displayName: 'Ada', points: 60, isCurrentUser: true },
@@ -60,6 +62,7 @@ describe('LeaderboardScreen', () => {
     expect(await screen.findByText('Bright Falcon')).toBeOnTheScreen();
     expect(screen.getByText('Calm Otter')).toBeOnTheScreen();
     expect(screen.getByTestId('leaderboard-row-1')).toBeOnTheScreen();
+    expect(mockedApi.listLeaderboard).toHaveBeenCalledWith({ period: 'week' });
 
     await cleanup();
   });
@@ -115,6 +118,38 @@ describe('LeaderboardScreen', () => {
 
     expect(await screen.findByTestId('leaderboard-empty')).toBeOnTheScreen();
     expect(screen.getByText('Nobody has scored yet')).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('asks the API for the month when that chip is selected', async () => {
+    const { cleanup } = renderLeaderboard();
+
+    await screen.findByText('Bright Falcon');
+    fireEvent.press(screen.getByTestId('leaderboard-period-month'));
+
+    await waitFor(() => {
+      expect(mockedApi.listLeaderboard).toHaveBeenCalledWith({ period: 'month' });
+    });
+    expect(
+      screen.getByText('Points earned this month. Everyone starts level again on the 1st.'),
+    ).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('asks the API for a condition when that chip is selected', async () => {
+    const { cleanup } = renderLeaderboard();
+
+    await screen.findByText('Bright Falcon');
+    fireEvent.press(screen.getByTestId('leaderboard-category-hypertension'));
+
+    await waitFor(() => {
+      expect(mockedApi.listLeaderboard).toHaveBeenCalledWith({
+        period: 'week',
+        category: 'hypertension',
+      });
+    });
 
     await cleanup();
   });

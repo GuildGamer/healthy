@@ -1,3 +1,4 @@
+import type { ChallengeCapture } from '@product/contract';
 import type {
   ChallengeCompletionKind,
   ChallengeFrequency,
@@ -21,6 +22,7 @@ export type CatalogChallengeDto = {
   isEnrolled: boolean;
   /** Empty unless enrolled; the times this challenge nudges at. */
   reminders: ChallengeReminderDto[];
+  capture: ChallengeCapture;
 };
 
 export type ChallengeCatalogDto = {

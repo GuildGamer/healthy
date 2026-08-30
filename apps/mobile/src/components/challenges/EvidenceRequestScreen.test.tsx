@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { useRouter } from 'expo-router';
 import type { ReactElement } from 'react';
 import { apiClient } from '@/lib/api';
 import { EvidenceRequestScreen } from './EvidenceRequestScreen';
@@ -13,15 +14,18 @@ jest.mock('@/lib/api', () => ({
 }));
 
 jest.mock('expo-router', () => {
-  const replace = jest.fn();
+  const { useEffect } = require('react');
+  const mockPush = jest.fn();
   return {
-    useRouter: () => ({ replace, back: jest.fn() }),
+    useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      useEffect(() => {
+        const cleanup = effect();
+        return typeof cleanup === 'function' ? cleanup : undefined;
+      });
+    },
   };
 });
-
-jest.mock('@/lib/capture-selfie', () => ({
-  captureSelfie: jest.fn(),
-}));
 
 const mockedApi = apiClient as unknown as {
   listTodayChallenges: jest.Mock;
@@ -67,6 +71,17 @@ describe('EvidenceRequestScreen', () => {
             windowSeconds: 60,
             penaltyPoints: 25,
           },
+          draft: null,
+          progress: { filled: 2, required: 3 },
+          capture: {
+            kind: 'self_report',
+            metric: null,
+            target: {
+              durationMinutes: null,
+              distanceMeters: null,
+              count: null,
+            },
+          },
         },
       ],
       completedCount: 0,
@@ -76,6 +91,17 @@ describe('EvidenceRequestScreen', () => {
       pointsAwarded: 0,
       penaltyApplied: 25,
       currentStreakDays: 0,
+    });
+  });
+
+  it('opens the in-app camera for proof', async () => {
+    renderScreen();
+
+    fireEvent.press(await screen.findByTestId('evidence-request-camera'));
+
+    expect(useRouter().push).toHaveBeenCalledWith({
+      pathname: '/challenge/[challengeId]/camera',
+      params: { challengeId: 'c-walk', intent: 'proof' },
     });
   });
 

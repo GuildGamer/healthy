@@ -2,7 +2,7 @@ import type { ChallengeVitals } from '@product/client';
 import { colors, fontSize, fontWeight, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +24,7 @@ import {
   parseVitalsForm,
   type VitalsFieldErrors,
 } from './parse-vitals';
+import { useSaveChallengeDraft } from './useSaveChallengeDraft';
 
 const SUBMIT_FAILED_MESSAGE =
   'We could not save that reading. Check the values and try again.';
@@ -42,6 +43,7 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
   const [diastolic, setDiastolic] = useState('');
   const [pulse, setPulse] = useState('');
   const [notes, setNotes] = useState('');
+  const [didHydrate, setDidHydrate] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<VitalsFieldErrors>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const recordedStamp = formatRecordedStamp(new Date());
@@ -54,6 +56,56 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
   const occurrence = todayQuery.data?.challenges.find(
     (item) => item.challengeId === challengeId,
   );
+  const { schedule } = useSaveChallengeDraft(occurrence?.id);
+
+  useEffect(() => {
+    if (didHydrate || !occurrence || occurrence.draft?.kind !== 'vitals_bp') {
+      if (occurrence) {
+        setDidHydrate(true);
+      }
+      return;
+    }
+
+    const fields = occurrence.draft.fields;
+    if (fields.systolic != null) {
+      setSystolic(String(fields.systolic));
+    }
+    if (fields.diastolic != null) {
+      setDiastolic(String(fields.diastolic));
+    }
+    if (fields.pulse != null) {
+      setPulse(String(fields.pulse));
+    }
+    if (fields.notes) {
+      setNotes(fields.notes);
+    }
+    setDidHydrate(true);
+  }, [didHydrate, occurrence]);
+
+  function persistDraft(next: {
+    systolic: string;
+    diastolic: string;
+    pulse: string;
+    notes: string;
+  }) {
+    const toNumber = (value: string): number | undefined => {
+      if (value.trim() === '') {
+        return undefined;
+      }
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
+    schedule({
+      kind: 'vitals_bp',
+      fields: {
+        systolic: toNumber(next.systolic),
+        diastolic: toNumber(next.diastolic),
+        pulse: toNumber(next.pulse),
+        notes: next.notes.trim() || undefined,
+      },
+    });
+  }
 
   const submit = useMutation({
     mutationFn: async (vitals: ChallengeVitals) => {
@@ -75,6 +127,7 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['me'] }),
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
+        queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
       if (result.evidenceRequest) {
@@ -145,7 +198,10 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
             accessibilityLabel="Systolic"
             hasError={Boolean(fieldErrors.systolic)}
             keyboardType="number-pad"
-            onChangeText={setSystolic}
+            onChangeText={(value) => {
+              setSystolic(value);
+              persistDraft({ systolic: value, diastolic, pulse, notes });
+            }}
             placeholder="120"
             testID="vitals-systolic"
             value={systolic}
@@ -157,7 +213,10 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
             accessibilityLabel="Diastolic"
             hasError={Boolean(fieldErrors.diastolic)}
             keyboardType="number-pad"
-            onChangeText={setDiastolic}
+            onChangeText={(value) => {
+              setDiastolic(value);
+              persistDraft({ systolic, diastolic: value, pulse, notes });
+            }}
             placeholder="80"
             testID="vitals-diastolic"
             value={diastolic}
@@ -173,7 +232,10 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
             accessibilityLabel="Pulse"
             hasError={Boolean(fieldErrors.pulse)}
             keyboardType="number-pad"
-            onChangeText={setPulse}
+            onChangeText={(value) => {
+              setPulse(value);
+              persistDraft({ systolic, diastolic, pulse: value, notes });
+            }}
             placeholder="72"
             testID="vitals-pulse"
             value={pulse}
@@ -184,7 +246,10 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
           <TextAreaField
             accessibilityLabel="Notes"
             hasError={Boolean(fieldErrors.notes)}
-            onChangeText={setNotes}
+            onChangeText={(value) => {
+              setNotes(value);
+              persistDraft({ systolic, diastolic, pulse, notes: value });
+            }}
             placeholder="Anything unusual about this reading"
             testID="vitals-notes"
             value={notes}
