@@ -24,6 +24,26 @@ import { ChangePhotoSheet } from './ChangePhotoSheet';
 import { ProfileAvatar, avatarNameFor } from './ProfileAvatar';
 import { useUpdateProfilePhoto } from './useUpdateProfilePhoto';
 
+function isMembershipRequiredError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const record = error as {
+    data?: { reason?: unknown };
+    message?: unknown;
+  };
+
+  if (record.data?.reason === 'membership_required') {
+    return true;
+  }
+
+  return (
+    typeof record.message === 'string' &&
+    record.message.toLowerCase().includes('membership is required')
+  );
+}
+
 function PreferenceRow({
   label,
   hint,
@@ -128,6 +148,16 @@ export function ProfileScreen() {
       await queryClient.invalidateQueries({ queryKey: ['me'] });
       await queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
     },
+    onError: (error: unknown) => {
+      if (!isMembershipRequiredError(error)) {
+        return;
+      }
+
+      router.push({
+        pathname: '/membership',
+        params: { source: 'profile' },
+      });
+    },
   });
 
   const legalName = meQuery.data?.name ?? session?.user.name ?? 'Member';
@@ -199,6 +229,12 @@ export function ProfileScreen() {
       }
     }
 
+    // Non-members must never send the gated flag as on — the DB default is
+    // true, so other toggles would otherwise 403 without opening membership.
+    const nudgeEnabled = hasMembership
+      ? (next.inProgressNudgeEnabled ?? inProgressNudgeEnabled)
+      : false;
+
     updateSettings.mutate({
       reminderEnabled: reminderNext,
       evidenceRemindersEnabled:
@@ -206,8 +242,7 @@ export function ProfileScreen() {
       promotionalMessagesEnabled:
         next.promotionalMessagesEnabled ?? promotionalMessagesEnabled,
       showOnLeaderboard: next.showOnLeaderboard ?? showOnLeaderboard,
-      inProgressNudgeEnabled:
-        next.inProgressNudgeEnabled ?? inProgressNudgeEnabled,
+      inProgressNudgeEnabled: nudgeEnabled,
       inProgressNudgeDelayMinutes:
         next.inProgressNudgeDelayMinutes ?? inProgressNudgeDelayMinutes,
     });
