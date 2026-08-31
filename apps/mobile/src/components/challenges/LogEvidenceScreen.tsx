@@ -9,6 +9,7 @@ import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
 import { consumeCaptureResult } from '@/lib/capture-session';
 import type { CapturedSelfie } from '@/lib/capture-selfie';
+import { setPendingShareCard } from '@/lib/share-card-session';
 
 const SUBMIT_FAILED_MESSAGE =
   'We could not check that photo. Take another and try again.';
@@ -63,6 +64,16 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
         queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
+
+      if (photo?.previewUri) {
+        setPendingShareCard({
+          photoUri: photo.previewUri,
+          title: occurrence?.title ?? 'Challenge',
+          pointsAwarded: result.pointsAwarded,
+          currentStreakDays: result.currentStreakDays,
+        });
+      }
+
       router.replace({
         pathname: '/challenge/success',
         params: {

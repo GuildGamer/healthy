@@ -9,6 +9,7 @@ import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
 import { consumeCaptureResult } from '@/lib/capture-session';
+import { setPendingShareCard } from '@/lib/share-card-session';
 
 const SUBMIT_FAILED_MESSAGE =
   'We could not check that photo. Take another and try again.';
@@ -66,19 +67,32 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
     ]);
 
   const submit = useMutation({
-    mutationFn: async (evidence: ChallengeEvidence) => {
+    mutationFn: async (evidence: ChallengeEvidence & { previewUri?: string }) => {
       if (!occurrence) {
         throw new Error(SUBMIT_FAILED_MESSAGE);
       }
 
       return apiClient.completeChallenge({
         userChallengeId: occurrence.id,
-        evidence,
+        evidence: {
+          mimeType: evidence.mimeType,
+          imageBase64: evidence.imageBase64,
+        },
       });
     },
-    onSuccess: async (result) => {
+    onSuccess: async (result, variables) => {
       setErrorMessage(null);
       await invalidate();
+
+      if (variables.previewUri) {
+        setPendingShareCard({
+          photoUri: variables.previewUri,
+          title: occurrence?.title ?? 'Challenge',
+          pointsAwarded: result.pointsAwarded,
+          currentStreakDays: result.currentStreakDays,
+        });
+      }
+
       router.replace({
         pathname: '/challenge/success',
         params: {
@@ -145,6 +159,7 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
       submit.mutate({
         mimeType: captured.mimeType,
         imageBase64: captured.imageBase64,
+        previewUri: captured.previewUri,
       });
     }, [challengeId, submit]),
   );

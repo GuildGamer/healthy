@@ -60,3 +60,12 @@ jest.mock('react-native-maps', () => {
   MockMapView.Polyline = MockPolyline;
   return { __esModule: true, default: MockMapView, Polyline: MockPolyline };
 });
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(async () => true),
+  shareAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('react-native-view-shot', () => ({
+  captureRef: jest.fn(async () => 'file://share-card.jpg'),
+}));

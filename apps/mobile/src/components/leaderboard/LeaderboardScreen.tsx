@@ -130,9 +130,9 @@ export function LeaderboardScreen() {
   return (
     <RefreshableScroll
       contentContainerStyle={styles.content}
-      onPullRefresh={() => {
-        void Promise.all([meQuery.refetch(), leaderboardQuery.refetch()]);
-      }}
+      onPullRefresh={() =>
+        Promise.all([meQuery.refetch(), leaderboardQuery.refetch()])
+      }
       style={styles.container}
       testID="leaderboard-screen"
     >
