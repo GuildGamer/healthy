@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import type { ReactElement } from 'react';
 import { apiClient } from '@/lib/api';
 import { setCaptureResult } from '@/lib/capture-session';
+import { peekPendingShareCard } from '@/lib/share-card-session';
 import { LogEvidenceScreen } from './LogEvidenceScreen';
 
 jest.mock('@/lib/api', () => ({
@@ -123,6 +124,13 @@ describe('LogEvidenceScreen', () => {
           imageBase64: 'a'.repeat(32),
         },
       });
+    });
+
+    expect(peekPendingShareCard()).toEqual({
+      photoUri: 'file://gym.jpg',
+      title: 'Complete a gym session',
+      pointsAwarded: 200,
+      currentStreakDays: 1,
     });
   });
 });

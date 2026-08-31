@@ -16,6 +16,7 @@ export { ChallengeSessionScreen } from './ChallengeSessionScreen';
 export { PoseSessionScreen } from './PoseSessionScreen';
 export { EvidenceRequestScreen } from './EvidenceRequestScreen';
 export { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
+export { ChallengeShareCard } from './ChallengeShareCard';
 export { ChallengesScreen } from './ChallengesScreen';
 export { TodayWinHeader } from './TodayWinHeader';
 export {
