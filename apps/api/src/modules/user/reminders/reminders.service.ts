@@ -11,6 +11,7 @@ import {
   MAX_REMINDERS_PER_CHALLENGE,
   MINUTES_PER_DAY,
 } from '../../../shared/constants/reminder-defaults.js';
+import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
 import type {
   ChallengeReminderDto,
   ChallengeRemindersDto,
@@ -39,14 +40,23 @@ export class RemindersService {
     this.assertMinuteOfDay(minuteOfDay);
 
     const enrollment = await this.findEnrollment(user.id, challengeId);
+    const membershipActive = await this.membershipActiveFor(user.id);
+    const maxReminders = maxRemindersForMembership(membershipActive);
 
     const existingCount = await this.prisma.challengeReminder.count({
       where: { enrollmentId: enrollment.id },
     });
 
-    if (existingCount >= MAX_REMINDERS_PER_CHALLENGE) {
+    if (existingCount >= maxReminders) {
+      if (!membershipActive && maxReminders < MAX_REMINDERS_PER_CHALLENGE) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Membership is required for more reminder times',
+          data: { reason: 'membership_required' },
+        });
+      }
+
       throw new ORPCError('BAD_REQUEST', {
-        message: `A challenge can have at most ${MAX_REMINDERS_PER_CHALLENGE} reminders`,
+        message: `A challenge can have at most ${maxReminders} reminders`,
       });
     }
 
@@ -114,6 +124,15 @@ export class RemindersService {
       })),
       skipDuplicates: true,
     });
+  }
+
+  private async membershipActiveFor(userId: string): Promise<boolean> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { membershipActive: true },
+    });
+
+    return profile?.membershipActive ?? false;
   }
 
   private async findEnrollment(

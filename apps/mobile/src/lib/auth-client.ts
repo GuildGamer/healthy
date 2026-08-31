@@ -24,6 +24,11 @@ export async function waitForSession(): Promise<boolean> {
   return result.data != null;
 }
 
+export async function getSessionData() {
+  const result = await client.getSession();
+  return result.data;
+}
+
 /**
  * Session cookie for `@product/client`. Kept as a thin surface so the email-OTP
  * plugin's inferred types do not leak out of this module.
@@ -97,6 +102,15 @@ export async function resetPasswordWithOtp(input: {
   password: string;
 }): Promise<AuthActionResult> {
   return asActionResult(await client.emailOtp.resetPassword(input));
+}
+
+export async function signInWithGoogle(): Promise<AuthActionResult> {
+  return asActionResult(
+    await client.signIn.social({
+      provider: 'google',
+      callbackURL: '/',
+    }),
+  );
 }
 
 export async function sendSignupVerificationOtp(

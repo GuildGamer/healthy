@@ -7,19 +7,23 @@ import {
 } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Loader, RefreshableScroll } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { ChallengeActionButton } from './ChallengeActionButton';
+import { buildChallengeFocusLayout } from './challenge-list-layout';
 import { ChallengeProgressRing } from './ChallengeProgressRing';
 import { completionRoute } from './completion-route';
-import { frequencyBadge } from './constants/frequency-labels';
+import { TodayWinHeader } from './TodayWinHeader';
 import { useAdvanceChallenge } from './useAdvanceChallenge';
 
 export function ChallengesScreen() {
   const router = useRouter();
   const { advance, isAdvancing } = useAdvanceChallenge();
+  const [showAlso, setShowAlso] = useState(false);
+  const [showWeekly, setShowWeekly] = useState(false);
+  const [showMonthly, setShowMonthly] = useState(false);
   const [showDone, setShowDone] = useState(false);
 
   const challengesQuery = useQuery({
@@ -28,11 +32,14 @@ export function ChallengesScreen() {
   });
 
   const challenges = challengesQuery.data?.challenges ?? [];
-  const open = challenges.filter((item) => item.status !== 'completed');
-  const done = challenges.filter((item) => item.status === 'completed');
-  const completedCount = challengesQuery.data?.completedCount ?? 0;
-  const totalCount = challengesQuery.data?.totalCount ?? 0;
-  const doneVisible = showDone || open.length === 0;
+  const layout = buildChallengeFocusLayout(challenges);
+  const openCount =
+    (layout.focus ? 1 : 0) +
+    layout.upNext.length +
+    layout.alsoAvailable.length +
+    layout.weekly.length +
+    layout.monthly.length;
+  const doneVisible = showDone || openCount === 0;
 
   function openLog(challenge: TodayChallenge) {
     const route = completionRoute(challenge);
@@ -53,14 +60,6 @@ export function ChallengesScreen() {
       onPullRefresh={() => challengesQuery.refetch()}
       style={styles.container}
     >
-      {totalCount > 0 ? (
-        <Text style={styles.subtitle}>
-          {completedCount === totalCount
-            ? 'All done for today'
-            : `${completedCount} of ${totalCount} today`}
-        </Text>
-      ) : null}
-
       {challengesQuery.isLoading ? (
         <View style={styles.loader}>
           <Loader />
@@ -77,18 +76,106 @@ export function ChallengesScreen() {
         </Pressable>
       ) : (
         <View>
-          {open.map((challenge, index) => (
-            <ChallengeRow
-              challenge={challenge}
-              isBusy={isAdvancing(challenge.id)}
-              isLast={index === open.length - 1 && !doneVisible}
-              key={challenge.id}
-              onAdvance={() => openLog(challenge)}
-              onOpen={() => router.push(`/challenge/${challenge.challengeId}`)}
-            />
-          ))}
+          <TodayWinHeader testID="challenges-subtitle" win={layout.win} />
 
-          {done.length > 0 && !doneVisible ? (
+          {layout.focus ? (
+            <View testID="section-focus">
+              <Text style={styles.sectionTitle}>Do next</Text>
+              <ChallengeRow
+                challenge={layout.focus}
+                emphasized
+                isBusy={isAdvancing(layout.focus.id)}
+                isLast={layout.upNext.length === 0}
+                onAdvance={() => openLog(layout.focus!)}
+                onOpen={() =>
+                  router.push(`/challenge/${layout.focus!.challengeId}`)
+                }
+              />
+            </View>
+          ) : null}
+
+          {layout.upNext.length > 0 ? (
+            <View testID="section-up-next">
+              <Text style={styles.sectionTitle}>Up next</Text>
+              {layout.upNext.map((challenge, index) => (
+                <ChallengeRow
+                  challenge={challenge}
+                  isBusy={isAdvancing(challenge.id)}
+                  isLast={index === layout.upNext.length - 1}
+                  key={challenge.id}
+                  onAdvance={() => openLog(challenge)}
+                  onOpen={() =>
+                    router.push(`/challenge/${challenge.challengeId}`)
+                  }
+                />
+              ))}
+            </View>
+          ) : null}
+
+          <CollapsedSection
+            count={layout.alsoAvailable.length}
+            expanded={showAlso}
+            label="Also available"
+            onToggle={() => setShowAlso((value) => !value)}
+            testID="section-also"
+          >
+            {layout.alsoAvailable.map((challenge, index) => (
+              <ChallengeRow
+                challenge={challenge}
+                isBusy={isAdvancing(challenge.id)}
+                isLast={index === layout.alsoAvailable.length - 1}
+                key={challenge.id}
+                onAdvance={() => openLog(challenge)}
+                onOpen={() =>
+                  router.push(`/challenge/${challenge.challengeId}`)
+                }
+              />
+            ))}
+          </CollapsedSection>
+
+          <CollapsedSection
+            count={layout.weekly.length}
+            expanded={showWeekly}
+            label="This week"
+            onToggle={() => setShowWeekly((value) => !value)}
+            testID="section-weekly"
+          >
+            {layout.weekly.map((challenge, index) => (
+              <ChallengeRow
+                challenge={challenge}
+                isBusy={isAdvancing(challenge.id)}
+                isLast={index === layout.weekly.length - 1}
+                key={challenge.id}
+                onAdvance={() => openLog(challenge)}
+                onOpen={() =>
+                  router.push(`/challenge/${challenge.challengeId}`)
+                }
+              />
+            ))}
+          </CollapsedSection>
+
+          <CollapsedSection
+            count={layout.monthly.length}
+            expanded={showMonthly}
+            label="This month"
+            onToggle={() => setShowMonthly((value) => !value)}
+            testID="section-monthly"
+          >
+            {layout.monthly.map((challenge, index) => (
+              <ChallengeRow
+                challenge={challenge}
+                isBusy={isAdvancing(challenge.id)}
+                isLast={index === layout.monthly.length - 1}
+                key={challenge.id}
+                onAdvance={() => openLog(challenge)}
+                onOpen={() =>
+                  router.push(`/challenge/${challenge.challengeId}`)
+                }
+              />
+            ))}
+          </CollapsedSection>
+
+          {layout.done.length > 0 && !doneVisible ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => setShowDone(true)}
@@ -96,25 +183,28 @@ export function ChallengesScreen() {
               testID="show-done-challenges"
             >
               <Text style={styles.doneToggleLabel}>
-                {done.length} done
+                {layout.done.length} done
               </Text>
             </Pressable>
           ) : null}
 
-          {doneVisible
-            ? done.map((challenge, index) => (
+          {doneVisible && layout.done.length > 0 ? (
+            <View testID="section-done">
+              <Text style={styles.sectionTitle}>Done</Text>
+              {layout.done.map((challenge, index) => (
                 <ChallengeRow
                   challenge={challenge}
                   isBusy={isAdvancing(challenge.id)}
-                  isLast={index === done.length - 1}
+                  isLast={index === layout.done.length - 1}
                   key={challenge.id}
                   onAdvance={() => openLog(challenge)}
                   onOpen={() =>
                     router.push(`/challenge/${challenge.challengeId}`)
                   }
                 />
-              ))
-            : null}
+              ))}
+            </View>
+          ) : null}
 
           <Pressable
             accessibilityRole="button"
@@ -130,14 +220,53 @@ export function ChallengesScreen() {
   );
 }
 
+function CollapsedSection({
+  children,
+  count,
+  expanded,
+  label,
+  onToggle,
+  testID,
+}: {
+  children: ReactNode;
+  count: number;
+  expanded: boolean;
+  label: string;
+  onToggle: () => void;
+  testID: string;
+}) {
+  if (count === 0) {
+    return null;
+  }
+
+  return (
+    <View testID={testID}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onToggle}
+        style={styles.collapseToggle}
+        testID={`${testID}-toggle`}
+      >
+        <Text style={styles.collapseLabel}>
+          {label} · {count}
+        </Text>
+        <Text style={styles.collapseHint}>{expanded ? 'Hide' : 'Show'}</Text>
+      </Pressable>
+      {expanded ? children : null}
+    </View>
+  );
+}
+
 function ChallengeRow({
   challenge,
+  emphasized = false,
   isBusy,
   isLast,
   onAdvance,
   onOpen,
 }: {
   challenge: TodayChallenge;
+  emphasized?: boolean;
   isBusy: boolean;
   isLast: boolean;
   onAdvance: () => void;
@@ -148,7 +277,7 @@ function ChallengeRow({
   return (
     <View>
       <View
-        style={styles.row}
+        style={[styles.row, emphasized && styles.rowEmphasized]}
         testID={`challenge-row-${challenge.id}`}
       >
         <Pressable
@@ -174,12 +303,7 @@ function ChallengeRow({
             >
               {challenge.title}
             </Text>
-            <Text style={styles.meta}>
-              +{challenge.rewardPoints} pts
-              {challenge.frequency === 'daily'
-                ? ''
-                : ` · ${frequencyBadge[challenge.frequency]}`}
-            </Text>
+            <Text style={styles.meta}>+{challenge.rewardPoints} pts</Text>
           </View>
         </Pressable>
         <ChallengeActionButton
@@ -205,11 +329,31 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
   },
-  subtitle: {
+  sectionTitle: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  collapseToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  collapseLabel: {
     color: colors.muted,
     fontSize: fontSize.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
+    fontWeight: fontWeight.medium,
+  },
+  collapseHint: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
   },
   addRow: {
     paddingHorizontal: spacing.lg,
@@ -234,6 +378,10 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
+  },
+  rowEmphasized: {
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
   },
   rowBody: {
     flex: 1,

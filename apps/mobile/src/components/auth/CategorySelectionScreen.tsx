@@ -1,12 +1,13 @@
 import Feather from '@expo/vector-icons/Feather';
 import type { HealthCategory } from '@product/client';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { colors, fontSize, radii, spacing } from '@product/brand';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChallengeIcon } from '@/components/challenges/ChallengeIcon';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { healthCategories } from '@/constants/health-categories';
+import { displayFontFamily } from '@/lib/fonts';
 
 interface CategorySelectionScreenProps {
   onContinue: (selectedCategoryIds: readonly HealthCategory[]) => Promise<void> | void;
@@ -131,8 +132,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
+    fontFamily: displayFontFamily,
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
   },
   subtitle: {
     color: colors.muted,

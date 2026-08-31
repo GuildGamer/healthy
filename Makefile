@@ -41,8 +41,8 @@ mobile:
 	@echo "+ pnpm --filter @product/mobile start"
 	@pnpm --filter @product/mobile start
 
-# Lane B (API + Metro) as background jobs. Logs/PIDs under .run/
-# Still use `make api` / `make mobile` for foreground single-process work.
+# Lane B (API + Metro + admin) as background jobs. Logs/PIDs under .run/
+# Still use `make api` / `make mobile` / `make admin` for foreground single-process work.
 lane-b:
 	@echo "+ bash scripts/lane-b.sh start"
 	@bash scripts/lane-b.sh start

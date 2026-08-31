@@ -8,7 +8,7 @@ import { EditProfileScreen } from './EditProfileScreen';
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
-  apiClient: { me: jest.fn() },
+  apiClient: { me: jest.fn(), updateCountry: jest.fn() },
   apiQuery: {},
 }));
 
@@ -68,6 +68,7 @@ describe('EditProfileScreen', () => {
       name: 'Ada Lovelace',
       email: 'ada@example.com',
       displayName: 'Ada',
+      countryCode: 'GB',
     });
     mockedUpdateUser.mockResolvedValue({ error: null });
     mockedRequestEmailChange.mockResolvedValue({ error: null });

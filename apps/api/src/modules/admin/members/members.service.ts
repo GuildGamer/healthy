@@ -7,6 +7,7 @@ import type {
   AdjustAdminMemberPointsInput,
   SetAdminMemberActiveInput,
 } from '@product/contract';
+import { normalizeCountryCode } from '@product/contract';
 import type { PrismaClient } from '@product/db';
 import {
   type AuthenticatedAdmin,
@@ -278,6 +279,7 @@ export class AdminMembersService {
       displayName: profile?.displayName ?? user.name,
       categories: profile?.healthCategories ?? [],
       timeZone: profile?.timeZone ?? 'UTC',
+      countryCode: normalizeCountryCode(profile?.countryCode ?? ''),
       reminderEnabled: profile?.reminderEnabled ?? false,
       evidenceRemindersEnabled: profile?.evidenceRemindersEnabled ?? true,
       promotionalMessagesEnabled: profile?.promotionalMessagesEnabled ?? false,

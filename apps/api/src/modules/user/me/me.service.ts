@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
+import { normalizeCountryCode } from '@product/contract';
 import type { HealthCategory, PrismaClient } from '@product/db';
 import { MINUTES_PER_DAY } from '../../../shared/constants/reminder-defaults.js';
+import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
 import {
   type AuthenticatedUser,
   requireUser,
@@ -36,6 +38,7 @@ export class MeService {
         pointsBalance: true,
         currentStreakDays: true,
         timeZone: true,
+        countryCode: true,
         displayName: true,
         reminderEnabled: true,
         reminderMinute: true,
@@ -45,10 +48,12 @@ export class MeService {
         inProgressNudgeEnabled: true,
         inProgressNudgeDelayMinutes: true,
         healthLinkStatus: true,
+        membershipActive: true,
       },
     });
 
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
+    const membershipActive = profile?.membershipActive ?? false;
 
     return {
       id: user.id,
@@ -62,6 +67,7 @@ export class MeService {
         timeZone,
       ),
       timeZone,
+      countryCode: normalizeCountryCode(profile?.countryCode ?? '') ,
       displayName: publicNameFor(user.id, profile?.displayName),
       reminderEnabled: profile?.reminderEnabled ?? false,
       reminderMinute: profile?.reminderMinute ?? 1140,
@@ -72,6 +78,8 @@ export class MeService {
       inProgressNudgeDelayMinutes:
         profile?.inProgressNudgeDelayMinutes ?? 30,
       healthLinkStatus: profile?.healthLinkStatus ?? 'unknown',
+      hasMembership: membershipActive,
+      maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
     };
   }
 
@@ -143,6 +151,28 @@ export class MeService {
     return this.getMe(user);
   }
 
+  async updateCountry(
+    currentUser: AuthenticatedUser | null | undefined,
+    countryCode: string,
+  ): Promise<MeDto> {
+    const user = requireUser(currentUser);
+    const normalized = normalizeCountryCode(countryCode);
+
+    if (!normalized) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'Unrecognised country',
+      });
+    }
+
+    await this.prisma.userProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, countryCode: normalized },
+      update: { countryCode: normalized },
+    });
+
+    return this.getMe(user);
+  }
+
   async updateDisplayName(
     currentUser: AuthenticatedUser | null | undefined,
     displayName: string,
@@ -204,6 +234,20 @@ export class MeService {
     },
   ): Promise<MeDto> {
     const user = requireUser(currentUser);
+
+    if (settings.inProgressNudgeEnabled) {
+      const profile = await this.prisma.userProfile.findUnique({
+        where: { userId: user.id },
+        select: { membershipActive: true },
+      });
+
+      if (!(profile?.membershipActive ?? false)) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Membership is required for finish-what-you-started nudges',
+          data: { reason: 'membership_required' },
+        });
+      }
+    }
 
     await this.prisma.userProfile.upsert({
       where: { userId: user.id },

@@ -59,6 +59,9 @@ export {
   activityMeetsTarget,
   isDeviceCapture,
   selfReportCapture,
+  ISO_COUNTRY_CODES,
+  isValidCountryCode,
+  normalizeCountryCode,
 } from '@product/contract';
 export {
   adminCanManageAdmins,
@@ -91,6 +94,7 @@ export type {
   ChallengePeakFlow,
   ChallengeVitals,
   ChallengeWater,
+  CountryCode,
   GlucoseContext,
   SaveChallengeDraftInput,
   WaterUnit,
@@ -125,6 +129,7 @@ export type {
   UpdateNotificationSettingsInput,
   UpdateReminderInput,
   UpdateTimeZoneInput,
+  UpdateCountryInput,
   UserChallengeStatus,
   WaitlistInput,
   WaitlistOutput,

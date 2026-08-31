@@ -16,6 +16,7 @@ type CatalogRow = {
   completionKind: string;
   instruction: string;
   icon: string;
+  requiresMembership: boolean;
 };
 
 function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
@@ -30,6 +31,7 @@ function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
     completionKind: 'check_in',
     instruction: 'Ten minutes outside.',
     icon: 'walk',
+    requiresMembership: false,
     ...overrides,
   };
 }
@@ -43,20 +45,31 @@ function createPrismaMock(options: {
     isActive: boolean;
   }>;
   challenge?: Record<string, unknown> | null;
+  membershipActive?: boolean;
 }) {
   return {
     userProfile: {
-      findUnique: vi.fn().mockResolvedValue(
-        options.categories === null
-          ? null
-          : { healthCategories: options.categories ?? ['general'] },
-      ),
+      findUnique: vi.fn().mockImplementation(() => {
+        if (options.categories === null) {
+          return Promise.resolve(null);
+        }
+
+        return Promise.resolve({
+          healthCategories: options.categories ?? ['general'],
+          membershipActive: options.membershipActive ?? false,
+        });
+      }),
     },
     challenge: {
       findMany: vi.fn().mockResolvedValue(options.catalog ?? []),
       findUnique: vi.fn().mockResolvedValue(
         options.challenge === undefined
-          ? { id: 'c1', isActive: true, defaultFrequency: 'daily' }
+          ? {
+              id: 'c1',
+              isActive: true,
+              defaultFrequency: 'daily',
+              requiresMembership: false,
+            }
           : options.challenge,
       ),
     },
@@ -68,7 +81,7 @@ function createPrismaMock(options: {
         })),
       ),
       findUnique: vi.fn().mockResolvedValue(null),
-      upsert: vi.fn().mockResolvedValue({}),
+      upsert: vi.fn().mockResolvedValue({ id: 'e1' }),
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
   };
@@ -187,12 +200,36 @@ describe('EnrollmentsService.setEnrollment', () => {
 
   it('refuses to enrol in a retired challenge', async () => {
     const prisma = createPrismaMock({
-      challenge: { id: 'c1', isActive: false, defaultFrequency: 'daily' },
+      challenge: {
+        id: 'c1',
+        isActive: false,
+        defaultFrequency: 'daily',
+        requiresMembership: false,
+      },
     });
 
     await expect(
       createService(prisma).setEnrollment(user, 'c1', true),
     ).rejects.toBeInstanceOf(ORPCError);
+  });
+
+  it('blocks free users from joining a membership challenge', async () => {
+    const prisma = createPrismaMock({
+      challenge: {
+        id: 'c1',
+        isActive: true,
+        defaultFrequency: 'daily',
+        requiresMembership: true,
+      },
+      membershipActive: false,
+    });
+
+    await expect(
+      createService(prisma).setEnrollment(user, 'c1', true),
+    ).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    expect(prisma.challengeEnrollment.upsert).not.toHaveBeenCalled();
   });
 
   it('stores the requested cadence', async () => {
@@ -214,7 +251,12 @@ describe('EnrollmentsService.setEnrollment', () => {
 
   it('falls back to the catalog cadence when none is given', async () => {
     const prisma = createPrismaMock({
-      challenge: { id: 'c1', isActive: true, defaultFrequency: 'weekly' },
+      challenge: {
+        id: 'c1',
+        isActive: true,
+        defaultFrequency: 'weekly',
+        requiresMembership: false,
+      },
       catalog: [catalogRow()],
     });
 

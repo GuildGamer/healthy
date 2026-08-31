@@ -1,6 +1,11 @@
 import type { TodayChallenge } from '@product/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 import type { ReactElement } from 'react';
 import { apiClient } from '@/lib/api';
@@ -157,13 +162,73 @@ describe('ChallengesScreen', () => {
 
     const { cleanup } = renderChallenges();
 
-    expect(await screen.findByText('1 of 2 today')).toBeOnTheScreen();
+    expect(await screen.findByText("Today's win · 1 of 2")).toBeOnTheScreen();
+    expect(screen.getByText('Do next')).toBeOnTheScreen();
     expect(screen.getByText('Walk 20 minutes')).toBeOnTheScreen();
     expect(screen.queryByText('Drink water')).toBeNull();
 
     fireEvent.press(screen.getByTestId('show-done-challenges'));
 
     expect(screen.getByText('Drink water')).toBeOnTheScreen();
+    expect(screen.getByTestId('section-done')).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('shows one focus, up next, and collapsed cadence groups', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [
+        challenge({
+          id: 'uc-week',
+          challengeId: 'c-week',
+          title: 'Weekly weigh-in',
+          frequency: 'weekly',
+          status: 'pending',
+        }),
+        challenge({
+          id: 'uc-pending',
+          title: 'Drink water',
+          status: 'pending',
+        }),
+        challenge({
+          id: 'uc-progress',
+          challengeId: 'c-progress',
+          title: 'Check blood pressure',
+          status: 'in_progress',
+          completionKind: 'vitals_bp',
+        }),
+        challenge({
+          id: 'uc-extra',
+          challengeId: 'c-extra',
+          title: 'Stretch',
+          status: 'pending',
+        }),
+        challenge({
+          id: 'uc-parked',
+          challengeId: 'c-parked',
+          title: 'Yoga',
+          status: 'pending',
+        }),
+      ],
+      completedCount: 0,
+      totalCount: 5,
+    });
+
+    const { cleanup } = renderChallenges();
+
+    expect(await screen.findByText("Today's win · 0 of 2")).toBeOnTheScreen();
+    expect(screen.getByTestId('section-focus')).toBeOnTheScreen();
+    expect(screen.getByText('Check blood pressure')).toBeOnTheScreen();
+    expect(screen.getByTestId('section-up-next')).toBeOnTheScreen();
+    expect(screen.queryByText('Yoga')).toBeNull();
+    expect(screen.queryByText('Weekly weigh-in')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('section-also-toggle'));
+    expect(screen.getByText('Yoga')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('section-weekly-toggle'));
+    expect(screen.getByText('Weekly weigh-in')).toBeOnTheScreen();
 
     await cleanup();
   });

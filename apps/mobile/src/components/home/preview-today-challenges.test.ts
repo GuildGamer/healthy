@@ -1,5 +1,8 @@
 import type { TodayChallenge } from '@product/client';
-import { previewTodayChallenges } from './preview-today-challenges';
+import {
+  homeChallengesHasMore,
+  previewTodayChallenges,
+} from './preview-today-challenges';
 
 function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
   return {
@@ -28,26 +31,29 @@ function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
 }
 
 describe('previewTodayChallenges', () => {
-  it('keeps five open challenges and leaves the rest for the list page', () => {
+  it('keeps focus plus two up-next rows for Home', () => {
     const preview = previewTodayChallenges([
-      challenge({ id: 'a', status: 'pending' }),
-      challenge({ id: 'b', status: 'in_progress' }),
-      challenge({ id: 'c', status: 'pending' }),
-      challenge({ id: 'd', status: 'pending' }),
-      challenge({ id: 'e', status: 'pending' }),
-      challenge({ id: 'f', status: 'pending' }),
+      challenge({ id: 'a', title: 'Alpha', status: 'pending' }),
+      challenge({ id: 'b', title: 'Beta', status: 'in_progress' }),
+      challenge({ id: 'c', title: 'Charlie', status: 'pending' }),
+      challenge({ id: 'd', title: 'Delta', status: 'pending' }),
+      challenge({ id: 'e', title: 'Echo', status: 'pending' }),
     ]);
 
-    expect(preview.map((item) => item.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(preview.map((item) => item.id)).toEqual(['b', 'a', 'c']);
   });
 
-  it('surfaces unfinished work before completed ones', () => {
+  it('does not surface completed challenges on Home', () => {
     const preview = previewTodayChallenges([
       challenge({ id: 'done', status: 'completed' }),
       challenge({ id: 'open', status: 'pending' }),
       challenge({ id: 'also-done', status: 'completed' }),
     ]);
 
-    expect(preview.map((item) => item.id)).toEqual(['open', 'done', 'also-done']);
+    expect(preview.map((item) => item.id)).toEqual(['open']);
+    expect(homeChallengesHasMore([
+      challenge({ id: 'done', status: 'completed' }),
+      challenge({ id: 'open', status: 'pending' }),
+    ])).toBe(true);
   });
 });

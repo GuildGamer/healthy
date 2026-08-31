@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Loader, RefreshableScroll } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
-import { tipQuoteFontFamily } from '@/lib/fonts';
+import { displayFontFamily } from '@/lib/fonts';
 import {
   emptyPointsCopy,
   filterPointsItems,
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   balanceValue: {
     color: colors.text,
-    fontFamily: tipQuoteFontFamily,
+    fontFamily: displayFontFamily,
     fontSize: fontSize.xxl,
     lineHeight: 38,
   },

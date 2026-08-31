@@ -91,6 +91,8 @@ model UserProfile {
   currentStreakDays Int              @default(0)
   /// IANA zone deciding when the user's challenge day rolls over.
   timeZone          String           @default("UTC")
+  /// ISO 3166-1 alpha-2 country chosen at sign-up (or later in profile).
+  countryCode       String?
   /// Master switch. Off silences every challenge reminder without losing the
   /// per-challenge times the user set up.
   reminderEnabled   Boolean          @default(false)
@@ -110,6 +112,8 @@ model UserProfile {
   healthLinkStatus  HealthLinkStatus @default(unknown)
   /// Chronic-condition preferences used to tailor challenges.
   healthCategories  HealthCategory[] @default([])
+  /// Paid membership entitlements. Set by checkout later (or support).
+  membershipActive  Boolean          @default(false)
   /// Soft lock. Set by support; the member cannot sign in until it is cleared.
   deactivatedAt     DateTime?
   createdAt         DateTime         @default(now())
@@ -204,6 +208,8 @@ model Challenge {
   defaultFrequency ChallengeFrequency    @default(daily)
   /// Enrolled automatically when a user picks this challenge's category.
   isDefault        Boolean                   @default(false)
+  /// Catalog challenges that need an active membership to enroll.
+  requiresMembership Boolean                 @default(false)
   isActive         Boolean                   @default(true)
   completionKind   ChallengeCompletionKind   @default(check_in)
   captureKind      ChallengeCaptureKind      @default(self_report)
@@ -490,6 +496,56 @@ model Tip {
 
   @@index([isActive, category, sortOrder])
   @@map("tips")
+}
+
+enum MembershipInterval {
+  month
+  year
+}
+
+/// Market key for default (non-Nigeria) USD pricing.
+/// Use ISO country for overrides; `*` = fallback for everyone else.
+/// Subscription plans editable from admin.
+/// Entitlements live on UserProfile.membershipActive (checkout later).
+model MembershipPlan {
+  id        String              @id @default(cuid())
+  slug      String              @unique
+  name      String
+  tagline   String
+  /// Short benefit lines shown on the paywall.
+  features  String[]
+  interval  MembershipInterval  @default(month)
+  isActive  Boolean             @default(true)
+  sortOrder Int                 @default(0)
+  /// Optional paywall copy overrides.
+  headline  String?
+  ctaLabel  String?
+  /// Checkout method ids in display order, e.g. ["apple_pay","card"].
+  /// Empty = resolve defaults from the member's country.
+  paymentMethodIds String[]     @default([])
+  prices    MembershipPlanPrice[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("membership_plans")
+}
+
+model MembershipPlanPrice {
+  id          String         @id @default(cuid())
+  planId      String
+  plan        MembershipPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// ISO 3166-1 alpha-2, or `*` for the default (USD) price.
+  marketKey   String
+  currency    String
+  /// Integer minor units (kobo / cents). Never floats.
+  amountMinor Int
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([planId, marketKey])
+  @@index([marketKey])
+  @@map("membership_plan_prices")
 }
 
 enum AdminRole {

@@ -6,6 +6,7 @@ jest.mock('@/lib/auth-client', () => ({
   signIn: {
     email: jest.fn(),
   },
+  signInWithGoogle: jest.fn(),
   waitForSession: jest.fn(),
 }));
 

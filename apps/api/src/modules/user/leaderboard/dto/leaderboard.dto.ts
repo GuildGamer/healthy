@@ -19,4 +19,5 @@ export type ListLeaderboardDto = {
   entries: LeaderboardEntryDto[];
   currentUserRank: number | null;
   currentUserPoints: number;
+  currentUserVisible: boolean;
 };

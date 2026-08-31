@@ -18,7 +18,12 @@ export function TextAreaField({
     ? colors.danger
     : isFocused
       ? colors.accent
-      : colors.border;
+      : 'transparent';
+  const backgroundColor = hasError
+    ? colors.surface
+    : isFocused
+      ? colors.accentSurface
+      : colors.surface;
 
   return (
     <TextInput
@@ -32,7 +37,7 @@ export function TextAreaField({
         onFocus?.(event);
       }}
       placeholderTextColor={colors.disabledText}
-      style={[styles.input, { borderColor }, style]}
+      style={[styles.input, { backgroundColor, borderColor }, style]}
       textAlignVertical="top"
       {...inputProps}
     />
@@ -42,9 +47,8 @@ export function TextAreaField({
 const styles = StyleSheet.create({
   input: {
     minHeight: 96,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderWidth: 2,
+    borderRadius: radii.xl,
     paddingHorizontal: spacing.md,
     paddingVertical: 14,
     color: colors.text,

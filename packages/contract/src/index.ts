@@ -26,8 +26,17 @@ import {
   saveChallengeDraftInputSchema,
   waterUnitSchema,
 } from './challenge-logging.js';
+import { countryCodeSchema } from './country-code.js';
+import { getMembershipOfferContract } from './membership.js';
 
 export { challengeSpecIssue } from './challenge-spec.js';
+export {
+  ISO_COUNTRY_CODES,
+  countryCodeSchema,
+  isValidCountryCode,
+  normalizeCountryCode,
+  type CountryCode,
+} from './country-code.js';
 export {
   activityMeetsTarget,
   challengeCaptureKindSchema,
@@ -127,13 +136,38 @@ export type {
   AdjustAdminMemberPointsInput,
   InviteAdminInput,
   ListPublicTipsOutput,
+  MembershipPlan,
   PublicTip,
   SetAdminMemberActiveInput,
   UpdateAdminChallengeInput,
   UpdateAdminTipInput,
+  UpdateMembershipPlanInput,
   UpsertAdminChallengeInput,
   UpsertAdminTipInput,
+  UpsertMembershipPlanInput,
 } from './admin.js';
+export type {
+  AdminAnalyticsRangeInput,
+  AdminCatalogAnalytics,
+  AdminEngagementAnalytics,
+  AdminGrowthAnalytics,
+  AdminMarketsAnalytics,
+  AdminOverviewAnalytics,
+  AdminRemindersAnalytics,
+} from './admin-analytics.js';
+export {
+  MEMBERSHIP_DEFAULT_MARKET,
+  membershipCurrencySchema,
+  membershipIntervalSchema,
+  membershipPaymentMethodIdSchema,
+} from './membership.js';
+export { formatMembershipAmount, resolveMembershipMarketKey } from './membership-format.js';
+export type {
+  MembershipCurrency,
+  MembershipInterval,
+  MembershipOffer,
+  MembershipPaymentMethodId,
+} from './membership.js';
 
 export const challengeVitalsSchema = z.object({
   systolic: z.number().int().min(50).max(250),
@@ -157,6 +191,8 @@ export const meOutputSchema = z.object({
   currentStreakDays: z.number().int().nonnegative(),
   /** IANA zone deciding when this user's challenge day rolls over. */
   timeZone: z.string(),
+  /** ISO 3166-1 alpha-2. Null until chosen at sign-up or in profile. */
+  countryCode: countryCodeSchema.nullable(),
   /** Public name. Falls back to a generated pseudonym until one is chosen. */
   displayName: z.string(),
   reminderEnabled: z.boolean(),
@@ -169,6 +205,10 @@ export const meOutputSchema = z.object({
   inProgressNudgeDelayMinutes: z.number().int().min(5).max(1_440),
   /** Whether this installation may read Health / Health Connect samples. */
   healthLinkStatus: healthLinkStatusSchema,
+  /** Paid membership entitlements (checkout later). */
+  hasMembership: z.boolean(),
+  /** Reminder slots allowed per challenge for this member. */
+  maxRemindersPerChallenge: z.number().int().positive(),
 });
 
 export const updateCategoriesInputSchema = z.object({
@@ -177,6 +217,10 @@ export const updateCategoriesInputSchema = z.object({
 
 export const updateTimeZoneInputSchema = z.object({
   timeZone: z.string().min(1).max(64),
+});
+
+export const updateCountryInputSchema = z.object({
+  countryCode: countryCodeSchema,
 });
 
 /**
@@ -207,6 +251,11 @@ export const listLeaderboardOutputSchema = z.object({
   /** Null until the caller has earned a point in this window. */
   currentUserRank: z.number().int().positive().nullable(),
   currentUserPoints: z.number().int(),
+  /**
+   * False when the caller turned off “Show me on the leaderboard”.
+   * Rank is then null and they never appear in `entries`.
+   */
+  currentUserVisible: z.boolean(),
 });
 
 export const updateDisplayNameInputSchema = z.object({
@@ -358,6 +407,10 @@ export const catalogChallengeSchema = z.object({
   instruction: z.string(),
   icon: challengeIconSchema,
   isEnrolled: z.boolean(),
+  /** True when this challenge needs membership to enroll. */
+  requiresMembership: z.boolean(),
+  /** True when the caller cannot enroll without upgrading. */
+  isLocked: z.boolean(),
   /** Empty unless enrolled; the times this challenge nudges at. */
   reminders: z.array(challengeReminderSchema),
   capture: challengeCaptureSchema,
@@ -366,6 +419,8 @@ export const catalogChallengeSchema = z.object({
 export const challengeCatalogOutputSchema = z.object({
   challenges: z.array(catalogChallengeSchema),
   enrolledCount: z.number().int().nonnegative(),
+  hasMembership: z.boolean(),
+  maxRemindersPerChallenge: z.number().int().positive(),
 });
 
 export const setChallengeEnrollmentInputSchema = z.object({
@@ -507,6 +562,11 @@ export const updateTimeZoneContract = oc
   .input(updateTimeZoneInputSchema)
   .output(meOutputSchema);
 
+export const updateCountryContract = oc
+  .route({ method: 'PUT', path: '/me/country' })
+  .input(updateCountryInputSchema)
+  .output(meOutputSchema);
+
 export const listLeaderboardContract = oc
   .route({ method: 'GET', path: '/leaderboard' })
   .input(listLeaderboardInputSchema)
@@ -622,6 +682,7 @@ export const appContract = {
   me: meContract,
   updateCategories: updateCategoriesContract,
   updateTimeZone: updateTimeZoneContract,
+  updateCountry: updateCountryContract,
   updateReminder: updateReminderContract,
   updateNotificationSettings: updateNotificationSettingsContract,
   updateHealthLink: updateHealthLinkContract,
@@ -644,6 +705,7 @@ export const appContract = {
   listChallengeHistory: listChallengeHistoryContract,
   waitlist: waitlistContract,
   listTips: listTipsContract,
+  getMembershipOffer: getMembershipOfferContract,
 };
 
 export type AppContract = typeof appContract;
@@ -651,6 +713,7 @@ export type HealthOutput = z.infer<typeof healthOutputSchema>;
 export type MeOutput = z.infer<typeof meOutputSchema>;
 export type UpdateCategoriesInput = z.infer<typeof updateCategoriesInputSchema>;
 export type UpdateTimeZoneInput = z.infer<typeof updateTimeZoneInputSchema>;
+export type UpdateCountryInput = z.infer<typeof updateCountryInputSchema>;
 export type UpdateReminderInput = z.infer<typeof updateReminderInputSchema>;
 export type UpdateNotificationSettingsInput = z.infer<
   typeof updateNotificationSettingsInputSchema

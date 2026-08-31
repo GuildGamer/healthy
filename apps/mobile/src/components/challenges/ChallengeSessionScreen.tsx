@@ -12,6 +12,7 @@ import { ConnectHealthSheet } from '@/components/health/ConnectHealthSheet';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
+import { displayFontFamily } from '@/lib/fonts';
 import {
   NATIVE_MOVEMENT_UNAVAILABLE,
   listTodayDeviceSamples,
@@ -538,8 +539,8 @@ const styles = StyleSheet.create({
   },
   stepsCount: {
     color: colors.accent,
+    fontFamily: displayFontFamily,
     fontSize: 40,
-    fontWeight: fontWeight.bold,
   },
   stepsHint: {
     color: colors.muted,

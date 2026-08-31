@@ -46,6 +46,8 @@ function catalogChallenge(
     instruction: 'A brisk walk after lunch.',
     icon: 'walk',
     isEnrolled: true,
+    requiresMembership: false,
+    isLocked: false,
     reminders: [],
     capture: {
       kind: 'self_report',
@@ -109,6 +111,8 @@ beforeEach(() => {
   mockedApi.listChallengeCatalog.mockResolvedValue({
     challenges: [catalogChallenge()],
     enrolledCount: 1,
+    hasMembership: false,
+    maxRemindersPerChallenge: 1,
   });
   mockedApi.listTodayChallenges.mockResolvedValue({
     dayKey: '2026-08-30',

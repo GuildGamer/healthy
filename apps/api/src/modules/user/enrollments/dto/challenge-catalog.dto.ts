@@ -20,6 +20,8 @@ export type CatalogChallengeDto = {
   instruction: string;
   icon: string;
   isEnrolled: boolean;
+  requiresMembership: boolean;
+  isLocked: boolean;
   /** Empty unless enrolled; the times this challenge nudges at. */
   reminders: ChallengeReminderDto[];
   capture: ChallengeCapture;
@@ -28,4 +30,6 @@ export type CatalogChallengeDto = {
 export type ChallengeCatalogDto = {
   challenges: CatalogChallengeDto[];
   enrolledCount: number;
+  hasMembership: boolean;
+  maxRemindersPerChallenge: number;
 };

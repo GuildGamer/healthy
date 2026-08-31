@@ -14,6 +14,7 @@ function createPrismaMock(options: {
   existingCount?: number;
   reminders?: Array<{ id: string; minuteOfDay: number }>;
   reminderMinute?: number;
+  membershipActive?: boolean;
 }) {
   return {
     challengeEnrollment: {
@@ -28,9 +29,12 @@ function createPrismaMock(options: {
     },
     userProfile: {
       findUnique: vi.fn().mockResolvedValue(
-        options.reminderMinute === undefined
+        options.reminderMinute === undefined && options.membershipActive === undefined
           ? null
-          : { reminderMinute: options.reminderMinute },
+          : {
+              reminderMinute: options.reminderMinute ?? 1140,
+              membershipActive: options.membershipActive ?? false,
+            },
       ),
     },
   };
@@ -50,11 +54,26 @@ describe('RemindersService', () => {
       createPrismaMock({
         enrollment: { id: 'e1', isActive: true },
         existingCount: 5,
+        membershipActive: true,
       }) as never,
     );
 
     await expect(service.addReminder(user, 'c1', 480)).rejects.toMatchObject({
       code: 'BAD_REQUEST',
+    });
+  });
+
+  it('requires membership for a second reminder on the free tier', async () => {
+    const service = new RemindersService(
+      createPrismaMock({
+        enrollment: { id: 'e1', isActive: true },
+        existingCount: 1,
+        membershipActive: false,
+      }) as never,
+    );
+
+    await expect(service.addReminder(user, 'c1', 480)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
     });
   });
 

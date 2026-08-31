@@ -34,6 +34,14 @@ export class MeController {
     });
   }
 
+  @Implement(appContract.updateCountry)
+  updateCountry(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.updateCountry).handler(async ({ input }) => {
+      return this.meService.updateCountry(user, input.countryCode);
+    });
+  }
+
   @Implement(appContract.updateDisplayName)
   updateDisplayName(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;

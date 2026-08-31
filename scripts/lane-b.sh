@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Start / stop / restart API + Metro (Lane B) as background jobs with logs under .run/
+# Start / stop / restart API + Metro + admin (Lane B) as background jobs with logs under .run/
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="${ROOT}/.run"
 API_PID_FILE="${RUN_DIR}/api.pid"
 MOBILE_PID_FILE="${RUN_DIR}/mobile.pid"
+ADMIN_PID_FILE="${RUN_DIR}/admin.pid"
 API_LOG="${RUN_DIR}/api.log"
 MOBILE_LOG="${RUN_DIR}/mobile.log"
+ADMIN_LOG="${RUN_DIR}/admin.log"
 
 usage() {
   echo "Usage: $0 {start|stop|restart|status|logs}"
@@ -41,7 +43,7 @@ read_pid() {
   echo "${pid}"
 }
 
-# Kill a process and its descendants (pnpm/nest/metro spawn trees).
+# Kill a process and its descendants (pnpm/nest/metro/next spawn trees).
 kill_tree() {
   local pid="$1"
   local child
@@ -102,10 +104,16 @@ start_named() {
   )
 }
 
+lane_b_running() {
+  read_pid "${API_PID_FILE}" >/dev/null \
+    || read_pid "${MOBILE_PID_FILE}" >/dev/null \
+    || read_pid "${ADMIN_PID_FILE}" >/dev/null
+}
+
 cmd_start() {
   ensure_run_dir
 
-  if read_pid "${API_PID_FILE}" >/dev/null || read_pid "${MOBILE_PID_FILE}" >/dev/null; then
+  if lane_b_running; then
     echo "Lane B already running. Use: make lane-b-restart  or  make lane-b-stop"
     exit 1
   fi
@@ -115,14 +123,18 @@ cmd_start() {
 
   : >"${API_LOG}"
   : >"${MOBILE_LOG}"
+  : >"${ADMIN_LOG}"
 
   start_named "api" "${API_PID_FILE}" "${API_LOG}" \
     pnpm --filter @product/api dev
   start_named "mobile" "${MOBILE_PID_FILE}" "${MOBILE_LOG}" \
     pnpm --filter @product/mobile start
+  start_named "admin" "${ADMIN_PID_FILE}" "${ADMIN_LOG}" \
+    pnpm --filter @product/admin dev
 
   echo "Lane B started."
   echo "  API:    http://localhost:3000  (log: ${API_LOG})"
+  echo "  Admin:  http://localhost:3001  (log: ${ADMIN_LOG})"
   echo "  Metro:  see ${MOBILE_LOG}"
   echo "  Status: make lane-b-status"
   echo "  Logs:   make lane-b-logs"
@@ -130,6 +142,7 @@ cmd_start() {
 }
 
 cmd_stop() {
+  stop_named "admin" "${ADMIN_PID_FILE}"
   stop_named "mobile" "${MOBILE_PID_FILE}"
   stop_named "api" "${API_PID_FILE}"
   echo "Lane B stopped. (Postgres left running — use make down to stop it.)"
@@ -141,7 +154,7 @@ cmd_restart() {
 }
 
 cmd_status() {
-  local api_pid mobile_pid
+  local api_pid mobile_pid admin_pid
   if api_pid="$(read_pid "${API_PID_FILE}")"; then
     echo "api:    running (pid ${api_pid})"
   else
@@ -152,13 +165,18 @@ cmd_status() {
   else
     echo "mobile: stopped"
   fi
+  if admin_pid="$(read_pid "${ADMIN_PID_FILE}")"; then
+    echo "admin:  running (pid ${admin_pid})"
+  else
+    echo "admin:  stopped"
+  fi
 }
 
 cmd_logs() {
   ensure_run_dir
-  touch "${API_LOG}" "${MOBILE_LOG}"
-  echo "+ tail -f ${API_LOG} ${MOBILE_LOG}"
-  tail -f "${API_LOG}" "${MOBILE_LOG}"
+  touch "${API_LOG}" "${MOBILE_LOG}" "${ADMIN_LOG}"
+  echo "+ tail -f ${API_LOG} ${MOBILE_LOG} ${ADMIN_LOG}"
+  tail -f "${API_LOG}" "${MOBILE_LOG}" "${ADMIN_LOG}"
 }
 
 case "${1:-}" in

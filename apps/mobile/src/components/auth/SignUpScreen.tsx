@@ -1,5 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, radii, spacing } from '@product/brand';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import type { CountryCode } from '@product/contract/country-code';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -12,17 +14,28 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  CountryPickerField,
+  FieldMark,
   FormButton,
   FormErrorBanner,
   FormField,
   PasswordField,
   TextField,
 } from '@/components/forms';
-import { signUp, waitForSession } from '@/lib/auth-client';
+import { apiClient } from '@/lib/api';
+import { signInWithGoogle, signUp, waitForSession } from '@/lib/auth-client';
+import { deviceCountryCode } from '@/lib/country';
+import {
+  quirkyEmailPlaceholder,
+  quirkyNamePlaceholder,
+} from '@/lib/form-placeholders';
 import { AuthScreenHeader } from './AuthScreenHeader';
+import { AuthMethodDivider, GoogleAuthButton } from './SocialAuthButton';
 
 interface SignUpScreenProps {
   onSignedUp: () => void;
+  /** After Google OAuth — may still need country / categories. */
+  onSocialSignedIn: () => void;
   onLoginPress: () => void;
   onBackPress: () => void;
 }
@@ -35,6 +48,8 @@ interface TermsCheckboxProps {
 const MINIMUM_PASSWORD_LENGTH = 8;
 const SIGN_UP_FAILED_MESSAGE =
   'We could not create your account. That email may already be registered.';
+const GOOGLE_FAILED_MESSAGE =
+  'We could not continue with Google. Agree to the terms, then try again.';
 const NETWORK_FAILED_MESSAGE =
   'We could not reach the server. Check your connection and try again.';
 
@@ -60,26 +75,53 @@ function TermsCheckbox({ checked, onToggle }: TermsCheckboxProps) {
   );
 }
 
-export function SignUpScreen({ onSignedUp, onLoginPress, onBackPress }: SignUpScreenProps) {
+export function SignUpScreen({
+  onSignedUp,
+  onSocialSignedIn,
+  onLoginPress,
+  onBackPress,
+}: SignUpScreenProps) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [countryCode, setCountryCode] = useState<CountryCode | null>(() =>
+    deviceCountryCode(),
+  );
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [googleExpanded, setGoogleExpanded] = useState(true);
+  const [namePlaceholder] = useState(quirkyNamePlaceholder);
+  const [emailPlaceholder] = useState(quirkyEmailPlaceholder);
 
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const busy = isSubmitting || isGoogleSubmitting;
 
   const canSubmit =
     fullName.trim().length > 0 &&
     email.trim().length > 0 &&
     password.length >= MINIMUM_PASSWORD_LENGTH &&
     password === confirmPassword &&
+    countryCode !== null &&
     agreedToTerms;
 
+  function foldGoogleForEmailForm() {
+    if (googleExpanded) {
+      setGoogleExpanded(false);
+    }
+  }
+
+  function handleNameChange(value: string) {
+    if (value.length > 0) {
+      foldGoogleForEmailForm();
+    }
+    setFullName(value);
+  }
+
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || !countryCode || busy) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -102,11 +144,42 @@ export function SignUpScreen({ onSignedUp, onLoginPress, onBackPress }: SignUpSc
         return;
       }
 
+      await apiClient.updateCountry({ countryCode });
       onSignedUp();
     } catch {
       setErrorMessage(NETWORK_FAILED_MESSAGE);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogle() {
+    if (!agreedToTerms || busy) {
+      setErrorMessage('Agree to the Terms & Conditions before continuing with Google.');
+      return;
+    }
+
+    setIsGoogleSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setErrorMessage(GOOGLE_FAILED_MESSAGE);
+        return;
+      }
+
+      const hasSession = await waitForSession();
+      if (!hasSession) {
+        setErrorMessage(GOOGLE_FAILED_MESSAGE);
+        return;
+      }
+
+      onSocialSignedIn();
+    } catch {
+      setErrorMessage(NETWORK_FAILED_MESSAGE);
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   }
 
@@ -125,12 +198,47 @@ export function SignUpScreen({ onSignedUp, onLoginPress, onBackPress }: SignUpSc
 
           {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
 
+          {googleExpanded ? (
+            <View style={styles.googleBlock}>
+              <TermsCheckbox
+                checked={agreedToTerms}
+                onToggle={() => setAgreedToTerms((value) => !value)}
+              />
+
+              <GoogleAuthButton
+                disabled={busy || !agreedToTerms}
+                loading={isGoogleSubmitting}
+                onPress={handleGoogle}
+                testID="signup-google"
+              />
+
+              <AuthMethodDivider />
+            </View>
+          ) : (
+            <Pressable
+              accessibilityHint="Expands the Google sign-up option"
+              accessibilityLabel="Sign up with Google instead"
+              accessibilityRole="button"
+              onPress={() => setGoogleExpanded(true)}
+              style={({ pressed }) => [
+                styles.googleFold,
+                pressed ? styles.googleFoldPressed : null,
+              ]}
+              testID="signup-google-expand"
+            >
+              <MaterialCommunityIcons color={colors.muted} name="google" size={16} />
+              <Text style={styles.googleFoldLabel}>Sign up with Google instead</Text>
+              <Feather color={colors.muted} name="chevron-down" size={16} />
+            </Pressable>
+          )}
+
           <FormField label="Full Name" required>
             <TextField
               autoComplete="name"
-              leadingIcon="user"
-              onChangeText={setFullName}
-              placeholder="Enter your full name"
+              leading={<FieldMark role="name" />}
+              onChangeText={handleNameChange}
+              onFocus={foldGoogleForEmailForm}
+              placeholder={namePlaceholder}
               testID="signup-name"
               value={fullName}
             />
@@ -142,9 +250,10 @@ export function SignUpScreen({ onSignedUp, onLoginPress, onBackPress }: SignUpSc
               autoComplete="email"
               autoCorrect={false}
               keyboardType="email-address"
-              leadingIcon="mail"
+              leading={<FieldMark role="email" />}
               onChangeText={setEmail}
-              placeholder="your@email.com"
+              onFocus={foldGoogleForEmailForm}
+              placeholder={emailPlaceholder}
               testID="signup-email"
               value={email}
             />
@@ -154,6 +263,7 @@ export function SignUpScreen({ onSignedUp, onLoginPress, onBackPress }: SignUpSc
             <PasswordField
               autoComplete="new-password"
               onChangeText={setPassword}
+              onFocus={foldGoogleForEmailForm}
               placeholder="Create a password"
               requirements={[
                 {
@@ -175,19 +285,26 @@ export function SignUpScreen({ onSignedUp, onLoginPress, onBackPress }: SignUpSc
               autoComplete="new-password"
               hasError={passwordsMismatch}
               onChangeText={setConfirmPassword}
+              onFocus={foldGoogleForEmailForm}
               placeholder="Confirm your password"
               testID="signup-confirm-password"
               value={confirmPassword}
             />
           </FormField>
 
-          <TermsCheckbox
-            checked={agreedToTerms}
-            onToggle={() => setAgreedToTerms((agreed) => !agreed)}
-          />
+          <FormField label="Country / region" required>
+            <CountryPickerField onChange={setCountryCode} value={countryCode} />
+          </FormField>
+
+          {!googleExpanded ? (
+            <TermsCheckbox
+              checked={agreedToTerms}
+              onToggle={() => setAgreedToTerms((value) => !value)}
+            />
+          ) : null}
 
           <FormButton
-            disabled={!canSubmit}
+            disabled={!canSubmit || busy}
             label="Create Account"
             loading={isSubmitting}
             onPress={handleSubmit}
@@ -217,6 +334,30 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     gap: spacing.md,
+  },
+  googleBlock: {
+    gap: spacing.md,
+  },
+  googleFold: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  googleFoldPressed: {
+    backgroundColor: colors.surfaceRaised,
+  },
+  googleFoldLabel: {
+    flex: 1,
+    color: colors.muted,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
   termsRow: {
     flexDirection: 'row',

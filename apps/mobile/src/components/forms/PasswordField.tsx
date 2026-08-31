@@ -2,13 +2,20 @@ import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, radii, spacing } from '@product/brand';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type TextInputProps } from 'react-native';
+import { FieldMark } from './FieldMark';
 import { TextField } from './TextField';
 import type { PasswordRequirement } from './types';
 
 interface PasswordFieldProps extends Omit<TextInputProps, 'secureTextEntry'> {
   hasError?: boolean;
-  showLockIcon?: boolean;
+  showMark?: boolean;
   requirements?: readonly PasswordRequirement[];
+}
+
+function allRequirementsMet(
+  requirements: readonly PasswordRequirement[],
+): boolean {
+  return requirements.every((requirement) => requirement.valid);
 }
 
 function RequirementChecklist({
@@ -44,13 +51,26 @@ function RequirementChecklist({
 
 export function PasswordField({
   hasError = false,
-  showLockIcon = true,
+  showMark = true,
   requirements,
   value,
+  onBlur,
+  onFocus,
   ...inputProps
 }: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const shouldShowChecklist = Boolean(requirements?.length) && Boolean(value);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const hasRequirements = Boolean(requirements?.length);
+  const hasValue = Boolean(value);
+  const requirementsComplete =
+    hasRequirements && requirements ? allRequirementsMet(requirements) : false;
+
+  // Show while editing; collapse once every rule is met and focus leaves.
+  const shouldShowChecklist =
+    hasRequirements &&
+    hasValue &&
+    (isFocused || !requirementsComplete);
 
   return (
     <View>
@@ -58,7 +78,15 @@ export function PasswordField({
         autoCapitalize="none"
         autoCorrect={false}
         hasError={hasError}
-        leadingIcon={showLockIcon ? 'lock' : undefined}
+        leading={showMark ? <FieldMark role="password" /> : undefined}
+        onBlur={(event) => {
+          setIsFocused(false);
+          onBlur?.(event);
+        }}
+        onFocus={(event) => {
+          setIsFocused(true);
+          onFocus?.(event);
+        }}
         secureTextEntry={!isVisible}
         trailing={
           <Pressable
@@ -67,7 +95,11 @@ export function PasswordField({
             hitSlop={8}
             onPress={() => setIsVisible((visible) => !visible)}
           >
-            <Feather color={colors.muted} name={isVisible ? 'eye-off' : 'eye'} size={20} />
+            <Feather
+              color={colors.muted}
+              name={isVisible ? 'eye-off' : 'eye'}
+              size={20}
+            />
           </Pressable>
         }
         value={value}
@@ -84,7 +116,7 @@ export function PasswordField({
 const styles = StyleSheet.create({
   checklist: {
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.xl,
     padding: spacing.md,
     marginTop: spacing.sm,
     gap: spacing.xs,

@@ -73,15 +73,16 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     minHeight: 52,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radii.xl,
+    borderWidth: 2,
+    borderColor: 'transparent',
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cellActive: {
     borderColor: colors.accent,
+    backgroundColor: colors.accentSurface,
   },
   digit: {
     color: colors.text,

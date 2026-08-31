@@ -5,9 +5,13 @@ import {
 import { Platform } from 'react-native';
 
 /**
- * Display face for streak numerals and the splash wordmark. Deliberately not a
- * brand token: the identifier below is the name Expo registers at runtime,
- * which is not what a browser would ask for, so web would need its own mapping.
+ * Display face for hero moments: splash wordmark, onboarding / auth titles,
+ * streak and points numerals, celebration headlines. Deliberately not a brand
+ * token: the identifier below is the name Expo registers at runtime, which is
+ * not what a browser would ask for, so web would need its own mapping.
+ *
+ * Do not pair with fontWeight — the face is already black, and asking for a
+ * weight it has no file for makes Android synthesise a smeared bold.
  */
 export const displayFontFamily = 'ArchivoBlack_400Regular';
 

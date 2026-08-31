@@ -63,6 +63,7 @@ export const radii = {
   sm: 8,
   md: 12,
   lg: 16,
+  /** Soft control corners — form fields and primary actions (borderless fill). */
   xl: 20,
   full: 9999,
 } as const;

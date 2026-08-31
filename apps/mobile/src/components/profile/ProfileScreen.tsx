@@ -17,7 +17,7 @@ import { ConnectHealthSheet } from '@/components/health/ConnectHealthSheet';
 import { healthCategories } from '@/constants/health-categories';
 import { signOut, useSession } from '@/lib/auth-client';
 import { apiClient } from '@/lib/api';
-import { tipQuoteFontFamily } from '@/lib/fonts';
+import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
 import { requestReminderPermission } from '@/lib/notifications';
 import { usePushDeviceSync } from '@/lib/use-push-device';
 import { ChangePhotoSheet } from './ChangePhotoSheet';
@@ -145,6 +145,7 @@ export function ProfileScreen() {
     meQuery.data?.inProgressNudgeEnabled ?? true;
   const inProgressNudgeDelayMinutes =
     meQuery.data?.inProgressNudgeDelayMinutes ?? 30;
+  const hasMembership = meQuery.data?.hasMembership ?? false;
   const pointsBalance = meQuery.data?.pointsBalance ?? 0;
   const streakDays = meQuery.data?.currentStreakDays ?? 0;
 
@@ -300,6 +301,36 @@ export function ProfileScreen() {
         {nameError ? <Text style={styles.nameError}>{nameError}</Text> : null}
 
         <Text style={styles.sectionTitle}>Focus</Text>
+        <Pressable
+          accessibilityLabel="Membership. Your regional plan. Stay a step ahead."
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: '/membership',
+              params: { source: 'profile' },
+            })
+          }
+          style={({ pressed }) => [
+            styles.linkRow,
+            pressed && styles.rowPressed,
+          ]}
+          testID="open-membership"
+        >
+          <View style={styles.membershipAccent} />
+          <View style={styles.linkText}>
+            <Text style={styles.membershipLabel}>
+              Membership{' '}
+              <Text importantForAccessibility="no" style={styles.membershipMark}>
+                ✦
+              </Text>
+            </Text>
+            <Text style={styles.membershipHint}>
+              Your regional plan. Stay a step ahead.
+            </Text>
+          </View>
+          <Feather color={colors.accent} name="chevron-right" size={16} />
+        </Pressable>
+        <View style={styles.divider} />
         <LinkRow
           hint={selectedLabels || 'Choose what you track'}
           label="Conditions"
@@ -343,16 +374,28 @@ export function ProfileScreen() {
         />
         <View style={styles.divider} />
         <PreferenceRow
-          hint="If you leave a log unfinished"
-          isBusy={updateSettings.isPending}
-          isOn={inProgressNudgeEnabled}
-          label="Finish what you started"
-          onToggle={(next) =>
-            saveSettings({ inProgressNudgeEnabled: next })
+          hint={
+            hasMembership
+              ? 'If you leave a log unfinished'
+              : 'Membership unlocks this nudge'
           }
+          isBusy={updateSettings.isPending}
+          isOn={hasMembership ? inProgressNudgeEnabled : false}
+          label="Finish what you started"
+          onToggle={(next) => {
+            if (!hasMembership) {
+              router.push({
+                pathname: '/membership',
+                params: { source: 'profile' },
+              });
+              return;
+            }
+
+            saveSettings({ inProgressNudgeEnabled: next });
+          }}
           testID="toggle-in-progress-nudge"
         />
-        {inProgressNudgeEnabled ? (
+        {hasMembership && inProgressNudgeEnabled ? (
           <View style={styles.delayRow}>
             {[15, 30, 60, 120].map((minutes) => (
               <Pressable
@@ -480,8 +523,8 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: colors.text,
+    fontFamily: displayFontFamily,
     fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
   },
   statLabel: {
     color: colors.muted,
@@ -561,6 +604,26 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
   },
   linkHint: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+  },
+  membershipAccent: {
+    width: 2,
+    alignSelf: 'stretch',
+    borderRadius: 1,
+    backgroundColor: colors.accent,
+    marginVertical: 2,
+  },
+  membershipLabel: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  membershipMark: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+  },
+  membershipHint: {
     color: colors.muted,
     fontSize: fontSize.xs,
   },

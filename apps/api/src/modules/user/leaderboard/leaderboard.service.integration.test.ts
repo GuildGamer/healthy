@@ -249,6 +249,17 @@ describe('LeaderboardService against Postgres', () => {
 
     expect(board.entries.map((entry) => entry.displayName)).toEqual(['Bob']);
     expect(board.currentUserRank).toBe(1);
+    expect(board.currentUserVisible).toBe(true);
+
+    const hidden = await leaderboard.listWeekly({
+      id: 'alice',
+      email: 'alice@example.com',
+    });
+
+    expect(hidden.entries.map((entry) => entry.displayName)).toEqual(['Bob']);
+    expect(hidden.currentUserVisible).toBe(false);
+    expect(hidden.currentUserRank).toBeNull();
+    expect(hidden.currentUserPoints).toBe(50);
   });
 
   it('echoes the week window on the default board', async () => {

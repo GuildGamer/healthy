@@ -29,6 +29,7 @@ export default function CatalogPage() {
                 <th>Category</th>
                 <th>Points</th>
                 <th>Default</th>
+                <th>Tier</th>
                 <th>Active</th>
                 <th>Enrolled</th>
               </tr>
@@ -43,6 +44,7 @@ export default function CatalogPage() {
                   <td>{challenge.category}</td>
                   <td>{challenge.rewardPoints}</td>
                   <td>{challenge.isDefault ? 'Yes' : 'No'}</td>
+                  <td>{challenge.requiresMembership ? 'Paid' : 'Free'}</td>
                   <td>{challenge.isActive ? 'Yes' : 'No'}</td>
                   <td>{challenge.enrollmentCount}</td>
                 </tr>

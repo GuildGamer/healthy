@@ -1,6 +1,14 @@
 import { oc } from '@orpc/contract';
 import { z } from 'zod';
 import {
+  getAdminCatalogAnalyticsContract,
+  getAdminEngagementAnalyticsContract,
+  getAdminGrowthAnalyticsContract,
+  getAdminMarketsAnalyticsContract,
+  getAdminOverviewAnalyticsContract,
+  getAdminRemindersAnalyticsContract,
+} from './admin-analytics.js';
+import {
   challengeCaptureKindSchema,
   deviceMetricSchema,
 } from './challenge-capture.js';
@@ -11,6 +19,12 @@ import {
   challengeIconSchema,
   healthCategorySchema,
 } from './catalog-fields.js';
+import {
+  createAdminMembershipPlanContract,
+  listAdminMembershipPlansContract,
+  updateAdminMembershipPlanContract,
+} from './membership.js';
+import { countryCodeSchema } from './country-code.js';
 
 export const adminSlugSchema = z
   .string()
@@ -30,6 +44,7 @@ export const adminChallengeSchema = z.object({
   rewardPoints: z.number().int().positive().max(10_000),
   defaultFrequency: challengeFrequencySchema,
   isDefault: z.boolean(),
+  requiresMembership: z.boolean(),
   isActive: z.boolean(),
   completionKind: challengeCompletionKindSchema,
   captureKind: challengeCaptureKindSchema,
@@ -105,6 +120,7 @@ export const adminMemberSummarySchema = z.object({
   displayName: z.string(),
   categories: z.array(healthCategorySchema),
   timeZone: z.string(),
+  countryCode: countryCodeSchema.nullable(),
   reminderEnabled: z.boolean(),
   evidenceRemindersEnabled: z.boolean(),
   promotionalMessagesEnabled: z.boolean(),
@@ -354,6 +370,15 @@ export const adminContract = {
   inviteOperator: inviteAdminOperatorContract,
   updateOperatorRoles: updateAdminOperatorRolesContract,
   setOperatorActive: setAdminOperatorActiveContract,
+  getOverviewAnalytics: getAdminOverviewAnalyticsContract,
+  getMarketsAnalytics: getAdminMarketsAnalyticsContract,
+  getGrowthAnalytics: getAdminGrowthAnalyticsContract,
+  getEngagementAnalytics: getAdminEngagementAnalyticsContract,
+  getCatalogAnalytics: getAdminCatalogAnalyticsContract,
+  getRemindersAnalytics: getAdminRemindersAnalyticsContract,
+  listMembershipPlans: listAdminMembershipPlansContract,
+  createMembershipPlan: createAdminMembershipPlanContract,
+  updateMembershipPlan: updateAdminMembershipPlanContract,
 };
 
 export type AdminContract = typeof adminContract;
@@ -369,6 +394,11 @@ export type AdminTip = z.infer<typeof adminTipSchema>;
 export type UpsertAdminTipInput = z.infer<typeof upsertAdminTipInputSchema>;
 export type UpdateAdminTipInput = z.infer<typeof updateAdminTipInputSchema>;
 export type AdminWaitlistEntry = z.infer<typeof adminWaitlistEntrySchema>;
+export type {
+  MembershipPlan,
+  UpdateMembershipPlanInput,
+  UpsertMembershipPlanInput,
+} from './membership.js';
 export type AdminMemberSummary = z.infer<typeof adminMemberSummarySchema>;
 export type AdminMemberListItem = z.infer<typeof adminMemberListItemSchema>;
 export type AdminMemberOutput = z.infer<typeof adminMemberOutputSchema>;

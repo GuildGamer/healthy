@@ -1,8 +1,9 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { colors, fontSize, radii, spacing } from '@product/brand';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormButton } from '@/components/forms';
+import { displayFontFamily } from '@/lib/fonts';
 
 type PasswordResetSuccessScreenProps = {
   onContinue: () => void;
@@ -86,8 +87,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
+    fontFamily: displayFontFamily,
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
     textAlign: 'center',
   },
   subtitle: {

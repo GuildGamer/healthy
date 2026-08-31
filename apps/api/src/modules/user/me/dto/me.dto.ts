@@ -9,6 +9,7 @@ export type MeDto = {
   pointsBalance: number;
   currentStreakDays: number;
   timeZone: string;
+  countryCode: string | null;
   displayName: string;
   reminderEnabled: boolean;
   reminderMinute: number;
@@ -18,4 +19,6 @@ export type MeDto = {
   inProgressNudgeEnabled: boolean;
   inProgressNudgeDelayMinutes: number;
   healthLinkStatus: HealthLinkStatus;
+  hasMembership: boolean;
+  maxRemindersPerChallenge: number;
 };

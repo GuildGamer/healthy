@@ -45,6 +45,10 @@ export default function RootLayout() {
           <Stack.Screen name="tips" options={{ title: 'Tips' }} />
           <Stack.Screen name="points" options={{ title: 'Points' }} />
           <Stack.Screen
+            name="membership"
+            options={{ headerShown: false, title: 'Membership' }}
+          />
+          <Stack.Screen
             name="notifications"
             options={{ headerShown: false, title: 'Notifications' }}
           />
@@ -60,7 +64,7 @@ export default function RootLayout() {
           <Stack.Screen name="leaderboard" options={{ title: 'Leaderboard' }} />
           <Stack.Screen
             name="manage-challenges"
-            options={{ title: 'Add challenges' }}
+            options={{ title: 'Manage challenges' }}
           />
           <Stack.Screen
             name="challenge/[challengeId]/index"

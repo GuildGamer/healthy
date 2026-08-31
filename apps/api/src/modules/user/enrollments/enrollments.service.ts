@@ -10,6 +10,11 @@ import {
   type AuthenticatedUser,
   requireUser,
 } from '../../../shared/types/authenticated-user.js';
+import {
+  canEnrollInChallenge,
+  isCatalogChallengeLocked,
+  maxRemindersForMembership,
+} from '../../../shared/membership/entitlements.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { RemindersService } from '../reminders/reminders.service.js';
 import type {
@@ -42,7 +47,10 @@ export class EnrollmentsService {
     currentUser: AuthenticatedUser | null | undefined,
   ): Promise<ChallengeCatalogDto> {
     const user = requireUser(currentUser);
-    const categories = await this.categoriesFor(user.id);
+    const [categories, membershipActive] = await Promise.all([
+      this.categoriesFor(user.id),
+      this.membershipActiveFor(user.id),
+    ]);
 
     const [catalog, enrollments] = await Promise.all([
       this.prisma.challenge.findMany({
@@ -66,6 +74,8 @@ export class EnrollmentsService {
 
     const challenges: CatalogChallengeDto[] = catalog.map((challenge) => {
       const enrollment = byChallengeId.get(challenge.id);
+      const isEnrolled = enrollment?.isActive ?? false;
+      const requiresMembership = challenge.requiresMembership;
 
       return {
         challengeId: challenge.id,
@@ -78,19 +88,25 @@ export class EnrollmentsService {
         completionKind: challenge.completionKind,
         instruction: challenge.instruction || challenge.description,
         icon: toChallengeIcon(challenge.icon),
-        isEnrolled: enrollment?.isActive ?? false,
+        isEnrolled,
+        requiresMembership,
+        isLocked: isCatalogChallengeLocked({
+          requiresMembership,
+          membershipActive,
+        }),
         // A deactivated enrolment keeps its reminders in the database, but
         // showing them would imply nudges that will never fire.
-        reminders: enrollment?.isActive ? enrollment.reminders : [],
+        reminders: isEnrolled ? enrollment!.reminders : [],
         capture: toChallengeCapture(challenge),
       };
     });
-
 
     return {
       challenges,
       enrolledCount: challenges.filter((challenge) => challenge.isEnrolled)
         .length,
+      hasMembership: membershipActive,
+      maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
     };
   }
 
@@ -108,21 +124,43 @@ export class EnrollmentsService {
 
     const challenge = await this.prisma.challenge.findUnique({
       where: { id: challengeId },
-      select: { id: true, isActive: true, defaultFrequency: true },
+      select: {
+        id: true,
+        isActive: true,
+        defaultFrequency: true,
+        requiresMembership: true,
+      },
     });
 
     if (!challenge || !challenge.isActive) {
       throw new ORPCError('NOT_FOUND', { message: 'Challenge not found' });
     }
 
-    const chosenFrequency = frequency ?? challenge.defaultFrequency;
+    const [membershipActive, existing] = await Promise.all([
+      this.membershipActiveFor(user.id),
+      this.prisma.challengeEnrollment.findUnique({
+        where: {
+          userId_challengeId: { userId: user.id, challengeId: challenge.id },
+        },
+        select: { id: true, isActive: true },
+      }),
+    ]);
 
-    const existing = await this.prisma.challengeEnrollment.findUnique({
-      where: {
-        userId_challengeId: { userId: user.id, challengeId: challenge.id },
-      },
-      select: { id: true },
-    });
+    if (
+      !canEnrollInChallenge({
+        requiresMembership: challenge.requiresMembership,
+        membershipActive,
+        currentlyEnrolled: existing?.isActive ?? false,
+        enrolling: isEnrolled,
+      })
+    ) {
+      throw new ORPCError('FORBIDDEN', {
+        message: 'Membership is required to add this challenge',
+        data: { reason: 'membership_required' },
+      });
+    }
+
+    const chosenFrequency = frequency ?? challenge.defaultFrequency;
 
     const enrollment = await this.prisma.challengeEnrollment.upsert({
       where: {
@@ -209,6 +247,15 @@ export class EnrollmentsService {
       userId,
       created.map((enrollment) => enrollment.id),
     );
+  }
+
+  private async membershipActiveFor(userId: string): Promise<boolean> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { membershipActive: true },
+    });
+
+    return profile?.membershipActive ?? false;
   }
 
   private async categoriesFor(userId: string): Promise<HealthCategory[]> {

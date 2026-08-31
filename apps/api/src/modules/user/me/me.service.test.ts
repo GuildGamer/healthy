@@ -9,11 +9,13 @@ type ProfileFixture = {
   pointsBalance: number;
   currentStreakDays: number;
   timeZone: string;
+  countryCode?: string | null;
   reminderEnabled?: boolean;
   reminderMinute?: number;
   evidenceRemindersEnabled?: boolean;
   promotionalMessagesEnabled?: boolean;
   showOnLeaderboard?: boolean;
+  membershipActive?: boolean;
 };
 
 function todayKey(timeZone = 'UTC'): string {
@@ -67,6 +69,7 @@ describe('MeService', () => {
       pointsBalance: 0,
       currentStreakDays: 0,
       timeZone: 'UTC',
+      countryCode: null,
       displayName: pseudonymFor('u1'),
       reminderEnabled: false,
       reminderMinute: 1140,
@@ -76,6 +79,8 @@ describe('MeService', () => {
       inProgressNudgeEnabled: true,
       inProgressNudgeDelayMinutes: 30,
       healthLinkStatus: 'unknown',
+      hasMembership: false,
+      maxRemindersPerChallenge: 1,
     });
   });
 
@@ -102,6 +107,7 @@ describe('MeService', () => {
       pointsBalance: 350,
       currentStreakDays: 4,
       timeZone: 'Asia/Singapore',
+      countryCode: null,
       displayName: 'Ada L',
       reminderEnabled: true,
       reminderMinute: 480,
@@ -111,6 +117,8 @@ describe('MeService', () => {
       inProgressNudgeEnabled: true,
       inProgressNudgeDelayMinutes: 30,
       healthLinkStatus: 'unknown',
+      hasMembership: false,
+      maxRemindersPerChallenge: 1,
     });
   });
 
@@ -222,6 +230,38 @@ describe('MeService', () => {
     expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
   });
 
+  it('stores a valid country code', async () => {
+    const profile: ProfileFixture = {
+      healthCategories: [],
+      pointsBalance: 0,
+      currentStreakDays: 0,
+      timeZone: 'UTC',
+      countryCode: 'KE',
+    };
+    const prisma = createPrismaMock(profile);
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await expect(service.updateCountry(user, 'ke')).resolves.toMatchObject({
+      countryCode: 'KE',
+    });
+
+    expect(prisma.userProfile.upsert).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      create: { userId: 'u1', countryCode: 'KE' },
+      update: { countryCode: 'KE' },
+    });
+  });
+
+  it('rejects an unrecognised country without writing', async () => {
+    const prisma = createPrismaMock();
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await expect(service.updateCountry(user, 'XX')).rejects.toBeInstanceOf(
+      ORPCError,
+    );
+    expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
+  });
+
   it('stores a reminder time within the day', async () => {
     const prisma = createPrismaMock({
       healthCategories: [],
@@ -267,6 +307,7 @@ describe('MeService', () => {
       evidenceRemindersEnabled: false,
       promotionalMessagesEnabled: true,
       showOnLeaderboard: false,
+      membershipActive: true,
     });
     const service = new MeService(prisma as never, createEnrollmentsMock() as never);
 

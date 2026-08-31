@@ -1,12 +1,20 @@
 import type { TodayChallenge } from '@product/client';
+import { buildChallengeFocusLayout } from '@/components/challenges/challenge-list-layout';
 
-/** Five rows sit on Home. The rest live on Challenges. */
-export const HOME_TODAY_PREVIEW_LIMIT = 5;
-
+/** Focus + up next on Home. The rest live on Challenges. */
 export function previewTodayChallenges(
   challenges: readonly TodayChallenge[],
 ): TodayChallenge[] {
-  const open = challenges.filter((challenge) => challenge.status !== 'completed');
-  const done = challenges.filter((challenge) => challenge.status === 'completed');
-  return [...open, ...done].slice(0, HOME_TODAY_PREVIEW_LIMIT);
+  const layout = buildChallengeFocusLayout(challenges);
+  if (!layout.focus) {
+    return [];
+  }
+
+  return [layout.focus, ...layout.upNext];
+}
+
+export function homeChallengesHasMore(
+  challenges: readonly TodayChallenge[],
+): boolean {
+  return buildChallengeFocusLayout(challenges).hasMoreBeyondPreview;
 }

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  FieldMark,
   FormButton,
   FormErrorBanner,
   FormField,
@@ -88,7 +89,7 @@ export function ForgotPasswordEmailScreen({
               autoComplete="email"
               autoCorrect={false}
               keyboardType="email-address"
-              leadingIcon="mail"
+              leading={<FieldMark role="email" />}
               onChangeText={setEmail}
               placeholder="your@email.com"
               testID="forgot-email"

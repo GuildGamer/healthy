@@ -10,6 +10,7 @@ import {
   type PoseDriveMode,
 } from '@/components/challenges/usePoseSessionCounter';
 import { apiClient } from '@/lib/api';
+import { displayFontFamily } from '@/lib/fonts';
 import type { PoseFrame } from '@/lib/pose/landmarks';
 
 const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
@@ -316,8 +317,8 @@ const styles = StyleSheet.create({
   },
   count: {
     color: colors.text,
+    fontFamily: displayFontFamily,
     fontSize: 48,
-    fontWeight: fontWeight.bold,
   },
   countTarget: {
     color: colors.muted,

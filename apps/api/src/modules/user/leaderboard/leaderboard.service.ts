@@ -59,12 +59,10 @@ export class LeaderboardService {
       start,
       query.category,
     );
-    const currentUserRank = await this.rankFor(
-      user.id,
-      currentUserPoints,
-      where,
-      entries,
-    );
+    const currentUserVisible = await this.isVisibleOnLeaderboard(user.id);
+    const currentUserRank = currentUserVisible
+      ? await this.rankFor(user.id, currentUserPoints, where, entries)
+      : null;
 
     return {
       weekStart: weekStartKey(),
@@ -73,7 +71,18 @@ export class LeaderboardService {
       entries,
       currentUserRank,
       currentUserPoints,
+      currentUserVisible,
     };
+  }
+
+  private async isVisibleOnLeaderboard(userId: string): Promise<boolean> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { showOnLeaderboard: true },
+    });
+
+    // No profile yet → treated as visible (matches ledger OR profile-is-null).
+    return profile?.showOnLeaderboard ?? true;
   }
 
   private visibleOnLeaderboard(): Prisma.PointLedgerEntryWhereInput {

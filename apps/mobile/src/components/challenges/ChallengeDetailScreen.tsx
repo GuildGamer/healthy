@@ -25,7 +25,6 @@ import { completionRoute } from './completion-route';
 import { primaryActionLabel } from './primary-action';
 import {
   defaultReminderMinute,
-  maxRemindersPerChallenge,
 } from './constants/reminder-times';
 import { formatPointsDelta } from '@/components/points/points-scope';
 import {
@@ -243,7 +242,12 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       minutes,
       challenge.reminders.map((reminder) => reminder.minuteOfDay),
     );
-  const canAdd = minutes.length < maxRemindersPerChallenge;
+  const reminderLimit =
+    catalogQuery.data?.maxRemindersPerChallenge ?? 1;
+  const hasMembership = catalogQuery.data?.hasMembership ?? false;
+  const canAdd = minutes.length < reminderLimit;
+  const needsMembershipForMore =
+    !hasMembership && minutes.length >= reminderLimit;
   const isBusy = save.isPending || stopChallenge.isPending;
   const categoryName =
     healthCategories.find((item) => item.id === challenge.category)?.name ??
@@ -425,6 +429,20 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           >
             <Feather color={colors.accent} name="plus" size={16} />
             <Text style={styles.addLabel}>Add a time</Text>
+          </Pressable>
+        ) : needsMembershipForMore ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: '/membership',
+                params: { source: 'other' },
+              })
+            }
+            style={styles.addRow}
+            testID="detail-unlock-reminders"
+          >
+            <Text style={styles.addLabel}>More reminder times with membership</Text>
           </Pressable>
         ) : null}
       </View>

@@ -16,8 +16,10 @@ type ChallengeSeed = {
   category: 'hypertension' | 'diabetes' | 'asthma' | 'general';
   rewardPoints: number;
   defaultFrequency: 'daily' | 'weekly' | 'monthly';
-  /** Enrolled automatically when a user picks this category. */
+  /** Enrolled automatically when a user picks this category (keep lean). */
   isDefault: boolean;
+  /** Opt-in / higher-friction catalog needs membership. */
+  requiresMembership?: boolean;
   completionKind?:
     | 'check_in'
     | 'vitals_bp'
@@ -53,8 +55,9 @@ type ChallengeSeed = {
 };
 
 /**
- * Stands in for an admin-managed catalog. Each category needs a starter set
- * plus optional extras, otherwise the challenge picker has nothing to offer.
+ * Stands in for an admin-managed catalog. Keep `isDefault` lean (~3–5 opens
+ * after condition + general): core daily habits only. Weekly/monthly and
+ * higher-friction items stay opt-in via Manage.
  */
 const challengeSeeds: ChallengeSeed[] = [
   {
@@ -102,7 +105,7 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'hypertension',
     rewardPoints: 350,
     defaultFrequency: 'weekly',
-    isDefault: true,
+    isDefault: false,
     icon: 'chart-line',
   },
   {
@@ -147,7 +150,7 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'diabetes',
     rewardPoints: 350,
     defaultFrequency: 'weekly',
-    isDefault: true,
+    isDefault: false,
     icon: 'shoe-sneaker',
   },
   {
@@ -256,7 +259,7 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 150,
     defaultFrequency: 'daily',
-    isDefault: true,
+    isDefault: false,
     icon: 'arm-flex',
     captureKind: 'device_session',
     deviceMetric: 'pushups',
@@ -271,7 +274,7 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 200,
     defaultFrequency: 'daily',
-    isDefault: true,
+    isDefault: false,
     completionKind: 'evidence_photo',
     instruction:
       'Take a photo of yourself at the gym or clearly mid-workout.',
@@ -294,7 +297,7 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 300,
     defaultFrequency: 'weekly',
-    isDefault: true,
+    isDefault: false,
     icon: 'scale-bathroom',
   },
   {
@@ -304,10 +307,41 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 400,
     defaultFrequency: 'monthly',
-    isDefault: true,
+    isDefault: false,
     icon: 'medical-bag',
   },
 ];
+
+/** Day-one opens ≈ general defaults + one condition’s defaults (target ~3–5). */
+function assertLeanStarterDefaults(seeds: readonly ChallengeSeed[]): void {
+  const defaultsByCategory = new Map<ChallengeSeed['category'], string[]>();
+
+  for (const challenge of seeds) {
+    if (!challenge.isDefault) {
+      continue;
+    }
+
+    const list = defaultsByCategory.get(challenge.category) ?? [];
+    list.push(challenge.slug);
+    defaultsByCategory.set(challenge.category, list);
+  }
+
+  const general = defaultsByCategory.get('general') ?? [];
+  if (general.length > 2) {
+    throw new Error(
+      `General defaults must stay ≤2 (got ${general.length}: ${general.join(', ')})`,
+    );
+  }
+
+  for (const category of ['hypertension', 'diabetes', 'asthma'] as const) {
+    const list = defaultsByCategory.get(category) ?? [];
+    if (list.length > 2) {
+      throw new Error(
+        `${category} defaults must stay ≤2 (got ${list.length}: ${list.join(', ')})`,
+      );
+    }
+  }
+}
 
 const tipSeeds: Array<{
   slug: string;
@@ -407,6 +441,8 @@ const tipSeeds: Array<{
  * Safe to re-run: waitlist email, challenge slugs, and tip slugs are upserted.
  */
 async function main(): Promise<void> {
+  assertLeanStarterDefaults(challengeSeeds);
+
   await prisma.waitlistEntry.upsert({
     where: { email: 'seed@example.com' },
     create: {
@@ -433,6 +469,8 @@ async function main(): Promise<void> {
       where: { slug: challenge.slug },
       create: {
         ...challenge,
+        requiresMembership:
+          challenge.requiresMembership ?? !challenge.isDefault,
         completionKind,
         captureKind,
         instruction,
@@ -450,6 +488,8 @@ async function main(): Promise<void> {
         rewardPoints: challenge.rewardPoints,
         defaultFrequency: challenge.defaultFrequency,
         isDefault: challenge.isDefault,
+        requiresMembership:
+          challenge.requiresMembership ?? !challenge.isDefault,
         isActive: true,
         completionKind,
         captureKind,
@@ -483,9 +523,80 @@ async function main(): Promise<void> {
     });
   }
 
+  await prisma.membershipPlan.upsert({
+    where: { slug: 'healthy-starter' },
+    create: {
+      slug: 'healthy-starter',
+      name: 'Healthy',
+      tagline: 'Keep the streak honest. One clear membership.',
+      features: [
+        'Full challenge catalog for your conditions',
+        'Pose, steps, and gym challenges',
+        'Up to five reminders per challenge',
+        'Finish-what-you-started nudges',
+      ],
+      interval: 'month',
+      isActive: true,
+      sortOrder: 0,
+      headline: 'Stay a step ahead',
+      ctaLabel: null,
+      paymentMethodIds: [],
+      prices: {
+        create: [
+          { marketKey: 'NG', currency: 'NGN', amountMinor: 100_000 },
+          { marketKey: '*', currency: 'USD', amountMinor: 200 },
+        ],
+      },
+    },
+    update: {
+      name: 'Healthy',
+      tagline: 'Keep the streak honest. One clear membership.',
+      features: [
+        'Full challenge catalog for your conditions',
+        'Pose, steps, and gym challenges',
+        'Up to five reminders per challenge',
+        'Finish-what-you-started nudges',
+      ],
+      isActive: true,
+      headline: 'Stay a step ahead',
+    },
+  });
+
+  const starter = await prisma.membershipPlan.findUnique({
+    where: { slug: 'healthy-starter' },
+    select: { id: true },
+  });
+
+  if (starter) {
+    await prisma.membershipPlanPrice.upsert({
+      where: {
+        planId_marketKey: { planId: starter.id, marketKey: 'NG' },
+      },
+      create: {
+        planId: starter.id,
+        marketKey: 'NG',
+        currency: 'NGN',
+        amountMinor: 100_000,
+      },
+      update: { currency: 'NGN', amountMinor: 100_000 },
+    });
+    await prisma.membershipPlanPrice.upsert({
+      where: {
+        planId_marketKey: { planId: starter.id, marketKey: '*' },
+      },
+      create: {
+        planId: starter.id,
+        marketKey: '*',
+        currency: 'USD',
+        amountMinor: 200,
+      },
+      update: { currency: 'USD', amountMinor: 200 },
+    });
+  }
+
   // eslint-disable-next-line no-console
   console.log(
-    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips`,
+    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips, membership starter`,
   );
 }
 

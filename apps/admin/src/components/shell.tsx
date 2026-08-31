@@ -12,20 +12,43 @@ import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
 import { signOut, useSession } from '@/lib/auth-client';
 
-const NAV = [
-  { href: '/catalog', label: 'Catalog', role: 'content' as const },
-  { href: '/tips', label: 'Tips', role: 'content' as const },
-  { href: '/waitlist', label: 'Waitlist', role: 'content' as const },
-  { href: '/members', label: 'Members', role: 'support' as const },
-  { href: '/admins', label: 'Admins', role: 'superadmin' as const },
+type NavItem =
+  | { href: string; label: string; access: 'any' }
+  | { href: string; label: string; access: 'content' | 'support' | 'superadmin' };
+
+const NAV: NavItem[] = [
+  { href: '/', label: 'Overview', access: 'any' },
+  { href: '/analytics/markets', label: 'Markets', access: 'any' },
+  { href: '/analytics/growth', label: 'Growth', access: 'any' },
+  { href: '/analytics/engagement', label: 'Engagement', access: 'any' },
+  { href: '/analytics/catalog', label: 'Catalog insights', access: 'any' },
+  { href: '/analytics/reminders', label: 'Reminders', access: 'any' },
+  { href: '/catalog', label: 'Catalog', access: 'content' },
+  { href: '/membership', label: 'Membership', access: 'content' },
+  { href: '/tips', label: 'Tips', access: 'content' },
+  { href: '/waitlist', label: 'Waitlist', access: 'content' },
+  { href: '/members', label: 'Members', access: 'support' },
+  { href: '/admins', label: 'Admins', access: 'superadmin' },
 ];
 
-function canSee(roles: readonly AdminRoleName[], role: (typeof NAV)[number]['role']) {
-  if (role === 'superadmin') {
+function canSee(roles: readonly AdminRoleName[], item: NavItem) {
+  if (item.access === 'any') {
+    return true;
+  }
+
+  if (item.access === 'superadmin') {
     return adminCanManageAdmins(roles);
   }
 
-  return adminHasPermission(roles, role);
+  return adminHasPermission(roles, item.access);
+}
+
+function isActivePath(pathname: string, href: string) {
+  if (href === '/') {
+    return pathname === '/';
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -67,12 +90,14 @@ export function Shell({ children }: { children: ReactNode }) {
           Healthy
         </p>
         <nav className="stack">
-          {NAV.filter((item) => canSee(roles, item.role)).map((item) => (
+          {NAV.filter((item) => canSee(roles, item)).map((item) => (
             <Link
               href={item.href}
               key={item.href}
               style={{
-                color: pathname.startsWith(item.href) ? 'var(--accent)' : 'var(--text)',
+                color: isActivePath(pathname, item.href)
+                  ? 'var(--accent)'
+                  : 'var(--text)',
                 fontWeight: 600,
               }}
             >

@@ -14,11 +14,14 @@ import {
   FormButton,
   FormErrorBanner,
   FormField,
+  FieldMark,
   PasswordField,
   TextField,
 } from '@/components/forms';
-import { signIn, waitForSession } from '@/lib/auth-client';
+import { signIn, signInWithGoogle, waitForSession } from '@/lib/auth-client';
+import { quirkyEmailPlaceholder } from '@/lib/form-placeholders';
 import { AuthScreenHeader } from './AuthScreenHeader';
+import { AuthMethodDivider, GoogleAuthButton } from './SocialAuthButton';
 
 interface LoginScreenProps {
   onAuthenticated: () => void;
@@ -28,6 +31,8 @@ interface LoginScreenProps {
 }
 
 const SIGN_IN_FAILED_MESSAGE = 'We could not log you in. Check your details and try again.';
+const GOOGLE_FAILED_MESSAGE =
+  'We could not continue with Google. Check your connection and try again.';
 const NETWORK_FAILED_MESSAGE =
   'We could not reach the server. Check your connection and try again.';
 
@@ -41,11 +46,14 @@ export function LoginScreen({
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [emailPlaceholder] = useState(quirkyEmailPlaceholder);
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
+  const busy = isSubmitting || isGoogleSubmitting;
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || busy) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -72,6 +80,33 @@ export function LoginScreen({
     }
   }
 
+  async function handleGoogle() {
+    if (busy) return;
+
+    setIsGoogleSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setErrorMessage(GOOGLE_FAILED_MESSAGE);
+        return;
+      }
+
+      const hasSession = await waitForSession();
+      if (!hasSession) {
+        setErrorMessage(GOOGLE_FAILED_MESSAGE);
+        return;
+      }
+
+      onAuthenticated();
+    } catch {
+      setErrorMessage(NETWORK_FAILED_MESSAGE);
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -87,15 +122,24 @@ export function LoginScreen({
 
           {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
 
+          <GoogleAuthButton
+            disabled={busy}
+            loading={isGoogleSubmitting}
+            onPress={handleGoogle}
+            testID="login-google"
+          />
+
+          <AuthMethodDivider />
+
           <FormField label="Email" required>
             <TextField
               autoCapitalize="none"
               autoComplete="email"
               autoCorrect={false}
               keyboardType="email-address"
-              leadingIcon="mail"
+              leading={<FieldMark role="email" />}
               onChangeText={setEmail}
-              placeholder="your@email.com"
+              placeholder={emailPlaceholder}
               testID="login-email"
               value={email}
             />
@@ -121,7 +165,7 @@ export function LoginScreen({
           </Pressable>
 
           <FormButton
-            disabled={!canSubmit}
+            disabled={!canSubmit || busy}
             label="Log In"
             loading={isSubmitting}
             onPress={handleSubmit}

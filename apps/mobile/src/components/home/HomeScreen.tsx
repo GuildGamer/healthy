@@ -19,13 +19,13 @@ import {
   View,
 } from 'react-native';
 import { Loader, RefreshableScroll } from '@/components/feedback';
-import {
-  ChallengeActionButton,
-  ChallengeProgressRing,
-  completionRoute,
-  frequencyBadge,
-  useAdvanceChallenge,
-} from '@/components/challenges';
+import { ChallengeActionButton } from '@/components/challenges/ChallengeActionButton';
+import { ChallengeProgressRing } from '@/components/challenges/ChallengeProgressRing';
+import { buildChallengeFocusLayout } from '@/components/challenges/challenge-list-layout';
+import { completionRoute } from '@/components/challenges/completion-route';
+import { frequencyBadge } from '@/components/challenges/constants/frequency-labels';
+import { TodayWinHeader } from '@/components/challenges/TodayWinHeader';
+import { useAdvanceChallenge } from '@/components/challenges/useAdvanceChallenge';
 import { podiumMedalColor } from '@/components/leaderboard/podium';
 import { selectDailyTip } from '@/components/tips';
 import { healthCategoryName } from '@/constants/health-categories';
@@ -180,9 +180,8 @@ export function HomeScreen() {
   const pointsBalance = meQuery.data?.pointsBalance ?? 0;
   const streakDays = meQuery.data?.currentStreakDays ?? 0;
   const challenges = challengesQuery.data?.challenges ?? [];
+  const layout = buildChallengeFocusLayout(challenges);
   const previewChallenges = previewTodayChallenges(challenges);
-  const completedCount = challengesQuery.data?.completedCount ?? 0;
-  const totalCount = challengesQuery.data?.totalCount ?? 0;
   const todayTip = selectDailyTip(
     tipsQuery.data?.tips ?? [],
     meQuery.data?.categories ?? [],
@@ -266,23 +265,25 @@ export function HomeScreen() {
           testID="home-points-card"
         >
           <View style={styles.streakRow}>
-            <View style={styles.flame}>
-              <MaterialCommunityIcons
-                color={colors.streak}
-                name="fire"
-                size={FLAME_SIZE}
-              />
-              <MaterialCommunityIcons
-                color={colors.streakCore}
-                name="fire"
-                size={FLAME_CORE_SIZE}
-                style={styles.flameCore}
-              />
-            </View>
+            {streakDays > 0 ? (
+              <View style={styles.flame} testID="home-streak-flame">
+                <MaterialCommunityIcons
+                  color={colors.streak}
+                  name="fire"
+                  size={FLAME_SIZE}
+                />
+                <MaterialCommunityIcons
+                  color={colors.streakCore}
+                  name="fire"
+                  size={FLAME_CORE_SIZE}
+                  style={styles.flameCore}
+                />
+              </View>
+            ) : null}
             <Text style={styles.streakValue}>{streakDays}</Text>
           </View>
           <Text style={styles.heroMeta}>
-            day streak &middot; {completedCount}/{totalCount} done today
+            day streak &middot; {layout.win.heroMetaSuffix}
           </Text>
           <View style={styles.pointsRow}>
             <Text style={styles.pointsLabel}>Points</Text>
@@ -327,7 +328,7 @@ export function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Today&apos;s Challenges</Text>
-          {challenges.length > previewChallenges.length ? (
+          {layout.hasMoreBeyondPreview ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => router.push('/(tabs)/challenges')}
@@ -361,32 +362,43 @@ export function HomeScreen() {
             <Feather color={colors.muted} name="chevron-right" size={18} />
           </Pressable>
         ) : (
-          previewChallenges.map((challenge, index) => (
-            <View key={challenge.id}>
-              <ChallengeRow
-                challenge={challenge}
-                isBusy={isAdvancing(challenge.id)}
-                onAdvance={() => {
-                  const route = completionRoute(challenge);
-                  if (route) {
-                    router.push(route);
-                    return;
-                  }
+          <View>
+            {layout.win.target > 0 ? (
+              <TodayWinHeader testID="home-today-win" win={layout.win} />
+            ) : null}
+            {layout.focus ? (
+              <Text style={styles.focusEyebrow}>Do next</Text>
+            ) : null}
+            {previewChallenges.map((challenge, index) => (
+              <View key={challenge.id}>
+                {index === 1 ? (
+                  <Text style={styles.focusEyebrow}>Up next</Text>
+                ) : null}
+                <ChallengeRow
+                  challenge={challenge}
+                  isBusy={isAdvancing(challenge.id)}
+                  onAdvance={() => {
+                    const route = completionRoute(challenge);
+                    if (route) {
+                      router.push(route);
+                      return;
+                    }
 
-                  advance({
-                    userChallengeId: challenge.id,
-                    status: challenge.status,
-                  });
-                }}
-                onOpen={() =>
-                  router.push(`/challenge/${challenge.challengeId}`)
-                }
-              />
-              {index < previewChallenges.length - 1 ? (
-                <View style={styles.rowDivider} />
-              ) : null}
-            </View>
-          ))
+                    advance({
+                      userChallengeId: challenge.id,
+                      status: challenge.status,
+                    });
+                  }}
+                  onOpen={() =>
+                    router.push(`/challenge/${challenge.challengeId}`)
+                  }
+                />
+                {index < previewChallenges.length - 1 ? (
+                  <View style={styles.rowDivider} />
+                ) : null}
+              </View>
+            ))}
+          </View>
         )}
       </View>
     </RefreshableScroll>
@@ -560,6 +572,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
+  },
+  focusEyebrow: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   seeAll: {
     color: colors.accent,

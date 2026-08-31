@@ -1,5 +1,6 @@
 export { AuthScreenHeader } from './AuthScreenHeader';
 export { CategorySelectionScreen } from './CategorySelectionScreen';
+export { CompleteCountryScreen } from './CompleteCountryScreen';
 export { EmailVerificationOtpScreen } from './EmailVerificationOtpScreen';
 export { ForgotPasswordEmailScreen } from './ForgotPasswordEmailScreen';
 export { ForgotPasswordOtpScreen } from './ForgotPasswordOtpScreen';
@@ -8,5 +9,6 @@ export { OnboardingScreen } from './OnboardingScreen';
 export { PasswordResetSuccessScreen } from './PasswordResetSuccessScreen';
 export { ResetPasswordScreen } from './ResetPasswordScreen';
 export { SignUpScreen } from './SignUpScreen';
+export { AuthMethodDivider, GoogleAuthButton } from './SocialAuthButton';
 export { SplashScreen } from './SplashScreen';
 export type { OnboardingSlide } from './constants/onboarding-slides';

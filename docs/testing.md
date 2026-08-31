@@ -57,7 +57,7 @@ Manual checks when those paths changed:
 - Waitlist: site `/waitlist` → API `POST /waitlist`
 - `/me` only with a session (no mobile auth UI yet)
 
-## Lane B — API + mobile
+## Lane B — API + mobile + admin
 
 ### First native install (once)
 
@@ -74,21 +74,22 @@ Push-up counting uses Vision Camera + on-device MoveNet. After pulling those nat
 
 ### Daily loop
 
-One command (API + Metro in the background; brings Postgres up):
+One command (API + Metro + admin in the background; brings Postgres up):
 
 ```bash
 make lane-b
 make lane-b-status
-make lane-b-logs      # follow .run/api.log and .run/mobile.log
+make lane-b-logs      # follow .run/api.log, .run/mobile.log, .run/admin.log
 make lane-b-restart
 make lane-b-stop      # leaves Postgres running; make down to stop it
 ```
 
-Or two foreground terminals (unchanged):
+Or foreground terminals (unchanged):
 
 ```bash
 make api
 make mobile     # Metro; use the existing Simulator/emulator binary
+make admin      # http://localhost:3001 — admin@example.com / admin-dev
 ```
 
 On the home screen, tap **Check API health**. Expect `ok · api`, not `unreachable`. Auth screens need the API up the same way — without it you will see “could not reach the server”.

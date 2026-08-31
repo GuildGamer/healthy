@@ -13,6 +13,18 @@ const environment = readEnvironment();
 const mailer = createMailer(environment.mail);
 const pinnedOtp = localDevOtp(environment.isLocal);
 
+/** Empty / `0` placeholders keep boot working until Google credentials are set. */
+function readGoogleCredential(value: string | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === '0') {
+    return '';
+  }
+  return trimmed;
+}
+
+const googleClientId = readGoogleCredential(process.env.GOOGLE_CLIENT_ID);
+const googleClientSecret = readGoogleCredential(process.env.GOOGLE_CLIENT_SECRET);
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
@@ -21,6 +33,25 @@ export const auth = betterAuth({
   baseURL,
   emailAndPassword: {
     enabled: true,
+  },
+  socialProviders: {
+    google: {
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          await prisma.userProfile.upsert({
+            where: { userId: user.id },
+            create: { userId: user.id },
+            update: {},
+          });
+        },
+      },
+    },
   },
   plugins: [
     expo(),

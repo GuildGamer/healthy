@@ -60,10 +60,21 @@ export function ChallengeSuccessScreen({
         </View>
 
         <FormButton
-          label="Done"
-          onPress={() => router.replace('/(tabs)')}
+          label="See what's next"
+          onPress={() => router.replace('/(tabs)/challenges')}
           testID="challenge-success-done"
+          variant="secondary"
         />
+
+        {!wasPenalized ? (
+          <FormButton
+            label="Unlock membership"
+            onPress={() =>
+              router.push({ pathname: '/membership', params: { source: 'success' } })
+            }
+            testID="challenge-success-membership"
+          />
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -107,8 +118,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
+    fontFamily: displayFontFamily,
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
     textAlign: 'center',
   },
   subtitle: {

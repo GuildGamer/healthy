@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight, spacing } from '@product/brand';
+import type { CountryCode } from '@product/contract/country-code';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -12,6 +13,8 @@ import {
   View,
 } from 'react-native';
 import {
+  CountryPickerField,
+  FieldMark,
   FormButton,
   FormErrorBanner,
   FormField,
@@ -54,21 +57,29 @@ export function EditProfileScreen() {
 
   const savedName = meQuery.data?.name ?? session?.user.name ?? '';
   const savedEmail = meQuery.data?.email ?? session?.user.email ?? '';
+  const savedCountry = meQuery.data?.countryCode ?? null;
   const [draftName, setDraftName] = useState<string | null>(null);
   const [draftEmail, setDraftEmail] = useState<string | null>(null);
+  const [draftCountry, setDraftCountry] = useState<CountryCode | null | undefined>(
+    undefined,
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [didSave, setDidSave] = useState(false);
   const photo = useUpdateProfilePhoto();
 
   const nameValue = draftName ?? savedName;
   const emailValue = draftEmail ?? savedEmail;
+  const countryValue =
+    draftCountry === undefined ? savedCountry : draftCountry;
   const trimmedName = nameValue.trim();
   const trimmedEmail = emailValue.trim();
   const nameChanged = trimmedName.length > 0 && trimmedName !== savedName.trim();
   const emailChanged =
     trimmedEmail.length > 0 &&
     trimmedEmail.toLowerCase() !== savedEmail.trim().toLowerCase();
-  const canSave = nameChanged || emailChanged;
+  const countryChanged =
+    countryValue !== null && countryValue !== savedCountry;
+  const canSave = nameChanged || emailChanged || countryChanged;
 
   useEffect(() => {
     if (!didSave) {
@@ -95,8 +106,12 @@ export function EditProfileScreen() {
         }
       }
 
+      if (countryChanged && countryValue) {
+        await apiClient.updateCountry({ countryCode: countryValue });
+      }
+
       if (!emailChanged) {
-        return 'name' as const;
+        return 'profile' as const;
       }
 
       const { error } = await requestEmailChange(trimmedEmail);
@@ -168,7 +183,7 @@ export function EditProfileScreen() {
         <FormField label="Full Name" required>
           <TextField
             autoComplete="name"
-            leadingIcon="user"
+            leading={<FieldMark role="name" />}
             onChangeText={setDraftName}
             placeholder="Enter your full name"
             testID="edit-profile-name"
@@ -186,11 +201,19 @@ export function EditProfileScreen() {
             autoComplete="email"
             autoCorrect={false}
             keyboardType="email-address"
-            leadingIcon="mail"
+            leading={<FieldMark role="email" />}
             onChangeText={setDraftEmail}
             placeholder="your@email.com"
             testID="edit-profile-email"
             value={emailValue}
+          />
+        </FormField>
+
+        <FormField label="Country / region" required>
+          <CountryPickerField
+            onChange={setDraftCountry}
+            testID="edit-profile-country"
+            value={countryValue}
           />
         </FormField>
 

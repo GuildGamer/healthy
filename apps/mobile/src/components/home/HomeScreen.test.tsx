@@ -132,6 +132,8 @@ beforeEach(() => {
     inProgressNudgeEnabled: true,
     inProgressNudgeDelayMinutes: 30,
     healthLinkStatus: 'unknown',
+    hasMembership: false,
+    maxRemindersPerChallenge: 1,
   });
   mockedApi.listNotifications.mockResolvedValue({
     notifications: [],
@@ -166,6 +168,7 @@ beforeEach(() => {
     entries: [],
     currentUserRank: 8,
     currentUserPoints: 150,
+    currentUserVisible: true,
   });
 });
 
@@ -174,11 +177,42 @@ describe('HomeScreen', () => {
     const { cleanup } = renderHome();
 
     expect(await screen.findByText('Hi, Ada')).toBeOnTheScreen();
+    expect(await screen.findByText('7')).toBeOnTheScreen();
     expect(screen.getByText(/day streak/)).toBeOnTheScreen();
+    expect(screen.getByTestId('home-streak-flame')).toBeOnTheScreen();
     expect(await screen.findByText('Rank 8 this week')).toBeOnTheScreen();
     expect(screen.getByTestId('home-rank-trophy')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-rank-medal')).toBeNull();
     expect(screen.getByText("Today's Challenges")).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('hides the streak flame when the count is zero', async () => {
+    mockedApi.me.mockResolvedValue({
+      id: 'u1',
+      email: 'ada@example.com',
+      name: 'Ada Lovelace',
+      categories: ['hypertension'],
+      pointsBalance: 150,
+      currentStreakDays: 0,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      reminderEnabled: false,
+      reminderMinute: 1140,
+      evidenceRemindersEnabled: true,
+      promotionalMessagesEnabled: false,
+      showOnLeaderboard: true,
+      inProgressNudgeEnabled: true,
+      inProgressNudgeDelayMinutes: 30,
+      healthLinkStatus: 'unknown',
+      hasMembership: false,
+      maxRemindersPerChallenge: 1,
+    });
+
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByText('0')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-streak-flame')).toBeNull();
 
     await cleanup();
   });
@@ -211,6 +245,7 @@ describe('HomeScreen', () => {
       entries: [],
       currentUserRank: 1,
       currentUserPoints: 150,
+      currentUserVisible: true,
     });
 
     const { cleanup } = renderHome();
@@ -262,13 +297,13 @@ describe('HomeScreen', () => {
     await cleanup();
   });
 
-  it('labels each challenge by where it sits in the status ladder', async () => {
+  it('labels open challenges by where they sit in the status ladder', async () => {
     mockedApi.listTodayChallenges.mockResolvedValue({
       dayKey: '2026-08-28',
       challenges: [
-        challenge({ id: 'uc1', status: 'pending' }),
-        challenge({ id: 'uc2', status: 'in_progress' }),
-        challenge({ id: 'uc3', status: 'completed' }),
+        challenge({ id: 'uc1', title: 'Alpha', status: 'pending' }),
+        challenge({ id: 'uc2', title: 'Beta', status: 'in_progress' }),
+        challenge({ id: 'uc3', title: 'Charlie', status: 'completed' }),
       ],
       completedCount: 1,
       totalCount: 3,
@@ -276,12 +311,12 @@ describe('HomeScreen', () => {
 
     const { cleanup } = renderHome();
 
-    expect(await screen.findByText('Log')).toBeOnTheScreen();
-    expect(screen.getByText('Confirm')).toBeOnTheScreen();
-    expect(screen.getByText('Done')).toBeOnTheScreen();
-    expect(screen.getByTestId('challenge-progress-uc1')).toBeOnTheScreen();
-    expect(screen.getByTestId('challenge-progress-uc3')).toBeOnTheScreen();
-    expect(screen.queryByTestId('home-see-all-challenges')).toBeNull();
+    expect(await screen.findByText('Confirm')).toBeOnTheScreen();
+    expect(screen.getByText('Log')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-progress-uc2')).toBeOnTheScreen();
+    expect(screen.queryByTestId('challenge-progress-uc3')).toBeNull();
+    expect(screen.getByTestId('home-see-all-challenges')).toBeOnTheScreen();
+    expect(screen.getByText(/1\/2 today's win/)).toBeOnTheScreen();
 
     await cleanup();
   });
@@ -377,11 +412,12 @@ describe('HomeScreen', () => {
 
     const { cleanup } = renderHome();
 
-    expect(await screen.findByText('Walk 20 minutes')).toBeOnTheScreen();
-    expect(screen.getByText('Drink water')).toBeOnTheScreen();
-    expect(screen.getByText('Take evening stretch')).toBeOnTheScreen();
-    expect(screen.getByText('Log breakfast')).toBeOnTheScreen();
+    // Focus + two up-next only (alphabetical among pending self-reports).
+    expect(await screen.findByText('Drink water')).toBeOnTheScreen();
     expect(screen.getByText('Evening walk')).toBeOnTheScreen();
+    expect(screen.getByText('Log breakfast')).toBeOnTheScreen();
+    expect(screen.queryByText('Take evening stretch')).toBeNull();
+    expect(screen.queryByText('Walk 20 minutes')).toBeNull();
     expect(screen.queryByText('Wind-down stretch')).toBeNull();
 
     fireEvent.press(screen.getByTestId('home-see-all-challenges'));

@@ -17,6 +17,12 @@ export { PoseSessionScreen } from './PoseSessionScreen';
 export { EvidenceRequestScreen } from './EvidenceRequestScreen';
 export { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
 export { ChallengesScreen } from './ChallengesScreen';
+export { TodayWinHeader } from './TodayWinHeader';
+export {
+  buildChallengeFocusLayout,
+  buildTodayWin,
+  sortOpenChallengesByFocus,
+} from './challenge-list-layout';
 export { LogEvidenceScreen } from './LogEvidenceScreen';
 export { LogVitalsScreen } from './LogVitalsScreen';
 export { ManageChallengesScreen } from './ManageChallengesScreen';

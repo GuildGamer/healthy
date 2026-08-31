@@ -16,16 +16,14 @@ interface FormButtonProps {
 interface VariantColors {
   surface: string;
   pressedSurface: string;
-  border: string;
   label: string;
 }
 
 function resolveVariantColors(variant: FormButtonVariant, isInactive: boolean): VariantColors {
   if (variant === 'secondary') {
     return {
-      surface: 'transparent',
-      pressedSurface: colors.surface,
-      border: colors.border,
+      surface: colors.surface,
+      pressedSurface: colors.surfaceRaised,
       label: isInactive ? colors.disabledText : colors.accent,
     };
   }
@@ -34,7 +32,6 @@ function resolveVariantColors(variant: FormButtonVariant, isInactive: boolean): 
     return {
       surface: colors.disabledSurface,
       pressedSurface: colors.disabledSurface,
-      border: colors.disabledSurface,
       label: colors.disabledText,
     };
   }
@@ -42,7 +39,6 @@ function resolveVariantColors(variant: FormButtonVariant, isInactive: boolean): 
   return {
     surface: colors.accent,
     pressedSurface: colors.accentPressed,
-    border: colors.accent,
     label: colors.onAccent,
   };
 }
@@ -69,8 +65,9 @@ export function FormButton({
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: pressed ? variantColors.pressedSurface : variantColors.surface,
-          borderColor: variantColors.border,
+          backgroundColor: pressed
+            ? variantColors.pressedSurface
+            : variantColors.surface,
         },
       ]}
       testID={testID}
@@ -90,8 +87,7 @@ export function FormButton({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: radii.xl,
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',

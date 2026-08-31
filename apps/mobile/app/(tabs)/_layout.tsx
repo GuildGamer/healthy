@@ -2,14 +2,43 @@ import Feather from '@expo/vector-icons/Feather';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, fontSize, fontWeight } from '@product/brand';
 import { Redirect, Tabs } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ScreenLoader } from '@/components/feedback';
-import { isEmailVerified, useSession } from '@/lib/auth-client';
-import { postAuthRoute } from '@/lib/post-auth-route';
+import { useSession } from '@/lib/auth-client';
+import type { PostAuthHref } from '@/lib/post-auth-route';
+import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 
 export default function TabsLayout() {
   const { data: session, isPending, isRefetching } = useSession();
+  const [gateHref, setGateHref] = useState<PostAuthHref | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
 
-  if (isPending || (!session && isRefetching)) {
+  useEffect(() => {
+    if (!session) {
+      setGateHref(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsResolving(true);
+    void resolvePostAuthHref()
+      .then((href) => {
+        if (!cancelled) {
+          setGateHref(href);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsResolving(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  if (isPending || (!session && isRefetching) || (session && (isResolving || !gateHref))) {
     return <ScreenLoader />;
   }
 
@@ -17,8 +46,8 @@ export default function TabsLayout() {
     return <Redirect href="/login" />;
   }
 
-  if (!isEmailVerified(session)) {
-    return <Redirect href={postAuthRoute(false)} />;
+  if (gateHref && gateHref !== '/(tabs)') {
+    return <Redirect href={gateHref} />;
   }
 
   return (

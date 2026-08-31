@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, fontSize, fontWeight, spacing } from '@product/brand';
 import type { LeaderboardEntry, LeaderboardPeriod } from '@product/client';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Loader, RefreshableScroll } from '@/components/feedback';
@@ -94,9 +95,15 @@ function FilterChip<T extends string>({
 }
 
 export function LeaderboardScreen() {
+  const router = useRouter();
   const [period, setPeriod] = useState<LeaderboardPeriod>('week');
   const [category, setCategory] = useState<LeaderboardCategoryFilter>('all');
   const queryInput = leaderboardQueryInput(period, category);
+
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+  });
 
   const leaderboardQuery = useQuery({
     queryKey: ['leaderboard', period, category],
@@ -106,18 +113,47 @@ export function LeaderboardScreen() {
 
   const entries = leaderboardQuery.data?.entries ?? [];
   const currentUserRank = leaderboardQuery.data?.currentUserRank ?? null;
+  // Prefer Profile setting (always available) so the notice still shows if the
+  // leaderboard payload is stale or missing `currentUserVisible`.
+  const isHiddenFromBoard =
+    meQuery.data?.showOnLeaderboard === false ||
+    leaderboardQuery.data?.currentUserVisible === false;
   const isOffPage =
+    !isHiddenFromBoard &&
     currentUserRank !== null &&
     !entries.some((entry) => entry.isCurrentUser);
+
+  const openProfileSettings = () => {
+    router.push('/(tabs)/profile');
+  };
 
   return (
     <RefreshableScroll
       contentContainerStyle={styles.content}
-      onPullRefresh={() => leaderboardQuery.refetch()}
+      onPullRefresh={() => {
+        void Promise.all([meQuery.refetch(), leaderboardQuery.refetch()]);
+      }}
       style={styles.container}
       testID="leaderboard-screen"
     >
       <Text style={styles.intro}>{leaderboardIntro(period)}</Text>
+
+      {isHiddenFromBoard ? (
+        <Pressable
+          accessibilityHint="Opens profile settings to show you on the leaderboard"
+          accessibilityRole="button"
+          onPress={openProfileSettings}
+          style={styles.hiddenNotice}
+          testID="leaderboard-hidden-notice"
+        >
+          <Text style={styles.hiddenBody}>
+            You turned off “Show me this week”, so your name is hidden.{' '}
+            <Text style={styles.hiddenLink} testID="leaderboard-enable-in-profile">
+              Enable in Profile
+            </Text>
+          </Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.filters} testID="leaderboard-period-switch">
         {LEADERBOARD_PERIODS.map((option) => (
@@ -284,5 +320,18 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: fontSize.sm,
     textAlign: 'center',
+  },
+  hiddenNotice: {
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  hiddenBody: {
+    color: colors.muted,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+  },
+  hiddenLink: {
+    color: colors.accent,
+    fontWeight: fontWeight.semibold,
   },
 });

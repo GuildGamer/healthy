@@ -39,13 +39,13 @@ make api         # NestJS on :3000
 make typecheck
 make test
 make web         # optional — Astro marketing site
-make admin       # optional — Next.js operator console on :3001
+make admin       # optional — Next.js operator console on :3001 alone
                  # local login admin@example.com / admin-dev after API boot
 ```
 
 Smoke: `GET http://localhost:3000/livez`, `/readyz`, `/health`.
 
-### Lane B — API + mobile (Simulator)
+### Lane B — API + mobile + admin (Simulator)
 
 Use an Expo **development build**, not Expo Go. `make mobile` starts Metro only — it does **not** install a binary.
 
@@ -59,16 +59,17 @@ make ios         # expo run:ios → iOS Simulator
 Daily (either style):
 
 ```bash
-# One command — API + Metro in the background (Postgres brought up too)
+# One command — API + Metro + admin in the background (Postgres brought up too)
 make lane-b
 make lane-b-status
-make lane-b-logs     # follow .run/*.log
+make lane-b-logs     # follow .run/*.log (api, mobile, admin)
 make lane-b-restart
 make lane-b-stop     # leaves Postgres running; make down to stop it
 
-# Or two foreground terminals (unchanged)
+# Or foreground terminals (unchanged)
 make api
-make mobile          # Metro; open the existing Simulator app
+make mobile
+make admin       # http://localhost:3001 — admin@example.com / admin-dev
 ```
 
 On the home screen, tap **Check API health** and expect `ok · api`.

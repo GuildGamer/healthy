@@ -13,6 +13,7 @@ const empty: UpsertAdminChallengeInput = {
   rewardPoints: 100,
   defaultFrequency: 'daily',
   isDefault: false,
+  requiresMembership: false,
   isActive: true,
   completionKind: 'check_in',
   captureKind: 'self_report',
@@ -266,6 +267,16 @@ export function ChallengeForm({
               type="checkbox"
             />{' '}
             Default for category
+          </span>
+        </label>
+        <label>
+          <span>
+            <input
+              checked={value.requiresMembership}
+              onChange={(e) => set('requiresMembership', e.target.checked)}
+              type="checkbox"
+            />{' '}
+            Requires membership
           </span>
         </label>
         <label>

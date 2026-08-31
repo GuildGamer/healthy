@@ -157,7 +157,8 @@ export default function MembersPage() {
                 {member.deactivatedAt ? ' · deactivated' : ''}
               </p>
               <p className="muted">
-                {member.categories.join(', ') || 'No categories'} · {member.timeZone}
+                {member.categories.join(', ') || 'No categories'} ·{' '}
+                {member.countryCode ?? '—'} · {member.timeZone}
               </p>
               <form
                 className="row"

@@ -306,7 +306,12 @@ export class ReminderDispatcherService {
         status: { in: ['in_progress', 'awaiting_evidence'] },
         startedAt: { not: null },
         inProgressNudgeDelivery: { is: null },
-        user: { profile: { inProgressNudgeEnabled: true } },
+        user: {
+          profile: {
+            inProgressNudgeEnabled: true,
+            membershipActive: true,
+          },
+        },
       },
       select: {
         id: true,
