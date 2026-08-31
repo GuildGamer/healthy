@@ -5,6 +5,9 @@ import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import type { IconName } from './types';
 
 interface TextFieldProps extends TextInputProps {
+  /** Prefer `leading` (e.g. FieldMark) for branded screens. */
+  leading?: ReactNode;
+  /** Legacy Feather name — used only when `leading` is omitted. */
   leadingIcon?: IconName;
   trailing?: ReactNode;
   hasError?: boolean;
@@ -13,27 +16,51 @@ interface TextFieldProps extends TextInputProps {
 function resolveBorderColor(hasError: boolean, isFocused: boolean): string {
   if (hasError) return colors.danger;
   if (isFocused) return colors.accent;
-  return colors.border;
+  return 'transparent';
+}
+
+function resolveFill(hasError: boolean, isFocused: boolean): string {
+  if (hasError) return colors.surface;
+  if (isFocused) return colors.accentSurface;
+  return colors.surface;
 }
 
 export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
-  { leadingIcon, trailing, hasError = false, style, onFocus, onBlur, ...inputProps },
+  {
+    leading,
+    leadingIcon,
+    trailing,
+    hasError = false,
+    style,
+    onFocus,
+    onBlur,
+    ...inputProps
+  },
   ref,
 ) {
   const [isFocused, setIsFocused] = useState(false);
+  const leadingContent =
+    leading ??
+    (leadingIcon ? (
+      <Feather
+        color={colors.muted}
+        name={leadingIcon}
+        size={20}
+        style={styles.legacyIcon}
+      />
+    ) : null);
 
   return (
     <View
-      style={[styles.container, { borderColor: resolveBorderColor(hasError, isFocused) }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: resolveFill(hasError, isFocused),
+          borderColor: resolveBorderColor(hasError, isFocused),
+        },
+      ]}
     >
-      {leadingIcon ? (
-        <Feather
-          color={colors.muted}
-          name={leadingIcon}
-          size={20}
-          style={styles.leadingIcon}
-        />
-      ) : null}
+      {leadingContent}
 
       <TextInput
         onBlur={(event) => {
@@ -59,13 +86,12 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderWidth: 2,
+    borderRadius: radii.xl,
     paddingHorizontal: spacing.md,
     minHeight: 52,
   },
-  leadingIcon: {
+  legacyIcon: {
     marginRight: spacing.sm,
   },
   input: {

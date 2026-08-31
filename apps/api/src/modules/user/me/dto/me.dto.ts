@@ -1,0 +1,24 @@
+import type { HealthLinkStatus } from '@product/contract';
+import type { HealthCategory } from '@product/db';
+
+export type MeDto = {
+  id: string;
+  email: string;
+  name: string | null;
+  categories: HealthCategory[];
+  pointsBalance: number;
+  currentStreakDays: number;
+  timeZone: string;
+  countryCode: string | null;
+  displayName: string;
+  reminderEnabled: boolean;
+  reminderMinute: number;
+  evidenceRemindersEnabled: boolean;
+  promotionalMessagesEnabled: boolean;
+  showOnLeaderboard: boolean;
+  inProgressNudgeEnabled: boolean;
+  inProgressNudgeDelayMinutes: number;
+  healthLinkStatus: HealthLinkStatus;
+  hasMembership: boolean;
+  maxRemindersPerChallenge: number;
+};

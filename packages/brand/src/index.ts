@@ -9,10 +9,23 @@ export const colors = {
   accentPressed: '#31B87E',
   /** Tinted fill behind selected controls — accent at low opacity over background. */
   accentSurface: '#112A2E',
+  /** Tonal fill for low-emphasis controls on `surface` — accent at 15%. */
+  accentContainer: '#18373B',
+  /** Pressed state of `accentContainer` — accent at 26%. */
+  accentContainerPressed: '#1D4C47',
   /** Foreground for content sitting on an accent-filled surface. */
   onAccent: '#0B1220',
   danger: '#FF6B6B',
   warning: '#FB923C',
+  /**
+   * Streak flame, as its own role so celebration never rides on `warning`.
+   * Deliberately darker than `warning`: against `accent` the lighter orange
+   * lands at a 1.28:1 luminance ratio, too close to resolve, and the edge
+   * appears to shimmer. This sits at 2.9:1.
+   */
+  streak: '#C2410C',
+  /** Hot core layered inside `streak` to give the flat glyph depth. */
+  streakCore: '#FBBF24',
   disabledSurface: '#1B2437',
   disabledText: '#5A6884',
 } as const;
@@ -50,6 +63,7 @@ export const radii = {
   sm: 8,
   md: 12,
   lg: 16,
+  /** Soft control corners — form fields and primary actions (borderless fill). */
   xl: 20,
   full: 9999,
 } as const;

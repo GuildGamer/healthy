@@ -1,34 +1,28 @@
-import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, radii, spacing } from '@product/brand';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { ToastBanner } from './ToastBanner';
+import { useOptionalToastHost } from './ToastProvider';
+import type { ToastTone } from './types';
 
 interface FormErrorBannerProps {
   message: string;
+  tone?: ToastTone;
 }
 
-export function FormErrorBanner({ message }: FormErrorBannerProps) {
-  return (
-    <View accessibilityRole="alert" style={styles.banner} testID="form-error-banner">
-      <Feather color={colors.danger} name="alert-circle" size={16} />
-      <Text style={styles.message}>{message}</Text>
-    </View>
-  );
-}
+export function FormErrorBanner({ message, tone = 'error' }: FormErrorBannerProps) {
+  const host = useOptionalToastHost();
 
-const styles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderColor: colors.danger,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    padding: spacing.md,
-  },
-  message: {
-    color: colors.danger,
-    fontSize: fontSize.sm,
-    flexShrink: 1,
-  },
-});
+  useEffect(() => {
+    if (!host) {
+      return;
+    }
+
+    host.show({ message, tone });
+    return () => host.hide();
+  }, [host, message, tone]);
+
+  if (host) {
+    return null;
+  }
+
+  return <ToastBanner message={message} testID="form-error-banner" tone={tone} />;
+}

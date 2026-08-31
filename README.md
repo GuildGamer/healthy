@@ -12,22 +12,69 @@ Cursor rules in [`.cursor/rules/`](.cursor/rules/) plus [`AGENTS.md`](AGENTS.md)
 
 - Node 22+ (pinned in `.mise.toml` / `.nvmrc`)
 - pnpm 9+
-- Docker (for Postgres and local API)
+- Docker (for Postgres)
 
 Optional: [mise](https://mise.jdx.dev/) to auto-pin Node/pnpm.
+
+For the mobile simulator lane, also install Xcode + CocoaPods (iOS) and/or Android Studio (Android). Details in [`docs/testing.md`](docs/testing.md).
 
 ## Quick start
 
 ```bash
+cp .env.example .env
 pnpm install
 make up          # Postgres on host port 5433 (avoids local :5432 collisions)
 make migrate     # Prisma migrations
-make api         # NestJS on :3000
-make mobile      # Expo
-make web         # Astro marketing site
+make seed        # Disposable local seed data
 ```
 
 Every `make` target prints the command it runs before executing.
+
+### Lane A — API (optional web)
+
+Enough when changing Nest, Prisma, contract, or the marketing site:
+
+```bash
+make api         # NestJS on :3000
+make typecheck
+make test
+make web         # optional — Astro marketing site
+make admin       # optional — Next.js operator console on :3001 alone
+                 # local login admin@example.com / admin-dev after API boot
+```
+
+Smoke: `GET http://localhost:3000/livez`, `/readyz`, `/health`.
+
+### Lane B — API + mobile + admin (Simulator)
+
+Use an Expo **development build**, not Expo Go. `make mobile` starts Metro only — it does **not** install a binary.
+
+First time (and after native deps / app config / SDK changes):
+
+```bash
+make ios         # expo run:ios → iOS Simulator
+# make android   # expo run:android → emulator
+```
+
+Daily (either style):
+
+```bash
+# One command — API + Metro + admin in the background (Postgres brought up too)
+make lane-b
+make lane-b-status
+make lane-b-logs     # follow .run/*.log (api, mobile, admin)
+make lane-b-restart
+make lane-b-stop     # leaves Postgres running; make down to stop it
+
+# Or foreground terminals (unchanged)
+make api
+make mobile
+make admin       # http://localhost:3001 — admin@example.com / admin-dev
+```
+
+On the home screen, tap **Check API health** and expect `ok · api`.
+
+API URL, EAS vs local Simulator, Maestro, and “as you go” checks: [`docs/testing.md`](docs/testing.md). Releases: [`docs/releases.md`](docs/releases.md). Optional later split: [`docs/splitting-repos.md`](docs/splitting-repos.md).
 
 ## Packages
 
@@ -35,18 +82,13 @@ Every `make` target prints the command it runs before executing.
 |------|------|
 | `apps/mobile` | Expo + expo-router |
 | `apps/web` | Astro marketing website |
+| `apps/admin` | Next.js operator console (`make admin`, :3001) |
 | `apps/api` | NestJS + oRPC |
 | `packages/contract` | Zod + oRPC contract (source of truth) |
 | `packages/client` | Typed client + TanStack Query helpers |
 | `packages/db` | Prisma schema + migrations |
 | `packages/brand` | Shared tokens/assets |
 | `infra` | AWS CDK (optional path) |
-
-## Testing while building
-
-Use an Expo **development build**, not Expo Go. Daily loop: physical device + opposite-platform simulator, service unit tests, Maestro for critical journeys, Playwright for the website.
-
-See `docs/testing.md` and `docs/splitting-repos.md`.
 
 ## Deploy
 

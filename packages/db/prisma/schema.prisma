@@ -1,24 +1,32 @@
 generator client {
-  provider = "prisma-client-js"
+  provider            = "prisma-client"
+  output              = "../src/generated"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 /// Better Auth core tables
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  profile       UserProfile?
+  id                   String                @id
+  name                 String
+  email                String                @unique
+  emailVerified        Boolean               @default(false)
+  image                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  sessions             Session[]
+  accounts             Account[]
+  profile              UserProfile?
+  challengeAssignments UserChallenge[]
+  challengeEnrollments ChallengeEnrollment[]
+  pointLedger          PointLedgerEntry[]
+  pushDevices          PushDevice[]
+  notifications        Notification[]
+  deviceActivityLogs   DeviceActivityLog[]
 
   @@map("user")
 }
@@ -39,6 +47,8 @@ model Session {
 
 model Account {
   id                    String    @id
+  /// Stable account namespace (Better Auth 1.7+); e.g. local:credential for email/password.
+  issuer                String
   accountId             String
   providerId            String
   userId                String
@@ -53,6 +63,7 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  @@unique([issuer, accountId])
   @@map("account")
 }
 
@@ -67,18 +78,398 @@ model Verification {
   @@map("verification")
 }
 
-/// Application profile data linked to Better Auth user.
+/// Application profile linked to the Better Auth user.
 model UserProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  displayName  String?
-  /// Monetary example: always store minor units (cents), never floats.
-  balanceMinor Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName       String?
+  /// Redeemable currency later — minor units only, never floats.
+  balanceMinor      Int              @default(0)
+  /// Habit-loop points — integers only; mutated via PointLedgerEntry.
+  pointsBalance     Int              @default(0)
+  currentStreakDays Int              @default(0)
+  /// IANA zone deciding when the user's challenge day rolls over.
+  timeZone          String           @default("UTC")
+  /// ISO 3166-1 alpha-2 country chosen at sign-up (or later in profile).
+  countryCode       String?
+  /// Master switch. Off silences every challenge reminder without losing the
+  /// per-challenge times the user set up.
+  reminderEnabled   Boolean          @default(false)
+  /// Local wall-clock minutes past midnight, so it survives zone changes. Seeds
+  /// the first reminder on a new enrolment; per-challenge times override it.
+  reminderMinute    Int              @default(1140)
+  /// Designed Profile toggles. Evidence and promotional have no delivery yet.
+  evidenceRemindersEnabled     Boolean @default(true)
+  promotionalMessagesEnabled   Boolean @default(false)
+  /// Finish-what-you-started push after a form is opened and left incomplete.
+  inProgressNudgeEnabled       Boolean @default(true)
+  /// Minutes after start / first draft before that nudge. Product default is 30.
+  inProgressNudgeDelayMinutes  Int     @default(30)
+  /// Opt-out. Hidden users still see the board; others do not see them on it.
+  showOnLeaderboard Boolean          @default(true)
+  /// Apple Health / Health Connect: unknown until they answer the prompt.
+  healthLinkStatus  HealthLinkStatus @default(unknown)
+  /// Chronic-condition preferences used to tailor challenges.
+  healthCategories  HealthCategory[] @default([])
+  /// Paid membership entitlements. Set by checkout later (or support).
+  membershipActive  Boolean          @default(false)
+  /// Soft lock. Set by support; the member cannot sign in until it is cleared.
+  deactivatedAt     DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@map("user_profiles")
+}
+
+enum HealthCategory {
+  hypertension
+  diabetes
+  asthma
+  general
+}
+
+enum ChallengeFrequency {
+  daily
+  weekly
+  monthly
+}
+
+enum UserChallengeStatus {
+  pending
+  in_progress
+  awaiting_evidence
+  completed
+}
+
+/// How a finished occurrence settled. Null on rows completed before this existed.
+enum UserChallengeCompletionOutcome {
+  rewarded
+  penalized
+}
+
+/// How the user finishes an occurrence. `check_in` confirms on a screen;
+/// log kinds persist a draft as they type; `evidence_photo` is a gym selfie.
+enum ChallengeCompletionKind {
+  check_in
+  vitals_bp
+  evidence_photo
+  glucose
+  peak_flow
+  water
+  carbs
+}
+
+/// Where proof comes from. Orthogonal to completionKind.
+enum ChallengeCaptureKind {
+  self_report
+  structured_log
+  photo
+  device_sample
+  device_session
+}
+
+enum DeviceMetric {
+  walk
+  run
+  cycle
+  steps
+  sleep
+  weight
+  heart_rate
+  /// On-device pose session (e.g. push-up counting from camera landmarks).
+  pushups
+}
+
+enum DeviceActivitySource {
+  healthkit
+  health_connect
+  in_app_gps
+  pedometer
+  /// Camera pose session counted on-device (landmarks stay on the phone).
+  in_app_pose
+  manual
+}
+
+enum HealthLinkStatus {
+  unknown
+  connected
+  denied
+}
+
+model Challenge {
+  id               String                @id @default(cuid())
+  slug             String                @unique
+  title            String
+  description      String
+  category         HealthCategory
+  rewardPoints     Int
+  /// Starting cadence for a new enrolment; each user may override it.
+  defaultFrequency ChallengeFrequency    @default(daily)
+  /// Enrolled automatically when a user picks this challenge's category.
+  isDefault        Boolean                   @default(false)
+  /// Catalog challenges that need an active membership to enroll.
+  requiresMembership Boolean                 @default(false)
+  isActive         Boolean                   @default(true)
+  completionKind   ChallengeCompletionKind   @default(check_in)
+  captureKind      ChallengeCaptureKind      @default(self_report)
+  deviceMetric     DeviceMetric?
+  targetDurationMinutes Int?
+  targetDistanceMeters  Int?
+  targetCount           Int?
+  /// Designed "What to do" copy. Description stays the longer about text.
+  instruction      String                    @default("")
+  /// Material Community Icons glyph name. Admin-set so each challenge has its own mark.
+  icon             String                    @default("checkbox-marked-circle-outline")
+  /// 0–100. Chance a check-in or vitals finish asks for a surprise photo.
+  /// `evidence_photo` challenges ignore this — the photo is the completion.
+  surpriseEvidenceChancePercent Int          @default(0)
+  /// Seconds the member has to submit the surprise photo.
+  surpriseEvidenceWindowSeconds Int          @default(60)
+  /// Points deducted when they skip, time out, or fail the surprise photo.
+  surpriseEvidencePenaltyPoints Int          @default(25)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  assignments      UserChallenge[]
+  enrollments      ChallengeEnrollment[]
+
+  @@index([isActive, category])
+  @@map("challenges")
+}
+
+/// A user's standing opt-in to a catalog challenge, with their own cadence.
+model ChallengeEnrollment {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId String
+  challenge   Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  frequency   ChallengeFrequency
+  /// Deactivated rather than deleted so completion history keeps its context.
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  assignments UserChallenge[]
+  reminders   ChallengeReminder[]
+
+  @@unique([userId, challengeId])
+  @@index([userId, isActive])
+  @@map("challenge_enrollments")
+}
+
+/// One reminder time on an enrolment. Several rows give a challenge several
+/// nudges, the way a calendar event can carry more than one alert.
+model ChallengeReminder {
+  id           String              @id @default(cuid())
+  enrollmentId String
+  enrollment   ChallengeEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  /// Local wall-clock minutes past midnight, so it survives a zone change.
+  minuteOfDay  Int
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  deliveries   ReminderDelivery[]
+
+  /// Adding the same time twice is a no-op rather than a duplicate nudge.
+  @@unique([enrollmentId, minuteOfDay])
+  @@index([minuteOfDay])
+  @@map("challenge_reminders")
+}
+
+/// Records that a reminder was sent for a period, which is what makes the
+/// dispatcher safe to run again over an overlapping window.
+model ReminderDelivery {
+  id         String            @id @default(cuid())
+  reminderId String
+  reminder   ChallengeReminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  /// The period the nudge belonged to, matching `UserChallenge.periodKey`.
+  periodKey  String
+  sentAt     DateTime          @default(now())
+
+  @@unique([reminderId, periodKey])
+  @@map("reminder_deliveries")
+}
+
+/// An Expo push token for one installation. Tokens are retired rather than
+/// deleted, so a device that returns keeps its history.
+model PushDevice {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expoPushToken String   @unique
+  platform      String
+  isActive      Boolean  @default(true)
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, isActive])
+  @@map("push_devices")
+}
+
+/// One occurrence of an enrolled challenge, scoped to the period it is due in.
+model UserChallenge {
+  id            String               @id @default(cuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId   String
+  challenge     Challenge            @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  enrollmentId  String?
+  enrollment    ChallengeEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  /// First day of the period this occurrence belongs to, `YYYY-MM-DD` in the
+  /// user's zone. Daily is the day itself, weekly the Monday, monthly the 1st.
+  periodKey     String
+  /// Copied from the enrolment so history survives a later cadence change, and
+  /// so daily-only queries such as the streak need no join.
+  frequency     ChallengeFrequency   @default(daily)
+  status        UserChallengeStatus  @default(pending)
+  completionOutcome UserChallengeCompletionOutcome?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  /// Partial log, written as fields change. Cleared on a successful complete.
+  draft         Json?
+  draftUpdatedAt DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  ledgerEntries PointLedgerEntry[]
+  vitalReading  VitalReading?
+  challengeLog  ChallengeLog?
+  deviceActivityLog DeviceActivityLog?
+  surpriseEvidenceRequest SurpriseEvidenceRequest?
+  inProgressNudgeDelivery InProgressNudgeDelivery?
+
+  @@unique([userId, challengeId, periodKey])
+  @@index([userId, periodKey])
+  @@index([userId, frequency, status])
+  @@map("user_challenges")
+}
+
+enum SurpriseEvidenceStatus {
+  pending
+  submitted
+  skipped
+  expired
+}
+
+/// One surprise-photo window for an occurrence. Unique so retries do not re-roll.
+model SurpriseEvidenceRequest {
+  id              String                  @id @default(cuid())
+  userChallengeId String                  @unique
+  userChallenge   UserChallenge           @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  windowSeconds   Int
+  penaltyPoints   Int
+  expiresAt       DateTime
+  status          SurpriseEvidenceStatus  @default(pending)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([expiresAt, status])
+  @@map("surprise_evidence_requests")
+}
+
+enum NotificationKind {
+  reminder
+  success
+  evidence
+  penalty
+}
+
+/// In-app inbox item. The Home bell opens this list, not reminder settings.
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind           NotificationKind
+  title          String
+  body           String
+  readAt         DateTime?
+  /// Same key as the event that produced the row, so retries do not duplicate.
+  idempotencyKey String           @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/// Client-attested movement sample or GPS session. One per occurrence.
+model DeviceActivityLog {
+  id               String               @id @default(cuid())
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userChallengeId  String               @unique
+  userChallenge    UserChallenge        @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  source           DeviceActivitySource
+  metric           DeviceMetric
+  durationSeconds  Int?
+  distanceMeters   Int?
+  count            Int?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  /// Health workout UUID or client session id. Unique per user when present.
+  externalId       String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@unique([userId, externalId])
+  @@index([userId, metric])
+  @@map("device_activity_logs")
+}
+
+/// Finished log for glucose / peak flow / water / carbs. Unique on the occurrence.
+model ChallengeLog {
+  id              String        @id @default(cuid())
+  userChallengeId String        @unique
+  userChallenge   UserChallenge @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  payload         Json
+  recordedAt      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("challenge_logs")
+}
+
+/// One finish-nudge per occurrence so the dispatcher is safe to retry.
+model InProgressNudgeDelivery {
+  id              String        @id @default(cuid())
+  userChallengeId String        @unique
+  userChallenge   UserChallenge @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  sentAt          DateTime      @default(now())
+
+  @@map("in_progress_nudge_deliveries")
+}
+
+/// One blood-pressure log for a vitals occurrence. Unique on the occurrence
+/// so completing again is an upsert, not a second reading.
+model VitalReading {
+  id              String        @id @default(cuid())
+  userChallengeId String        @unique
+  userChallenge   UserChallenge @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  systolic        Int
+  diastolic       Int
+  pulse           Int?
+  notes           String?
+  recordedAt      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("vital_readings")
+}
+
+/// Append-only points movements. `UserProfile.pointsBalance` is a cached total.
+model PointLedgerEntry {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  delta           Int
+  reason          String
+  /// Prevents double-award on retries, e.g. `challenge_complete:{userChallengeId}`.
+  idempotencyKey  String         @unique
+  userChallengeId String?
+  userChallenge   UserChallenge? @relation(fields: [userChallengeId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+
+  @@index([userId, createdAt])
+  @@map("point_ledger_entries")
 }
 
 model WaitlistEntry {
@@ -88,4 +479,181 @@ model WaitlistEntry {
   createdAt DateTime @default(now())
 
   @@map("waitlist_entries")
+}
+
+/// Daily-rotation copy. Replaces the hardcoded mobile list.
+model Tip {
+  id        String         @id @default(cuid())
+  slug      String         @unique
+  category  HealthCategory
+  title     String
+  body      String
+  isActive  Boolean        @default(true)
+  /// Stable rotation order within a category.
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([isActive, category, sortOrder])
+  @@map("tips")
+}
+
+enum MembershipInterval {
+  month
+  year
+}
+
+/// Market key for default (non-Nigeria) USD pricing.
+/// Use ISO country for overrides; `*` = fallback for everyone else.
+/// Subscription plans editable from admin.
+/// Entitlements live on UserProfile.membershipActive (checkout later).
+model MembershipPlan {
+  id        String              @id @default(cuid())
+  slug      String              @unique
+  name      String
+  tagline   String
+  /// Short benefit lines shown on the paywall.
+  features  String[]
+  interval  MembershipInterval  @default(month)
+  isActive  Boolean             @default(true)
+  sortOrder Int                 @default(0)
+  /// Optional paywall copy overrides.
+  headline  String?
+  ctaLabel  String?
+  /// Checkout method ids in display order, e.g. ["apple_pay","card"].
+  /// Empty = resolve defaults from the member's country.
+  paymentMethodIds String[]     @default([])
+  prices    MembershipPlanPrice[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("membership_plans")
+}
+
+model MembershipPlanPrice {
+  id          String         @id @default(cuid())
+  planId      String
+  plan        MembershipPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// ISO 3166-1 alpha-2, or `*` for the default (USD) price.
+  marketKey   String
+  currency    String
+  /// Integer minor units (kobo / cents). Never floats.
+  amountMinor Int
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([planId, marketKey])
+  @@index([marketKey])
+  @@map("membership_plan_prices")
+}
+
+enum AdminRole {
+  content
+  support
+  superadmin
+}
+
+enum AdminAuditAction {
+  point_credit
+  point_debit
+  member_deactivate
+  member_reactivate
+  admin_invite
+  admin_deactivate
+  admin_reactivate
+  admin_roles_update
+}
+
+/// Better Auth tables for operators. Separate from member `user`.
+model AdminUser {
+  id            String                @id
+  name          String
+  email         String                @unique
+  emailVerified Boolean               @default(false)
+  image         String?
+  /// Soft lock. Set by a superadmin; they cannot sign in until it is cleared.
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  sessions      AdminSession[]
+  accounts      AdminAccount[]
+  roles         AdminRoleAssignment[]
+  auditEvents   AdminAuditEvent[]
+
+  @@map("admin_user")
+}
+
+model AdminSession {
+  id        String    @id
+  expiresAt DateTime
+  token     String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_session")
+}
+
+model AdminAccount {
+  id                    String    @id
+  issuer                String
+  accountId             String
+  providerId            String
+  userId                String
+  user                  AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([issuer, accountId])
+  @@map("admin_account")
+}
+
+model AdminVerification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("admin_verification")
+}
+
+model AdminRoleAssignment {
+  id          String    @id @default(cuid())
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  role        AdminRole
+  createdAt   DateTime  @default(now())
+
+  @@unique([adminUserId, role])
+  @@index([role])
+  @@map("admin_role_assignments")
+}
+
+model AdminAuditEvent {
+  id                 String           @id @default(cuid())
+  adminUserId        String
+  adminUser          AdminUser        @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  action             AdminAuditAction
+  targetMemberUserId String?
+  targetAdminUserId  String?
+  reason             String?
+  payload            Json?
+  createdAt          DateTime         @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([targetMemberUserId, createdAt])
+  @@map("admin_audit_events")
 }

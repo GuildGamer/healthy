@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from './generated/client.js';
 
-export * from '@prisma/client';
+export * from './generated/client.js';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -8,13 +9,13 @@ declare global {
 }
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
-  return new PrismaClient({
-    datasources: databaseUrl
-      ? {
-          db: { url: databaseUrl },
-        }
-      : undefined,
-  });
+  const connectionString = databaseUrl ?? process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL is required to create a Prisma client');
+  }
+
+  const adapter = new PrismaPg({ connectionString });
+  return new PrismaClient({ adapter });
 }
 
 export const prisma: PrismaClient =

@@ -1,6 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
+import { colors, fontSize, spacing } from '@product/brand';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { displayFontFamily } from '@/lib/fonts';
 
 interface AuthScreenHeaderProps {
   title: string;
@@ -38,8 +39,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
+    fontFamily: displayFontFamily,
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
     marginBottom: spacing.sm,
   },
   subtitle: {

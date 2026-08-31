@@ -1,3 +1,3 @@
 /// <reference types="expo/types" />
 
-// NOTE: This file is safe to ignore / commit; Expo may regenerate companion files under .expo/types.
+// NOTE: This file should not be edited and should be in your git ignore

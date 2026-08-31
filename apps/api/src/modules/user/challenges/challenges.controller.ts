@@ -1,0 +1,84 @@
+import { Controller, Req } from '@nestjs/common';
+import { Implement, implement } from '@orpc/nest';
+import { Public } from '@thallesp/nestjs-better-auth';
+import { appContract } from '@product/contract';
+import type { RequestWithAuth } from '../../../shared/types/request-with-auth.js';
+import { ChallengesService } from './challenges.service.js';
+
+@Controller()
+@Public()
+export class ChallengesController {
+  constructor(private readonly challengesService: ChallengesService) {}
+
+  @Implement(appContract.listTodayChallenges)
+  listTodayChallenges(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.listTodayChallenges).handler(async () => {
+      return this.challengesService.listToday(user);
+    });
+  }
+
+  @Implement(appContract.startChallenge)
+  startChallenge(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.startChallenge).handler(async ({ input }) => {
+      return this.challengesService.start(user, input.userChallengeId);
+    });
+  }
+
+  @Implement(appContract.completeChallenge)
+  completeChallenge(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.completeChallenge).handler(async ({ input }) => {
+      return this.challengesService.complete(
+        user,
+        input.userChallengeId,
+        input.vitals,
+        input.evidence,
+        {
+          glucose: input.glucose,
+          peakFlow: input.peakFlow,
+          water: input.water,
+          carbs: input.carbs,
+        },
+        input.deviceActivity,
+      );
+    });
+  }
+
+  @Implement(appContract.saveChallengeDraft)
+  saveChallengeDraft(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.saveChallengeDraft).handler(async ({ input }) => {
+      return this.challengesService.saveDraft(
+        user,
+        input.userChallengeId,
+        input.draft,
+      );
+    });
+  }
+
+  @Implement(appContract.skipChallengeEvidence)
+  skipChallengeEvidence(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.skipChallengeEvidence).handler(async ({ input }) => {
+      return this.challengesService.skipEvidence(user, input.userChallengeId);
+    });
+  }
+
+  @Implement(appContract.listActivity)
+  listActivity(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.listActivity).handler(async () => {
+      return this.challengesService.listActivity(user);
+    });
+  }
+
+  @Implement(appContract.listChallengeHistory)
+  listChallengeHistory(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.listChallengeHistory).handler(async ({ input }) => {
+      return this.challengesService.listHistory(user, input.challengeId);
+    });
+  }
+}

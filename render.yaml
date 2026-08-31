@@ -23,6 +23,20 @@ services:
         generateValue: true
       - key: BETTER_AUTH_URL
         sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: EVIDENCE_VISION_API_KEY
+        sync: false
+      - key: EVIDENCE_VISION_MODEL
+        sync: false
 
   - type: web
     name: product-web

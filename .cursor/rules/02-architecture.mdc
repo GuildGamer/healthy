@@ -16,7 +16,22 @@ alwaysApply: true
 | Client (`packages/client`) | Typed consumption | Business rules |
 | DTO / types / enums / errors / constants | Definitions | Logic |
 
-## NestJS module layout
+## NestJS app layout
+
+Follow Caesar / Onion Pay: `AppModule` only composes.
+
+```
+apps/api/src/
+  app.module.ts
+  modules/
+    index.ts                 # [...sharedModules, ...admin, ...user]
+    user/                    # mobile / public product surface
+    admin/                   # operator catalog, tips, waitlist, members, admins
+    shared-modules/          # Prisma, auth, mail, push, health, dispatch
+  shared/                    # types, utils, constants, enums
+```
+
+Each domain is a Nest module with a thin oRPC (or HTTP) controller:
 
 ```
 feature/
@@ -32,6 +47,8 @@ feature/
 ```
 
 Keep DTOs, types, enums, constants, errors, and decorators **outside** service files.
+
+Do not import `modules/user` from `modules/shared-modules`. Shared-modules may be imported by user/admin.
 
 ## Service results
 

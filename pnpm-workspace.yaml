@@ -3,3 +3,7 @@ packages:
   - "packages/*"
   - "infra"
   - "tooling/*"
+
+# Flatten installs so Metro/Expo can resolve Expo peer/transitive deps reliably.
+# See https://docs.expo.dev/guides/monorepos/ (isolated deps fallback).
+nodeLinker: hoisted

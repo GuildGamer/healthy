@@ -8,17 +8,19 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "lint": "echo \"lint: api skipped\"",
     "test": "vitest run",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
-    "openapi:check": "tsx scripts/generate-openapi.ts --check"
+    "openapi:check": "tsx scripts/generate-openapi.ts --check",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@better-auth/expo": "^1.7.2",
+    "@better-auth/expo": "1.7.2",
     "@nestjs/common": "^11.0.12",
     "@nestjs/core": "^11.0.12",
     "@nestjs/platform-express": "^11.0.12",
+    "@nestjs/schedule": "^12.0.1",
     "@orpc/contract": "^1.15.0",
     "@orpc/nest": "^1.15.0",
     "@orpc/openapi": "^1.15.0",
@@ -27,7 +29,9 @@
     "@product/contract": "workspace:*",
     "@product/db": "workspace:*",
     "@thallesp/nestjs-better-auth": "^2.7.0",
-    "better-auth": "^1.2.5",
+    "better-auth": "1.7.2",
+    "dotenv": "^16.6.1",
+    "nodemailer": "^9.0.6",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^3.24.2"
@@ -38,6 +42,7 @@
     "@product/tsconfig": "workspace:*",
     "@types/express": "^5.0.1",
     "@types/node": "^22.20.1",
+    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"

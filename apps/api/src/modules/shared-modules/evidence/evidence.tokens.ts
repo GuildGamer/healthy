@@ -1,0 +1,1 @@
+export const EVIDENCE_VALIDATOR = Symbol('EVIDENCE_VALIDATOR');

@@ -1,10 +1,448 @@
-import { prisma } from '../src/index';
+import { config } from 'dotenv';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Load before importing the client — static imports are hoisted, so use dynamic import.
+config({
+  path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'),
+});
+
+const { prisma } = await import('../src/index.js');
+
+type ChallengeSeed = {
+  slug: string;
+  title: string;
+  description: string;
+  category: 'hypertension' | 'diabetes' | 'asthma' | 'general';
+  rewardPoints: number;
+  defaultFrequency: 'daily' | 'weekly' | 'monthly';
+  /** Enrolled automatically when a user picks this category (keep lean). */
+  isDefault: boolean;
+  /** Opt-in / higher-friction catalog needs membership. */
+  requiresMembership?: boolean;
+  completionKind?:
+    | 'check_in'
+    | 'vitals_bp'
+    | 'evidence_photo'
+    | 'glucose'
+    | 'peak_flow'
+    | 'water'
+    | 'carbs';
+  /** Material Community Icons glyph name. */
+  icon: string;
+  instruction?: string;
+  surpriseEvidenceChancePercent?: number;
+  surpriseEvidenceWindowSeconds?: number;
+  surpriseEvidencePenaltyPoints?: number;
+  captureKind?:
+    | 'self_report'
+    | 'structured_log'
+    | 'photo'
+    | 'device_sample'
+    | 'device_session';
+  deviceMetric?:
+    | 'walk'
+    | 'run'
+    | 'cycle'
+    | 'steps'
+    | 'sleep'
+    | 'weight'
+    | 'heart_rate'
+    | 'pushups';
+  targetDurationMinutes?: number;
+  targetDistanceMeters?: number;
+  targetCount?: number;
+};
+
+/**
+ * Stands in for an admin-managed catalog. Keep `isDefault` lean (~3–5 opens
+ * after condition + general): core daily habits only. Weekly/monthly and
+ * higher-friction items stay opt-in via Manage.
+ */
+const challengeSeeds: ChallengeSeed[] = [
+  {
+    slug: 'check-blood-pressure',
+    title: 'Check your blood pressure',
+    description: 'Measure and log your blood pressure reading.',
+    category: 'hypertension',
+    rewardPoints: 200,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    completionKind: 'vitals_bp',
+    icon: 'heart-pulse',
+    instruction:
+      'Sit still for a minute, then measure and log your systolic and diastolic reading.',
+    surpriseEvidenceChancePercent: 50,
+    surpriseEvidenceWindowSeconds: 60,
+    surpriseEvidencePenaltyPoints: 25,
+  },
+  {
+    slug: 'take-morning-medication',
+    title: 'Take morning medication',
+    description: 'Take your prescribed medication for the day.',
+    category: 'hypertension',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'pill',
+    surpriseEvidenceChancePercent: 25,
+    surpriseEvidencePenaltyPoints: 25,
+  },
+  {
+    slug: 'low-sodium-meal',
+    title: 'Eat a low-sodium meal',
+    description: 'Choose one meal today with little or no added salt.',
+    category: 'hypertension',
+    rewardPoints: 120,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'food-apple',
+  },
+  {
+    slug: 'blood-pressure-week-review',
+    title: 'Review your week of readings',
+    description: 'Look back at this week’s readings and note any pattern.',
+    category: 'hypertension',
+    rewardPoints: 350,
+    defaultFrequency: 'weekly',
+    isDefault: false,
+    icon: 'chart-line',
+  },
+  {
+    slug: 'blood-pressure-clinic-check',
+    title: 'Clinic blood pressure check',
+    description: 'Have your blood pressure measured by a professional.',
+    category: 'hypertension',
+    rewardPoints: 500,
+    defaultFrequency: 'monthly',
+    isDefault: false,
+    icon: 'hospital-building',
+  },
+  {
+    slug: 'glucose-check',
+    title: 'Check blood glucose',
+    description: 'Record a fasting or mealtime glucose reading.',
+    category: 'diabetes',
+    rewardPoints: 200,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    completionKind: 'glucose',
+    icon: 'water-check',
+    instruction: 'Record a fasting or mealtime glucose reading in mmol/L.',
+  },
+  {
+    slug: 'log-carbohydrates',
+    title: 'Log your carbohydrates',
+    description: 'Note the carbohydrates in your main meals today.',
+    category: 'diabetes',
+    rewardPoints: 120,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    completionKind: 'carbs',
+    icon: 'food',
+    instruction:
+      'Note the carbohydrates in your main meals, as grams or a short description.',
+  },
+  {
+    slug: 'diabetic-foot-check',
+    title: 'Check your feet',
+    description: 'Inspect both feet for cuts, blisters or numbness.',
+    category: 'diabetes',
+    rewardPoints: 350,
+    defaultFrequency: 'weekly',
+    isDefault: false,
+    icon: 'shoe-sneaker',
+  },
+  {
+    slug: 'hba1c-review',
+    title: 'Review your HbA1c',
+    description: 'Check your latest long-term glucose result with your clinic.',
+    category: 'diabetes',
+    rewardPoints: 500,
+    defaultFrequency: 'monthly',
+    isDefault: false,
+    icon: 'flask',
+  },
+  {
+    slug: 'asthma-inhaler-check',
+    title: 'Inhaler adherence check',
+    description: 'Confirm you used your preventer inhaler as prescribed.',
+    category: 'asthma',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'lungs',
+  },
+  {
+    slug: 'peak-flow-reading',
+    title: 'Take a peak flow reading',
+    description: 'Blow into your peak flow meter and record the best of three.',
+    category: 'asthma',
+    rewardPoints: 180,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    completionKind: 'peak_flow',
+    icon: 'weather-windy',
+    instruction:
+      'Blow into your peak flow meter three times and log the best reading.',
+  },
+  {
+    slug: 'asthma-trigger-review',
+    title: 'Review your triggers',
+    description: 'Note anything that set off symptoms this week.',
+    category: 'asthma',
+    rewardPoints: 300,
+    defaultFrequency: 'weekly',
+    isDefault: false,
+    icon: 'alert-circle-outline',
+  },
+  {
+    slug: 'asthma-action-plan-review',
+    title: 'Review your action plan',
+    description: 'Re-read your written asthma plan and check it is current.',
+    category: 'asthma',
+    rewardPoints: 500,
+    defaultFrequency: 'monthly',
+    isDefault: false,
+    icon: 'clipboard-text-outline',
+  },
+  {
+    slug: 'log-water-intake',
+    title: 'Log your water intake',
+    description: 'Track how much water you drank today.',
+    category: 'general',
+    rewardPoints: 100,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    completionKind: 'water',
+    surpriseEvidenceChancePercent: 20,
+    surpriseEvidencePenaltyPoints: 10,
+    icon: 'cup-water',
+    instruction:
+      'Log how much water you drank today, in glasses or millilitres.',
+  },
+  {
+    slug: 'ten-minute-walk',
+    title: 'Take a ten-minute walk',
+    description: 'Get outside and move for at least ten minutes.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'walk',
+    captureKind: 'device_session',
+    deviceMetric: 'walk',
+    targetDurationMinutes: 10,
+    instruction:
+      'Walk for at least ten minutes. Start a route on your phone, use a matching workout from your watch, or confirm if you already did.',
+  },
+  {
+    slug: 'five-thousand-steps',
+    title: 'Walk 5,000 steps',
+    description: 'Reach five thousand steps today, from your phone or watch.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'shoe-print',
+    captureKind: 'device_sample',
+    deviceMetric: 'steps',
+    targetCount: 5_000,
+    instruction:
+      'Reach 5,000 steps. We can read today’s count from this phone or a connected watch.',
+  },
+  {
+    slug: 'twenty-push-ups',
+    title: 'Do twenty push-ups',
+    description:
+      'Prop your phone, get in frame, and complete twenty push-ups counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    captureKind: 'device_session',
+    deviceMetric: 'pushups',
+    targetCount: 20,
+    instruction:
+      'Place your phone on the floor in front of you so your shoulders and elbows are visible. Start the camera session, do your push-ups, then stop. We count reps on this phone — the video never leaves the device.',
+  },
+  {
+    slug: 'gym-session',
+    title: 'Complete a gym session',
+    description: 'Train at the gym and prove it with a photo.',
+    category: 'general',
+    rewardPoints: 200,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    completionKind: 'evidence_photo',
+    instruction:
+      'Take a photo of yourself at the gym or clearly mid-workout.',
+    icon: 'dumbbell',
+  },
+  {
+    slug: 'sleep-log',
+    title: 'Log last night’s sleep',
+    description: 'Record roughly how long you slept and how rested you feel.',
+    category: 'general',
+    rewardPoints: 100,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'sleep',
+  },
+  {
+    slug: 'weekly-weigh-in',
+    title: 'Weigh yourself',
+    description: 'Step on the scale at the same time of day each week.',
+    category: 'general',
+    rewardPoints: 300,
+    defaultFrequency: 'weekly',
+    isDefault: false,
+    icon: 'scale-bathroom',
+  },
+  {
+    slug: 'medication-refill',
+    title: 'Check your medication supply',
+    description: 'Make sure you have enough medication for the coming month.',
+    category: 'general',
+    rewardPoints: 400,
+    defaultFrequency: 'monthly',
+    isDefault: false,
+    icon: 'medical-bag',
+  },
+];
+
+/** Day-one opens ≈ general defaults + one condition’s defaults (target ~3–5). */
+function assertLeanStarterDefaults(seeds: readonly ChallengeSeed[]): void {
+  const defaultsByCategory = new Map<ChallengeSeed['category'], string[]>();
+
+  for (const challenge of seeds) {
+    if (!challenge.isDefault) {
+      continue;
+    }
+
+    const list = defaultsByCategory.get(challenge.category) ?? [];
+    list.push(challenge.slug);
+    defaultsByCategory.set(challenge.category, list);
+  }
+
+  const general = defaultsByCategory.get('general') ?? [];
+  if (general.length > 2) {
+    throw new Error(
+      `General defaults must stay ≤2 (got ${general.length}: ${general.join(', ')})`,
+    );
+  }
+
+  for (const category of ['hypertension', 'diabetes', 'asthma'] as const) {
+    const list = defaultsByCategory.get(category) ?? [];
+    if (list.length > 2) {
+      throw new Error(
+        `${category} defaults must stay ≤2 (got ${list.length}: ${list.join(', ')})`,
+      );
+    }
+  }
+}
+
+const tipSeeds: Array<{
+  slug: string;
+  category: ChallengeSeed['category'];
+  title: string;
+  body: string;
+  sortOrder: number;
+}> = [
+  {
+    slug: 'salt',
+    category: 'hypertension',
+    title: 'Reduce salt today for better blood pressure',
+    body: 'Most sodium comes from packaged food rather than the salt shaker. Check the labels on bread, sauces and cured meats before you reach for seasoning.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'same-time-reading',
+    category: 'hypertension',
+    title: 'Take your reading at the same time each day',
+    body: 'Blood pressure drifts through the day. Measuring at a consistent time, seated and rested for five minutes, makes the trend much easier to read.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'post-meal-walk',
+    category: 'hypertension',
+    title: 'Walk for twenty minutes after your largest meal',
+    body: 'A gentle walk after eating softens the post-meal rise in blood pressure, and attaching it to a meal you already eat makes the habit stick.',
+    sortOrder: 2,
+  },
+  {
+    slug: 'meal-order',
+    category: 'diabetes',
+    title: 'Eat protein or fibre before the carbohydrate',
+    body: 'Order matters. Starting a meal with vegetables or protein slows how quickly glucose arrives in your bloodstream.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'foot-check',
+    category: 'diabetes',
+    title: 'Check your feet when you take your socks off',
+    body: 'Attaching the check to something you already do every day makes it stick. Look for cuts, blisters and changes in colour.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'fast-carb',
+    category: 'diabetes',
+    title: 'Keep a fast-acting carbohydrate within reach',
+    body: 'Glucose tablets or a small juice in your bag turns a low into a minor interruption rather than an emergency.',
+    sortOrder: 2,
+  },
+  {
+    slug: 'rinse-inhaler',
+    category: 'asthma',
+    title: 'Rinse your mouth after your preventer inhaler',
+    body: 'A quick rinse and spit reduces irritation and the risk of thrush from inhaled steroids.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'inhaler-technique',
+    category: 'asthma',
+    title: 'Check your inhaler technique once a month',
+    body: 'Technique slips quietly over time. A slow, deep breath held for ten seconds delivers far more of the dose than a fast one.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'trigger-notes',
+    category: 'asthma',
+    title: 'Note what you were doing when symptoms start',
+    body: 'Patterns show up quickly once written down, whether that is cold air, dust, exercise or one particular room.',
+    sortOrder: 2,
+  },
+  {
+    slug: 'water-before-meals',
+    category: 'general',
+    title: 'Drink a glass of water before each meal',
+    body: 'It is the easiest hydration habit to remember, because the reminder is already built into your day.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'hourly-movement',
+    category: 'general',
+    title: 'Stand up and move for two minutes every hour',
+    body: 'Breaking up long stretches of sitting does more for circulation and stiffness than any single workout.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'sleep-schedule',
+    category: 'general',
+    title: 'Keep your sleep and wake times consistent',
+    body: 'A steady schedule does more for how rested you feel than the total number of hours you spend in bed.',
+    sortOrder: 2,
+  },
+];
 
 /**
  * Disposable seed data for local/E2E environments.
- * Safe to re-run: waitlist email is upserted.
+ * Safe to re-run: waitlist email, challenge slugs, and tip slugs are upserted.
  */
 async function main(): Promise<void> {
+  assertLeanStarterDefaults(challengeSeeds);
+
   await prisma.waitlistEntry.upsert({
     where: { email: 'seed@example.com' },
     create: {
@@ -16,15 +454,157 @@ async function main(): Promise<void> {
     },
   });
 
+  for (const challenge of challengeSeeds) {
+    const completionKind = challenge.completionKind ?? 'check_in';
+    const instruction = challenge.instruction ?? challenge.description;
+    const captureKind =
+      challenge.captureKind ??
+      (completionKind === 'evidence_photo'
+        ? 'photo'
+        : completionKind === 'check_in'
+          ? 'self_report'
+          : 'structured_log');
+
+    await prisma.challenge.upsert({
+      where: { slug: challenge.slug },
+      create: {
+        ...challenge,
+        requiresMembership:
+          challenge.requiresMembership ?? !challenge.isDefault,
+        completionKind,
+        captureKind,
+        instruction,
+        surpriseEvidenceChancePercent:
+          challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds:
+          challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints:
+          challenge.surpriseEvidencePenaltyPoints ?? 25,
+      },
+      update: {
+        title: challenge.title,
+        description: challenge.description,
+        category: challenge.category,
+        rewardPoints: challenge.rewardPoints,
+        defaultFrequency: challenge.defaultFrequency,
+        isDefault: challenge.isDefault,
+        requiresMembership:
+          challenge.requiresMembership ?? !challenge.isDefault,
+        isActive: true,
+        completionKind,
+        captureKind,
+        deviceMetric: challenge.deviceMetric ?? null,
+        targetDurationMinutes: challenge.targetDurationMinutes ?? null,
+        targetDistanceMeters: challenge.targetDistanceMeters ?? null,
+        targetCount: challenge.targetCount ?? null,
+        instruction,
+        icon: challenge.icon,
+        surpriseEvidenceChancePercent:
+          challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds:
+          challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints:
+          challenge.surpriseEvidencePenaltyPoints ?? 25,
+      },
+    });
+  }
+
+  for (const tip of tipSeeds) {
+    await prisma.tip.upsert({
+      where: { slug: tip.slug },
+      create: tip,
+      update: {
+        category: tip.category,
+        title: tip.title,
+        body: tip.body,
+        sortOrder: tip.sortOrder,
+        isActive: true,
+      },
+    });
+  }
+
+  await prisma.membershipPlan.upsert({
+    where: { slug: 'healthy-starter' },
+    create: {
+      slug: 'healthy-starter',
+      name: 'Healthy',
+      tagline: 'Keep the streak honest. One clear membership.',
+      features: [
+        'Full challenge catalog for your conditions',
+        'Pose, steps, and gym challenges',
+        'Up to five reminders per challenge',
+        'Finish-what-you-started nudges',
+      ],
+      interval: 'month',
+      isActive: true,
+      sortOrder: 0,
+      headline: 'Stay a step ahead',
+      ctaLabel: null,
+      paymentMethodIds: [],
+      prices: {
+        create: [
+          { marketKey: 'NG', currency: 'NGN', amountMinor: 100_000 },
+          { marketKey: '*', currency: 'USD', amountMinor: 200 },
+        ],
+      },
+    },
+    update: {
+      name: 'Healthy',
+      tagline: 'Keep the streak honest. One clear membership.',
+      features: [
+        'Full challenge catalog for your conditions',
+        'Pose, steps, and gym challenges',
+        'Up to five reminders per challenge',
+        'Finish-what-you-started nudges',
+      ],
+      isActive: true,
+      headline: 'Stay a step ahead',
+    },
+  });
+
+  const starter = await prisma.membershipPlan.findUnique({
+    where: { slug: 'healthy-starter' },
+    select: { id: true },
+  });
+
+  if (starter) {
+    await prisma.membershipPlanPrice.upsert({
+      where: {
+        planId_marketKey: { planId: starter.id, marketKey: 'NG' },
+      },
+      create: {
+        planId: starter.id,
+        marketKey: 'NG',
+        currency: 'NGN',
+        amountMinor: 100_000,
+      },
+      update: { currency: 'NGN', amountMinor: 100_000 },
+    });
+    await prisma.membershipPlanPrice.upsert({
+      where: {
+        planId_marketKey: { planId: starter.id, marketKey: '*' },
+      },
+      create: {
+        planId: starter.id,
+        marketKey: '*',
+        currency: 'USD',
+        amountMinor: 200,
+      },
+      update: { currency: 'USD', amountMinor: 200 },
+    });
+  }
+
   // eslint-disable-next-line no-console
-  console.log('Seed complete: waitlist seed@example.com');
+  console.log(
+    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips, membership starter`,
+  );
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+try {
+  await main();
+} catch (error: unknown) {
+  console.error(error);
+  process.exit(1);
+} finally {
+  await prisma.$disconnect();
+}

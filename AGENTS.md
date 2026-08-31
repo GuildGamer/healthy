@@ -20,6 +20,7 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 | `03-contract-first` | `packages/contract`, `packages/client`, `apps/api` |
 | `06-mobile` | `apps/mobile` |
 | `07-web` | `apps/web` |
+| `11-admin` | `apps/admin`, `apps/api/src/modules/admin` |
 | `09-prisma` | `packages/db` |
 | `10-typescript` | `*.ts` / `*.tsx` |
 
@@ -32,5 +33,5 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 
 ## Locked stack (do not casually replace)
 
-Expo + Astro + NestJS + oRPC/Zod + Prisma/Postgres + pnpm/Turborepo + Better Auth.
+Expo + Astro + NestJS + Next.js (admin only) + oRPC/Zod + Prisma/Postgres + pnpm/Turborepo + Better Auth.
 Deploy: Docker → Render and/or AWS ECS via CDK.

@@ -5,6 +5,7 @@ node_modules/
 # Builds
 dist/
 build/
+packages/db/src/generated/
 .next/
 .turbo/
 .expo/
@@ -38,6 +39,15 @@ playwright-report/
 cdk.out/
 *.js.map
 
+# Local process supervision (make lane-b)
+.run/
+
 # Misc
 *.tsbuildinfo
 .vercel
+
+# Local design / Figma export experiments (do not commit)
+apps/mobile/assets/.preview-*.png
+apps/mobile/src/assets/.preview-*.png
+apps/mobile/src/assets/preview-hero-*.png
+apps/mobile/src/assets/previews/

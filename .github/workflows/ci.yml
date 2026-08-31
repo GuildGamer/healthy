@@ -50,6 +50,8 @@ jobs:
       - run: pnpm --filter @product/api build
       - run: pnpm --filter @product/web build
       - run: pnpm --filter @product/db migrate:deploy
+      - name: API integration tests (real Postgres)
+        run: pnpm --filter @product/api test:integration
       - name: OpenAPI check
         run: pnpm openapi:check
       - name: OpenAPI breaking change gate

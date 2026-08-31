@@ -31,7 +31,7 @@
   "devDependencies": {
     "@product/tsconfig": "workspace:*",
     "@types/react": "^19.0.12",
-    "react": "^19.0.0",
+    "react": "19.1.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.2"
   }

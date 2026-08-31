@@ -26,6 +26,11 @@ services:
       BETTER_AUTH_URL: http://localhost:3000
       BETTER_AUTH_SECRET: local-dev-secret-change-me
       NODE_ENV: development
+      SMTP_HOST: "0"
+      SMTP_PORT: "0"
+      SMTP_USER: "0"
+      SMTP_PASS: "0"
+      SMTP_FROM: "0"
     ports:
       - '3000:3000'
     depends_on:
