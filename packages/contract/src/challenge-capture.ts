@@ -16,6 +16,7 @@ export const deviceMetricSchema = z.enum([
   'sleep',
   'weight',
   'heart_rate',
+  'pushups',
 ]);
 
 export const deviceActivitySourceSchema = z.enum([
@@ -23,6 +24,7 @@ export const deviceActivitySourceSchema = z.enum([
   'health_connect',
   'in_app_gps',
   'pedometer',
+  'in_app_pose',
   'manual',
 ]);
 

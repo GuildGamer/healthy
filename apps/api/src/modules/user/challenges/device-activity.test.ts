@@ -46,4 +46,52 @@ describe('requireDeviceActivityFor', () => {
       ),
     ).toThrow(ORPCError);
   });
+
+  it('accepts an on-device push-up count that meets the target', () => {
+    expect(
+      requireDeviceActivityFor(
+        {
+          kind: 'device_session',
+          metric: 'pushups',
+          target: { durationMinutes: null, distanceMeters: null, count: 20 },
+        },
+        {
+          source: 'in_app_pose',
+          metric: 'pushups',
+          count: 20,
+          durationSeconds: 45,
+        },
+      ),
+    ).toMatchObject({ source: 'in_app_pose', count: 20 });
+  });
+
+  it('rejects a manual confirm for push-ups', () => {
+    expect(() =>
+      requireDeviceActivityFor(
+        {
+          kind: 'device_session',
+          metric: 'pushups',
+          target: { durationMinutes: null, distanceMeters: null, count: 20 },
+        },
+        { source: 'manual', metric: 'pushups', count: 20 },
+      ),
+    ).toThrow(ORPCError);
+  });
+
+  it('rejects a short push-up set', () => {
+    expect(() =>
+      requireDeviceActivityFor(
+        {
+          kind: 'device_session',
+          metric: 'pushups',
+          target: { durationMinutes: null, distanceMeters: null, count: 20 },
+        },
+        {
+          source: 'in_app_pose',
+          metric: 'pushups',
+          count: 12,
+        },
+      ),
+    ).toThrow(ORPCError);
+  });
 });

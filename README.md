@@ -39,6 +39,8 @@ make api         # NestJS on :3000
 make typecheck
 make test
 make web         # optional — Astro marketing site
+make admin       # optional — Next.js operator console on :3001
+                 # local login admin@example.com / admin-dev after API boot
 ```
 
 Smoke: `GET http://localhost:3000/livez`, `/readyz`, `/health`.
@@ -79,6 +81,7 @@ API URL, EAS vs local Simulator, Maestro, and “as you go” checks: [`docs/tes
 |------|------|
 | `apps/mobile` | Expo + expo-router |
 | `apps/web` | Astro marketing website |
+| `apps/admin` | Next.js operator console (`make admin`, :3001) |
 | `apps/api` | NestJS + oRPC |
 | `packages/contract` | Zod + oRPC contract (source of truth) |
 | `packages/client` | Typed client + TanStack Query helpers |

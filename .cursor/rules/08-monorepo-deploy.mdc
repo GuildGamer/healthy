@@ -16,6 +16,7 @@ alwaysApply: true
 | `apps/api` | `contract`, `db`, Nest |
 | `apps/mobile` | `client`, `contract`, `brand` |
 | `apps/web` | `client`/`contract` as needed, `brand` |
+| `apps/admin` | `client`, `contract`, `brand`, Next.js |
 
 Apps must not import each other’s `src`. Shared code goes in `packages/*`.
 

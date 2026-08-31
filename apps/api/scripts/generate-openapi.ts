@@ -3,22 +3,49 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { OpenAPIGenerator } from '@orpc/openapi';
 import { ZodToJsonSchemaConverter } from '@orpc/zod';
-import { appContract } from '@product/contract';
+import { adminContract, appContract } from '@product/contract';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outputPath = resolve(__dirname, '../openapi/openapi.json');
+
+type OpenApiDoc = {
+  paths?: Record<string, unknown>;
+  components?: { schemas?: Record<string, unknown> };
+};
 
 async function main(): Promise<void> {
   const generator = new OpenAPIGenerator({
     schemaConverters: [new ZodToJsonSchemaConverter()],
   });
 
-  const spec = await generator.generate(appContract, {
+  const member = (await generator.generate(appContract, {
     info: {
       title: 'Product API',
       version: '0.0.1',
     },
-  });
+  })) as OpenApiDoc;
+
+  const admin = (await generator.generate(adminContract, {
+    info: {
+      title: 'Product API',
+      version: '0.0.1',
+    },
+  })) as OpenApiDoc;
+
+  const spec = {
+    ...member,
+    paths: {
+      ...member.paths,
+      ...admin.paths,
+    },
+    components: {
+      ...member.components,
+      schemas: {
+        ...member.components?.schemas,
+        ...admin.components?.schemas,
+      },
+    },
+  };
 
   const serialized = `${JSON.stringify(spec, null, 2)}\n`;
   const check = process.argv.includes('--check');

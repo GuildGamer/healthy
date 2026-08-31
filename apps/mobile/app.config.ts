@@ -14,6 +14,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: 'com.healthy.app',
     infoPlist: {
+      NSCameraUsageDescription:
+        'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
       NSLocationWhenInUseUsageDescription:
         'Healthy uses your location to record walking and running routes.',
       NSMotionUsageDescription:
@@ -27,6 +29,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     package: 'com.healthy.app',
     permissions: [
+      'CAMERA',
       'ACCESS_COARSE_LOCATION',
       'ACCESS_FINE_LOCATION',
       'ACTIVITY_RECOGNITION',
@@ -39,10 +42,25 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-notifications',
     'expo-font',
     [
+      'react-native-vision-camera',
+      {
+        cameraPermissionText:
+          'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
+        enableMicrophonePermission: false,
+      },
+    ],
+    [
+      'react-native-fast-tflite',
+      {
+        enableCoreMLDelegate: true,
+        enableAndroidGpuLibraries: true,
+      },
+    ],
+    [
       'expo-camera',
       {
         cameraPermission:
-          'Healthy uses the camera so you can prove a gym session.',
+          'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
         recordAudioAndroid: false,
       },
     ],

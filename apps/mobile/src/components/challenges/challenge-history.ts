@@ -19,6 +19,7 @@ const DEVICE_METRIC: Record<string, string> = {
   sleep: 'Sleep',
   weight: 'Weight',
   heart_rate: 'Heart rate',
+  pushups: 'Push-ups',
 };
 
 export function formatHistoryWhen(completedAt: string): string {
@@ -143,6 +144,10 @@ function deviceLogCopy(
   }
 
   if (log.count != null) {
+    if (log.metric === 'pushups') {
+      return `${log.count} push-ups`;
+    }
+
     return `${log.count} · ${metric}`;
   }
 

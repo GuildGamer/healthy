@@ -46,6 +46,13 @@ describe('primaryActionLabel', () => {
         capture: { kind: 'device_session' },
       }),
     ).toBe('Resume');
+    expect(
+      primaryActionLabel({
+        status: 'pending',
+        completionKind: 'check_in',
+        capture: { kind: 'device_session', metric: 'pushups' },
+      }),
+    ).toBe('Start push-ups');
   });
 
   it('hides the button when today has no occurrence', () => {

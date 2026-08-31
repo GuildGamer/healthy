@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { apiClient } from '@/lib/api';
+import { healthTips } from './constants/health-tips';
 import { TipsScreen } from './TipsScreen';
 
 jest.mock('@/lib/api', () => ({
@@ -8,6 +9,7 @@ jest.mock('@/lib/api', () => ({
   apiClient: {
     me: jest.fn(),
     listTodayChallenges: jest.fn(),
+    listTips: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -15,6 +17,7 @@ jest.mock('@/lib/api', () => ({
 const mockedApi = apiClient as unknown as {
   me: jest.Mock;
   listTodayChallenges: jest.Mock;
+  listTips: jest.Mock;
 };
 
 function renderTips() {
@@ -53,6 +56,7 @@ describe('TipsScreen', () => {
       completedCount: 0,
       totalCount: 0,
     });
+    mockedApi.listTips.mockResolvedValue({ tips: healthTips });
   });
 
   it('stages today as a quote and lists the rest as category rows', async () => {

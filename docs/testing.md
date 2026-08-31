@@ -70,6 +70,8 @@ make ios        # expo run:ios → iOS Simulator
 
 `make mobile` only starts Metro. It does **not** install a binary.
 
+Push-up counting uses Vision Camera + on-device MoveNet. After pulling those native deps, rebuild with `make ios` / `make android`. Live pose needs a **physical device** (simulators fall back to guided motion).
+
 ### Daily loop
 
 One command (API + Metro in the background; brings Postgres up):

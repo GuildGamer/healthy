@@ -110,6 +110,8 @@ model UserProfile {
   healthLinkStatus  HealthLinkStatus @default(unknown)
   /// Chronic-condition preferences used to tailor challenges.
   healthCategories  HealthCategory[] @default([])
+  /// Soft lock. Set by support; the member cannot sign in until it is cleared.
+  deactivatedAt     DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -171,6 +173,8 @@ enum DeviceMetric {
   sleep
   weight
   heart_rate
+  /// On-device pose session (e.g. push-up counting from camera landmarks).
+  pushups
 }
 
 enum DeviceActivitySource {
@@ -178,6 +182,8 @@ enum DeviceActivitySource {
   health_connect
   in_app_gps
   pedometer
+  /// Camera pose session counted on-device (landmarks stay on the phone).
+  in_app_pose
   manual
 }
 
@@ -467,4 +473,131 @@ model WaitlistEntry {
   createdAt DateTime @default(now())
 
   @@map("waitlist_entries")
+}
+
+/// Daily-rotation copy. Replaces the hardcoded mobile list.
+model Tip {
+  id        String         @id @default(cuid())
+  slug      String         @unique
+  category  HealthCategory
+  title     String
+  body      String
+  isActive  Boolean        @default(true)
+  /// Stable rotation order within a category.
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([isActive, category, sortOrder])
+  @@map("tips")
+}
+
+enum AdminRole {
+  content
+  support
+  superadmin
+}
+
+enum AdminAuditAction {
+  point_credit
+  point_debit
+  member_deactivate
+  member_reactivate
+  admin_invite
+  admin_deactivate
+  admin_reactivate
+  admin_roles_update
+}
+
+/// Better Auth tables for operators. Separate from member `user`.
+model AdminUser {
+  id            String                @id
+  name          String
+  email         String                @unique
+  emailVerified Boolean               @default(false)
+  image         String?
+  /// Soft lock. Set by a superadmin; they cannot sign in until it is cleared.
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  sessions      AdminSession[]
+  accounts      AdminAccount[]
+  roles         AdminRoleAssignment[]
+  auditEvents   AdminAuditEvent[]
+
+  @@map("admin_user")
+}
+
+model AdminSession {
+  id        String    @id
+  expiresAt DateTime
+  token     String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_session")
+}
+
+model AdminAccount {
+  id                    String    @id
+  issuer                String
+  accountId             String
+  providerId            String
+  userId                String
+  user                  AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([issuer, accountId])
+  @@map("admin_account")
+}
+
+model AdminVerification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("admin_verification")
+}
+
+model AdminRoleAssignment {
+  id          String    @id @default(cuid())
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  role        AdminRole
+  createdAt   DateTime  @default(now())
+
+  @@unique([adminUserId, role])
+  @@index([role])
+  @@map("admin_role_assignments")
+}
+
+model AdminAuditEvent {
+  id                 String           @id @default(cuid())
+  adminUserId        String
+  adminUser          AdminUser        @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  action             AdminAuditAction
+  targetMemberUserId String?
+  targetAdminUserId  String?
+  reason             String?
+  payload            Json?
+  createdAt          DateTime         @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([targetMemberUserId, createdAt])
+  @@map("admin_audit_events")
 }

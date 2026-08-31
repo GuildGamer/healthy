@@ -5,4 +5,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+// Bundle TensorFlow Lite models for on-device MoveNet.
+config.resolver.assetExts.push('tflite');
+
 module.exports = config;

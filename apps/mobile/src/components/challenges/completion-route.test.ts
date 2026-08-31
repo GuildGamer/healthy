@@ -54,6 +54,20 @@ describe('completionRoute', () => {
     ).toBe('/challenge/c-steps/session');
   });
 
+  it('opens the pose screen for a push-up challenge', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-push',
+        status: 'pending',
+        completionKind: 'check_in',
+        capture: {
+          kind: 'device_session',
+          metric: 'pushups',
+        },
+      }),
+    ).toBe('/challenge/c-push/pose');
+  });
+
   it('opens the photo check when a surprise window is open', () => {
     expect(
       completionRoute({

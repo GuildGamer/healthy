@@ -1518,7 +1518,8 @@
                                       "steps",
                                       "sleep",
                                       "weight",
-                                      "heart_rate"
+                                      "heart_rate",
+                                      "pushups"
                                     ],
                                     "type": "string"
                                   },
@@ -1736,7 +1737,8 @@
                                       "steps",
                                       "sleep",
                                       "weight",
-                                      "heart_rate"
+                                      "heart_rate",
+                                      "pushups"
                                     ],
                                     "type": "string"
                                   },
@@ -1976,7 +1978,8 @@
                                       "steps",
                                       "sleep",
                                       "weight",
-                                      "heart_rate"
+                                      "heart_rate",
+                                      "pushups"
                                     ],
                                     "type": "string"
                                   },
@@ -2642,7 +2645,8 @@
                                     "steps",
                                     "sleep",
                                     "weight",
-                                    "heart_rate"
+                                    "heart_rate",
+                                    "pushups"
                                   ],
                                   "type": "string"
                                 },
@@ -2875,6 +2879,7 @@
                           "health_connect",
                           "in_app_gps",
                           "pedometer",
+                          "in_app_pose",
                           "manual"
                         ],
                         "type": "string"
@@ -2887,7 +2892,8 @@
                           "steps",
                           "sleep",
                           "weight",
-                          "heart_rate"
+                          "heart_rate",
+                          "pushups"
                         ],
                         "type": "string"
                       },
@@ -3242,7 +3248,8 @@
                                     "steps",
                                     "sleep",
                                     "weight",
-                                    "heart_rate"
+                                    "heart_rate",
+                                    "pushups"
                                   ],
                                   "type": "string"
                                 },
@@ -3713,7 +3720,8 @@
                                     "steps",
                                     "sleep",
                                     "weight",
-                                    "heart_rate"
+                                    "heart_rate",
+                                    "pushups"
                                   ],
                                   "type": "string"
                                 },
@@ -4341,7 +4349,8 @@
                                     "steps",
                                     "sleep",
                                     "weight",
-                                    "heart_rate"
+                                    "heart_rate",
+                                    "pushups"
                                   ],
                                   "type": "string"
                                 },
@@ -4708,7 +4717,8 @@
                                           "steps",
                                           "sleep",
                                           "weight",
-                                          "heart_rate"
+                                          "heart_rate",
+                                          "pushups"
                                         ],
                                         "type": "string"
                                       },
@@ -4849,6 +4859,2637 @@
           }
         }
       }
+    },
+    "/tips": {
+      "get": {
+        "operationId": "listTips",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tips": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "category",
+                          "title",
+                          "body"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "tips"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/me": {
+      "get": {
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "content",
+                          "support",
+                          "superadmin"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "roles",
+                    "isActive"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/challenges": {
+      "get": {
+        "operationId": "listChallenges",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 64,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "description": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "instruction": {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "rewardPoints": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
+                          },
+                          "defaultFrequency": {
+                            "enum": [
+                              "daily",
+                              "weekly",
+                              "monthly"
+                            ],
+                            "type": "string"
+                          },
+                          "isDefault": {
+                            "type": "boolean"
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "completionKind": {
+                            "enum": [
+                              "check_in",
+                              "vitals_bp",
+                              "evidence_photo",
+                              "glucose",
+                              "peak_flow",
+                              "water",
+                              "carbs"
+                            ],
+                            "type": "string"
+                          },
+                          "captureKind": {
+                            "enum": [
+                              "self_report",
+                              "structured_log",
+                              "photo",
+                              "device_sample",
+                              "device_session"
+                            ],
+                            "type": "string"
+                          },
+                          "deviceMetric": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "walk",
+                                  "run",
+                                  "cycle",
+                                  "steps",
+                                  "sleep",
+                                  "weight",
+                                  "heart_rate",
+                                  "pushups"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "targetDurationMinutes": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1440
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "targetDistanceMeters": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 200000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "targetCount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 200000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "surpriseEvidenceChancePercent": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "surpriseEvidenceWindowSeconds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3600
+                          },
+                          "surpriseEvidencePenaltyPoints": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
+                          },
+                          "enrollmentCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "title",
+                          "description",
+                          "instruction",
+                          "category",
+                          "icon",
+                          "rewardPoints",
+                          "defaultFrequency",
+                          "isDefault",
+                          "isActive",
+                          "completionKind",
+                          "captureKind",
+                          "deviceMetric",
+                          "targetDurationMinutes",
+                          "targetDistanceMeters",
+                          "targetCount",
+                          "surpriseEvidenceChancePercent",
+                          "surpriseEvidenceWindowSeconds",
+                          "surpriseEvidencePenaltyPoints",
+                          "enrollmentCount",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "challenges"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "instruction": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "category": {
+                    "enum": [
+                      "hypertension",
+                      "diabetes",
+                      "asthma",
+                      "general"
+                    ],
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "rewardPoints": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "defaultFrequency": {
+                    "enum": [
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ],
+                    "type": "string"
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "completionKind": {
+                    "enum": [
+                      "check_in",
+                      "vitals_bp",
+                      "evidence_photo",
+                      "glucose",
+                      "peak_flow",
+                      "water",
+                      "carbs"
+                    ],
+                    "type": "string"
+                  },
+                  "captureKind": {
+                    "enum": [
+                      "self_report",
+                      "structured_log",
+                      "photo",
+                      "device_sample",
+                      "device_session"
+                    ],
+                    "type": "string"
+                  },
+                  "deviceMetric": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "walk",
+                          "run",
+                          "cycle",
+                          "steps",
+                          "sleep",
+                          "weight",
+                          "heart_rate",
+                          "pushups"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "targetDurationMinutes": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1440
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "targetDistanceMeters": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 200000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "targetCount": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 200000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "surpriseEvidenceChancePercent": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "surpriseEvidenceWindowSeconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3600
+                  },
+                  "surpriseEvidencePenaltyPoints": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  }
+                },
+                "required": [
+                  "slug",
+                  "title",
+                  "description",
+                  "instruction",
+                  "category",
+                  "icon",
+                  "rewardPoints",
+                  "defaultFrequency",
+                  "isDefault",
+                  "isActive",
+                  "completionKind",
+                  "captureKind",
+                  "deviceMetric",
+                  "targetDurationMinutes",
+                  "targetDistanceMeters",
+                  "targetCount",
+                  "surpriseEvidenceChancePercent",
+                  "surpriseEvidenceWindowSeconds",
+                  "surpriseEvidencePenaltyPoints"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "minLength": 2,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "instruction": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "icon": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "rewardPoints": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
+                        "defaultFrequency": {
+                          "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly"
+                          ],
+                          "type": "string"
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "completionKind": {
+                          "enum": [
+                            "check_in",
+                            "vitals_bp",
+                            "evidence_photo",
+                            "glucose",
+                            "peak_flow",
+                            "water",
+                            "carbs"
+                          ],
+                          "type": "string"
+                        },
+                        "captureKind": {
+                          "enum": [
+                            "self_report",
+                            "structured_log",
+                            "photo",
+                            "device_sample",
+                            "device_session"
+                          ],
+                          "type": "string"
+                        },
+                        "deviceMetric": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "walk",
+                                "run",
+                                "cycle",
+                                "steps",
+                                "sleep",
+                                "weight",
+                                "heart_rate",
+                                "pushups"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "targetDurationMinutes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1440
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "targetDistanceMeters": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 200000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "targetCount": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 200000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "surpriseEvidenceChancePercent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "surpriseEvidenceWindowSeconds": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3600
+                        },
+                        "surpriseEvidencePenaltyPoints": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
+                        "enrollmentCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "title",
+                        "description",
+                        "instruction",
+                        "category",
+                        "icon",
+                        "rewardPoints",
+                        "defaultFrequency",
+                        "isDefault",
+                        "isActive",
+                        "completionKind",
+                        "captureKind",
+                        "deviceMetric",
+                        "targetDurationMinutes",
+                        "targetDistanceMeters",
+                        "targetCount",
+                        "surpriseEvidenceChancePercent",
+                        "surpriseEvidenceWindowSeconds",
+                        "surpriseEvidencePenaltyPoints",
+                        "enrollmentCount",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "challenge"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "instruction": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "category": {
+                    "enum": [
+                      "hypertension",
+                      "diabetes",
+                      "asthma",
+                      "general"
+                    ],
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "rewardPoints": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "defaultFrequency": {
+                    "enum": [
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ],
+                    "type": "string"
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "completionKind": {
+                    "enum": [
+                      "check_in",
+                      "vitals_bp",
+                      "evidence_photo",
+                      "glucose",
+                      "peak_flow",
+                      "water",
+                      "carbs"
+                    ],
+                    "type": "string"
+                  },
+                  "captureKind": {
+                    "enum": [
+                      "self_report",
+                      "structured_log",
+                      "photo",
+                      "device_sample",
+                      "device_session"
+                    ],
+                    "type": "string"
+                  },
+                  "deviceMetric": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "walk",
+                          "run",
+                          "cycle",
+                          "steps",
+                          "sleep",
+                          "weight",
+                          "heart_rate",
+                          "pushups"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "targetDurationMinutes": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1440
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "targetDistanceMeters": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 200000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "targetCount": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 200000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "surpriseEvidenceChancePercent": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "surpriseEvidenceWindowSeconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3600
+                  },
+                  "surpriseEvidencePenaltyPoints": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "slug",
+                  "title",
+                  "description",
+                  "instruction",
+                  "category",
+                  "icon",
+                  "rewardPoints",
+                  "defaultFrequency",
+                  "isDefault",
+                  "isActive",
+                  "completionKind",
+                  "captureKind",
+                  "deviceMetric",
+                  "targetDurationMinutes",
+                  "targetDistanceMeters",
+                  "targetCount",
+                  "surpriseEvidenceChancePercent",
+                  "surpriseEvidenceWindowSeconds",
+                  "surpriseEvidencePenaltyPoints",
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "minLength": 2,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "instruction": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "icon": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "rewardPoints": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
+                        "defaultFrequency": {
+                          "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly"
+                          ],
+                          "type": "string"
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "completionKind": {
+                          "enum": [
+                            "check_in",
+                            "vitals_bp",
+                            "evidence_photo",
+                            "glucose",
+                            "peak_flow",
+                            "water",
+                            "carbs"
+                          ],
+                          "type": "string"
+                        },
+                        "captureKind": {
+                          "enum": [
+                            "self_report",
+                            "structured_log",
+                            "photo",
+                            "device_sample",
+                            "device_session"
+                          ],
+                          "type": "string"
+                        },
+                        "deviceMetric": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "walk",
+                                "run",
+                                "cycle",
+                                "steps",
+                                "sleep",
+                                "weight",
+                                "heart_rate",
+                                "pushups"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "targetDurationMinutes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1440
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "targetDistanceMeters": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 200000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "targetCount": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 200000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "surpriseEvidenceChancePercent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "surpriseEvidenceWindowSeconds": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3600
+                        },
+                        "surpriseEvidencePenaltyPoints": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
+                        "enrollmentCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "title",
+                        "description",
+                        "instruction",
+                        "category",
+                        "icon",
+                        "rewardPoints",
+                        "defaultFrequency",
+                        "isDefault",
+                        "isActive",
+                        "completionKind",
+                        "captureKind",
+                        "deviceMetric",
+                        "targetDurationMinutes",
+                        "targetDistanceMeters",
+                        "targetCount",
+                        "surpriseEvidenceChancePercent",
+                        "surpriseEvidenceWindowSeconds",
+                        "surpriseEvidencePenaltyPoints",
+                        "enrollmentCount",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "challenge"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/tips": {
+      "get": {
+        "operationId": "listTips",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tips": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 64,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 120
+                          },
+                          "body": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "category",
+                          "title",
+                          "body",
+                          "isActive",
+                          "sortOrder",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "tips"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "category": {
+                    "enum": [
+                      "hypertension",
+                      "diabetes",
+                      "asthma",
+                      "general"
+                    ],
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  }
+                },
+                "required": [
+                  "slug",
+                  "category",
+                  "title",
+                  "body",
+                  "isActive",
+                  "sortOrder"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tip": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "minLength": 2,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "body": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "category",
+                        "title",
+                        "body",
+                        "isActive",
+                        "sortOrder",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "tip"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateTip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "category": {
+                    "enum": [
+                      "hypertension",
+                      "diabetes",
+                      "asthma",
+                      "general"
+                    ],
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "slug",
+                  "category",
+                  "title",
+                  "body",
+                  "isActive",
+                  "sortOrder",
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tip": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "minLength": 2,
+                          "maxLength": 64,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "category": {
+                          "enum": [
+                            "hypertension",
+                            "diabetes",
+                            "asthma",
+                            "general"
+                          ],
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "body": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "category",
+                        "title",
+                        "body",
+                        "isActive",
+                        "sortOrder",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "tip"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/waitlist": {
+      "get": {
+        "operationId": "listWaitlist",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "source": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "source",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "entries"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/members": {
+      "get": {
+        "operationId": "listMembers",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "categories": {
+                            "type": "array",
+                            "items": {
+                              "enum": [
+                                "hypertension",
+                                "diabetes",
+                                "asthma",
+                                "general"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "pointsBalance": {
+                            "type": "integer"
+                          },
+                          "currentStreakDays": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "deactivatedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "name",
+                          "displayName",
+                          "categories",
+                          "pointsBalance",
+                          "currentStreakDays",
+                          "deactivatedAt",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "totalCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "members",
+                    "totalCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/members/lookup": {
+      "get": {
+        "operationId": "lookupMember",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "email"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "member": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "reminderEnabled": {
+                          "type": "boolean"
+                        },
+                        "evidenceRemindersEnabled": {
+                          "type": "boolean"
+                        },
+                        "promotionalMessagesEnabled": {
+                          "type": "boolean"
+                        },
+                        "showOnLeaderboard": {
+                          "type": "boolean"
+                        },
+                        "healthLinkStatus": {
+                          "enum": [
+                            "unknown",
+                            "connected",
+                            "denied"
+                          ],
+                          "type": "string"
+                        },
+                        "pointsBalance": {
+                          "type": "integer"
+                        },
+                        "currentStreakDays": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "deactivatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "displayName",
+                        "categories",
+                        "timeZone",
+                        "reminderEnabled",
+                        "evidenceRemindersEnabled",
+                        "promotionalMessagesEnabled",
+                        "showOnLeaderboard",
+                        "healthLinkStatus",
+                        "pointsBalance",
+                        "currentStreakDays",
+                        "deactivatedAt"
+                      ]
+                    },
+                    "enrollments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "frequency": {
+                            "enum": [
+                              "daily",
+                              "weekly",
+                              "monthly"
+                            ],
+                            "type": "string"
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "challengeId",
+                          "title",
+                          "frequency",
+                          "isActive"
+                        ]
+                      }
+                    },
+                    "occurrences": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "periodKey": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "enum": [
+                              "pending",
+                              "in_progress",
+                              "awaiting_evidence",
+                              "completed"
+                            ],
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "rewarded",
+                                  "penalized"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "pointsDelta": {
+                            "type": "integer"
+                          },
+                          "completedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "periodKey",
+                          "status",
+                          "outcome",
+                          "pointsDelta",
+                          "completedAt"
+                        ]
+                      }
+                    },
+                    "ledger": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "delta": {
+                            "type": "integer"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "delta",
+                          "reason",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "member",
+                    "enrollments",
+                    "occurrences",
+                    "ledger"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/members/points": {
+      "post": {
+        "operationId": "adjustMemberPoints",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "delta": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "userId",
+                  "delta",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "member": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "reminderEnabled": {
+                          "type": "boolean"
+                        },
+                        "evidenceRemindersEnabled": {
+                          "type": "boolean"
+                        },
+                        "promotionalMessagesEnabled": {
+                          "type": "boolean"
+                        },
+                        "showOnLeaderboard": {
+                          "type": "boolean"
+                        },
+                        "healthLinkStatus": {
+                          "enum": [
+                            "unknown",
+                            "connected",
+                            "denied"
+                          ],
+                          "type": "string"
+                        },
+                        "pointsBalance": {
+                          "type": "integer"
+                        },
+                        "currentStreakDays": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "deactivatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "displayName",
+                        "categories",
+                        "timeZone",
+                        "reminderEnabled",
+                        "evidenceRemindersEnabled",
+                        "promotionalMessagesEnabled",
+                        "showOnLeaderboard",
+                        "healthLinkStatus",
+                        "pointsBalance",
+                        "currentStreakDays",
+                        "deactivatedAt"
+                      ]
+                    },
+                    "appliedDelta": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "member",
+                    "appliedDelta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/members/active": {
+      "post": {
+        "operationId": "setMemberActive",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "userId",
+                  "isActive",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "member": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "reminderEnabled": {
+                          "type": "boolean"
+                        },
+                        "evidenceRemindersEnabled": {
+                          "type": "boolean"
+                        },
+                        "promotionalMessagesEnabled": {
+                          "type": "boolean"
+                        },
+                        "showOnLeaderboard": {
+                          "type": "boolean"
+                        },
+                        "healthLinkStatus": {
+                          "enum": [
+                            "unknown",
+                            "connected",
+                            "denied"
+                          ],
+                          "type": "string"
+                        },
+                        "pointsBalance": {
+                          "type": "integer"
+                        },
+                        "currentStreakDays": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "deactivatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "displayName",
+                        "categories",
+                        "timeZone",
+                        "reminderEnabled",
+                        "evidenceRemindersEnabled",
+                        "promotionalMessagesEnabled",
+                        "showOnLeaderboard",
+                        "healthLinkStatus",
+                        "pointsBalance",
+                        "currentStreakDays",
+                        "deactivatedAt"
+                      ]
+                    },
+                    "enrollments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "frequency": {
+                            "enum": [
+                              "daily",
+                              "weekly",
+                              "monthly"
+                            ],
+                            "type": "string"
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "challengeId",
+                          "title",
+                          "frequency",
+                          "isActive"
+                        ]
+                      }
+                    },
+                    "occurrences": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "periodKey": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "enum": [
+                              "pending",
+                              "in_progress",
+                              "awaiting_evidence",
+                              "completed"
+                            ],
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "rewarded",
+                                  "penalized"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "pointsDelta": {
+                            "type": "integer"
+                          },
+                          "completedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "periodKey",
+                          "status",
+                          "outcome",
+                          "pointsDelta",
+                          "completedAt"
+                        ]
+                      }
+                    },
+                    "ledger": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "delta": {
+                            "type": "integer"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "delta",
+                          "reason",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "member",
+                    "enrollments",
+                    "occurrences",
+                    "ledger"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/operators": {
+      "get": {
+        "operationId": "listOperators",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operators": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "roles": {
+                            "type": "array",
+                            "items": {
+                              "enum": [
+                                "content",
+                                "support",
+                                "superadmin"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "name",
+                          "roles",
+                          "isActive",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "operators"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "inviteOperator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  },
+                  "roles": {
+                    "type": "array",
+                    "items": {
+                      "enum": [
+                        "content",
+                        "support",
+                        "superadmin"
+                      ],
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "email",
+                  "name",
+                  "password",
+                  "roles"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operator": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "content",
+                              "support",
+                              "superadmin"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "roles",
+                        "isActive",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operator"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/operators/roles": {
+      "put": {
+        "operationId": "updateOperatorRoles",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "adminUserId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "roles": {
+                    "type": "array",
+                    "items": {
+                      "enum": [
+                        "content",
+                        "support",
+                        "superadmin"
+                      ],
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "adminUserId",
+                  "roles"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operator": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "content",
+                              "support",
+                              "superadmin"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "roles",
+                        "isActive",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operator"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/operators/active": {
+      "post": {
+        "operationId": "setOperatorActive",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "adminUserId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "adminUserId",
+                  "isActive"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operator": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "content",
+                              "support",
+                              "superadmin"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "roles",
+                        "isActive",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operator"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
+  },
+  "components": {
+    "schemas": {}
   }
 }

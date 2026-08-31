@@ -11,6 +11,8 @@ describe('readEnvironment', () => {
     expect(environment.reminderDispatchSecret).toBeNull();
     expect(environment.mail).toEqual({ mode: 'log' });
     expect(environment.evidenceVision).toEqual({ mode: 'accept' });
+    expect(environment.adminAppUrl).toBe('http://localhost:3001');
+    expect(environment.adminBootstrapEmail).toBeNull();
   });
 
   it('treats only production as production', () => {

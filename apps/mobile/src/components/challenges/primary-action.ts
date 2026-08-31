@@ -7,7 +7,7 @@ import type {
 export function primaryActionLabel(occurrence: {
   status: UserChallengeStatus;
   completionKind: ChallengeCompletionKind;
-  capture?: { kind: ChallengeCaptureKind };
+  capture?: { kind: ChallengeCaptureKind; metric?: string | null };
 } | null | undefined): string | null {
   if (!occurrence) {
     return null;
@@ -21,11 +21,16 @@ export function primaryActionLabel(occurrence: {
     return 'Submit photo';
   }
 
+  const isPushups = occurrence.capture?.metric === 'pushups';
   const isDevice =
     occurrence.capture?.kind === 'device_session' ||
     occurrence.capture?.kind === 'device_sample';
 
   if (occurrence.status === 'in_progress') {
+    if (isPushups) {
+      return 'Resume';
+    }
+
     if (isDevice) {
       return 'Resume';
     }
@@ -43,6 +48,10 @@ export function primaryActionLabel(occurrence: {
     }
 
     return 'Resume log';
+  }
+
+  if (isPushups) {
+    return 'Start push-ups';
   }
 
   if (occurrence.capture?.kind === 'device_session') {

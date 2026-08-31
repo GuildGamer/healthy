@@ -38,7 +38,15 @@ type ChallengeSeed = {
     | 'photo'
     | 'device_sample'
     | 'device_session';
-  deviceMetric?: 'walk' | 'run' | 'cycle' | 'steps' | 'sleep' | 'weight' | 'heart_rate';
+  deviceMetric?:
+    | 'walk'
+    | 'run'
+    | 'cycle'
+    | 'steps'
+    | 'sleep'
+    | 'weight'
+    | 'heart_rate'
+    | 'pushups';
   targetDurationMinutes?: number;
   targetDistanceMeters?: number;
   targetCount?: number;
@@ -241,6 +249,22 @@ const challengeSeeds: ChallengeSeed[] = [
       'Reach 5,000 steps. We can read today’s count from this phone or a connected watch.',
   },
   {
+    slug: 'twenty-push-ups',
+    title: 'Do twenty push-ups',
+    description:
+      'Prop your phone, get in frame, and complete twenty push-ups counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'arm-flex',
+    captureKind: 'device_session',
+    deviceMetric: 'pushups',
+    targetCount: 20,
+    instruction:
+      'Place your phone on the floor in front of you so your shoulders and elbows are visible. Start the camera session, do your push-ups, then stop. We count reps on this phone — the video never leaves the device.',
+  },
+  {
     slug: 'gym-session',
     title: 'Complete a gym session',
     description: 'Train at the gym and prove it with a photo.',
@@ -285,9 +309,102 @@ const challengeSeeds: ChallengeSeed[] = [
   },
 ];
 
+const tipSeeds: Array<{
+  slug: string;
+  category: ChallengeSeed['category'];
+  title: string;
+  body: string;
+  sortOrder: number;
+}> = [
+  {
+    slug: 'salt',
+    category: 'hypertension',
+    title: 'Reduce salt today for better blood pressure',
+    body: 'Most sodium comes from packaged food rather than the salt shaker. Check the labels on bread, sauces and cured meats before you reach for seasoning.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'same-time-reading',
+    category: 'hypertension',
+    title: 'Take your reading at the same time each day',
+    body: 'Blood pressure drifts through the day. Measuring at a consistent time, seated and rested for five minutes, makes the trend much easier to read.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'post-meal-walk',
+    category: 'hypertension',
+    title: 'Walk for twenty minutes after your largest meal',
+    body: 'A gentle walk after eating softens the post-meal rise in blood pressure, and attaching it to a meal you already eat makes the habit stick.',
+    sortOrder: 2,
+  },
+  {
+    slug: 'meal-order',
+    category: 'diabetes',
+    title: 'Eat protein or fibre before the carbohydrate',
+    body: 'Order matters. Starting a meal with vegetables or protein slows how quickly glucose arrives in your bloodstream.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'foot-check',
+    category: 'diabetes',
+    title: 'Check your feet when you take your socks off',
+    body: 'Attaching the check to something you already do every day makes it stick. Look for cuts, blisters and changes in colour.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'fast-carb',
+    category: 'diabetes',
+    title: 'Keep a fast-acting carbohydrate within reach',
+    body: 'Glucose tablets or a small juice in your bag turns a low into a minor interruption rather than an emergency.',
+    sortOrder: 2,
+  },
+  {
+    slug: 'rinse-inhaler',
+    category: 'asthma',
+    title: 'Rinse your mouth after your preventer inhaler',
+    body: 'A quick rinse and spit reduces irritation and the risk of thrush from inhaled steroids.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'inhaler-technique',
+    category: 'asthma',
+    title: 'Check your inhaler technique once a month',
+    body: 'Technique slips quietly over time. A slow, deep breath held for ten seconds delivers far more of the dose than a fast one.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'trigger-notes',
+    category: 'asthma',
+    title: 'Note what you were doing when symptoms start',
+    body: 'Patterns show up quickly once written down, whether that is cold air, dust, exercise or one particular room.',
+    sortOrder: 2,
+  },
+  {
+    slug: 'water-before-meals',
+    category: 'general',
+    title: 'Drink a glass of water before each meal',
+    body: 'It is the easiest hydration habit to remember, because the reminder is already built into your day.',
+    sortOrder: 0,
+  },
+  {
+    slug: 'hourly-movement',
+    category: 'general',
+    title: 'Stand up and move for two minutes every hour',
+    body: 'Breaking up long stretches of sitting does more for circulation and stiffness than any single workout.',
+    sortOrder: 1,
+  },
+  {
+    slug: 'sleep-schedule',
+    category: 'general',
+    title: 'Keep your sleep and wake times consistent',
+    body: 'A steady schedule does more for how rested you feel than the total number of hours you spend in bed.',
+    sortOrder: 2,
+  },
+];
+
 /**
  * Disposable seed data for local/E2E environments.
- * Safe to re-run: waitlist email and challenge slugs are upserted.
+ * Safe to re-run: waitlist email, challenge slugs, and tip slugs are upserted.
  */
 async function main(): Promise<void> {
   await prisma.waitlistEntry.upsert({
@@ -352,9 +469,23 @@ async function main(): Promise<void> {
     });
   }
 
+  for (const tip of tipSeeds) {
+    await prisma.tip.upsert({
+      where: { slug: tip.slug },
+      create: tip,
+      update: {
+        category: tip.category,
+        title: tip.title,
+        body: tip.body,
+        sortOrder: tip.sortOrder,
+        isActive: true,
+      },
+    });
+  }
+
   // eslint-disable-next-line no-console
   console.log(
-    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges`,
+    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips`,
   );
 }
 

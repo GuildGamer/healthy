@@ -3,9 +3,19 @@ import type { ContractRouterClient } from '@orpc/contract';
 import type { JsonifiedClient } from '@orpc/openapi-client';
 import { OpenAPILink } from '@orpc/openapi-client/fetch';
 import { createTanstackQueryUtils } from '@orpc/tanstack-query';
-import { appContract, type AppContract } from '@product/contract';
+import {
+  adminCanManageAdmins,
+  adminContract,
+  adminHasPermission,
+  appContract,
+  type AdminContract,
+  type AppContract,
+} from '@product/contract';
 
 export type ApiClient = JsonifiedClient<ContractRouterClient<AppContract>>;
+export type AdminApiClient = JsonifiedClient<
+  ContractRouterClient<AdminContract>
+>;
 
 export type CreateApiClientOptions = {
   baseUrl: string;
@@ -29,12 +39,34 @@ export function createApiQueryUtils(client: ApiClient) {
   return createTanstackQueryUtils(client);
 }
 
+export function createAdminApiClient(
+  options: CreateApiClientOptions,
+): AdminApiClient {
+  const link = new OpenAPILink(adminContract, {
+    url: options.baseUrl.replace(/\/$/, ''),
+    headers: options.headers,
+    fetch: options.fetch,
+  });
+
+  return createORPCClient(link);
+}
+
+export function createAdminApiQueryUtils(client: AdminApiClient) {
+  return createTanstackQueryUtils(client);
+}
+
 export {
   activityMeetsTarget,
   isDeviceCapture,
   selfReportCapture,
 } from '@product/contract';
-export { appContract, createTanstackQueryUtils };
+export {
+  adminCanManageAdmins,
+  adminContract,
+  adminHasPermission,
+  appContract,
+  createTanstackQueryUtils,
+};
 export type {
   ActivityItem,
   AddChallengeReminderInput,
@@ -96,4 +128,14 @@ export type {
   UserChallengeStatus,
   WaitlistInput,
   WaitlistOutput,
+  AdminChallenge,
+  AdminContract,
+  AdminMeOutput,
+  AdminMemberOutput,
+  AdminOperator,
+  AdminRoleName,
+  AdminTip,
+  AdminWaitlistEntry,
+  ListPublicTipsOutput,
+  PublicTip,
 } from '@product/contract';

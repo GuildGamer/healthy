@@ -34,6 +34,18 @@ export function requireDeviceActivityFor(
     });
   }
 
+  if (capture.metric === 'pushups' && parsed.data.source === 'manual') {
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'Push-ups must be counted in a camera session',
+    });
+  }
+
+  if (capture.metric === 'pushups' && parsed.data.source !== 'in_app_pose') {
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'Push-ups must be counted in a camera session',
+    });
+  }
+
   if (!activityMeetsTarget(parsed.data, capture.target)) {
     throw new ORPCError('BAD_REQUEST', {
       message: targetMissMessage(capture),
@@ -49,6 +61,10 @@ function targetMissMessage(capture: ChallengeCapture): string {
   }
 
   if (capture.target.count !== null) {
+    if (capture.metric === 'pushups') {
+      return `Complete at least ${capture.target.count.toLocaleString('en-GB')} push-ups to finish`;
+    }
+
     return `Reach ${capture.target.count.toLocaleString('en-GB')} steps to finish`;
   }
 

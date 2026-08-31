@@ -42,6 +42,10 @@ export type Environment = {
   expoAccessToken: string | null;
   mail: MailConfig;
   evidenceVision: EvidenceVisionConfig;
+  /** Origin of the Next.js admin console. */
+  adminAppUrl: string;
+  adminBootstrapEmail: string | null;
+  adminBootstrapPassword: string | null;
 };
 
 function readOptional(value: string | undefined): string | null {
@@ -158,5 +162,8 @@ export function readEnvironment(
     expoAccessToken: readOptional(source.EXPO_ACCESS_TOKEN),
     mail: readMail(source, isProd),
     evidenceVision: readEvidenceVision(source, isProd),
+    adminAppUrl: readOptional(source.ADMIN_APP_URL) ?? 'http://localhost:3001',
+    adminBootstrapEmail: readOptional(source.ADMIN_BOOTSTRAP_EMAIL),
+    adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
   };
 }

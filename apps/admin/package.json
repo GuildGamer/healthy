@@ -1,0 +1,30 @@
+{
+  "name": "@product/admin",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"lint: admin skipped\"",
+    "test": "echo \"test: admin skipped\""
+  },
+  "dependencies": {
+    "@product/brand": "workspace:*",
+    "@product/client": "workspace:*",
+    "@product/contract": "workspace:*",
+    "@tanstack/react-query": "^5.69.0",
+    "better-auth": "1.7.2",
+    "next": "^15.5.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "typescript": "^5.8.2"
+  }
+}

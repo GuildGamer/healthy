@@ -1,5 +1,5 @@
 import type { HealthCategory } from '@product/client';
-import { healthTips, type HealthTip } from './constants/health-tips';
+import type { HealthTip } from './constants/health-tips';
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -9,14 +9,15 @@ const MILLISECONDS_PER_DAY = 86_400_000;
  * not chosen yet.
  */
 export function tipsForCategories(
+  tips: readonly HealthTip[],
   categories: readonly HealthCategory[],
 ): HealthTip[] {
   if (categories.length === 0) {
-    return [...healthTips];
+    return [...tips];
   }
 
-  const chosen = healthTips.filter((tip) => categories.includes(tip.category));
-  const general = healthTips.filter(
+  const chosen = tips.filter((tip) => categories.includes(tip.category));
+  const general = tips.filter(
     (tip) => tip.category === 'general' && !categories.includes('general'),
   );
 
@@ -28,10 +29,11 @@ export function tipsForCategories(
  * for the whole day and lines up with the challenge day key.
  */
 export function selectDailyTip(
+  tips: readonly HealthTip[],
   categories: readonly HealthCategory[],
   dayKey: string,
 ): HealthTip | null {
-  const relevant = tipsForCategories(categories);
+  const relevant = tipsForCategories(tips, categories);
   if (relevant.length === 0) {
     return null;
   }

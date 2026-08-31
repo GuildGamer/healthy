@@ -5,6 +5,7 @@ import { MeModule } from './me/index.js';
 import { NotificationsModule } from './notifications/index.js';
 import { PushDevicesModule } from './push/index.js';
 import { RemindersModule } from './reminders/index.js';
+import { TipsModule } from './tips/index.js';
 import { WaitlistModule } from './waitlist/index.js';
 
 export default [
@@ -16,4 +17,5 @@ export default [
   LeaderboardModule,
   PushDevicesModule,
   WaitlistModule,
+  TipsModule,
 ];

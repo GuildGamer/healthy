@@ -75,11 +75,16 @@ export function TipsScreen() {
     queryKey: ['challenges', 'today'],
     queryFn: () => apiClient.listTodayChallenges(),
   });
+  const tipsQuery = useQuery({
+    queryKey: ['tips'],
+    queryFn: () => apiClient.listTips(),
+  });
 
   const categories = meQuery.data?.categories ?? [];
   const dayKey = challengesQuery.data?.dayKey ?? '';
-  const tips = tipsForCategories(categories);
-  const todayTip = selectDailyTip(categories, dayKey);
+  const catalog = tipsQuery.data?.tips ?? [];
+  const tips = tipsForCategories(catalog, categories);
+  const todayTip = selectDailyTip(catalog, categories, dayKey);
   const moreTips = tips.filter((tip) => tip.id !== todayTip?.id);
   const groups = groupTipsByCategory(moreTips);
   const activeScope = resolveTipScope(scope, groups);
@@ -87,13 +92,18 @@ export function TipsScreen() {
   const showFeatured =
     todayTip != null &&
     (activeScope === 'all' || activeScope === todayTip.category);
-  const isLoading = meQuery.isPending || challengesQuery.isPending;
+  const isLoading =
+    meQuery.isPending || challengesQuery.isPending || tipsQuery.isPending;
 
   return (
     <RefreshableScroll
       contentContainerStyle={styles.content}
       onPullRefresh={() =>
-        Promise.all([meQuery.refetch(), challengesQuery.refetch()])
+        Promise.all([
+          meQuery.refetch(),
+          challengesQuery.refetch(),
+          tipsQuery.refetch(),
+        ])
       }
       style={styles.container}
       testID="tips-screen"

@@ -24,6 +24,7 @@ jest.mock('@/lib/api', () => ({
     startChallenge: jest.fn(),
     completeChallenge: jest.fn(),
     updateTimeZone: jest.fn(),
+    listTips: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -51,6 +52,7 @@ const mockedApi = apiClient as unknown as {
   startChallenge: jest.Mock;
   completeChallenge: jest.Mock;
   updateTimeZone: jest.Mock;
+  listTips: jest.Mock;
 };
 
 function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
@@ -141,6 +143,22 @@ beforeEach(() => {
     completedCount: 0,
     totalCount: 0,
   });
+  mockedApi.listTips.mockResolvedValue({
+    tips: [
+      {
+        id: 'salt',
+        category: 'hypertension',
+        title: 'Reduce salt today for better blood pressure',
+        body: 'Most sodium comes from packaged food.',
+      },
+      {
+        id: 'water-before-meals',
+        category: 'general',
+        title: 'Drink a glass of water before each meal',
+        body: 'It is the easiest hydration habit to remember.',
+      },
+    ],
+  });
   mockedApi.listLeaderboard.mockResolvedValue({
     weekStart: '2026-08-24',
     period: 'week',
@@ -210,7 +228,7 @@ describe('HomeScreen', () => {
     fireEvent.press(await screen.findByTestId('home-leaderboard'));
     expect(useRouter().push).toHaveBeenCalledWith('/leaderboard');
 
-    fireEvent.press(screen.getByTestId('home-daily-tip'));
+    fireEvent.press(await screen.findByTestId('home-daily-tip'));
     expect(useRouter().push).toHaveBeenCalledWith('/tips');
 
     fireEvent.press(screen.getByTestId('home-points-card'));

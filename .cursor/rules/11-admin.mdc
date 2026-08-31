@@ -1,0 +1,31 @@
+---
+description: Admin console — Next.js, separate Better Auth, role-gated
+globs: apps/admin/**/*,apps/api/src/modules/admin/**/*
+alwaysApply: false
+---
+
+# Admin
+
+## Surfaces
+
+- `apps/admin` is the **operator console** (Next.js). It is not the marketing
+  site and not the mobile app.
+- `apps/web` stays Astro. Do not move marketing pages to Next.
+- Member tokens never authorize admin routes. Admin tokens never authorize
+  member routes.
+
+## Identity
+
+Operators live in `AdminUser` / `admin_*` Better Auth tables, not `User`.
+Roles are additive: `content`, `support`, `superadmin`. Superadmin implies
+every product permission and is the only role that manages operators.
+
+## API
+
+Admin procedures live in `adminContract` (`packages/contract`). Implement them
+under `apps/api/src/modules/admin/`. Fail closed on role checks.
+
+Content: catalog, tips, waitlist. Support: member list and lookup (outcome +
+points only — no vitals/glucose payloads), ledger adjustments, member deactivate.
+Support mutations write `AdminAuditEvent` and, for points, an append-only
+ledger row.

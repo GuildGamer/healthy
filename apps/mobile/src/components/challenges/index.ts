@@ -12,6 +12,8 @@ export { completionRoute } from './completion-route';
 export { ChallengeConfirmScreen } from './ChallengeConfirmScreen';
 export { ChallengeDetailScreen } from './ChallengeDetailScreen';
 export { ChallengeLogScreen } from './ChallengeLogScreen';
+export { ChallengeSessionScreen } from './ChallengeSessionScreen';
+export { PoseSessionScreen } from './PoseSessionScreen';
 export { EvidenceRequestScreen } from './EvidenceRequestScreen';
 export { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
 export { ChallengesScreen } from './ChallengesScreen';

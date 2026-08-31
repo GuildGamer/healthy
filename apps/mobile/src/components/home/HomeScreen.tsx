@@ -166,6 +166,10 @@ export function HomeScreen() {
     queryKey: ['challenges', 'today'],
     queryFn: () => apiClient.listTodayChallenges(),
   });
+  const tipsQuery = useQuery({
+    queryKey: ['tips'],
+    queryFn: () => apiClient.listTips(),
+  });
 
   useSyncTimeZone(meQuery.data?.timeZone);
 
@@ -180,6 +184,7 @@ export function HomeScreen() {
   const completedCount = challengesQuery.data?.completedCount ?? 0;
   const totalCount = challengesQuery.data?.totalCount ?? 0;
   const todayTip = selectDailyTip(
+    tipsQuery.data?.tips ?? [],
     meQuery.data?.categories ?? [],
     challengesQuery.data?.dayKey ?? '',
   );
@@ -215,6 +220,7 @@ export function HomeScreen() {
             challengesQuery.refetch(),
             notificationsQuery.refetch(),
             leaderboardQuery.refetch(),
+            tipsQuery.refetch(),
           ])
         }
         style={styles.scroll}

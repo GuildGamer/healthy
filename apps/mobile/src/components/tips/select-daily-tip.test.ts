@@ -3,7 +3,7 @@ import { groupTipsByCategory, tipsForCategories } from './select-daily-tip';
 
 describe('groupTipsByCategory', () => {
   it('keeps catalog order and does not mix categories', () => {
-    const tips = tipsForCategories(['hypertension', 'diabetes']);
+    const tips = tipsForCategories(healthTips, ['hypertension', 'diabetes']);
     const groups = groupTipsByCategory(tips);
 
     expect(groups.map((group) => group.category)).toEqual([

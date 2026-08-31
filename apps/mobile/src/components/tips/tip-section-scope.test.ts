@@ -1,3 +1,4 @@
+import { healthTips } from './constants/health-tips';
 import { groupTipsByCategory, tipsForCategories } from './select-daily-tip';
 import {
   groupsForScope,
@@ -6,7 +7,7 @@ import {
 } from './tip-section-scope';
 
 const groups = groupTipsByCategory(
-  tipsForCategories(['hypertension', 'diabetes']),
+  tipsForCategories(healthTips, ['hypertension', 'diabetes']),
 );
 
 describe('tip section scope', () => {

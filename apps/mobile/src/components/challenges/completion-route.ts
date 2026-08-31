@@ -16,13 +16,14 @@ export function completionRoute(challenge: {
   challengeId: string;
   status: UserChallengeStatus;
   completionKind: ChallengeCompletionKind;
-  capture?: { kind: ChallengeCaptureKind };
+  capture?: { kind: ChallengeCaptureKind; metric?: string | null };
 }):
   | `/challenge/${string}/log`
   | `/challenge/${string}/evidence`
   | `/challenge/${string}/verify`
   | `/challenge/${string}/confirm`
   | `/challenge/${string}/session`
+  | `/challenge/${string}/pose`
   | null {
   if (challenge.status === 'completed') {
     return null;
@@ -30,6 +31,10 @@ export function completionRoute(challenge: {
 
   if (challenge.status === 'awaiting_evidence') {
     return `/challenge/${challenge.challengeId}/verify`;
+  }
+
+  if (challenge.capture?.metric === 'pushups') {
+    return `/challenge/${challenge.challengeId}/pose`;
   }
 
   if (

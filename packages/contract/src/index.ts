@@ -1,5 +1,13 @@
 import { oc } from '@orpc/contract';
 import { z } from 'zod';
+import { listTipsContract } from './admin.js';
+import {
+  challengeCompletionKindSchema,
+  challengeFrequencySchema,
+  challengeIconSchema,
+  healthCategorySchema,
+  userChallengeStatusSchema,
+} from './catalog-fields.js';
 import {
   challengeCaptureSchema,
   deviceActivitySchema,
@@ -19,6 +27,7 @@ import {
   waterUnitSchema,
 } from './challenge-logging.js';
 
+export { challengeSpecIssue } from './challenge-spec.js';
 export {
   activityMeetsTarget,
   challengeCaptureKindSchema,
@@ -78,48 +87,53 @@ export type {
   WaterUnit,
 } from './challenge-logging.js';
 
-export const healthCategorySchema = z.enum([
-  'hypertension',
-  'diabetes',
-  'asthma',
-  'general',
-]);
+export {
+  DEFAULT_CHALLENGE_ICON,
+  challengeCompletionKindSchema,
+  challengeFrequencySchema,
+  challengeIconSchema,
+  healthCategorySchema,
+  toChallengeIcon,
+  userChallengeStatusSchema,
+} from './catalog-fields.js';
+export type {
+  ChallengeCompletionKind,
+  ChallengeFrequency,
+  HealthCategory,
+  UserChallengeStatus,
+} from './catalog-fields.js';
 
-export const userChallengeStatusSchema = z.enum([
-  'pending',
-  'in_progress',
-  'awaiting_evidence',
-  'completed',
-]);
+export {
+  adminCanManageAdmins,
+  adminHasPermission,
+  adminRoleSchema,
+} from './admin-roles.js';
+export type { AdminRoleName } from './admin-roles.js';
 
-export const challengeFrequencySchema = z.enum(['daily', 'weekly', 'monthly']);
-
-export const challengeCompletionKindSchema = z.enum([
-  'check_in',
-  'vitals_bp',
-  'evidence_photo',
-  'glucose',
-  'peak_flow',
-  'water',
-  'carbs',
-]);
-
-/**
- * Material Community Icons glyph name. Admin picks from that pack so the
- * catalog can cover walks, pills, meters, and whatever comes next.
- */
-export const DEFAULT_CHALLENGE_ICON = 'checkbox-marked-circle-outline';
-
-export const challengeIconSchema = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
-
-export function toChallengeIcon(value: string | null | undefined): string {
-  const parsed = challengeIconSchema.safeParse((value ?? '').trim());
-  return parsed.success ? parsed.data : DEFAULT_CHALLENGE_ICON;
-}
+export {
+  adminContract,
+  listTipsContract,
+} from './admin.js';
+export type {
+  AdminChallenge,
+  AdminContract,
+  AdminMeOutput,
+  AdminMemberListItem,
+  AdminMemberOutput,
+  AdminMemberSummary,
+  AdminOperator,
+  AdminTip,
+  AdminWaitlistEntry,
+  AdjustAdminMemberPointsInput,
+  InviteAdminInput,
+  ListPublicTipsOutput,
+  PublicTip,
+  SetAdminMemberActiveInput,
+  UpdateAdminChallengeInput,
+  UpdateAdminTipInput,
+  UpsertAdminChallengeInput,
+  UpsertAdminTipInput,
+} from './admin.js';
 
 export const challengeVitalsSchema = z.object({
   systolic: z.number().int().min(50).max(250),
@@ -629,10 +643,10 @@ export const appContract = {
   listActivity: listActivityContract,
   listChallengeHistory: listChallengeHistoryContract,
   waitlist: waitlistContract,
+  listTips: listTipsContract,
 };
 
 export type AppContract = typeof appContract;
-export type HealthCategory = z.infer<typeof healthCategorySchema>;
 export type HealthOutput = z.infer<typeof healthOutputSchema>;
 export type MeOutput = z.infer<typeof meOutputSchema>;
 export type UpdateCategoriesInput = z.infer<typeof updateCategoriesInputSchema>;
@@ -656,10 +670,6 @@ export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>;
 export type LeaderboardPeriod = z.infer<typeof leaderboardPeriodSchema>;
 export type ListLeaderboardInput = z.input<typeof listLeaderboardInputSchema>;
 export type ListLeaderboardOutput = z.infer<typeof listLeaderboardOutputSchema>;
-export type ChallengeFrequency = z.infer<typeof challengeFrequencySchema>;
-export type ChallengeCompletionKind = z.infer<
-  typeof challengeCompletionKindSchema
->;
 export type ChallengeVitals = z.infer<typeof challengeVitalsSchema>;
 export type ChallengeEvidence = z.infer<typeof challengeEvidenceSchema>;
 export type SaveChallengeDraftInput = z.infer<
@@ -674,7 +684,6 @@ export type SetChallengeEnrollmentInput = z.infer<
   typeof setChallengeEnrollmentInputSchema
 >;
 export type ListTodayChallengesOutput = z.infer<typeof listTodayChallengesOutputSchema>;
-export type UserChallengeStatus = z.infer<typeof userChallengeStatusSchema>;
 export type StartChallengeInput = z.infer<typeof startChallengeInputSchema>;
 export type StartChallengeOutput = z.infer<typeof startChallengeOutputSchema>;
 export type CompleteChallengeInput = z.infer<typeof completeChallengeInputSchema>;
