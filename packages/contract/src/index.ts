@@ -49,6 +49,7 @@ export {
   emptyChallengeTarget,
   healthLinkStatusSchema,
   isDeviceCapture,
+  resolveEnrollmentTargetCount,
   selfReportCapture,
   toChallengeCapture,
   updateHealthLinkInputSchema,
@@ -428,6 +429,8 @@ export const setChallengeEnrollmentInputSchema = z.object({
   isEnrolled: z.boolean(),
   /** Omit to keep the catalog default, or the cadence already chosen. */
   frequency: challengeFrequencySchema.optional(),
+  /** Omit to keep the catalog default, or the count already chosen. */
+  targetCount: z.number().int().positive().max(200_000).optional(),
 });
 
 export const startChallengeInputSchema = z.object({

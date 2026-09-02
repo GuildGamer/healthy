@@ -255,7 +255,7 @@ const challengeSeeds: ChallengeSeed[] = [
     slug: 'twenty-push-ups',
     title: 'Do twenty push-ups',
     description:
-      'Prop your phone, get in frame, and complete twenty push-ups counted on-device.',
+      'Prop your phone, get your whole body in frame, and complete twenty push-ups counted on-device.',
     category: 'general',
     rewardPoints: 150,
     defaultFrequency: 'daily',
@@ -265,7 +265,7 @@ const challengeSeeds: ChallengeSeed[] = [
     deviceMetric: 'pushups',
     targetCount: 20,
     instruction:
-      'Place your phone on the floor in front of you so your shoulders and elbows are visible. Start the camera session, do your push-ups, then stop. We count reps on this phone — the video never leaves the device.',
+      'Prop your phone so your whole body is in the frame — head to feet, both arms visible. Start your first push-up — counting begins automatically. Video stays on this device.',
   },
   {
     slug: 'gym-session',

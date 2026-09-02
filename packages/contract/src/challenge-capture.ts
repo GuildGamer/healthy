@@ -115,6 +115,14 @@ export function activityMeetsTarget(
   return true;
 }
 
+/** Enrolment override wins; null on either side falls through to the catalog. */
+export function resolveEnrollmentTargetCount(
+  catalogCount: number | null | undefined,
+  enrollmentCount: number | null | undefined,
+): number | null {
+  return enrollmentCount ?? catalogCount ?? null;
+}
+
 export function toChallengeCapture(input: {
   captureKind?: ChallengeCaptureKind | string | null;
   deviceMetric?: DeviceMetric | string | null;

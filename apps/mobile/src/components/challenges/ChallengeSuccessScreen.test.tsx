@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Sharing from 'expo-sharing';
 import type { ComponentProps } from 'react';
@@ -9,6 +10,14 @@ import {
   setPendingShareCard,
 } from '@/lib/share-card-session';
 import { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
+
+jest.mock('@/lib/api', () => ({
+  API_BASE_URL: 'http://localhost:3000',
+  apiClient: {
+    me: jest.fn(async () => ({ hasMembership: true })),
+  },
+  apiQuery: {},
+}));
 
 jest.mock('expo-router', () => {
   const push = jest.fn();
@@ -26,15 +35,21 @@ const testSafeAreaMetrics: Metrics = {
 function renderSuccess(
   props: Partial<ComponentProps<typeof ChallengeSuccessScreen>> = {},
 ) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+
   return render(
-    <SafeAreaProvider initialMetrics={testSafeAreaMetrics}>
-      <ChallengeSuccessScreen
-        currentStreakDays={12}
-        pointsAwarded={40}
-        title="Gym session"
-        {...props}
-      />
-    </SafeAreaProvider>,
+    <QueryClientProvider client={client}>
+      <SafeAreaProvider initialMetrics={testSafeAreaMetrics}>
+        <ChallengeSuccessScreen
+          currentStreakDays={12}
+          pointsAwarded={40}
+          title="Gym session"
+          {...props}
+        />
+      </SafeAreaProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -44,7 +59,16 @@ afterEach(() => {
 });
 
 describe('ChallengeSuccessScreen share card', () => {
-  it('shows the branded preview when a gym selfie was just submitted', () => {
+  it('shows a designed card after any successful completion', () => {
+    renderSuccess({ title: 'Walk 20 minutes' });
+
+    expect(screen.getByTestId('challenge-share-card')).toBeOnTheScreen();
+    expect(screen.getAllByText('Walk 20 minutes').length).toBeGreaterThan(0);
+    expect(screen.getByText('+40')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
+  });
+
+  it('uses the gym selfie when one was just submitted', () => {
     setPendingShareCard({
       photoUri: 'file://gym.jpg',
       title: 'Gym session',
@@ -55,27 +79,19 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess();
 
     expect(screen.getByTestId('challenge-share-card')).toBeOnTheScreen();
-    expect(screen.getByText('Healthy')).toBeOnTheScreen();
     expect(screen.getByText('+40 pts · Day 12 streak')).toBeOnTheScreen();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
   });
 
-  it('stays on the classic celebration when there is no photo to share', () => {
-    renderSuccess();
+  it('hides share after a missed photo check', () => {
+    renderSuccess({ penaltyApplied: 25, pointsAwarded: 0 });
 
     expect(screen.queryByTestId('challenge-share-card')).toBeNull();
     expect(screen.queryByTestId('challenge-success-share')).toBeNull();
-    expect(screen.getByText('Nice work. The points are yours.')).toBeOnTheScreen();
+    expect(screen.getByText('Photo check missed')).toBeOnTheScreen();
   });
 
   it('shares a captured card image', async () => {
-    setPendingShareCard({
-      photoUri: 'file://gym.jpg',
-      title: 'Gym session',
-      pointsAwarded: 40,
-      currentStreakDays: 12,
-    });
-
     renderSuccess();
     fireEvent.press(screen.getByTestId('challenge-success-share'));
 

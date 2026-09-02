@@ -252,7 +252,13 @@ export function ProfileScreen() {
     <View style={styles.container}>
       <RefreshableScroll
         contentContainerStyle={styles.content}
-        onPullRefresh={() => meQuery.refetch()}
+        onPullRefresh={async () => {
+          await Promise.all([
+            meQuery.refetch(),
+            queryClient.invalidateQueries({ queryKey: ['membership-offer'] }),
+            queryClient.invalidateQueries({ queryKey: ['challenges', 'catalog'] }),
+          ]);
+        }}
         style={styles.scroll}
         testID="profile-screen"
       >
@@ -337,7 +343,11 @@ export function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Focus</Text>
         <Pressable
-          accessibilityLabel="Membership. Your regional plan. Stay a step ahead."
+          accessibilityLabel={
+            hasMembership
+              ? 'Membership. Active. Full catalog and reminders unlocked.'
+              : 'Membership. Your regional plan. Stay a step ahead.'
+          }
           accessibilityRole="button"
           onPress={() =>
             router.push({
@@ -356,11 +366,13 @@ export function ProfileScreen() {
             <Text style={styles.membershipLabel}>
               Membership{' '}
               <Text importantForAccessibility="no" style={styles.membershipMark}>
-                ✦
+                {hasMembership ? '✓' : '✦'}
               </Text>
             </Text>
             <Text style={styles.membershipHint}>
-              Your regional plan. Stay a step ahead.
+              {hasMembership
+                ? 'Active. Full catalog and reminders unlocked.'
+                : 'Your regional plan. Stay a step ahead.'}
             </Text>
           </View>
           <Feather color={colors.accent} name="chevron-right" size={16} />

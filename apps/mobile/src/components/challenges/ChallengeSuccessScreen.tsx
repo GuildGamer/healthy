@@ -2,11 +2,13 @@ import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { FormButton, FormErrorBanner } from '@/components/forms';
+import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
 import {
   clearPendingShareCard,
@@ -29,9 +31,14 @@ export function ChallengeSuccessScreen({
   penaltyApplied = 0,
 }: ChallengeSuccessScreenProps) {
   const router = useRouter();
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+  });
+  const hasMembership = meQuery.data?.hasMembership ?? false;
   const wasPenalized = penaltyApplied > 0;
   const shareShotRef = useRef<View>(null);
-  const [shareCard] = useState<ShareCardPayload | null>(() =>
+  const [pendingShare] = useState<ShareCardPayload | null>(() =>
     peekPendingShareCard(),
   );
   const [shareBusy, setShareBusy] = useState(false);
@@ -75,7 +82,7 @@ export function ChallengeSuccessScreen({
     }
   }
 
-  const showShare = Boolean(shareCard) && !wasPenalized;
+  const showShare = !wasPenalized;
 
   return (
     <SafeAreaView style={styles.container} testID="challenge-success-screen">
@@ -98,34 +105,30 @@ export function ChallengeSuccessScreen({
         <Text style={styles.kicker}>
           {wasPenalized ? 'Photo check missed' : 'Challenge complete'}
         </Text>
-        <Text style={styles.title}>{title}</Text>
+        {showShare ? null : <Text style={styles.title}>{title}</Text>}
         <Text style={styles.subtitle}>
           {wasPenalized
             ? `${penaltyApplied} points were deducted. Tomorrow is a fresh start.`
-            : showShare
-              ? 'Share the win — Healthy watermark included.'
-              : 'Nice work. The points are yours.'}
+            : 'Share this card anywhere — Instagram, Messages, or your camera roll.'}
         </Text>
 
-        {showShare && shareCard ? (
+        {showShare ? (
           <View
             collapsable={false}
             ref={shareShotRef}
             style={styles.sharePreview}
           >
             <ChallengeShareCard
-              currentStreakDays={shareCard.currentStreakDays}
-              photoUri={shareCard.photoUri}
-              pointsAwarded={shareCard.pointsAwarded}
-              title={shareCard.title}
+              currentStreakDays={currentStreakDays}
+              photoUri={pendingShare?.photoUri}
+              pointsAwarded={pointsAwarded}
+              title={title}
             />
           </View>
         ) : (
           <View style={styles.stats}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>
-                {wasPenalized ? `-${penaltyApplied}` : `+${pointsAwarded}`}
-              </Text>
+              <Text style={styles.statValue}>-{penaltyApplied}</Text>
               <Text style={styles.statLabel}>points</Text>
             </View>
             <View style={styles.statDivider} />
@@ -156,7 +159,7 @@ export function ChallengeSuccessScreen({
           variant="secondary"
         />
 
-        {!wasPenalized ? (
+        {!wasPenalized && !hasMembership ? (
           <FormButton
             label="Unlock membership"
             onPress={() =>
@@ -166,7 +169,7 @@ export function ChallengeSuccessScreen({
               })
             }
             testID="challenge-success-membership"
-            variant={showShare ? 'secondary' : 'primary'}
+            variant="secondary"
           />
         ) : null}
       </ScrollView>

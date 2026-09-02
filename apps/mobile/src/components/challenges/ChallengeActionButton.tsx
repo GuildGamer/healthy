@@ -18,6 +18,7 @@ import {
  * touch target back out to the 44pt minimum in WCAG 2.5.5.
  */
 const PILL_HEIGHT = 32;
+const PILL_WIDTH = 88;
 const MIN_TARGET_SIZE = 44;
 const VERTICAL_HIT_SLOP = (MIN_TARGET_SIZE - PILL_HEIGHT) / 2;
 
@@ -101,9 +102,9 @@ export function ChallengeActionButton({
 const styles = StyleSheet.create({
   pill: {
     height: PILL_HEIGHT,
-    minWidth: 72,
+    width: PILL_WIDTH,
     flexShrink: 0,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderRadius: radii.full,
     borderWidth: 1.5,
     alignItems: 'center',
@@ -127,13 +128,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
+    textAlign: 'center',
   },
   doneBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
     flexShrink: 0,
     height: PILL_HEIGHT,
+    width: PILL_WIDTH,
   },
   doneLabel: {
     color: colors.muted,

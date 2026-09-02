@@ -69,6 +69,7 @@ export function ChallengeConfirmScreen({
         params: {
           title: occurrence?.title ?? 'Challenge',
           points: String(result.pointsAwarded),
+          streak: String(result.currentStreakDays),
         },
       });
     },

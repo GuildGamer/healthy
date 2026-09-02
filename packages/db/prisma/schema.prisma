@@ -245,6 +245,8 @@ model ChallengeEnrollment {
   challengeId String
   challenge   Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   frequency   ChallengeFrequency
+  /// Per-user count goal. Null means use the catalog `Challenge.targetCount`.
+  targetCount Int?
   /// Deactivated rather than deleted so completion history keeps its context.
   isActive    Boolean             @default(true)
   createdAt   DateTime            @default(now())

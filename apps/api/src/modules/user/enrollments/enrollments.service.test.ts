@@ -17,6 +17,9 @@ type CatalogRow = {
   instruction: string;
   icon: string;
   requiresMembership: boolean;
+  captureKind?: string;
+  deviceMetric?: string | null;
+  targetCount?: number | null;
 };
 
 function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
@@ -43,6 +46,7 @@ function createPrismaMock(options: {
     challengeId: string;
     frequency: string;
     isActive: boolean;
+    targetCount?: number | null;
   }>;
   challenge?: Record<string, unknown> | null;
   membershipActive?: boolean;
@@ -69,6 +73,7 @@ function createPrismaMock(options: {
               isActive: true,
               defaultFrequency: 'daily',
               requiresMembership: false,
+              targetCount: null,
             }
           : options.challenge,
       ),
@@ -143,6 +148,30 @@ describe('EnrollmentsService.listCatalog', () => {
     expect(result.enrolledCount).toBe(1);
   });
 
+  it("prefers the user's own push-up count over the catalog default", async () => {
+    const prisma = createPrismaMock({
+      catalog: [
+        catalogRow({
+          captureKind: 'device_session',
+          deviceMetric: 'pushups',
+          targetCount: 20,
+        }),
+      ],
+      enrollments: [
+        {
+          challengeId: 'c1',
+          frequency: 'daily',
+          isActive: true,
+          targetCount: 12,
+        },
+      ],
+    });
+
+    const result = await createService(prisma).listCatalog(user);
+
+    expect(result.challenges[0]?.capture.target.count).toBe(12);
+  });
+
   it('treats a deactivated enrolment as not enrolled', async () => {
     const prisma = createPrismaMock({
       catalog: [catalogRow()],
@@ -205,6 +234,7 @@ describe('EnrollmentsService.setEnrollment', () => {
         isActive: false,
         defaultFrequency: 'daily',
         requiresMembership: false,
+        targetCount: null,
       },
     });
 
@@ -220,6 +250,7 @@ describe('EnrollmentsService.setEnrollment', () => {
         isActive: true,
         defaultFrequency: 'daily',
         requiresMembership: true,
+        targetCount: null,
       },
       membershipActive: false,
     });
@@ -256,6 +287,7 @@ describe('EnrollmentsService.setEnrollment', () => {
         isActive: true,
         defaultFrequency: 'weekly',
         requiresMembership: false,
+        targetCount: null,
       },
       catalog: [catalogRow()],
     });
@@ -270,6 +302,42 @@ describe('EnrollmentsService.setEnrollment', () => {
       { create: { frequency: string } },
     ];
     expect(argument.create.frequency).toBe('weekly');
+  });
+
+  it('stores a count goal on challenges that have one', async () => {
+    const prisma = createPrismaMock({
+      challenge: {
+        id: 'c1',
+        isActive: true,
+        defaultFrequency: 'daily',
+        requiresMembership: false,
+        targetCount: 20,
+      },
+      catalog: [catalogRow()],
+    });
+
+    await createService(prisma).setEnrollment(
+      user,
+      'c1',
+      true,
+      undefined,
+      12,
+    );
+
+    const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
+      { create: { targetCount: number }; update: { targetCount: number } },
+    ];
+    expect(argument.create.targetCount).toBe(12);
+    expect(argument.update.targetCount).toBe(12);
+  });
+
+  it('rejects a count goal on a challenge without a catalog target', async () => {
+    const prisma = createPrismaMock({ catalog: [catalogRow()] });
+
+    await expect(
+      createService(prisma).setEnrollment(user, 'c1', true, undefined, 12),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    expect(prisma.challengeEnrollment.upsert).not.toHaveBeenCalled();
   });
 
   it('deactivates rather than deletes when opting out', async () => {

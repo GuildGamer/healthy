@@ -15,9 +15,20 @@ const EMPTY_SNAPSHOT: PushupCounterSnapshot = {
   downness: 0,
   bodyInFrame: false,
   visibilityRatio: 0,
+  calibrating: false,
+  calibrationProgress: 0,
+  movementRange: 0,
+  movementTooSmall: false,
+  tooClose: false,
+  debugFrame: null,
 };
 
 export type PoseDriveMode = 'live' | 'guided';
+
+export type PoseSessionStartOptions = {
+  /** Keep counter state when promoting from setup watch → counting. */
+  preserveCounter?: boolean;
+};
 
 /**
  * Owns the PushupCounter and accepts either live MoveNet frames or a guided
@@ -62,9 +73,23 @@ export function usePoseSessionCounter() {
   }, []);
 
   const start = useCallback(
-    (mode: PoseDriveMode) => {
-      reset();
-      setDriveMode(mode);
+    (mode: PoseDriveMode, options?: PoseSessionStartOptions) => {
+      const preserveCounter =
+        options?.preserveCounter === true && mode === 'live';
+
+      if (!preserveCounter) {
+        reset();
+        setDriveMode(mode);
+        counterRef.current = new PushupCounter(
+          mode === 'guided' ? { calibrationFrames: 0 } : undefined,
+        );
+      } else {
+        clearTick();
+        setDriveMode(mode);
+        sessionOriginMs.current = Date.now();
+        lastEmitMs.current = 0;
+        setElapsedSeconds(0);
+      }
 
       tickRef.current = setInterval(() => {
         setElapsedSeconds((current) => current + 1);
@@ -78,7 +103,7 @@ export function usePoseSessionCounter() {
         ingestFrame(syntheticPushupFrame(timestampMs, depth));
       }, 1_000 / 15);
     },
-    [ingestFrame, reset],
+    [clearTick, ingestFrame, reset],
   );
 
   const stop = useCallback(() => {

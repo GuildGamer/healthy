@@ -28,6 +28,7 @@ export class EnrollmentsController {
           input.challengeId,
           input.isEnrolled,
           input.frequency,
+          input.targetCount,
         );
       },
     );

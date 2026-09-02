@@ -29,6 +29,7 @@ const mockedApi = apiClient as unknown as {
   listChallengeCatalog: jest.Mock;
   listTodayChallenges: jest.Mock;
   listChallengeHistory: jest.Mock;
+  setChallengeEnrollment: jest.Mock;
 };
 
 function catalogChallenge(
@@ -227,6 +228,54 @@ describe('ChallengeDetailScreen history', () => {
 
     expect(await screen.findByText(/Photo skipped/)).toBeOnTheScreen();
     expect(screen.getByText('-25')).toBeOnTheScreen();
+
+    await cleanup();
+  });
+});
+
+describe('ChallengeDetailScreen push-up target', () => {
+  it('lets the member change the count and save it', async () => {
+    mockedApi.listChallengeCatalog.mockResolvedValue({
+      challenges: [
+        catalogChallenge({
+          title: 'Do twenty push-ups',
+          capture: {
+            kind: 'device_session',
+            metric: 'pushups',
+            target: { durationMinutes: null, distanceMeters: null, count: 20 },
+          },
+        }),
+      ],
+      enrolledCount: 1,
+      hasMembership: false,
+      maxRemindersPerChallenge: 1,
+    });
+    mockedApi.setChallengeEnrollment.mockResolvedValue({
+      challenges: [],
+      enrolledCount: 1,
+      hasMembership: false,
+      maxRemindersPerChallenge: 1,
+    });
+
+    const { cleanup } = renderDetail();
+
+    expect(await screen.findByTestId('detail-pushup-target-value')).toHaveTextContent(
+      '20',
+    );
+
+    fireEvent.press(screen.getByTestId('detail-pushup-target-dec'));
+    expect(screen.getByTestId('detail-pushup-target-value')).toHaveTextContent('19');
+
+    fireEvent.press(screen.getByTestId('challenge-detail-save'));
+
+    await waitFor(() => {
+      expect(mockedApi.setChallengeEnrollment).toHaveBeenCalledWith({
+        challengeId: 'c1',
+        isEnrolled: true,
+        frequency: 'daily',
+        targetCount: 19,
+      });
+    });
 
     await cleanup();
   });

@@ -2145,6 +2145,11 @@
                       "monthly"
                     ],
                     "type": "string"
+                  },
+                  "targetCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200000
                   }
                 },
                 "required": [

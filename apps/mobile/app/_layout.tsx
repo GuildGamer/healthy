@@ -83,6 +83,10 @@ export default function RootLayout() {
             options={{ headerShown: false, title: 'Camera' }}
           />
           <Stack.Screen
+            name="challenge/[challengeId]/pose"
+            options={{ headerShown: false, title: 'Push-ups' }}
+          />
+          <Stack.Screen
             name="challenge/[challengeId]/verify"
             options={{ title: 'Photo check' }}
           />

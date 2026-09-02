@@ -3,6 +3,7 @@ import {
   colors,
   fontSize,
   fontWeight,
+  radii,
   spacing,
 } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
@@ -30,9 +31,14 @@ export function ChallengesScreen() {
     queryKey: ['challenges', 'today'],
     queryFn: () => apiClient.listTodayChallenges(),
   });
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+  });
 
   const challenges = challengesQuery.data?.challenges ?? [];
-  const layout = buildChallengeFocusLayout(challenges);
+  const hasMembership = meQuery.data?.hasMembership ?? false;
+  const layout = buildChallengeFocusLayout(challenges, hasMembership);
   const openCount =
     (layout.focus ? 1 : 0) +
     layout.upNext.length +
@@ -79,13 +85,13 @@ export function ChallengesScreen() {
           <TodayWinHeader testID="challenges-subtitle" win={layout.win} />
 
           {layout.focus ? (
-            <View testID="section-focus">
-              <Text style={styles.sectionTitle}>Do next</Text>
+            <View style={styles.doNextCard} testID="section-focus">
+              <Text style={styles.doNextTitle}>Do next</Text>
               <ChallengeRow
                 challenge={layout.focus}
-                emphasized
+                inCard
                 isBusy={isAdvancing(layout.focus.id)}
-                isLast={layout.upNext.length === 0}
+                isLast
                 onAdvance={() => openLog(layout.focus!)}
                 onOpen={() =>
                   router.push(`/challenge/${layout.focus!.challengeId}`)
@@ -95,8 +101,8 @@ export function ChallengesScreen() {
           ) : null}
 
           {layout.upNext.length > 0 ? (
-            <View testID="section-up-next">
-              <Text style={styles.sectionTitle}>Up next</Text>
+            <View style={styles.upNextBlock} testID="section-up-next">
+              <Text style={styles.upNextTitle}>Up next</Text>
               {layout.upNext.map((challenge, index) => (
                 <ChallengeRow
                   challenge={challenge}
@@ -259,14 +265,14 @@ function CollapsedSection({
 
 function ChallengeRow({
   challenge,
-  emphasized = false,
+  inCard = false,
   isBusy,
   isLast,
   onAdvance,
   onOpen,
 }: {
   challenge: TodayChallenge;
-  emphasized?: boolean;
+  inCard?: boolean;
   isBusy: boolean;
   isLast: boolean;
   onAdvance: () => void;
@@ -277,7 +283,7 @@ function ChallengeRow({
   return (
     <View>
       <View
-        style={[styles.row, emphasized && styles.rowEmphasized]}
+        style={[styles.row, inCard && styles.rowInCard]}
         testID={`challenge-row-${challenge.id}`}
       >
         <Pressable
@@ -339,6 +345,35 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xs,
   },
+  doNextCard: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    paddingTop: spacing.sm,
+  },
+  doNextTitle: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  upNextBlock: {
+    marginTop: spacing.lg,
+  },
+  upNextTitle: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
   collapseToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -379,9 +414,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
   },
-  rowEmphasized: {
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
+  rowInCard: {
+    paddingHorizontal: spacing.md,
   },
   rowBody: {
     flex: 1,

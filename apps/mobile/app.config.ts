@@ -12,7 +12,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/icon.png',
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.healthy.app',
+    bundleIdentifier: 'com.healthyapp.app',
     infoPlist: {
       NSCameraUsageDescription:
         'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
@@ -27,7 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/icon.png',
       backgroundColor: '#3DDC97',
     },
-    package: 'com.healthy.app',
+    package: 'com.healthyapp.app',
     permissions: [
       'CAMERA',
       'ACCESS_COARSE_LOCATION',

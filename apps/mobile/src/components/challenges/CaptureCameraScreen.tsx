@@ -14,6 +14,7 @@ import {
   CAMERA_FAILED_MESSAGE,
   PHOTO_MISSING_MESSAGE,
   SIMULATOR_CAMERA_MESSAGE,
+  EVIDENCE_CAMERA_QUALITY,
   photoFromCameraTake,
   type CapturedSelfie,
 } from '@/lib/capture-selfie';
@@ -59,7 +60,7 @@ export function CaptureCameraScreen({
     try {
       const taken = await cameraRef.current?.takePictureAsync({
         base64: true,
-        quality: 0.6,
+        quality: EVIDENCE_CAMERA_QUALITY,
         shutterSound: false,
       });
 

@@ -140,6 +140,7 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
       {photo ? (
         <Image
           accessibilityIgnoresInvertColors
+          resizeMode="cover"
           source={{ uri: photo.previewUri }}
           style={styles.preview}
           testID="evidence-preview"

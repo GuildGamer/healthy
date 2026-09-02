@@ -16,7 +16,7 @@ export { ChallengeSessionScreen } from './ChallengeSessionScreen';
 export { PoseSessionScreen } from './PoseSessionScreen';
 export { EvidenceRequestScreen } from './EvidenceRequestScreen';
 export { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
-export { ChallengeShareCard } from './ChallengeShareCard';
+export { ChallengeShareCard, streakShareLabel } from './ChallengeShareCard';
 export { ChallengesScreen } from './ChallengesScreen';
 export { TodayWinHeader } from './TodayWinHeader';
 export {
@@ -27,7 +27,13 @@ export {
 export { LogEvidenceScreen } from './LogEvidenceScreen';
 export { LogVitalsScreen } from './LogVitalsScreen';
 export { ManageChallengesScreen } from './ManageChallengesScreen';
+export { PushupTargetStepper } from './PushupTargetStepper';
 export { TimePickerModal } from './TimePickerModal';
+export {
+  DEFAULT_PUSHUP_TARGET,
+  clampPushupTarget,
+  stepPushupTarget,
+} from './pushup-target';
 export {
   frequencyBadge,
   frequencyLabel,
