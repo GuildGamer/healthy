@@ -2,6 +2,8 @@
 
 export type ShareCardPayload = {
   photoUri?: string;
+  photoWidth?: number;
+  photoHeight?: number;
   title: string;
   pointsAwarded: number;
   currentStreakDays: number;

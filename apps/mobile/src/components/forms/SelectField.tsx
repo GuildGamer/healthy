@@ -54,7 +54,7 @@ export function SelectTrigger({
         <Text numberOfLines={1} style={styles.value}>
           {value}
         </Text>
-        <Feather color={colors.muted} name="chevron-down" size={16} />
+        <Feather color={colors.muted} name="chevron-down" size={18} />
       </View>
     </Pressable>
   );
@@ -138,7 +138,7 @@ export function SelectOptionRow({
       <Text style={styles.optionTitle}>{title}</Text>
       {meta ? <Text style={styles.optionMeta}>{meta}</Text> : null}
       {selected ? (
-        <Feather color={colors.accent} name="check" size={16} style={styles.checkIcon} />
+        <Feather color={colors.accent} name="check" size={18} />
       ) : (
         <View style={styles.checkSpacer} />
       )}
@@ -156,7 +156,9 @@ const styles = StyleSheet.create({
   trigger: {
     gap: 2,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
+    minHeight: 52,
+    justifyContent: 'center',
   },
   triggerPressed: {
     backgroundColor: colors.surface,
@@ -212,12 +214,12 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   option: {
-    minHeight: 44,
+    minHeight: 52,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
@@ -225,21 +227,16 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 1,
     color: colors.text,
-    fontSize: fontSize.sm,
-    paddingTop: 2,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
   },
   optionMeta: {
     color: colors.muted,
-    fontSize: fontSize.xs,
+    fontSize: fontSize.sm,
     minWidth: 20,
     textAlign: 'right',
-    paddingTop: 2,
-  },
-  checkIcon: {
-    marginTop: 2,
   },
   checkSpacer: {
-    width: 16,
-    marginTop: 2,
+    width: 18,
   },
 });

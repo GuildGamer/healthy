@@ -5,6 +5,15 @@ import {
   type PushupCounterSnapshot,
 } from '@/lib/pose/pushup-counter';
 import {
+  insideMeasureFromResults,
+  pushupFormFeedback,
+  pushupMeasureFromResults,
+  quickPoseFraming,
+  snapshotFromQuickPose,
+  type QuickPosePushupUpdate,
+} from '@/lib/pose/quickpose-pushup';
+import { QuickPoseThresholdCounter } from '@/lib/pose/quickpose-threshold-counter';
+import {
   syntheticPushupDepth,
   syntheticPushupFrame,
 } from '@/lib/pose/synthetic-pushup';
@@ -20,7 +29,9 @@ const EMPTY_SNAPSHOT: PushupCounterSnapshot = {
   movementRange: 0,
   movementTooSmall: false,
   tooClose: false,
+  rejectReason: 'none',
   debugFrame: null,
+  coachPrompt: null,
 };
 
 export type PoseDriveMode = 'live' | 'guided';
@@ -31,17 +42,19 @@ export type PoseSessionStartOptions = {
 };
 
 /**
- * Owns the PushupCounter and accepts either live MoveNet frames or a guided
- * synthetic landmark stream (simulator / native model unavailable).
+ * Live path: QuickPose `fitness.pushUps` + threshold hysteresis.
+ * Guided path: synthetic landmarks (simulator / no SDK key).
  */
 export function usePoseSessionCounter() {
-  const counterRef = useRef(new PushupCounter());
+  const liveCounterRef = useRef(new QuickPoseThresholdCounter());
+  const guidedCounterRef = useRef(new PushupCounter());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionOriginMs = useRef(0);
   const [snapshot, setSnapshot] = useState<PushupCounterSnapshot>(EMPTY_SNAPSHOT);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [driveMode, setDriveMode] = useState<PoseDriveMode>('live');
   const lastEmitMs = useRef(0);
+  const lastPublishedCount = useRef(0);
 
   const clearTick = useCallback(() => {
     if (tickRef.current) {
@@ -54,21 +67,57 @@ export function usePoseSessionCounter() {
 
   const reset = useCallback(() => {
     clearTick();
-    counterRef.current.reset();
+    liveCounterRef.current.reset();
+    guidedCounterRef.current.reset();
     setSnapshot(EMPTY_SNAPSHOT);
     setElapsedSeconds(0);
     sessionOriginMs.current = Date.now();
     lastEmitMs.current = 0;
+    lastPublishedCount.current = 0;
   }, [clearTick]);
 
   const ingestFrame = useCallback((frame: PoseFrame) => {
-    const next = counterRef.current.ingest(frame);
+    const next = guidedCounterRef.current.ingest(frame);
     const now = Date.now();
     if (now - lastEmitMs.current < 66) {
       return;
     }
 
     lastEmitMs.current = now;
+    setSnapshot(next);
+  }, []);
+
+  const ingestQuickPose = useCallback((update: QuickPosePushupUpdate) => {
+    const measure = pushupMeasureFromResults(update.results);
+    const insideMeasure = insideMeasureFromResults(update.results);
+    const formFeedback = pushupFormFeedback(update.feedbacks);
+    const framingFeedback = update.feedbacks['inside.wholeBody'] ?? null;
+    const framing = quickPoseFraming({ measure, insideMeasure });
+    const finishingRep = liveCounterRef.current.state.isEntered;
+
+    if (
+      measure != null &&
+      formFeedback == null &&
+      (!framing.tooClose || finishingRep)
+    ) {
+      liveCounterRef.current.count(measure);
+    }
+
+    const next = snapshotFromQuickPose({
+      measure,
+      insideMeasure,
+      formFeedback,
+      framingFeedback,
+      counter: liveCounterRef.current.state,
+    });
+    const now = Date.now();
+    const countChanged = next.count !== lastPublishedCount.current;
+    if (!countChanged && now - lastEmitMs.current < 66) {
+      return;
+    }
+
+    lastEmitMs.current = now;
+    lastPublishedCount.current = next.count;
     setSnapshot(next);
   }, []);
 
@@ -80,9 +129,8 @@ export function usePoseSessionCounter() {
       if (!preserveCounter) {
         reset();
         setDriveMode(mode);
-        counterRef.current = new PushupCounter(
-          mode === 'guided' ? { calibrationFrames: 0 } : undefined,
-        );
+        liveCounterRef.current = new QuickPoseThresholdCounter();
+        guidedCounterRef.current = new PushupCounter();
       } else {
         clearTick();
         setDriveMode(mode);
@@ -118,5 +166,6 @@ export function usePoseSessionCounter() {
     stop,
     reset,
     ingestFrame,
+    ingestQuickPose,
   };
 }

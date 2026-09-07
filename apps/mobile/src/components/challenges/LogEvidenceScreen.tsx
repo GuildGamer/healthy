@@ -1,18 +1,24 @@
+import Feather from '@expo/vector-icons/Feather';
 import type { ChallengeEvidence } from '@product/client';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
 import { consumeCaptureResult } from '@/lib/capture-session';
 import type { CapturedSelfie } from '@/lib/capture-selfie';
+import { displayFontFamily } from '@/lib/fonts';
 import { setPendingShareCard } from '@/lib/share-card-session';
+import { EvidencePhotoFrame } from './EvidencePhotoFrame';
 
 const SUBMIT_FAILED_MESSAGE =
   'We could not check that photo. Take another and try again.';
+
+const DEFAULT_HINT =
+  'Take a selfie at the gym. Your face and the gym (machines, racks, or the gym floor) must be visible. Photos from home will not count.';
 
 export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
   const router = useRouter();
@@ -71,6 +77,9 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
           title: occurrence?.title ?? 'Challenge',
           pointsAwarded: result.pointsAwarded,
           currentStreakDays: result.currentStreakDays,
+          ...(photo.width && photo.height
+            ? { photoWidth: photo.width, photoHeight: photo.height }
+            : {}),
         });
       }
 
@@ -128,38 +137,53 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
       style={styles.container}
       testID="log-evidence-screen"
     >
-      <Text style={styles.title}>Gym photo</Text>
-      <Text style={styles.subtitle}>{occurrence.title}</Text>
-      <Text style={styles.hint}>
-        {occurrence.instruction ||
-          'Take a selfie at the gym or clearly mid-workout.'}
-      </Text>
+      <View style={styles.ticket}>
+        <View style={styles.ticketRule} />
+        <Text style={styles.kicker}>Gym check-in</Text>
+        <Text style={styles.title}>{occurrence.title}</Text>
+        <Text style={styles.hint}>
+          {occurrence.instruction || DEFAULT_HINT}
+        </Text>
 
-      {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
+        {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
 
-      {photo ? (
-        <Image
-          accessibilityIgnoresInvertColors
-          resizeMode="cover"
-          source={{ uri: photo.previewUri }}
-          style={styles.preview}
-          testID="evidence-preview"
-        />
-      ) : (
-        <View style={styles.placeholder} testID="evidence-placeholder">
-          <Text style={styles.placeholderLabel}>No photo yet</Text>
+        {photo ? (
+          <EvidencePhotoFrame
+            height={photo.height}
+            testID="evidence-preview"
+            uri={photo.previewUri}
+            width={photo.width}
+          />
+        ) : (
+          <View style={styles.placeholder} testID="evidence-placeholder">
+            <View style={styles.placeholderIcon}>
+              <Feather color={colors.accent} name="camera" size={28} />
+            </View>
+            <Text style={styles.placeholderTitle}>No check-in yet</Text>
+            <Text style={styles.placeholderLabel}>
+              Face the camera with the gym behind you
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.stamp}>
+          <Feather color={colors.accent} name="map-pin" size={16} />
+          <Text style={styles.stampLabel}>
+            Must be taken at a gym. Home photos will not count.
+          </Text>
         </View>
-      )}
+      </View>
 
       <FormButton
-        label="Take selfie"
+        label={photo ? 'Retake selfie' : 'Take selfie'}
         onPress={openCamera}
         testID="evidence-take-photo"
+        variant={photo ? 'secondary' : 'primary'}
       />
 
       <FormButton
         disabled={!photo}
-        label="Submit photo"
+        label="Submit check-in"
         loading={submit.isPending}
         onPress={() => {
           if (!photo) {
@@ -194,37 +218,85 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
+  ticket: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  ticketRule: {
+    height: 3,
+    marginHorizontal: -spacing.lg,
+    marginTop: -spacing.lg,
+    backgroundColor: colors.accent,
+  },
+  kicker: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
   title: {
     color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
+    fontFamily: displayFontFamily,
+    fontSize: fontSize.xl,
+    lineHeight: 30,
   },
   hint: {
     color: colors.muted,
     fontSize: fontSize.sm,
     lineHeight: 20,
   },
-  preview: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-  },
   placeholder: {
     width: '100%',
-    aspectRatio: 3 / 4,
+    minHeight: 220,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    backgroundColor: colors.accentSurface,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.lg,
+  },
+  placeholderIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.accentContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderTitle: {
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
   },
   placeholderLabel: {
     color: colors.muted,
     fontSize: fontSize.sm,
+    textAlign: 'center',
+  },
+  stamp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accentSurface,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  stampLabel: {
+    flex: 1,
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    lineHeight: 18,
   },
   missing: {
     color: colors.muted,

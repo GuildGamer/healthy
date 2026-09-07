@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import type { ChallengeFrequency, ChallengeHistoryEntry } from '@product/client';
+import { displayChallengeTitle } from '@product/contract/challenge-title';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -296,7 +297,16 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           name={challenge.icon}
           size="md"
         />
-        <Text style={styles.title}>{challenge.title}</Text>
+        <Text style={styles.title}>
+          {displayChallengeTitle({
+            title: challenge.title,
+            metric: challenge.capture.metric,
+            count:
+              challenge.capture.metric === 'pushups'
+                ? targetCount
+                : challenge.capture.target.count,
+          })}
+        </Text>
         <Text style={styles.categoryBadge}>{categoryName}</Text>
       </View>
       <Text style={styles.meta}>
@@ -364,7 +374,8 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
 
       {occurrence?.completionKind === 'evidence_photo' ? (
         <Text style={styles.hint}>
-          Take a selfie at the gym or during the workout.
+          Take a selfie at the gym. Your face and the gym must be visible.
+          Home photos will not count.
         </Text>
       ) : null}
 
@@ -375,6 +386,15 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           loading={isBusy}
           onPress={handlePrimaryAction}
           testID="challenge-detail-start"
+        />
+      ) : null}
+
+      {challenge.capture.metric === 'pushups' ? (
+        <FormButton
+          label="Challenge a friend"
+          onPress={() => router.push('/matches/create')}
+          testID="challenge-a-friend"
+          variant="secondary"
         />
       ) : null}
 

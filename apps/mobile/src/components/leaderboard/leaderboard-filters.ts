@@ -1,5 +1,8 @@
 import type { HealthCategory, LeaderboardPeriod } from '@product/client';
-import { healthCategories } from '@/constants/health-categories';
+import {
+  healthCategories,
+  healthCategoryName,
+} from '@/constants/health-categories';
 
 export const LEADERBOARD_PERIODS: readonly {
   id: LeaderboardPeriod;
@@ -16,12 +19,18 @@ export const LEADERBOARD_CATEGORIES: readonly {
   id: LeaderboardCategoryFilter;
   label: string;
 }[] = [
-  { id: 'all', label: 'All' },
+  { id: 'all', label: 'All categories' },
   ...healthCategories.map((option) => ({
     id: option.id,
     label: option.name,
   })),
 ];
+
+export function labelForLeaderboardCategory(
+  category: LeaderboardCategoryFilter,
+): string {
+  return category === 'all' ? 'All categories' : healthCategoryName(category);
+}
 
 export function leaderboardIntro(period: LeaderboardPeriod): string {
   if (period === 'month') {

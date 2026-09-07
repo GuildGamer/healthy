@@ -1,49 +1,63 @@
-export type PushupRepPhase = 'init' | 'up' | 'down';
+export type PushupRepPhase = 'up' | 'down';
 
 export type PushupRepMachineSnapshot = {
   count: number;
   phase: PushupRepPhase;
-  repArmed: boolean;
+  calibrated: boolean;
+  typicalSwing: number | null;
+  cycleAmplitude: number;
+  normalizedDepth: number;
 };
 
 export type PushupRepMachineOptions = {
-  /**
-   * Top of the valid “up” band. After a deep enough bottom, returning to this
-   * depth (or lower) counts — full lockout is not required.
-   */
-  upDepth?: number;
-  /** Bottom of the valid “down” band. Must reach this to arm a rep. */
-  downDepth?: number;
   minRepIntervalMs?: number;
-  minDepthRange?: number;
+  /**
+   * After the first two reps, a cycle must reach this fraction of the
+   * learned swing to arm. Learning reps only need `minSwing`.
+   */
+  enterFraction?: number;
+  /** Count after rising this far from the bottom back toward the top. */
+  returnFraction?: number;
+  /** How many reps set the personal scale before tightening the gate. */
+  learningReps?: number;
 };
 
 const DEFAULTS = {
-  // Valid up: depth ≤ 0.42 (mostly extended; 8fps smoother lag can sit ~0.4).
-  upDepth: 0.42,
-  // Valid down: depth ≥ 0.5 (clear bottom — rejects shallow half-reps).
-  downDepth: 0.5,
-  minRepIntervalMs: 320,
-  minDepthRange: 0.05,
+  minRepIntervalMs: 280,
+  enterFraction: 0.7,
+  returnFraction: 0.45,
+  learningReps: 2,
 } as const;
 
+/** Ignore jitter smaller than this in the raw signal. */
+const DIRECTION_DEADZONE = 0.0035;
+
+const MIN_SWING_FLOOR = 0.016;
+const MIN_SWING_CEILING = 0.055;
+const MIN_SWING_BODY_FRACTION = 0.08;
+
+/** Scale the minimum real-press travel to how large the body is in frame. */
+export function minSwingForBody(bodyExtent: number): number {
+  return Math.min(
+    MIN_SWING_CEILING,
+    Math.max(MIN_SWING_FLOOR, bodyExtent * MIN_SWING_BODY_FRACTION),
+  );
+}
+
 /**
- * Band-based continuous-rep FSM:
- * - Arm only after entering the down band while descending (and allowed)
- * - Count when returning into the up band — quality must not veto a finished cycle
- * - Shallow dips that never hit the down band never count
+ * Peak → valley → peak counter that learns range of motion from the first
+ * one or two complete cycles. Higher `signal` means deeper (e.g. shoulder Y).
  */
 export class PushupRepMachine {
   private count = 0;
-  private phase: PushupRepPhase = 'init';
-  private repArmed = false;
+  private phase: PushupRepPhase = 'up';
+  private armed = false;
   private lastCountMs = 0;
-  private cyclePeakDepth = 0;
-  private lastDepth = 0;
-  private ascendingStreak = 0;
-  private descendingStreak = 0;
-  private sessionDepthMin = 1;
-  private sessionDepthMax = 0;
+  private lastSignal = 0;
+  private cycleTop = Number.POSITIVE_INFINITY;
+  private cycleBottom = Number.NEGATIVE_INFINITY;
+  private typicalSwing: number | null = null;
+  private readonly learningAmplitudes: number[] = [];
   private readonly options: Required<PushupRepMachineOptions>;
 
   constructor(options: PushupRepMachineOptions = {}) {
@@ -52,131 +66,155 @@ export class PushupRepMachine {
 
   reset(): void {
     this.count = 0;
-    this.phase = 'init';
-    this.repArmed = false;
-    this.lastCountMs = 0;
-    this.cyclePeakDepth = 0;
-    this.lastDepth = 0;
-    this.ascendingStreak = 0;
-    this.descendingStreak = 0;
-    this.sessionDepthMin = 1;
-    this.sessionDepthMax = 0;
+    this.typicalSwing = null;
+    this.learningAmplitudes.length = 0;
+    this.resetTracking();
   }
 
   resetTracking(): void {
-    this.phase = 'init';
-    this.repArmed = false;
-    this.cyclePeakDepth = 0;
-    this.ascendingStreak = 0;
-    this.descendingStreak = 0;
+    this.phase = 'up';
+    this.armed = false;
+    this.lastSignal = 0;
+    this.cycleTop = Number.POSITIVE_INFINITY;
+    this.cycleBottom = Number.NEGATIVE_INFINITY;
   }
 
   snapshot(): PushupRepMachineSnapshot {
+    const amplitude = this.cycleAmplitude();
     return {
       count: this.count,
       phase: this.phase,
-      repArmed: this.repArmed,
+      calibrated: this.typicalSwing != null,
+      typicalSwing: this.typicalSwing,
+      cycleAmplitude: amplitude,
+      normalizedDepth: this.normalizedDepth(),
     };
-  }
-
-  depthRange(): number {
-    return this.sessionDepthMax - this.sessionDepthMin;
-  }
-
-  trackDepth(depth: number): void {
-    this.sessionDepthMin = Math.min(this.sessionDepthMin, depth);
-    this.sessionDepthMax = Math.max(this.sessionDepthMax, depth);
   }
 
   advance(
     timestampMs: number,
-    depth: number,
-    canArm: boolean,
+    signal: number,
+    minSwing: number,
   ): PushupRepMachineSnapshot {
-    this.trackDepth(depth);
-    this.updateMotion(depth);
+    this.expandCycle(signal);
+    const descending = signal > this.lastSignal + DIRECTION_DEADZONE;
+    const ascending = signal < this.lastSignal - DIRECTION_DEADZONE;
+    this.lastSignal = signal;
 
-    const downDepth = this.options.downDepth;
-    const upDepth = this.options.upDepth;
-
-    if (this.depthRange() < this.options.minDepthRange) {
-      this.lastDepth = depth;
-      return this.snapshot();
+    if (this.phase === 'up' && descending) {
+      this.tryArm(minSwing);
     }
 
-    if (this.phase === 'init' && depth <= upDepth) {
-      this.phase = 'up';
-      this.repArmed = false;
-      this.cyclePeakDepth = 0;
-      this.lastDepth = depth;
-      return this.snapshot();
+    if (this.phase === 'down' && this.armed && ascending) {
+      this.tryComplete(timestampMs, signal, minSwing);
     }
 
-    if (this.phase === 'up' || this.phase === 'init') {
-      if (canArm && depth >= downDepth && this.descendingStreak >= 1) {
-        this.phase = 'down';
-        this.repArmed = true;
-        this.cyclePeakDepth = depth;
-        this.ascendingStreak = 0;
-      } else if (depth <= upDepth) {
-        this.phase = 'up';
-        this.cyclePeakDepth = 0;
-      }
-
-      this.lastDepth = depth;
-      return this.snapshot();
-    }
-
-    this.cyclePeakDepth = Math.max(this.cyclePeakDepth, depth);
-
-    // Count once depth is back in the valid up band after a real bottom.
-    const returnedToUpBand =
-      this.repArmed &&
-      this.cyclePeakDepth >= downDepth &&
-      this.ascendingStreak >= 1 &&
-      depth <= upDepth;
-
-    if (returnedToUpBand) {
-      this.phase = 'up';
-      this.repArmed = false;
-      this.cyclePeakDepth = 0;
-      this.ascendingStreak = 0;
-
-      if (timestampMs - this.lastCountMs >= this.options.minRepIntervalMs) {
-        this.count += 1;
-        this.lastCountMs = timestampMs;
-      }
-    }
-
-    this.lastDepth = depth;
     return this.snapshot();
   }
 
-  /** Count from the shoulder-oscillation path without double-booking the interval. */
-  tryCount(timestampMs: number): boolean {
-    if (timestampMs - this.lastCountMs < this.options.minRepIntervalMs) {
-      return false;
-    }
-
-    this.count += 1;
-    this.lastCountMs = timestampMs;
-    this.phase = 'up';
-    this.repArmed = false;
-    this.cyclePeakDepth = 0;
-    this.ascendingStreak = 0;
-    return true;
-  }
-
-  private updateMotion(depth: number): void {
-    if (depth < this.lastDepth - 0.01) {
-      this.ascendingStreak += 1;
-      this.descendingStreak = 0;
+  private tryArm(minSwing: number): void {
+    if (this.cycleAmplitude() < this.enterNeed(minSwing)) {
       return;
     }
 
-    if (depth > this.lastDepth + 0.01) {
-      this.descendingStreak += 1;
-      this.ascendingStreak = 0;
-    }
+    this.phase = 'down';
+    this.armed = true;
   }
+
+  private tryComplete(
+    timestampMs: number,
+    signal: number,
+    minSwing: number,
+  ): void {
+    const amplitude = this.cycleAmplitude();
+    const enterNeed = this.enterNeed(minSwing);
+    if (amplitude < enterNeed) {
+      return;
+    }
+
+    const ascent = this.cycleBottom - signal;
+    const neededAscent = Math.max(
+      minSwing * 0.5,
+      amplitude * (1 - this.options.returnFraction),
+    );
+    if (ascent < neededAscent) {
+      return;
+    }
+
+    this.phase = 'up';
+    this.armed = false;
+
+    if (timestampMs - this.lastCountMs >= this.options.minRepIntervalMs) {
+      this.count += 1;
+      this.lastCountMs = timestampMs;
+      this.rememberSwing(amplitude);
+    }
+
+    this.startNewCycle(signal);
+  }
+
+  private rememberSwing(amplitude: number): void {
+    if (this.learningAmplitudes.length < this.options.learningReps) {
+      this.learningAmplitudes.push(amplitude);
+      this.typicalSwing = Math.min(...this.learningAmplitudes);
+      return;
+    }
+
+    if (this.typicalSwing == null) {
+      this.typicalSwing = amplitude;
+      return;
+    }
+
+    if (amplitude < this.typicalSwing) {
+      this.typicalSwing = 0.5 * this.typicalSwing + 0.5 * amplitude;
+      return;
+    }
+
+    this.typicalSwing = 0.9 * this.typicalSwing + 0.1 * amplitude;
+  }
+
+  private enterNeed(minSwing: number): number {
+    if (
+      this.typicalSwing == null ||
+      this.learningAmplitudes.length < this.options.learningReps
+    ) {
+      return minSwing;
+    }
+
+    return Math.max(minSwing, this.typicalSwing * this.options.enterFraction);
+  }
+
+  private expandCycle(signal: number): void {
+    this.cycleTop = Math.min(this.cycleTop, signal);
+    this.cycleBottom = Math.max(this.cycleBottom, signal);
+  }
+
+  private startNewCycle(signal: number): void {
+    this.cycleTop = signal;
+    this.cycleBottom = signal;
+  }
+
+  private cycleAmplitude(): number {
+    if (
+      !Number.isFinite(this.cycleTop) ||
+      !Number.isFinite(this.cycleBottom)
+    ) {
+      return 0;
+    }
+
+    return Math.max(0, this.cycleBottom - this.cycleTop);
+  }
+
+  private normalizedDepth(): number {
+    const swing = this.typicalSwing ?? this.cycleAmplitude();
+    if (swing <= 0 || !Number.isFinite(this.cycleTop)) {
+      return 0;
+    }
+
+    return clamp01((this.lastSignal - this.cycleTop) / swing);
+  }
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }

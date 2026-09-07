@@ -139,6 +139,21 @@ describe('pushup-form', () => {
     );
     expect(looksLikeStandingUp(standingFromPlankFrame(0, 1), 0.3)).toBe(true);
   });
+
+  it('does not treat a tall front-camera plank as standing', () => {
+    const frame = syntheticFrontPushupFrame(0, 0);
+    frame.points.leftHip = { x: 0.44, y: 0.68, score: 0.92 };
+    frame.points.rightHip = { x: 0.56, y: 0.68, score: 0.92 };
+
+    expect(looksLikeStandingUp(frame, 0.3)).toBe(false);
+  });
+
+  it('still frames a plank when one hip is missing', () => {
+    const frame = syntheticFrontPushupFrame(0, 0);
+    delete frame.points.leftHip;
+
+    expect(hasPushupFraming(frame, 0.3)).toBe(true);
+  });
 });
 
 function faceCloseUpFrame(timestampMs: number, bob: number) {

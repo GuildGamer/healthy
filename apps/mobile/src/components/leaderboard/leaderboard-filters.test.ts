@@ -1,8 +1,16 @@
 import {
+  labelForLeaderboardCategory,
   leaderboardIntro,
   leaderboardQueryInput,
   leaderboardRankWindow,
 } from './leaderboard-filters';
+
+describe('labelForLeaderboardCategory', () => {
+  it('names the open board and a single condition', () => {
+    expect(labelForLeaderboardCategory('all')).toBe('All categories');
+    expect(labelForLeaderboardCategory('hypertension')).toBe('Blood pressure');
+  });
+});
 
 describe('leaderboardIntro', () => {
   it('describes each ranking window', () => {

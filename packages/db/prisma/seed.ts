@@ -110,7 +110,7 @@ const challengeSeeds: ChallengeSeed[] = [
   },
   {
     slug: 'blood-pressure-clinic-check',
-    title: 'Clinic blood pressure check',
+    title: 'Have a clinic blood pressure check',
     description: 'Have your blood pressure measured by a professional.',
     category: 'hypertension',
     rewardPoints: 500,
@@ -120,7 +120,7 @@ const challengeSeeds: ChallengeSeed[] = [
   },
   {
     slug: 'glucose-check',
-    title: 'Check blood glucose',
+    title: 'Check your blood glucose',
     description: 'Record a fasting or mealtime glucose reading.',
     category: 'diabetes',
     rewardPoints: 200,
@@ -165,7 +165,7 @@ const challengeSeeds: ChallengeSeed[] = [
   },
   {
     slug: 'asthma-inhaler-check',
-    title: 'Inhaler adherence check',
+    title: 'Take your preventer inhaler',
     description: 'Confirm you used your preventer inhaler as prescribed.',
     category: 'asthma',
     rewardPoints: 150,
@@ -255,7 +255,7 @@ const challengeSeeds: ChallengeSeed[] = [
     slug: 'twenty-push-ups',
     title: 'Do twenty push-ups',
     description:
-      'Prop your phone, get your whole body in frame, and complete twenty push-ups counted on-device.',
+      'Prop your phone, get your whole body in frame, and complete your set of push-ups counted on-device.',
     category: 'general',
     rewardPoints: 150,
     defaultFrequency: 'daily',
@@ -265,7 +265,7 @@ const challengeSeeds: ChallengeSeed[] = [
     deviceMetric: 'pushups',
     targetCount: 20,
     instruction:
-      'Prop your phone so your whole body is in the frame — head to feet, both arms visible. Start your first push-up — counting begins automatically. Video stays on this device.',
+      'Prop your phone so your whole body is in the frame: head to feet, both arms visible. Start your first push-up. Counting begins automatically. Video stays on this device.',
   },
   {
     slug: 'gym-session',
@@ -277,7 +277,7 @@ const challengeSeeds: ChallengeSeed[] = [
     isDefault: false,
     completionKind: 'evidence_photo',
     instruction:
-      'Take a photo of yourself at the gym or clearly mid-workout.',
+      'Take a selfie at the gym. Your face and the gym (machines, racks, or the gym floor) must be visible. Photos from home will not count.',
     icon: 'dumbbell',
   },
   {

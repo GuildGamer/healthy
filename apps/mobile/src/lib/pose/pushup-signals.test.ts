@@ -2,7 +2,6 @@ import {
   elbowArmDownness,
   fusePushupDownness,
   mergeCalibration,
-  resolveAdaptiveThresholds,
   sampleCalibration,
   torsoDropDownness,
   wristSpreadDownness,
@@ -80,27 +79,6 @@ describe('pushup-signals', () => {
 
   it('fuses channels by taking the strongest downness', () => {
     expect(fusePushupDownness([0.2, 0.65, 0.4])).toBe(0.65);
-  });
-
-  it('builds adaptive thresholds from observed range', () => {
-    expect(resolveAdaptiveThresholds(0.2, 0.5, 0.55, 0.35)).toEqual({
-      down: expect.closeTo(0.38, 2),
-      up: expect.closeTo(0.314, 2),
-    });
-  });
-
-  it('falls back to fixed thresholds when range is tiny', () => {
-    expect(resolveAdaptiveThresholds(0.4, 0.45, 0.55, 0.35)).toEqual({
-      down: 0.55,
-      up: 0.35,
-    });
-  });
-
-  it('does not personalize bands from a shallow bob', () => {
-    expect(resolveAdaptiveThresholds(0.1, 0.28, 0.55, 0.45)).toEqual({
-      down: 0.55,
-      up: 0.45,
-    });
   });
 
   it('reads elbow flexion from the clearer arm', () => {

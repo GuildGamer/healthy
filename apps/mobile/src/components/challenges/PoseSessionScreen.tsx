@@ -13,16 +13,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
-import { PoseDebugOverlay } from '@/components/challenges/PoseDebugOverlay';
+import { MATCH_SCORING_LABEL } from '@/components/matches/match-copy';
 import { PoseLandmarkOverlay } from '@/components/challenges/PoseLandmarkOverlay';
+import { QUICKPOSE_SDK_KEY } from '@/lib/config';
+import type { QuickPosePushupUpdate } from '@/lib/pose/quickpose-pushup';
 import {
   POSE_MOVE_CLOSER,
   POSE_MOVE_INTO_FRAME,
-  POSE_TOO_CLOSE,
   POSE_SETUP_HUD_READY,
   POSE_SETUP_INSTRUCTION,
   POSE_TRACKING,
   POSE_TRACKING_WEAK,
+  poseCoachBanner,
 } from '@/components/challenges/pose-session-copy';
 import {
   usePoseSessionCounter,
@@ -36,14 +38,19 @@ const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
 
 type SessionPhase = 'setup' | 'counting' | 'review';
 
-type PoseVisionCameraProps = {
-  processing: boolean;
-  sessionKey?: number;
-  onPoseFrame: (frame: PoseFrame) => void;
-  onModelStateChange?: (ready: boolean, detail: string) => void;
+type QuickPoseCameraProps = {
+  sdkKey: string;
+  onUpdate: (update: QuickPosePushupUpdate) => void;
 };
 
-export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
+export type PoseSessionScreenProps =
+  | { challengeId: string; matchId?: undefined }
+  | { challengeId?: undefined; matchId: string };
+
+export function PoseSessionScreen(props: PoseSessionScreenProps) {
+  const challengeId = props.challengeId;
+  const matchId = props.matchId;
+  const isMatch = Boolean(matchId);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -55,7 +62,7 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
     driveMode,
     start,
     stop,
-    ingestFrame,
+    ingestQuickPose,
   } = usePoseSessionCounter();
 
   const [phase, setPhase] = useState<SessionPhase>('setup');
@@ -67,13 +74,14 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
   const [cameraSessionKey, setCameraSessionKey] = useState(0);
   const phaseRef = useRef<SessionPhase>('setup');
   const driveModeRef = useRef<PoseDriveMode>('live');
-  const [VisionCamera, setVisionCamera] = useState<
-    ComponentType<PoseVisionCameraProps> | null
+  const [QuickPoseCamera, setQuickPoseCamera] = useState<
+    ComponentType<QuickPoseCameraProps> | null
   >(null);
 
   const todayQuery = useQuery({
     queryKey: ['challenges', 'today'],
     queryFn: () => apiClient.listTodayChallenges(),
+    enabled: !isMatch,
   });
 
   const occurrence = todayQuery.data?.challenges.find(
@@ -81,20 +89,29 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
   );
 
   useEffect(() => {
+    if (!QUICKPOSE_SDK_KEY) {
+      setModelReady(false);
+      setModelDetail(
+        'Live counting needs a QuickPose SDK key. Use guided motion for now.',
+      );
+      return;
+    }
+
     let cancelled = false;
 
-    void import('@/components/challenges/PoseVisionCamera')
+    void import('@/components/challenges/QuickPosePushupCamera')
       .then((module) => {
         if (!cancelled) {
-          setVisionCamera(() => module.PoseVisionCamera);
-          setModelDetail('Loading pose model…');
+          setQuickPoseCamera(() => module.QuickPosePushupCamera);
+          setModelReady(true);
+          setModelDetail('Camera ready');
         }
       })
       .catch(() => {
         if (!cancelled) {
           setModelReady(false);
           setModelDetail(
-            'Pose camera needs a native rebuild — use guided motion for now',
+            'Pose camera needs a native rebuild. Use guided motion for now.',
           );
         }
       });
@@ -102,11 +119,6 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  const onModelStateChange = useCallback((ready: boolean, detail: string) => {
-    setModelReady(ready);
-    setModelDetail(detail);
   }, []);
 
   useEffect(() => {
@@ -117,25 +129,23 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
     driveModeRef.current = driveMode;
   }, [driveMode]);
 
-  const handlePoseFrame = useCallback(
-    (frame: PoseFrame) => {
-      setOverlayFrame(frame);
-
+  const handleQuickPoseUpdate = useCallback(
+    (update: QuickPosePushupUpdate) => {
       const watchingSetup = phaseRef.current === 'setup';
       const countingLive = phaseRef.current === 'counting';
       if (
         driveModeRef.current === 'live' &&
         (watchingSetup || countingLive)
       ) {
-        ingestFrame(frame);
+        ingestQuickPose(update);
       }
     },
-    [ingestFrame],
+    [ingestQuickPose],
   );
 
   const startOccurrence = useMutation({
     mutationFn: async () => {
-      if (!occurrence || occurrence.status !== 'pending') {
+      if (isMatch || !occurrence || occurrence.status !== 'pending') {
         return;
       }
 
@@ -148,6 +158,15 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
 
   const complete = useMutation({
     mutationFn: async (reps: number) => {
+      if (isMatch && matchId) {
+        return apiClient.submitMatchAttempt({
+          matchId,
+          count: reps,
+          durationSeconds: elapsedSeconds,
+          source: 'in_app_pose',
+        });
+      }
+
       if (!occurrence) {
         throw new Error(SUBMIT_FAILED_MESSAGE);
       }
@@ -170,7 +189,24 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
         },
       });
     },
-    onSuccess: async (result) => {
+    onSuccess: async (result, reps) => {
+      if (isMatch && matchId) {
+        await queryClient.invalidateQueries({ queryKey: ['matches'] });
+        router.replace({
+          pathname: '/challenge/success',
+          params: {
+            title: MATCH_SCORING_LABEL,
+            count: String(reps),
+            matchId,
+          },
+        });
+        return;
+      }
+
+      if (!('pointsAwarded' in result)) {
+        return;
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['me'] }),
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
@@ -184,6 +220,8 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
           title: occurrence?.title ?? 'Challenge',
           points: String(result.pointsAwarded),
           streak: String(result.currentStreakDays),
+          count: String(reps),
+          target: String(occurrence?.capture.target.count ?? 0),
         },
       });
     },
@@ -194,7 +232,7 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
       mode: PoseDriveMode,
       options?: { preserveCounter?: boolean },
     ) => {
-      if (!occurrence) {
+      if (!isMatch && !occurrence) {
         return;
       }
 
@@ -202,7 +240,7 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
 
       if (mode === 'live' && !modelReady) {
         setSessionError(
-          'Pose model is not ready yet. Wait a moment, or use guided motion.',
+          'Live camera is not ready yet. Wait a moment, or use guided motion.',
         );
         autoStartLockRef.current = false;
         return;
@@ -231,7 +269,7 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
       start(mode, { preserveCounter });
       setPhase('counting');
     },
-    [modelReady, occurrence, start, startOccurrence],
+    [isMatch, modelReady, occurrence, start, startOccurrence],
   );
 
   useEffect(() => {
@@ -272,7 +310,7 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
       return;
     }
 
-    router.replace('/(tabs)/challenges');
+    router.replace(isMatch && matchId ? `/matches/${matchId}` : '/(tabs)/challenges');
   }
 
   function onCameraLayout(event: LayoutChangeEvent) {
@@ -280,16 +318,14 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
     setCameraSize({ width, height });
   }
 
+  const calibrated =
+    snapshot.bodyInFrame || snapshot.visibilityRatio >= 0.5;
+  const coachBanner =
+    modelReady || phase !== 'setup' ? poseCoachBanner(snapshot) : null;
+
   function poseStatusLabel(): string {
     if (phase === 'setup') {
-      if (modelReady && snapshot.tooClose) {
-        return POSE_TOO_CLOSE;
-      }
       return modelReady ? POSE_SETUP_HUD_READY : modelDetail;
-    }
-
-    if (snapshot.tooClose) {
-      return POSE_TOO_CLOSE;
     }
 
     if (snapshot.movementTooSmall) {
@@ -307,19 +343,17 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
     return POSE_MOVE_INTO_FRAME;
   }
 
-  if (todayQuery.isLoading || !occurrence) {
+  if (!isMatch && (todayQuery.isLoading || !occurrence)) {
     return <ScreenLoader />;
   }
 
-  const target = occurrence.capture.target.count ?? 0;
+  const target = isMatch ? 0 : (occurrence?.capture.target.count ?? 0);
   const count = snapshot.count;
-  const meetsTarget = count >= target && target > 0;
-  const calibrated =
-    snapshot.bodyInFrame || snapshot.visibilityRatio >= 0.5;
+  const meetsTarget = isMatch ? count > 0 : count >= target && target > 0;
   const showLiveCamera =
-    VisionCamera != null && (driveMode === 'live' || phase === 'setup');
-  const liveProcessing =
-    driveMode === 'live' && (phase === 'setup' || phase === 'counting');
+    Boolean(QUICKPOSE_SDK_KEY) &&
+    QuickPoseCamera != null &&
+    (phase === 'setup' || (phase === 'counting' && driveMode === 'live'));
   const landmarkFrame = snapshot.debugFrame ?? overlayFrame;
 
   return (
@@ -329,12 +363,11 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
         testID="pose-camera"
         onLayout={onCameraLayout}
       >
-        {showLiveCamera && VisionCamera ? (
-          <VisionCamera
-            processing={liveProcessing}
-            sessionKey={cameraSessionKey}
-            onModelStateChange={onModelStateChange}
-            onPoseFrame={handlePoseFrame}
+        {showLiveCamera && QuickPoseCamera ? (
+          <QuickPoseCamera
+            key={cameraSessionKey}
+            onUpdate={handleQuickPoseUpdate}
+            sdkKey={QUICKPOSE_SDK_KEY}
           />
         ) : (
           <View style={styles.cameraFallback}>
@@ -346,28 +379,12 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
           </View>
         )}
 
-        <PoseLandmarkOverlay
-          frame={landmarkFrame}
-          height={cameraSize.height}
-          width={cameraSize.width}
-        />
-
-        <PoseDebugOverlay snapshot={snapshot} />
-
-        {!snapshot.calibrating &&
-        (phase === 'counting' || snapshot.phase === 'down') ? (
-          <View
-            pointerEvents="none"
-            style={[styles.depthTrack, { top: insets.top + spacing.sm }]}
-            testID="pose-depth-track"
-          >
-            <View
-              style={[
-                styles.depthFill,
-                { width: `${Math.round(snapshot.downness * 100)}%` },
-              ]}
-            />
-          </View>
+        {driveMode === 'guided' ? (
+          <PoseLandmarkOverlay
+            frame={landmarkFrame}
+            height={cameraSize.height}
+            width={cameraSize.width}
+          />
         ) : null}
 
         <View
@@ -388,12 +405,26 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
             >
               <Feather color={colors.text} name="arrow-left" size={22} />
             </Pressable>
-            <Text style={styles.title}>{occurrence.title}</Text>
+            <Text style={styles.title}>
+              {isMatch ? 'Push-ups' : occurrence?.title}
+            </Text>
           </View>
           {phase === 'setup' ? (
             <Text style={styles.instruction}>{POSE_SETUP_INSTRUCTION}</Text>
           ) : null}
         </View>
+
+        {coachBanner ? (
+          <View
+            pointerEvents="none"
+            style={styles.coachBanner}
+            testID="pose-coach"
+          >
+            <Text style={styles.coachBannerText} testID="pose-status">
+              {coachBanner}
+            </Text>
+          </View>
+        ) : null}
 
         <View
           pointerEvents="none"
@@ -401,11 +432,15 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
         >
           <Text style={styles.count} testID="pose-count">
             {count}
-            <Text style={styles.countTarget}> / {target}</Text>
+            {isMatch ? null : (
+              <Text style={styles.countTarget}> / {target}</Text>
+            )}
           </Text>
-          <Text style={styles.hudMeta} testID="pose-status">
-            {poseStatusLabel()}
-          </Text>
+          {coachBanner ? null : (
+            <Text style={styles.hudMeta} testID="pose-status">
+              {poseStatusLabel()}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -431,12 +466,14 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
               onPress={() => void beginCounting('live')}
               testID="start-pose"
             />
-            <FormButton
-              label="Guided motion (no camera AI)"
-              onPress={() => void beginCounting('guided')}
-              testID="start-pose-guided"
-              variant="secondary"
-            />
+            {__DEV__ ? (
+              <FormButton
+                label="Guided motion (no camera AI)"
+                onPress={() => void beginCounting('guided')}
+                testID="start-pose-guided"
+                variant="secondary"
+              />
+            ) : null}
           </>
         ) : null}
 
@@ -447,7 +484,13 @@ export function PoseSessionScreen({ challengeId }: { challengeId: string }) {
         {phase === 'review' ? (
           <View style={styles.reviewCard} testID="pose-review">
             <Text style={styles.reviewTitle}>
-              {meetsTarget ? 'Target reached' : 'Short of the target'}
+              {isMatch
+                ? count > 0
+                  ? 'Set ready'
+                  : 'No reps yet'
+                : meetsTarget
+                  ? 'Target reached'
+                  : 'Short of the target'}
             </Text>
             <Text style={styles.reviewBody}>
               {count} push-ups in {elapsedSeconds}s
@@ -539,6 +582,25 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     backgroundColor: 'transparent',
+  },
+  coachBanner: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    top: '40%',
+    alignItems: 'center',
+  },
+  coachBannerText: {
+    color: colors.text,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+    lineHeight: 26,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    overflow: 'hidden',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   depthTrack: {
     position: 'absolute',

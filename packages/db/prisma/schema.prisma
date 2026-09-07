@@ -27,6 +27,10 @@ model User {
   pushDevices          PushDevice[]
   notifications        Notification[]
   deviceActivityLogs   DeviceActivityLog[]
+  hostedMatches        Match[]              @relation("MatchHost")
+  wonMatches           Match[]              @relation("MatchWinner")
+  matchParticipations  MatchParticipant[]
+  matchAttempts        MatchAttempt[]
 
   @@map("user")
 }
@@ -658,4 +662,74 @@ model AdminAuditEvent {
   @@index([adminUserId, createdAt])
   @@index([targetMemberUserId, createdAt])
   @@map("admin_audit_events")
+}
+
+enum MatchMetric {
+  pushups
+}
+
+enum MatchScoringMode {
+  best_single
+}
+
+enum MatchStatus {
+  open
+  completed
+  cancelled
+}
+
+enum MatchAttemptSource {
+  in_app_pose
+}
+
+/// Private contest a host can send by link. Isolated from habit points.
+model Match {
+  id             String             @id @default(cuid())
+  hostUserId     String
+  hostUser       User               @relation("MatchHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  inviteToken    String             @unique
+  metric         MatchMetric        @default(pushups)
+  scoringMode    MatchScoringMode   @default(best_single)
+  startsAt       DateTime
+  endsAt         DateTime
+  status         MatchStatus        @default(open)
+  winnerUserId   String?
+  winnerUser     User?              @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
+  settledAt      DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  participants   MatchParticipant[]
+  attempts       MatchAttempt[]
+
+  @@index([hostUserId, createdAt])
+  @@index([status, endsAt])
+  @@map("matches")
+}
+
+model MatchParticipant {
+  id       String   @id @default(cuid())
+  matchId  String
+  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([matchId, userId])
+  @@index([userId, joinedAt])
+  @@map("match_participants")
+}
+
+model MatchAttempt {
+  id              String             @id @default(cuid())
+  matchId         String
+  match           Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  count           Int
+  durationSeconds Int
+  source          MatchAttemptSource @default(in_app_pose)
+  recordedAt      DateTime           @default(now())
+
+  @@index([matchId, userId, recordedAt])
+  @@map("match_attempts")
 }

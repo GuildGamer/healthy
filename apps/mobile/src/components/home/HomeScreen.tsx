@@ -36,6 +36,7 @@ import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
 import { apiClient } from '@/lib/api';
 import heroBanner from '@/assets/hero-banner.png';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MATCH_LIVE_HINT } from '@/components/matches/match-copy';
 import { weeklyRankLabel } from './home-rank';
 
 /** Figma uses 12px gaps (`space-y-3`) between home sections. */
@@ -95,20 +96,18 @@ function formatHomeDate(at: Date = new Date()): string {
 
 function ChallengeRow({
   challenge,
-  inCard = false,
   isBusy,
   onAdvance,
   onOpen,
 }: {
   challenge: TodayChallenge;
-  inCard?: boolean;
   isBusy: boolean;
   onAdvance: () => void;
   onOpen: () => void;
 }) {
   return (
     <View
-      style={[styles.challengeRow, inCard && styles.challengeRowInCard]}
+      style={styles.challengeRow}
       testID={`home-challenge-${challenge.id}`}
     >
       <Pressable
@@ -202,6 +201,11 @@ export function HomeScreen() {
     queryKey: ['leaderboard'],
     queryFn: () => apiClient.listLeaderboard({ period: 'week' }),
   });
+  const matchesQuery = useQuery({
+    queryKey: ['matches', 'mine'],
+    queryFn: () => apiClient.listMyMatches(),
+  });
+  const liveMatchCount = matchesQuery.data?.live.length ?? 0;
 
   usePushDeviceSync(meQuery.data?.reminderEnabled ?? false);
 
@@ -236,6 +240,7 @@ export function HomeScreen() {
             challengesQuery.refetch(),
             notificationsQuery.refetch(),
             leaderboardQuery.refetch(),
+            matchesQuery.refetch(),
             tipsQuery.refetch(),
           ])
         }
@@ -334,13 +339,42 @@ export function HomeScreen() {
             style={styles.tipCard}
             testID="home-daily-tip"
           >
-            <Text style={styles.tipEyebrow}>
-              Tip · {healthCategoryName(todayTip.category)}
-            </Text>
+            <View style={styles.tipHeader}>
+              <Text style={styles.tipEyebrow}>
+                Tip · {healthCategoryName(todayTip.category)}
+              </Text>
+              <Feather color={colors.accent} name="chevron-right" size={16} />
+            </View>
             <Text style={styles.tipQuote}>{todayTip.title}</Text>
           </Pressable>
         ) : null}
       </View>
+
+      {liveMatchCount > 0 ? (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Matches</Text>
+          </View>
+          <Pressable
+            accessibilityHint="Opens your live matches"
+            accessibilityRole="button"
+            onPress={() => router.push('/matches')}
+            style={styles.firstRun}
+            testID="home-open-matches"
+          >
+            <Feather color={colors.accent} name="users" size={20} />
+            <View style={styles.firstRunText}>
+              <Text style={styles.firstRunTitle}>
+                {liveMatchCount === 1
+                  ? '1 live match'
+                  : `${liveMatchCount} live matches`}
+              </Text>
+              <Text style={styles.firstRunSubtitle}>{MATCH_LIVE_HINT}</Text>
+            </View>
+            <Feather color={colors.muted} name="chevron-right" size={18} />
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -384,11 +418,10 @@ export function HomeScreen() {
               <TodayWinHeader testID="home-today-win" win={layout.win} />
             ) : null}
             {layout.focus ? (
-              <View style={styles.doNextCard} testID="home-section-focus">
+              <View testID="home-section-focus">
                 <Text style={styles.doNextLabel}>Do next</Text>
                 <ChallengeRow
                   challenge={layout.focus}
-                  inCard
                   isBusy={isAdvancing(layout.focus.id)}
                   onAdvance={() => handleAdvance(layout.focus!)}
                   onOpen={() =>
@@ -565,6 +598,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   tipEyebrow: {
     color: colors.accent,
     fontSize: fontSize.xs,
@@ -592,20 +631,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
   },
-  doNextCard: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: CARD_RADIUS,
-    overflow: 'hidden',
-    paddingTop: spacing.sm,
-  },
   doNextLabel: {
     color: colors.accent,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xs,
   },
   upNextBlock: {
@@ -630,9 +662,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
-  },
-  challengeRowInCard: {
-    paddingHorizontal: spacing.md,
   },
   challengeBody: {
     flex: 1,

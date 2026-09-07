@@ -39,7 +39,6 @@ describe('elbowDownness', () => {
 
 const SIDE_VIEW_OPTIONS = {
   minRepIntervalMs: 200,
-  calibrationFrames: 0,
   visibilityWarmupFrames: 1,
 } as const;
 
@@ -185,7 +184,7 @@ describe('PushupCounter', () => {
     const counter = new PushupCounter({
       ...SIDE_VIEW_OPTIONS,
       visibilityWarmupFrames: 1,
-      smoothAlpha: 0.5,
+      signalSmoothAlpha: 0.5,
     });
 
     // Depth only returns to ~0.4 between reps — inside the up band, not lockout.
@@ -273,45 +272,46 @@ describe('PushupCounter', () => {
     expect(counter.snapshot().count).toBe(0);
   });
 
-  it('smooths noisy downness before phase transitions', () => {
+  it('counts a ramped dip even when the signal is noisy', () => {
     const counter = new PushupCounter({
       ...SIDE_VIEW_OPTIONS,
-      smoothAlpha: 0.5,
+      signalSmoothAlpha: 0.5,
       visibilityWarmupFrames: 1,
     });
 
-    const flexed = (time: number) => syntheticPushupFrame(time, 1);
-    const extended = (time: number) => syntheticPushupFrame(time, 0);
-
-    for (let time = 0; time <= 120; time += 40) {
-      counter.ingest(extended(time));
-    }
-
-    for (let time = 160; time <= 520; time += 40) {
-      counter.ingest(flexed(time));
-    }
-
-    expect(counter.snapshot().phase).toBe('down');
-
-    for (let time = 560; time <= 1_000; time += 40) {
-      counter.ingest(extended(time));
+    for (let time = 0; time <= 1_200; time += 40) {
+      const wave = syntheticPushupDepth(time, 1_200);
+      const jitter = ((time / 40) % 2 === 0 ? 1 : -1) * 0.04;
+      const depth = Math.min(1, Math.max(0, wave + jitter));
+      counter.ingest(syntheticPushupFrame(time, depth));
     }
 
     expect(counter.snapshot().count).toBe(1);
   });
 
-  it('supports legacy hold-at-top calibration when configured', () => {
+  it('counts a tall front-camera plank whose hips sit far below the shoulders', () => {
     const counter = new PushupCounter({
-      minRepIntervalMs: 200,
-      calibrationFrames: 8,
+      ...SIDE_VIEW_OPTIONS,
+      visibilityWarmupFrames: 2,
     });
 
-    for (let index = 0; index < 8; index += 1) {
-      counter.ingest(syntheticPushupFrame(index * 40, 0));
+    for (let time = 0; time <= 4_000; time += 125) {
+      const depth = syntheticFrontPushupDepth(time, 1_000);
+      const frame = syntheticFrontPushupFrame(time, depth);
+      frame.points.leftHip = {
+        x: 0.44,
+        y: frame.points.leftShoulder!.y + 0.4,
+        score: 0.7,
+      };
+      frame.points.rightHip = {
+        x: 0.56,
+        y: frame.points.rightShoulder!.y + 0.4,
+        score: 0.7,
+      };
+      counter.ingest(frame);
     }
 
-    expect(counter.snapshot().calibrating).toBe(true);
-    expect(counter.snapshot().count).toBe(0);
+    expect(counter.snapshot().count).toBeGreaterThanOrEqual(2);
   });
 
   it('counts front-facing reps at a natural pace without a setup hold', () => {
@@ -421,6 +421,31 @@ describe('PushupCounter', () => {
     }
 
     expect(counter.snapshot().count).toBe(0);
+  });
+
+  it('still counts when isolated jumpy frames appear mid-rep', () => {
+    const counter = new PushupCounter({
+      ...SIDE_VIEW_OPTIONS,
+      visibilityWarmupFrames: 1,
+    });
+
+    for (let index = 0; index < 120; index += 1) {
+      const timestampMs = index * 40;
+      const depth = syntheticFrontPushupDepth(timestampMs, 1_000);
+      const frame = syntheticFrontPushupFrame(timestampMs, depth);
+      if (index % 17 === 0) {
+        for (const point of Object.values(frame.points)) {
+          if (!point) {
+            continue;
+          }
+          point.x += 0.12;
+          point.y += 0.06;
+        }
+      }
+      counter.ingest(frame);
+    }
+
+    expect(counter.snapshot().count).toBeGreaterThanOrEqual(2);
   });
 
   it('counts after the user is first seen standing, then planks', () => {

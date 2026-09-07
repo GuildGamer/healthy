@@ -12,14 +12,26 @@ function parseCount(value: string | undefined): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
+function parseMatchId(value: string | undefined): string | undefined {
+  if (!value || value.includes('/') || value.includes('?')) {
+    return undefined;
+  }
+
+  return value;
+}
+
 export default function ChallengeSuccessRoute() {
   const { data: session, isPending } = useSession();
-  const { title, points, streak, penalty } = useLocalSearchParams<{
-    title?: string;
-    points?: string;
-    streak?: string;
-    penalty?: string;
-  }>();
+  const { title, points, streak, penalty, count, target, matchId } =
+    useLocalSearchParams<{
+      title?: string;
+      points?: string;
+      streak?: string;
+      penalty?: string;
+      count?: string;
+      target?: string;
+      matchId?: string;
+    }>();
 
   if (isPending) {
     return <ScreenLoader />;
@@ -31,10 +43,13 @@ export default function ChallengeSuccessRoute() {
 
   return (
     <ChallengeSuccessScreen
+      completedCount={count ? parseCount(count) : undefined}
       currentStreakDays={parseCount(streak)}
       penaltyApplied={parseCount(penalty)}
       pointsAwarded={parseCount(points)}
+      targetCount={target ? parseCount(target) : undefined}
       title={title || 'Challenge'}
+      matchId={parseMatchId(typeof matchId === 'string' ? matchId : undefined)}
     />
   );
 }

@@ -79,8 +79,41 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess();
 
     expect(screen.getByTestId('challenge-share-card')).toBeOnTheScreen();
-    expect(screen.getByText('+40 pts · Day 12 streak')).toBeOnTheScreen();
+    expect(screen.getByText('12')).toBeOnTheScreen();
+    expect(screen.getByText('day streak')).toBeOnTheScreen();
+    expect(screen.getByText('Healthy')).toBeOnTheScreen();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
+  });
+
+  it('puts the push-up set on the share card', () => {
+    renderSuccess({
+      completedCount: 25,
+      targetCount: 20,
+      title: 'Do twenty push-ups',
+      pointsAwarded: 150,
+    });
+
+    expect(screen.getByText('25/20')).toBeOnTheScreen();
+    expect(screen.getByText('push-ups')).toBeOnTheScreen();
+  });
+
+  it('shares a match set and returns to the board', () => {
+    renderSuccess({
+      completedCount: 25,
+      matchId: 'm1',
+      pointsAwarded: 0,
+      title: 'Best single set',
+    });
+
+    expect(screen.getByText('25')).toBeOnTheScreen();
+    expect(screen.getAllByText('Match set').length).toBeGreaterThan(0);
+    expect(screen.getByText('Back to match')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('challenge-success-done'));
+    const { useRouter } = jest.requireMock('expo-router') as {
+      useRouter: () => { replace: jest.Mock };
+    };
+    expect(useRouter().replace).toHaveBeenCalledWith('/matches/m1');
   });
 
   it('hides share after a missed photo check', () => {

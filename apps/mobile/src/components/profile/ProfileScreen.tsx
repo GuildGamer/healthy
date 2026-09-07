@@ -187,7 +187,7 @@ export function ProfileScreen() {
     healthLinkStatus === 'connected'
       ? 'Phone sensors on'
       : healthLinkStatus === 'denied'
-        ? 'Off — walks still work by hand'
+        ? 'Off. Walks still work by hand.'
         : 'Phone or watch';
   const nameValue = draftName ?? savedDisplayName;
   const canSaveName =

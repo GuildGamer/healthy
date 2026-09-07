@@ -25,6 +25,7 @@ jest.mock('@/lib/api', () => ({
     completeChallenge: jest.fn(),
     updateTimeZone: jest.fn(),
     listTips: jest.fn(),
+    listMyMatches: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -53,6 +54,7 @@ const mockedApi = apiClient as unknown as {
   completeChallenge: jest.Mock;
   updateTimeZone: jest.Mock;
   listTips: jest.Mock;
+  listMyMatches: jest.Mock;
 };
 
 function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
@@ -170,6 +172,7 @@ beforeEach(() => {
     currentUserPoints: 150,
     currentUserVisible: true,
   });
+  mockedApi.listMyMatches.mockResolvedValue({ live: [], ended: [] });
 });
 
 describe('HomeScreen', () => {
@@ -184,6 +187,17 @@ describe('HomeScreen', () => {
     expect(screen.getByTestId('home-rank-trophy')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-rank-medal')).toBeNull();
     expect(screen.getByText("Today's Challenges")).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-open-matches')).toBeNull();
+
+    await cleanup();
+  });
+
+  it('hides matches on home when none are live', async () => {
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByText("Today's Challenges")).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-open-matches')).toBeNull();
+    expect(screen.queryByText('Challenge a friend')).toBeNull();
 
     await cleanup();
   });
@@ -268,6 +282,33 @@ describe('HomeScreen', () => {
 
     fireEvent.press(screen.getByTestId('home-points-card'));
     expect(useRouter().push).toHaveBeenCalledWith('/points');
+
+    await cleanup();
+  });
+
+  it('opens matches from the home section', async () => {
+    mockedApi.listMyMatches.mockResolvedValue({
+      live: [
+        {
+          id: 'm1',
+          title: 'vs Bee',
+          metric: 'pushups',
+          scoringMode: 'best_single',
+          endsAt: '2026-09-05T21:00:00.000Z',
+          status: 'open',
+          participantCount: 2,
+          yourBestCount: 12,
+          yourRank: 1,
+        },
+      ],
+      ended: [],
+    });
+
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByText('1 live match')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('home-open-matches'));
+    expect(useRouter().push).toHaveBeenCalledWith('/matches');
 
     await cleanup();
   });

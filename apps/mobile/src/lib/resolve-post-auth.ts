@@ -1,5 +1,6 @@
 import { apiClient } from './api';
 import { getSessionData, isEmailVerified, waitForSession } from './auth-client';
+import { takePendingMatchToken } from './pending-match-token';
 import { postAuthRoute, type PostAuthHref } from './post-auth-route';
 
 /**
@@ -15,10 +16,21 @@ export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
   const session = await getSessionData();
   const me = await apiClient.me();
 
-  return postAuthRoute({
+  const route = postAuthRoute({
     emailVerified: isEmailVerified(session),
     name: me.name ?? session?.user.name,
     countryCode: me.countryCode,
     categoryCount: me.categories.length,
   });
+
+  if (route !== '/(tabs)') {
+    return route;
+  }
+
+  const pendingToken = await takePendingMatchToken();
+  if (pendingToken) {
+    return `/match/${pendingToken}`;
+  }
+
+  return route;
 }

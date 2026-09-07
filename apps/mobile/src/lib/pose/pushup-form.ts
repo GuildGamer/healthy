@@ -40,10 +40,10 @@ export const MIN_BODY_EXTENT = 0.24;
 export const MAX_SHOULDER_WIDTH = 0.44;
 
 /**
- * Hip-minus-shoulder y in a front plank is ~0.22. A much larger gap means the
- * body is going vertical (kneeling / standing up), not pressing.
+ * Front-camera plank already looks tall in 2D (head at top, hips lower).
+ * Only treat that gap as standing when it is clearly upright.
  */
-export const STANDING_TORSO_SPAN = 0.34;
+export const STANDING_TORSO_SPAN = 0.5;
 
 export type ArmElbowReading = {
   side: 'left' | 'right';
@@ -252,7 +252,12 @@ export function hasPushupFraming(
       ? frame.points.rightHip
       : undefined,
   );
-  if (!hip) {
+  const hasArm =
+    pointUsable(frame.points.leftElbow, minScore) ||
+    pointUsable(frame.points.rightElbow, minScore) ||
+    pointUsable(frame.points.leftWrist, minScore) ||
+    pointUsable(frame.points.rightWrist, minScore);
+  if (!hip && !hasArm) {
     return false;
   }
 
@@ -321,8 +326,9 @@ export function looksLikeStandingUp(
     return false;
   }
 
-  // Hands coming off the floor while the torso is already lengthening.
-  return torsoSpan >= 0.28 && wristY <= shoulder.y + 0.03;
+  // Hands off the floor while the torso is already long — standing up.
+  // A front-camera plank is also tall in 2D; wrists stay below the chest.
+  return torsoSpan >= 0.3 && wristY <= shoulder.y + 0.03;
 }
 
 export function bodyExtent(frame: PoseFrame, minScore: number): number {
@@ -340,7 +346,7 @@ export function bodyExtent(frame: PoseFrame, minScore: number): number {
     count += 1;
   }
 
-  if (count < 5) {
+  if (count < 3) {
     return 0;
   }
 

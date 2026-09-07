@@ -42,6 +42,34 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-notifications',
     'expo-font',
     [
+      'expo-build-properties',
+      {
+        android: {
+          minSdkVersion: 26,
+        },
+        ios: {
+          deploymentTarget: '15.1',
+          extraPods: [
+            {
+              name: 'QuickPoseCore',
+              git: 'https://github.com/quickpose/quickpose-ios-sdk.git',
+              tag: 'v1.7.0',
+            },
+            {
+              name: 'QuickPoseCamera',
+              git: 'https://github.com/quickpose/quickpose-ios-sdk.git',
+              tag: 'v1.7.0',
+            },
+            {
+              name: 'QuickPoseSwiftUI',
+              git: 'https://github.com/quickpose/quickpose-ios-sdk.git',
+              tag: 'v1.7.0',
+            },
+          ],
+        },
+      },
+    ],
+    [
       'react-native-vision-camera',
       {
         cameraPermissionText:

@@ -20,9 +20,11 @@
     "@product/brand": "workspace:*",
     "@product/client": "workspace:*",
     "@product/contract": "workspace:*",
+    "quickpose-camera": "file:./modules/quickpose-camera",
     "@tanstack/react-query": "^5.69.0",
     "better-auth": "1.7.2",
     "expo": "~54.0.37",
+    "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.14",
     "expo-dev-client": "~6.0.21",
@@ -66,5 +68,10 @@
     "jest-expo": "~54.0.18",
     "react-test-renderer": "19.1.0",
     "typescript": "^5.8.2"
+  },
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "./modules"
+    }
   }
 }

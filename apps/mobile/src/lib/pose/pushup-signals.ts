@@ -12,18 +12,6 @@ export type PushupCalibration = {
   topNoseY: number;
 };
 
-/** Minimum fused downness swing before adaptive thresholds engage. */
-export const MIN_FUSED_MOVEMENT_RANGE = 0.1;
-
-/** Adaptive depth gate — must reach this fraction of the observed swing. */
-export const ADAPTIVE_DEPTH_RATIO = 0.6;
-
-/** Adaptive return gate — count once back below this fraction of the swing. */
-export const ADAPTIVE_RETURN_RATIO = 0.38;
-
-/** Do not personalize bands until the user has shown a real push-up swing. */
-export const MIN_ADAPTIVE_DEPTH_RANGE = 0.22;
-
 /** Minimum raw shoulder drop (normalized coords) to trust counting. */
 export const MIN_TORSO_DROP_SPAN = 0.035;
 
@@ -300,23 +288,6 @@ export function fusePushupDownness(values: readonly number[]): number {
   }
 
   return Math.max(...values);
-}
-
-export function resolveAdaptiveThresholds(
-  sessionMin: number,
-  sessionMax: number,
-  fallbackDown: number,
-  fallbackUp: number,
-): { down: number; up: number } {
-  const span = sessionMax - sessionMin;
-  if (span < MIN_ADAPTIVE_DEPTH_RANGE) {
-    return { down: fallbackDown, up: fallbackUp };
-  }
-
-  return {
-    down: sessionMin + ADAPTIVE_DEPTH_RATIO * span,
-    up: sessionMin + ADAPTIVE_RETURN_RATIO * span,
-  };
 }
 
 /** Sample top-of-rep baselines while the user holds the extended position. */

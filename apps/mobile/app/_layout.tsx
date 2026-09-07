@@ -94,6 +94,26 @@ export default function RootLayout() {
             name="challenge/success"
             options={{ headerShown: false, title: 'Well done' }}
           />
+          <Stack.Screen
+            name="matches/index"
+            options={{ title: 'Matches' }}
+          />
+          <Stack.Screen
+            name="matches/create"
+            options={{ title: 'Challenge a friend' }}
+          />
+          <Stack.Screen
+            name="matches/[matchId]"
+            options={{ title: 'Match' }}
+          />
+          <Stack.Screen
+            name="matches/[matchId]/pose"
+            options={{ headerShown: false, title: 'Push-ups' }}
+          />
+          <Stack.Screen
+            name="match/[token]"
+            options={{ title: 'Match invite' }}
+          />
         </Stack>
       </ToastProvider>
     </QueryClientProvider>

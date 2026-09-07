@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://product.example/sitemap-index.xml
+Sitemap: https://healthy.example/sitemap-index.xml

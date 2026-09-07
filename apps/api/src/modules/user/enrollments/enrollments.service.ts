@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
+  displayChallengeTitle,
   resolveEnrollmentTargetCount,
   toChallengeCapture,
   toChallengeIcon,
@@ -80,11 +81,19 @@ export class EnrollmentsService {
       const enrollment = byChallengeId.get(challenge.id);
       const isEnrolled = enrollment?.isActive ?? false;
       const requiresMembership = challenge.requiresMembership;
+      const targetCount = resolveEnrollmentTargetCount(
+        challenge.targetCount,
+        enrollment?.targetCount,
+      );
 
       return {
         challengeId: challenge.id,
         slug: challenge.slug,
-        title: challenge.title,
+        title: displayChallengeTitle({
+          title: challenge.title,
+          metric: challenge.deviceMetric,
+          count: targetCount,
+        }),
         description: challenge.description,
         category: challenge.category,
         rewardPoints: challenge.rewardPoints,
@@ -103,10 +112,7 @@ export class EnrollmentsService {
         reminders: isEnrolled ? enrollment!.reminders : [],
         capture: toChallengeCapture({
           ...challenge,
-          targetCount: resolveEnrollmentTargetCount(
-            challenge.targetCount,
-            enrollment?.targetCount,
-          ),
+          targetCount,
         }),
       };
     });

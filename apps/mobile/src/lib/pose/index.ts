@@ -17,7 +17,14 @@ export {
   type PushupCounterOptions,
   type PushupCounterPhase,
   type PushupCounterSnapshot,
+  type PushupRejectReason,
 } from './pushup-counter';
+export { QuickPoseThresholdCounter } from './quickpose-threshold-counter';
+export {
+  QUICKPOSE_PUSHUP_FEATURE,
+  QUICKPOSE_PUSHUP_FEATURES,
+  snapshotFromQuickPose,
+} from './quickpose-pushup';
 export {
   syntheticFrontPushupDepth,
   syntheticFrontPushupFrame,

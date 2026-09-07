@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
+  displayChallengeTitle,
   fieldProgress,
   resolveEnrollmentTargetCount,
   toChallengeCapture,
@@ -76,6 +77,24 @@ const ASSIGNMENT_INCLUDE = {
   surpriseEvidenceRequest: true,
   enrollment: { select: { targetCount: true } },
 } as const;
+
+function challengeDisplayTitle(assignment: {
+  challenge: {
+    title: string;
+    deviceMetric?: string | null;
+    targetCount?: number | null;
+  };
+  enrollment?: { targetCount: number | null } | null;
+}): string {
+  return displayChallengeTitle({
+    title: assignment.challenge.title,
+    metric: assignment.challenge.deviceMetric,
+    count: resolveEnrollmentTargetCount(
+      assignment.challenge.targetCount,
+      assignment.enrollment?.targetCount,
+    ),
+  });
+}
 
 function captureForAssignment(assignment: {
   challenge: {
@@ -315,7 +334,7 @@ export class ChallengesService {
       photo,
       surprisePhotoExpectation({
         completionKind: assignment.challenge.completionKind,
-        title: assignment.challenge.title,
+        title: challengeDisplayTitle(assignment),
         instruction: assignment.challenge.instruction,
       }),
     );
@@ -389,7 +408,7 @@ export class ChallengesService {
           userId: user.id,
           kind: 'evidence',
           title: 'Photo check',
-          body: `Send a photo for ${assignment.challenge.title} in the next ${windowSeconds} seconds.`,
+          body: `Send a photo for ${challengeDisplayTitle(assignment)} in the next ${windowSeconds} seconds.`,
           idempotencyKey,
         },
         update: {},
@@ -501,7 +520,7 @@ export class ChallengesService {
         data: {
           userId: user.id,
           delta: rewardPoints,
-          reason: `Completed: ${assignment.challenge.title}`,
+          reason: `Completed: ${challengeDisplayTitle(assignment)}`,
           idempotencyKey,
           userChallengeId: assignment.id,
         },
@@ -513,7 +532,7 @@ export class ChallengesService {
           userId: user.id,
           kind: 'success',
           title: 'Challenge completed',
-          body: `You earned ${rewardPoints} points for ${assignment.challenge.title}.`,
+          body: `You earned ${rewardPoints} points for ${challengeDisplayTitle(assignment)}.`,
           idempotencyKey,
         },
         update: {},
@@ -600,8 +619,8 @@ export class ChallengesService {
           delta: -applied,
           reason:
             resolution === 'expired'
-              ? `Missed photo: ${assignment.challenge.title}`
-              : `Skipped photo: ${assignment.challenge.title}`,
+              ? `Missed photo: ${challengeDisplayTitle(assignment)}`
+              : `Skipped photo: ${challengeDisplayTitle(assignment)}`,
           idempotencyKey,
           userChallengeId: assignment.id,
         },
@@ -615,8 +634,8 @@ export class ChallengesService {
           title: 'Photo check missed',
           body:
             applied > 0
-              ? `${applied} points deducted for ${assignment.challenge.title}.`
-              : `The photo window closed for ${assignment.challenge.title}.`,
+              ? `${applied} points deducted for ${challengeDisplayTitle(assignment)}.`
+              : `The photo window closed for ${challengeDisplayTitle(assignment)}.`,
           idempotencyKey,
         },
         update: {},
@@ -947,7 +966,7 @@ export class ChallengesService {
     return {
       id: assignment.id,
       challengeId: assignment.challengeId,
-      title: assignment.challenge.title,
+      title: challengeDisplayTitle(assignment),
       description: assignment.challenge.description,
       category: assignment.challenge.category,
       rewardPoints: assignment.challenge.rewardPoints,

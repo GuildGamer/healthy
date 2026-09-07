@@ -1,0 +1,309 @@
+---
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
+const startOpen = Astro.url.pathname.replace(/\/$/, '') === '/waitlist';
+---
+
+<dialog
+  id="waitlist-dialog"
+  class="waitlist-dialog"
+  aria-labelledby="waitlist-title"
+  open={startOpen}
+>
+  <button type="button" class="waitlist-close" data-waitlist-close aria-label="Close">
+    Close
+  </button>
+
+  <div id="waitlist-intro">
+    <p class="eyebrow">Early access</p>
+    <h2 id="waitlist-title">Save your spot</h2>
+    <p class="lede">
+      Leave your email. We will write when Healthy is ready. No spam. Just a note when you can
+      download the app.
+    </p>
+  </div>
+
+  <form id="waitlist-form" class="form" novalidate>
+    <label for="waitlist-email">Email</label>
+    <div class="row">
+      <input
+        id="waitlist-email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        required
+        placeholder="you@example.com"
+      />
+      <button type="submit">Notify me</button>
+    </div>
+    <p id="waitlist-error" class="error" hidden></p>
+  </form>
+
+  <div id="waitlist-thanks" class="thank-you" hidden>
+    <h2>You are on the list</h2>
+    <p>Thanks. We will be in touch at <strong id="waitlist-submitted-email"></strong>.</p>
+    <button type="button" class="waitlist-done" data-waitlist-close>Done</button>
+  </div>
+</dialog>
+
+<script is:inline define:vars={{ apiUrl }}>
+  (function waitlistModal() {
+    const dialog = document.getElementById('waitlist-dialog');
+    if (!(dialog instanceof HTMLDialogElement)) return;
+
+    const form = document.getElementById('waitlist-form');
+    const intro = document.getElementById('waitlist-intro');
+    const thankYou = document.getElementById('waitlist-thanks');
+    const errorEl = document.getElementById('waitlist-error');
+    const submittedEmail = document.getElementById('waitlist-submitted-email');
+    const emailInput = document.getElementById('waitlist-email');
+
+    function showError(message) {
+      if (!errorEl) return;
+      errorEl.textContent = message;
+      errorEl.hidden = false;
+    }
+
+    function clearError() {
+      if (!errorEl) return;
+      errorEl.textContent = '';
+      errorEl.hidden = true;
+    }
+
+    function isValidEmail(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+    }
+
+    function shouldStartOpen() {
+      const path = window.location.pathname.replace(/\/$/, '') || '/';
+      return path === '/waitlist' || window.location.hash === '#waitlist';
+    }
+
+    function setWaitlistHash(open) {
+      const url = new URL(window.location.href);
+      if (url.pathname.replace(/\/$/, '') === '/waitlist') return;
+
+      if (open) {
+        if (url.hash !== '#waitlist') {
+          url.hash = 'waitlist';
+          window.history.replaceState(null, '', url.href);
+        }
+        return;
+      }
+
+      if (url.hash === '#waitlist') {
+        window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+      }
+    }
+
+    function openWaitlist(event) {
+      event?.preventDefault();
+      if (dialog.open && dialog.matches(':modal')) return;
+      if (dialog.open) {
+        dialog.close();
+      }
+      dialog.showModal();
+      setWaitlistHash(true);
+      if (emailInput instanceof HTMLInputElement && !thankYou?.hidden) {
+        return;
+      }
+      if (emailInput instanceof HTMLInputElement) {
+        emailInput.focus();
+      }
+    }
+
+    function closeWaitlist() {
+      setWaitlistHash(false);
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+
+    document.querySelectorAll('[data-waitlist-open]').forEach((trigger) => {
+      trigger.addEventListener('click', openWaitlist);
+    });
+
+    dialog.querySelectorAll('[data-waitlist-close]').forEach((trigger) => {
+      trigger.addEventListener('click', closeWaitlist);
+    });
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) {
+        closeWaitlist();
+      }
+    });
+
+    dialog.addEventListener('close', () => {
+      setWaitlistHash(false);
+    });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearError();
+
+      const formData = new FormData(form);
+      const email = String(formData.get('email') ?? '').trim();
+
+      if (!isValidEmail(email)) {
+        showError('Enter a valid email address.');
+        return;
+      }
+
+      try {
+        await fetch(`${apiUrl}/waitlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+      } catch {
+        // API may be unavailable during static preview; still show thank-you.
+      }
+
+      if (submittedEmail) {
+        submittedEmail.textContent = email;
+      }
+      form.hidden = true;
+      if (intro) {
+        intro.hidden = true;
+      }
+      if (thankYou) {
+        thankYou.hidden = false;
+      }
+    });
+
+    if (shouldStartOpen()) {
+      openWaitlist();
+    }
+  })();
+</script>
+
+<style>
+  .waitlist-dialog {
+    position: relative;
+    width: min(28rem, calc(100vw - 2rem));
+    margin: auto;
+    padding: var(--space-xl) var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    box-shadow: 0 28px 64px color-mix(in srgb, #000 48%, transparent);
+  }
+
+  .waitlist-dialog::backdrop {
+    background: color-mix(in srgb, #03060d 72%, transparent);
+  }
+
+  .waitlist-close {
+    position: absolute;
+    top: var(--space-md);
+    right: var(--space-md);
+    padding: 0.35rem 0.6rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .waitlist-close:hover {
+    color: var(--color-text);
+  }
+
+  .eyebrow {
+    margin: 0 0 var(--space-sm);
+    color: var(--color-accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 0 0 var(--space-sm);
+    font-family: var(--font-hero);
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+  }
+
+  .lede {
+    margin: 0 0 var(--space-lg);
+    color: var(--color-muted);
+  }
+
+  .form label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-weight: 500;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  input {
+    flex: 1 1 12rem;
+    min-width: 0;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+  }
+
+  input:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .form button[type='submit'],
+  .waitlist-done {
+    min-height: 3.25rem;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: var(--radius-xl);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .form button[type='submit'] {
+    background: var(--color-streak-core);
+    color: var(--color-on-accent);
+  }
+
+  .form button[type='submit']:hover {
+    background: color-mix(in srgb, var(--color-streak-core) 70%, var(--color-streak));
+  }
+
+  .waitlist-done {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+
+  .waitlist-done:hover {
+    background: var(--color-accent-pressed);
+  }
+
+  .error {
+    margin: var(--space-sm) 0 0;
+    color: var(--color-danger);
+    font-size: 0.9rem;
+  }
+
+  .thank-you h2 {
+    margin: 0 0 var(--space-sm);
+  }
+
+  .thank-you p {
+    margin: 0 0 var(--space-lg);
+    color: var(--color-muted);
+  }
+
+  .thank-you strong {
+    color: var(--color-text);
+  }
+</style>

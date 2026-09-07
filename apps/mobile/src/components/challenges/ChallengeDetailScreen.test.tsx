@@ -263,8 +263,11 @@ describe('ChallengeDetailScreen push-up target', () => {
       '20',
     );
 
+    expect(await screen.findByText('Do twenty push-ups')).toBeOnTheScreen();
+
     fireEvent.press(screen.getByTestId('detail-pushup-target-dec'));
     expect(screen.getByTestId('detail-pushup-target-value')).toHaveTextContent('19');
+    expect(screen.getByText('Do nineteen push-ups')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('challenge-detail-save'));
 

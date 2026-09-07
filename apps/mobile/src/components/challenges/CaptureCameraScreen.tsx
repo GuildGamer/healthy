@@ -7,7 +7,8 @@ import {
 } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { EvidencePhotoFrame } from './EvidencePhotoFrame';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import {
@@ -26,7 +27,7 @@ import {
 import { isPhysicalDevice } from '@/lib/is-physical-device';
 
 const HINT: Record<CameraIntent, string> = {
-  selfie: 'A selfie at the gym or clearly mid-workout.',
+  selfie: 'Face + gym floor or equipment in frame.',
   proof: 'Show the proof clearly in frame.',
 };
 
@@ -62,6 +63,7 @@ export function CaptureCameraScreen({
         base64: true,
         quality: EVIDENCE_CAMERA_QUALITY,
         shutterSound: false,
+        exif: false,
       });
 
       if (!taken) {
@@ -142,8 +144,19 @@ export function CaptureCameraScreen({
             onPress={close}
             testID="camera-close"
           />
-          <Text style={styles.hint}>{HINT[intent]}</Text>
+          <View style={styles.hintBlock}>
+            {intent === 'selfie' ? (
+              <Text style={styles.kicker}>Gym check-in</Text>
+            ) : null}
+            <Text style={styles.hint}>{HINT[intent]}</Text>
+          </View>
           <View style={styles.topSpacer} />
+        </View>
+        <View pointerEvents="none" style={styles.viewfinder}>
+          <View style={[styles.tick, styles.tickTopLeft]} />
+          <View style={[styles.tick, styles.tickTopRight]} />
+          <View style={[styles.tick, styles.tickBottomLeft]} />
+          <View style={[styles.tick, styles.tickBottomRight]} />
         </View>
         {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
         <View style={styles.bottomBar}>
@@ -190,12 +203,14 @@ function PreviewState({
 }) {
   return (
     <View style={styles.screen} testID="camera-preview-screen">
-      <Image
-        accessibilityIgnoresInvertColors
-        source={{ uri: photo.previewUri }}
-        style={StyleSheet.absoluteFill}
-        testID="camera-preview-image"
-      />
+      <View style={styles.previewStage}>
+        <EvidencePhotoFrame
+          height={photo.height}
+          testID="camera-preview-image"
+          uri={photo.previewUri}
+          width={photo.width}
+        />
+      </View>
       <SafeAreaView style={styles.previewChrome}>
         {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
         <View style={styles.previewActions}>
@@ -270,7 +285,6 @@ const styles = StyleSheet.create({
   },
   chrome: {
     flex: 1,
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
   },
   topBar: {
@@ -281,11 +295,61 @@ const styles = StyleSheet.create({
   topSpacer: {
     width: 44,
   },
-  hint: {
+  hintBlock: {
     flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  kicker: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  hint: {
     color: colors.text,
     fontSize: fontSize.sm,
     textAlign: 'center',
+  },
+  viewfinder: {
+    flex: 1,
+    marginVertical: spacing.lg,
+  },
+  tick: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderColor: colors.accent,
+  },
+  tickTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+  },
+  tickTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+  },
+  tickBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+  },
+  tickBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+  },
+  previewStage: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
   },
   bottomBar: {
     flexDirection: 'row',
@@ -321,8 +385,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   previewChrome: {
-    flex: 1,
-    justifyContent: 'flex-end',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },

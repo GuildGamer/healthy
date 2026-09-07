@@ -21,7 +21,24 @@ export const EVIDENCE_CAMERA_QUALITY = 0.35;
  */
 export const MAX_EVIDENCE_PHOTO_BASE64_LENGTH = 1_500_000;
 
-export type CapturedSelfie = ChallengeEvidence & { previewUri: string };
+export const DEFAULT_PHOTO_ASPECT_RATIO = 3 / 4;
+
+export type CapturedSelfie = ChallengeEvidence & {
+  previewUri: string;
+  width?: number;
+  height?: number;
+};
+
+export function photoAspectRatio(photo: {
+  width?: number;
+  height?: number;
+}): number {
+  if (!photo.width || !photo.height || photo.width <= 0 || photo.height <= 0) {
+    return DEFAULT_PHOTO_ASPECT_RATIO;
+  }
+
+  return photo.width / photo.height;
+}
 
 export type CaptureSelfieResult =
   | { status: 'captured'; photo: CapturedSelfie }
@@ -31,6 +48,8 @@ export type CaptureSelfieResult =
 export function photoFromCameraTake(result: {
   uri: string;
   base64?: string | null;
+  width?: number;
+  height?: number;
 }): CaptureSelfieResult {
   if (!result.base64) {
     return { status: 'failed', message: PHOTO_MISSING_MESSAGE };
@@ -46,6 +65,9 @@ export function photoFromCameraTake(result: {
       mimeType: 'image/jpeg',
       imageBase64: result.base64,
       previewUri: result.uri,
+      ...(result.width && result.height
+        ? { width: result.width, height: result.height }
+        : {}),
     },
   };
 }
