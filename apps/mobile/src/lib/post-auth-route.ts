@@ -13,7 +13,8 @@ export type PostAuthHref =
   | '/complete-country'
   | '/category-selection'
   | '/verify-email'
-  | '/(tabs)';
+  | '/(tabs)'
+  | `/match/${string}`;
 
 export function postAuthRoute(state: PostAuthState): PostAuthHref {
   const hasName = Boolean(state.name?.trim());

@@ -28,6 +28,7 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
     startedAt: null,
     completedAt: null,
     surpriseEvidenceRequest: null,
+    enrollment: null,
     challenge: {
       title: 'Walk 20 minutes',
       description: 'A brisk walk after lunch.',

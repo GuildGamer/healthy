@@ -1,4 +1,4 @@
-appId: com.healthy.app
+appId: com.healthyapp.app
 ---
 # A signed-out launch shows the splash for two seconds, then onboarding.
 - launchApp

@@ -88,6 +88,21 @@ describe('buildTodayWin', () => {
     expect(buildTodayWin(3, 6).label).toBe('Win locked');
   });
 
+  it('lets members finish every enrollment before locking', () => {
+    expect(buildTodayWin(3, 6, true)).toEqual({
+      filled: 3,
+      target: 6,
+      locked: false,
+      label: "Today's win · 3 of 6",
+      heroMetaSuffix: "3/6 today's win",
+    });
+  });
+
+  it('shows all-done copy when a member finishes every challenge', () => {
+    expect(buildTodayWin(6, 6, true).label).toBe('All done today');
+    expect(buildTodayWin(6, 6, true).heroMetaSuffix).toBe('all done today');
+  });
+
   it('shrinks the target when fewer challenges exist', () => {
     expect(buildTodayWin(0, 1).target).toBe(1);
   });

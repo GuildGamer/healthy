@@ -9,6 +9,8 @@ module.exports = {
     '^@product/client$': '<rootDir>/../../packages/client/src/index.ts',
     '^@product/contract/country-code$':
       '<rootDir>/../../packages/contract/src/country-code.ts',
+    '^@product/contract/challenge-title$':
+      '<rootDir>/../../packages/contract/src/challenge-title.ts',
     '^@product/contract$': '<rootDir>/../../packages/contract/src/index.ts',
     '\\.tflite$': '<rootDir>/jest.tflite-mock.js',
   },

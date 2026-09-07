@@ -7,6 +7,7 @@ describe('resolveChallengeIcon', () => {
   it('keeps a Material Community Icons name from the catalog', () => {
     expect(resolveChallengeIcon('walk')).toBe('walk');
     expect(resolveChallengeIcon('heart-pulse')).toBe('heart-pulse');
+    expect(resolveChallengeIcon('arm-flex')).toBe('arm-flex');
   });
 
   it('falls back when the catalog name is not in the pack', () => {

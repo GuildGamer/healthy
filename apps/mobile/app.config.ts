@@ -12,7 +12,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/icon.png',
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.healthy.app',
+    bundleIdentifier: 'com.healthyapp.app',
     infoPlist: {
       NSCameraUsageDescription:
         'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
@@ -27,7 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/icon.png',
       backgroundColor: '#3DDC97',
     },
-    package: 'com.healthy.app',
+    package: 'com.healthyapp.app',
     permissions: [
       'CAMERA',
       'ACCESS_COARSE_LOCATION',
@@ -41,6 +41,34 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-notifications',
     'expo-font',
+    [
+      'expo-build-properties',
+      {
+        android: {
+          minSdkVersion: 26,
+        },
+        ios: {
+          deploymentTarget: '15.1',
+          extraPods: [
+            {
+              name: 'QuickPoseCore',
+              git: 'https://github.com/quickpose/quickpose-ios-sdk.git',
+              tag: 'v1.7.0',
+            },
+            {
+              name: 'QuickPoseCamera',
+              git: 'https://github.com/quickpose/quickpose-ios-sdk.git',
+              tag: 'v1.7.0',
+            },
+            {
+              name: 'QuickPoseSwiftUI',
+              git: 'https://github.com/quickpose/quickpose-ios-sdk.git',
+              tag: 'v1.7.0',
+            },
+          ],
+        },
+      },
+    ],
     [
       'react-native-vision-camera',
       {

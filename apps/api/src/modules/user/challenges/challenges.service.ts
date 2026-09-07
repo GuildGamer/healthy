@@ -1,7 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
+  displayChallengeTitle,
   fieldProgress,
+  resolveEnrollmentTargetCount,
   toChallengeCapture,
   toChallengeIcon,
   type DeviceActivity,
@@ -67,7 +69,52 @@ import { requireVitalsFor, type ChallengeVitalsInput } from './vitals.js';
 type AssignmentRecord = UserChallenge & {
   challenge: Challenge;
   surpriseEvidenceRequest: SurpriseEvidenceRequest | null;
+  enrollment: { targetCount: number | null } | null;
 };
+
+const ASSIGNMENT_INCLUDE = {
+  challenge: true,
+  surpriseEvidenceRequest: true,
+  enrollment: { select: { targetCount: true } },
+} as const;
+
+function challengeDisplayTitle(assignment: {
+  challenge: {
+    title: string;
+    deviceMetric?: string | null;
+    targetCount?: number | null;
+  };
+  enrollment?: { targetCount: number | null } | null;
+}): string {
+  return displayChallengeTitle({
+    title: assignment.challenge.title,
+    metric: assignment.challenge.deviceMetric,
+    count: resolveEnrollmentTargetCount(
+      assignment.challenge.targetCount,
+      assignment.enrollment?.targetCount,
+    ),
+  });
+}
+
+function captureForAssignment(assignment: {
+  challenge: {
+    captureKind?: string;
+    deviceMetric?: string | null;
+    targetDurationMinutes?: number | null;
+    targetDistanceMeters?: number | null;
+    targetCount?: number | null;
+    completionKind?: string;
+  };
+  enrollment?: { targetCount: number | null } | null;
+}) {
+  return toChallengeCapture({
+    ...assignment.challenge,
+    targetCount: resolveEnrollmentTargetCount(
+      assignment.challenge.targetCount,
+      assignment.enrollment?.targetCount,
+    ),
+  });
+}
 
 /** The period key currently open for each cadence, in the user's own zone. */
 type DueWindow = Record<ChallengeFrequency, string>;
@@ -105,7 +152,7 @@ export class ChallengesService {
 
     const assignments = await this.prisma.userChallenge.findMany({
       where: this.dueFilter(user.id, window),
-      include: { challenge: true, surpriseEvidenceRequest: true },
+      include: ASSIGNMENT_INCLUDE,
       orderBy: [{ frequency: 'asc' }, { challenge: { title: 'asc' } }],
     });
 
@@ -142,7 +189,7 @@ export class ChallengesService {
 
     const started = await this.prisma.userChallenge.findUniqueOrThrow({
       where: { id: assignment.id },
-      include: { challenge: true, surpriseEvidenceRequest: true },
+      include: ASSIGNMENT_INCLUDE,
     });
 
     return { challenge: this.toTodayChallenge(started) };
@@ -185,7 +232,7 @@ export class ChallengesService {
       assignment.challenge.completionKind,
       logFields ?? {},
     );
-    const capture = toChallengeCapture(assignment.challenge);
+    const capture = captureForAssignment(assignment);
     const activity = requireDeviceActivityFor(capture, deviceActivity);
 
     if (photo) {
@@ -238,7 +285,7 @@ export class ChallengesService {
           assignment.status === 'pending' ? 'in_progress' : assignment.status,
         startedAt: assignment.startedAt ?? new Date(),
       },
-      include: { challenge: true, surpriseEvidenceRequest: true },
+      include: ASSIGNMENT_INCLUDE,
     });
 
     return { challenge: this.toTodayChallenge(updated) };
@@ -287,7 +334,7 @@ export class ChallengesService {
       photo,
       surprisePhotoExpectation({
         completionKind: assignment.challenge.completionKind,
-        title: assignment.challenge.title,
+        title: challengeDisplayTitle(assignment),
         instruction: assignment.challenge.instruction,
       }),
     );
@@ -352,7 +399,7 @@ export class ChallengesService {
           status: 'awaiting_evidence',
           startedAt: assignment.startedAt ?? new Date(),
         },
-        include: { challenge: true, surpriseEvidenceRequest: true },
+        include: ASSIGNMENT_INCLUDE,
       });
 
       await tx.notification.upsert({
@@ -361,7 +408,7 @@ export class ChallengesService {
           userId: user.id,
           kind: 'evidence',
           title: 'Photo check',
-          body: `Send a photo for ${assignment.challenge.title} in the next ${windowSeconds} seconds.`,
+          body: `Send a photo for ${challengeDisplayTitle(assignment)} in the next ${windowSeconds} seconds.`,
           idempotencyKey,
         },
         update: {},
@@ -403,7 +450,7 @@ export class ChallengesService {
         });
         const refreshed = await tx.userChallenge.findUniqueOrThrow({
           where: { id: assignment.id },
-          include: { challenge: true, surpriseEvidenceRequest: true },
+          include: ASSIGNMENT_INCLUDE,
         });
         return this.toCompleteDto(refreshed, profile, 0, 0);
       }
@@ -428,7 +475,7 @@ export class ChallengesService {
           draft: Prisma.DbNull,
           draftUpdatedAt: null,
         },
-        include: { challenge: true, surpriseEvidenceRequest: true },
+        include: ASSIGNMENT_INCLUDE,
       });
 
       if (log) {
@@ -473,7 +520,7 @@ export class ChallengesService {
         data: {
           userId: user.id,
           delta: rewardPoints,
-          reason: `Completed: ${assignment.challenge.title}`,
+          reason: `Completed: ${challengeDisplayTitle(assignment)}`,
           idempotencyKey,
           userChallengeId: assignment.id,
         },
@@ -485,7 +532,7 @@ export class ChallengesService {
           userId: user.id,
           kind: 'success',
           title: 'Challenge completed',
-          body: `You earned ${rewardPoints} points for ${assignment.challenge.title}.`,
+          body: `You earned ${rewardPoints} points for ${challengeDisplayTitle(assignment)}.`,
           idempotencyKey,
         },
         update: {},
@@ -536,7 +583,7 @@ export class ChallengesService {
         });
         const refreshed = await tx.userChallenge.findUniqueOrThrow({
           where: { id: assignment.id },
-          include: { challenge: true, surpriseEvidenceRequest: true },
+          include: ASSIGNMENT_INCLUDE,
         });
         return this.toCompleteDto(refreshed, profile, 0, Math.abs(existingLedger.delta));
       }
@@ -556,7 +603,7 @@ export class ChallengesService {
           startedAt: assignment.startedAt ?? new Date(),
           completedAt: new Date(),
         },
-        include: { challenge: true, surpriseEvidenceRequest: true },
+        include: ASSIGNMENT_INCLUDE,
       });
 
       const profileBefore = await tx.userProfile.upsert({
@@ -572,8 +619,8 @@ export class ChallengesService {
           delta: -applied,
           reason:
             resolution === 'expired'
-              ? `Missed photo: ${assignment.challenge.title}`
-              : `Skipped photo: ${assignment.challenge.title}`,
+              ? `Missed photo: ${challengeDisplayTitle(assignment)}`
+              : `Skipped photo: ${challengeDisplayTitle(assignment)}`,
           idempotencyKey,
           userChallengeId: assignment.id,
         },
@@ -587,8 +634,8 @@ export class ChallengesService {
           title: 'Photo check missed',
           body:
             applied > 0
-              ? `${applied} points deducted for ${assignment.challenge.title}.`
-              : `The photo window closed for ${assignment.challenge.title}.`,
+              ? `${applied} points deducted for ${challengeDisplayTitle(assignment)}.`
+              : `The photo window closed for ${challengeDisplayTitle(assignment)}.`,
           idempotencyKey,
         },
         update: {},
@@ -613,7 +660,7 @@ export class ChallengesService {
           expiresAt: { lte: new Date() },
         },
       },
-      include: { challenge: true, surpriseEvidenceRequest: true },
+      include: ASSIGNMENT_INCLUDE,
     });
 
     for (const assignment of overdue) {
@@ -824,7 +871,7 @@ export class ChallengesService {
   private async findOwnedAssignment(userId: string, userChallengeId: string) {
     const assignment = await this.prisma.userChallenge.findUnique({
       where: { id: userChallengeId },
-      include: { challenge: true, surpriseEvidenceRequest: true },
+      include: ASSIGNMENT_INCLUDE,
     });
 
     if (!assignment || assignment.userId !== userId) {
@@ -898,6 +945,7 @@ export class ChallengesService {
     status: UserChallengeStatus;
     draft?: unknown;
     surpriseEvidenceRequest?: SurpriseEvidenceRequest | null;
+    enrollment?: { targetCount: number | null } | null;
     challenge: {
       title: string;
       description: string;
@@ -914,11 +962,11 @@ export class ChallengesService {
     };
   }): TodayChallengeDto {
     const draft = parseStoredDraft(assignment.draft);
-    const capture = toChallengeCapture(assignment.challenge);
+    const capture = captureForAssignment(assignment);
     return {
       id: assignment.id,
       challengeId: assignment.challengeId,
-      title: assignment.challenge.title,
+      title: challengeDisplayTitle(assignment),
       description: assignment.challenge.description,
       category: assignment.challenge.category,
       rewardPoints: assignment.challenge.rewardPoints,

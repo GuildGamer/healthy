@@ -1,0 +1,12 @@
+---
+interface Props {
+  /** Navy leaf for mint or light grounds. Default is the mint leaf. */
+  ink?: boolean;
+  size?: number;
+}
+
+const { ink = false, size = 36 } = Astro.props;
+const src = ink ? '/logo-ink.png' : '/logo.png';
+---
+
+<img alt="" height={size} src={src} width={size} />

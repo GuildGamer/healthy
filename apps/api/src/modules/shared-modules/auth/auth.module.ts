@@ -9,12 +9,22 @@ import { AdminAuthController } from './admin-auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { auth } from './auth.js';
 
+/**
+ * Nest’s own body parser is off so Better Auth can register Express parsers.
+ * Default Express limit is 100kb — gym evidence base64 can be ~2MB (contract max).
+ */
+const JSON_BODY_LIMIT = '3mb';
+
 @Module({
   imports: [
     AuthModule.forRoot({
       auth,
       // We register AuthGuard ourselves so routes stay protected by default.
       disableGlobalAuthGuard: true,
+      bodyParser: {
+        json: { limit: JSON_BODY_LIMIT },
+        urlencoded: { limit: JSON_BODY_LIMIT },
+      },
     }),
   ],
   controllers: [AdminAuthController],

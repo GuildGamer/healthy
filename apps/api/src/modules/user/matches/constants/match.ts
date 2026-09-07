@@ -1,0 +1,1 @@
+export const MATCH_INVITE_TOKEN_BYTES = 16;

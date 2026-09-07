@@ -5,6 +5,9 @@ import type { ComponentProps } from 'react';
 /** Matches `DEFAULT_CHALLENGE_ICON` in the contract. Kept local so screens do not load oRPC. */
 export const FALLBACK_CHALLENGE_ICON = 'checkbox-marked-circle-outline';
 
+/** Same glyph as the catalog push-up challenge (`arm-flex` in seed). */
+export const PUSHUP_ICON_NAME = 'arm-flex';
+
 export type ChallengeIconName = ComponentProps<
   typeof MaterialCommunityIcons
 >['name'];

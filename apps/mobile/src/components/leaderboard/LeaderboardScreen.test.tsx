@@ -2,8 +2,15 @@ import type { ListLeaderboardOutput, MeOutput } from '@product/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import type { Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
 import { LeaderboardScreen } from './LeaderboardScreen';
+
+const testSafeAreaMetrics: Metrics = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
@@ -72,7 +79,9 @@ function renderLeaderboard() {
 
   const view = render(
     <QueryClientProvider client={client}>
-      <LeaderboardScreen />
+      <SafeAreaProvider initialMetrics={testSafeAreaMetrics}>
+        <LeaderboardScreen />
+      </SafeAreaProvider>
     </QueryClientProvider>,
   );
 
@@ -221,7 +230,7 @@ describe('LeaderboardScreen', () => {
     await cleanup();
   });
 
-  it('asks the API for the month when that chip is selected', async () => {
+  it('asks the API for the month when that tab is selected', async () => {
     const { cleanup } = renderLeaderboard();
 
     await screen.findByText('Bright Falcon');
@@ -237,11 +246,12 @@ describe('LeaderboardScreen', () => {
     await cleanup();
   });
 
-  it('asks the API for a condition when that chip is selected', async () => {
+  it('asks the API for a condition when that category is selected', async () => {
     const { cleanup } = renderLeaderboard();
 
     await screen.findByText('Bright Falcon');
-    fireEvent.press(screen.getByTestId('leaderboard-category-hypertension'));
+    fireEvent.press(screen.getByTestId('leaderboard-category-menu'));
+    fireEvent.press(screen.getByTestId('leaderboard-category-option-hypertension'));
 
     await waitFor(() => {
       expect(mockedApi.listLeaderboard).toHaveBeenCalledWith({

@@ -359,7 +359,7 @@ export class ReminderDispatcherService {
         messages.push({
           expoPushToken,
           title: item.challenge.title,
-          body: 'You started this — finish the log to keep your streak.',
+          body: 'You started this. Finish the log to keep your streak.',
           data: { challengeId: item.challengeId, periodKey: item.periodKey },
         });
       }
@@ -382,7 +382,7 @@ export class ReminderDispatcherService {
           userId: item.userId,
           kind: 'reminder' as const,
           title: item.challenge.title,
-          body: 'You started this — finish the log to keep your streak.',
+          body: 'You started this. Finish the log to keep your streak.',
           idempotencyKey: `in_progress_nudge:${item.id}`,
         })),
         skipDuplicates: true,

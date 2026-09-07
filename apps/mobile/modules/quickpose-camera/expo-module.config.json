@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["QuickPoseCameraModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.quickposecamera.QuickPoseCameraModule"]
+  }
+}

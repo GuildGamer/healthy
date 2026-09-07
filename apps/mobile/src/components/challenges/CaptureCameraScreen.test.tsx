@@ -30,6 +30,8 @@ jest.mock('expo-camera', () => {
         takePictureAsync: jest.fn(async () => ({
           uri: 'file://shot.jpg',
           base64: 'bbbb',
+          width: 3024,
+          height: 4032,
         })),
       }));
       return React.createElement(View, { testID: 'camera-live', ...props });
@@ -74,6 +76,8 @@ describe('CaptureCameraScreen', () => {
         mimeType: 'image/jpeg',
         imageBase64: 'bbbb',
         previewUri: 'file://shot.jpg',
+        width: 3024,
+        height: 4032,
       });
       expect(useRouter().back).toHaveBeenCalled();
     });

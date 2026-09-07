@@ -3,6 +3,7 @@ import {
   activityMeetsTarget,
   defaultCaptureKindFor,
   isDeviceCapture,
+  resolveEnrollmentTargetCount,
 } from './challenge-capture';
 
 describe('activityMeetsTarget', () => {
@@ -64,5 +65,16 @@ describe('isDeviceCapture', () => {
     expect(isDeviceCapture('device_session')).toBe(true);
     expect(isDeviceCapture('device_sample')).toBe(true);
     expect(isDeviceCapture('self_report')).toBe(false);
+  });
+});
+
+describe('resolveEnrollmentTargetCount', () => {
+  it('prefers the enrolment override', () => {
+    expect(resolveEnrollmentTargetCount(20, 12)).toBe(12);
+  });
+
+  it('falls back to the catalog count', () => {
+    expect(resolveEnrollmentTargetCount(20, null)).toBe(20);
+    expect(resolveEnrollmentTargetCount(20, undefined)).toBe(20);
   });
 });

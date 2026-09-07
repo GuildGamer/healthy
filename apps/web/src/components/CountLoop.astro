@@ -1,0 +1,54 @@
+---
+interface Props {
+  target?: number;
+}
+
+const { target = 20 } = Astro.props;
+---
+
+<div class="count" aria-hidden="true">
+  <p class="count-sizer">20</p>
+  <p class="count-num" data-count-target={String(target)}>0</p>
+  <p class="count-meta" data-count-label>push-ups</p>
+</div>
+
+<script>
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function labelForCount(value: number) {
+    return value === 1 ? 'push-up' : 'push-ups';
+  }
+
+  function runCount(node: HTMLElement) {
+    const max = Number(node.getAttribute('data-count-target') ?? 20);
+    const label = node.parentElement?.querySelector<HTMLElement>('[data-count-label]');
+
+    if (reduced) {
+      node.textContent = String(max);
+      if (label) {
+        label.textContent = labelForCount(max);
+      }
+      return;
+    }
+
+    let value = 0;
+    const tick = () => {
+      value += 1;
+      if (value > max) {
+        value = 0;
+      }
+      node.textContent = String(value);
+      if (label) {
+        label.textContent = labelForCount(value);
+      }
+      node.classList.remove('is-tick');
+      void node.offsetWidth;
+      node.classList.add('is-tick');
+    };
+
+    tick();
+    window.setInterval(tick, 1200);
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-count-target]').forEach(runCount);
+</script>

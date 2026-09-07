@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
-import { toChallengeCapture, toChallengeIcon } from '@product/contract';
+import {
+  displayChallengeTitle,
+  resolveEnrollmentTargetCount,
+  toChallengeCapture,
+  toChallengeIcon,
+} from '@product/contract';
 import type {
   ChallengeFrequency,
   HealthCategory,
@@ -76,11 +81,19 @@ export class EnrollmentsService {
       const enrollment = byChallengeId.get(challenge.id);
       const isEnrolled = enrollment?.isActive ?? false;
       const requiresMembership = challenge.requiresMembership;
+      const targetCount = resolveEnrollmentTargetCount(
+        challenge.targetCount,
+        enrollment?.targetCount,
+      );
 
       return {
         challengeId: challenge.id,
         slug: challenge.slug,
-        title: challenge.title,
+        title: displayChallengeTitle({
+          title: challenge.title,
+          metric: challenge.deviceMetric,
+          count: targetCount,
+        }),
         description: challenge.description,
         category: challenge.category,
         rewardPoints: challenge.rewardPoints,
@@ -97,7 +110,10 @@ export class EnrollmentsService {
         // A deactivated enrolment keeps its reminders in the database, but
         // showing them would imply nudges that will never fire.
         reminders: isEnrolled ? enrollment!.reminders : [],
-        capture: toChallengeCapture(challenge),
+        capture: toChallengeCapture({
+          ...challenge,
+          targetCount,
+        }),
       };
     });
 
@@ -119,6 +135,7 @@ export class EnrollmentsService {
     challengeId: string,
     isEnrolled: boolean,
     frequency?: ChallengeFrequency,
+    targetCount?: number,
   ): Promise<ChallengeCatalogDto> {
     const user = requireUser(currentUser);
 
@@ -129,6 +146,7 @@ export class EnrollmentsService {
         isActive: true,
         defaultFrequency: true,
         requiresMembership: true,
+        targetCount: true,
       },
     });
 
@@ -160,6 +178,12 @@ export class EnrollmentsService {
       });
     }
 
+    if (targetCount !== undefined && challenge.targetCount == null) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'This challenge does not have a count you can change',
+      });
+    }
+
     const chosenFrequency = frequency ?? challenge.defaultFrequency;
 
     const enrollment = await this.prisma.challengeEnrollment.upsert({
@@ -171,10 +195,12 @@ export class EnrollmentsService {
         challengeId: challenge.id,
         frequency: chosenFrequency,
         isActive: isEnrolled,
+        targetCount: targetCount ?? null,
       },
       update: {
         frequency: chosenFrequency,
         isActive: isEnrolled,
+        ...(targetCount !== undefined ? { targetCount } : {}),
       },
       select: { id: true },
     });

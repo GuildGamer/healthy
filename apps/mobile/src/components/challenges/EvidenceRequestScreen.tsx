@@ -67,7 +67,13 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
     ]);
 
   const submit = useMutation({
-    mutationFn: async (evidence: ChallengeEvidence & { previewUri?: string }) => {
+    mutationFn: async (
+      evidence: ChallengeEvidence & {
+        previewUri?: string;
+        width?: number;
+        height?: number;
+      },
+    ) => {
       if (!occurrence) {
         throw new Error(SUBMIT_FAILED_MESSAGE);
       }
@@ -87,6 +93,8 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
       if (variables.previewUri) {
         setPendingShareCard({
           photoUri: variables.previewUri,
+          photoWidth: variables.width,
+          photoHeight: variables.height,
           title: occurrence?.title ?? 'Challenge',
           pointsAwarded: result.pointsAwarded,
           currentStreakDays: result.currentStreakDays,
@@ -160,6 +168,8 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
         mimeType: captured.mimeType,
         imageBase64: captured.imageBase64,
         previewUri: captured.previewUri,
+        width: captured.width,
+        height: captured.height,
       });
     }, [challengeId, submit]),
   );

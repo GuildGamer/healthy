@@ -1,5 +1,9 @@
 @import '@product/brand/tokens.css';
 
+:root {
+  --font-hero: 'Archivo Black', system-ui, sans-serif;
+}
+
 *,
 *::before,
 *::after {
@@ -14,9 +18,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: var(--font-sans);
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent),
-    var(--color-background);
+  background: var(--color-background);
   color: var(--color-text);
   line-height: 1.6;
 }
@@ -32,9 +34,9 @@ a:hover {
 
 .site-header,
 .site-footer {
-  max-width: 960px;
+  max-width: 72rem;
   margin: 0 auto;
-  padding: var(--space-lg) var(--space-md);
+  padding: 1.35rem 1.5rem;
 }
 
 .site-header {
@@ -42,30 +44,84 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .brand-mark {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  overflow: visible;
+  font-family: var(--font-hero);
+  font-size: 1rem;
   color: var(--color-text);
-  letter-spacing: -0.02em;
+}
+
+.brand-clip {
+  overflow: hidden;
+  margin-right: -0.28em;
+}
+
+.brand-word {
+  display: inline-block;
+  white-space: nowrap;
+  animation: brand-word-in 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.brand-leaf {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  animation: brand-leaf-in 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.brand-mark img {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .brand-mark:hover {
   text-decoration: none;
-  color: var(--color-accent);
+  color: var(--color-text);
+}
+
+@keyframes brand-word-in {
+  from {
+    transform: translateX(110%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes brand-leaf-in {
+  from {
+    transform: translate(-0.55em, 0.06em) scale(1.7);
+  }
+
+  to {
+    transform: translate(0, 0.06em) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-word,
+  .brand-leaf {
+    animation: none;
+  }
 }
 
 .nav {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-md);
+  gap: 1.15rem;
 }
 
 .nav a {
   color: var(--color-muted);
-  font-size: 0.95rem;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .nav a:hover {
@@ -74,15 +130,19 @@ a:hover {
 }
 
 .site-main {
-  max-width: 960px;
+  max-width: 72rem;
   margin: 0 auto;
-  padding: var(--space-xl) var(--space-md) calc(var(--space-xl) * 2);
+  padding: 0 1.5rem 5rem;
+}
+
+.site-main:has(.band) {
+  padding-bottom: 0;
 }
 
 .site-footer {
-  border-top: 1px solid color-mix(in srgb, var(--color-muted) 25%, transparent);
+  border-top: 1px solid var(--color-border);
   color: var(--color-muted);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-md);
@@ -92,4 +152,60 @@ a:hover {
 .site-footer nav {
   display: flex;
   gap: var(--space-md);
+}
+
+.legal,
+.waitlist-page {
+  max-width: 40rem;
+  padding-top: 3.5rem;
+}
+
+.waitlist-page {
+  max-width: 28rem;
+}
+
+.legal h1,
+.waitlist-page h1 {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-hero);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  line-height: 1.05;
+}
+
+.legal .updated,
+.waitlist-page .eyebrow {
+  margin: 0 0 var(--space-lg);
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.waitlist-page .eyebrow {
+  margin-bottom: var(--space-sm);
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legal h2 {
+  margin: var(--space-xl) 0 var(--space-sm);
+  font-size: 1.25rem;
+}
+
+.legal p,
+.waitlist-page .lede {
+  margin: 0 0 var(--space-md);
+  color: var(--color-muted);
+}
+
+.waitlist-page .lede {
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .legal,
+  .waitlist-page {
+    padding-top: 2.25rem;
+  }
 }

@@ -8,7 +8,7 @@ import type {
 const REJECT_UNAVAILABLE =
   'We could not check that photo. Try again in a moment.';
 const REJECT_NOT_GYM =
-  'That photo does not look like a gym session. Take another and try again.';
+  'That photo does not show you at a gym. Take another at the gym and try again.';
 
 type OpenAiVisionConfig = Extract<EvidenceVisionConfig, { mode: 'openai' }>;
 
@@ -20,9 +20,11 @@ type ChatCompletionResponse = {
   }>;
 };
 
-const GYM_EXPECTATION = [
-  'Decide if this photo shows a person at a gym or clearly exercising.',
-  'Reject screenshots, memes, empty rooms, and unrelated selfies.',
+export const GYM_EXPECTATION = [
+  'Accept only if a real person is physically inside a gym or fitness studio.',
+  'Gym context must be visible: machines, free weights, racks, cable stacks, a gym floor, studio mirrors, or similar facility equipment.',
+  'Reject home workouts, bedrooms, living rooms, parks, streets, cars, offices, empty rooms, screenshots, memes, stock photos, and selfies with no gym behind the person.',
+  'Exercising alone is not enough. If you cannot see a gym, reject.',
 ].join(' ');
 
 export function createOpenAiEvidenceValidator(

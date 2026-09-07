@@ -83,6 +83,53 @@ export function PricingScreen({
     ? punctuateMembershipCopy(offer.tagline)
     : null;
 
+  if (offer.hasMembership) {
+    return (
+      <SafeAreaView style={styles.container} testID="pricing-screen-active">
+        <View style={styles.body}>
+          <View style={styles.top}>
+            <Pressable
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={onClose}
+              style={styles.close}
+              testID="pricing-close"
+            >
+              <Text style={styles.closeLabel}>Close</Text>
+            </Pressable>
+
+            <Text style={styles.eyebrow}>Membership</Text>
+            <Text style={styles.headline} numberOfLines={2}>
+              You are a member
+            </Text>
+            <Text style={styles.tagline}>
+              Full catalog, extra reminders, and finish-what-you-started nudges
+              are unlocked.
+            </Text>
+
+            {offer.features.length > 0 ? (
+              <View style={styles.perks}>
+                {offer.features.map((feature) => (
+                  <View key={feature} style={styles.perkRow}>
+                    <Text style={styles.perkMark}>✓</Text>
+                    <Text numberOfLines={2} style={styles.perkText}>
+                      {punctuateMembershipCopy(feature)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.footer}>
+            <FormButton label="Close" onPress={onClose} testID="pricing-done" />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} testID="pricing-screen">
       <View style={styles.body}>

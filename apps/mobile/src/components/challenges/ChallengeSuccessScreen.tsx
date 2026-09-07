@@ -2,24 +2,32 @@ import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { FormButton, FormErrorBanner } from '@/components/forms';
+import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
 import {
   clearPendingShareCard,
   peekPendingShareCard,
   type ShareCardPayload,
 } from '@/lib/share-card-session';
-import { ChallengeShareCard } from './ChallengeShareCard';
+import {
+  ChallengeShareCard,
+  SHARE_CARD_ASPECT_RATIO,
+} from './ChallengeShareCard';
 
 type ChallengeSuccessScreenProps = {
   title: string;
   pointsAwarded: number;
   currentStreakDays: number;
   penaltyApplied?: number;
+  completedCount?: number;
+  targetCount?: number;
+  matchId?: string;
 };
 
 export function ChallengeSuccessScreen({
@@ -27,11 +35,19 @@ export function ChallengeSuccessScreen({
   pointsAwarded,
   currentStreakDays,
   penaltyApplied = 0,
+  completedCount,
+  targetCount,
+  matchId,
 }: ChallengeSuccessScreenProps) {
   const router = useRouter();
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+  });
+  const hasMembership = meQuery.data?.hasMembership ?? false;
   const wasPenalized = penaltyApplied > 0;
   const shareShotRef = useRef<View>(null);
-  const [shareCard] = useState<ShareCardPayload | null>(() =>
+  const [pendingShare] = useState<ShareCardPayload | null>(() =>
     peekPendingShareCard(),
   );
   const [shareBusy, setShareBusy] = useState(false);
@@ -75,14 +91,16 @@ export function ChallengeSuccessScreen({
     }
   }
 
-  const showShare = Boolean(shareCard) && !wasPenalized;
+  const isMatch = Boolean(matchId);
+  const cardKicker = isMatch ? 'Match set' : 'Challenge complete';
+  const streakDays = isMatch
+    ? (meQuery.data?.currentStreakDays ?? currentStreakDays)
+    : currentStreakDays;
+  const showShare = !wasPenalized;
 
   return (
     <SafeAreaView style={styles.container} testID="challenge-success-screen">
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={styles.body}>
         {!showShare ? (
           <View style={styles.badgeOuter}>
             <View style={styles.badgeInner}>
@@ -96,36 +114,41 @@ export function ChallengeSuccessScreen({
         ) : null}
 
         <Text style={styles.kicker}>
-          {wasPenalized ? 'Photo check missed' : 'Challenge complete'}
+          {wasPenalized ? 'Photo check missed' : cardKicker}
         </Text>
-        <Text style={styles.title}>{title}</Text>
+        {showShare ? null : <Text style={styles.title}>{title}</Text>}
         <Text style={styles.subtitle}>
           {wasPenalized
             ? `${penaltyApplied} points were deducted. Tomorrow is a fresh start.`
-            : showShare
-              ? 'Share the win — Healthy watermark included.'
-              : 'Nice work. The points are yours.'}
+            : 'Share this card on Instagram, Messages, or your camera roll.'}
         </Text>
 
-        {showShare && shareCard ? (
-          <View
-            collapsable={false}
-            ref={shareShotRef}
-            style={styles.sharePreview}
-          >
-            <ChallengeShareCard
-              currentStreakDays={shareCard.currentStreakDays}
-              photoUri={shareCard.photoUri}
-              pointsAwarded={shareCard.pointsAwarded}
-              title={shareCard.title}
-            />
-          </View>
+        {shareError ? <FormErrorBanner message={shareError} /> : null}
+
+        {showShare ? (
+          <FittedShareCard>
+            <View
+              collapsable={false}
+              ref={shareShotRef}
+              style={styles.shareShot}
+            >
+              <ChallengeShareCard
+                completedCount={completedCount}
+                currentStreakDays={streakDays}
+                kicker={cardKicker}
+                photoHeight={pendingShare?.photoHeight}
+                photoUri={pendingShare?.photoUri}
+                photoWidth={pendingShare?.photoWidth}
+                pointsAwarded={pointsAwarded}
+                targetCount={targetCount}
+                title={title}
+              />
+            </View>
+          </FittedShareCard>
         ) : (
           <View style={styles.stats}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>
-                {wasPenalized ? `-${penaltyApplied}` : `+${pointsAwarded}`}
-              </Text>
+              <Text style={styles.statValue}>-{penaltyApplied}</Text>
               <Text style={styles.statLabel}>points</Text>
             </View>
             <View style={styles.statDivider} />
@@ -135,9 +158,9 @@ export function ChallengeSuccessScreen({
             </View>
           </View>
         )}
+      </View>
 
-        {shareError ? <FormErrorBanner message={shareError} /> : null}
-
+      <View style={styles.actions}>
         {showShare ? (
           <FormButton
             label="Share"
@@ -150,27 +173,65 @@ export function ChallengeSuccessScreen({
         ) : null}
 
         <FormButton
-          label="See what's next"
-          onPress={() => router.replace('/(tabs)/challenges')}
+          label={isMatch ? 'Back to match' : "See what's next"}
+          onPress={() =>
+            router.replace(isMatch && matchId ? `/matches/${matchId}` : '/(tabs)/challenges')
+          }
           testID="challenge-success-done"
           variant="secondary"
         />
 
-        {!wasPenalized ? (
-          <FormButton
-            label="Unlock membership"
+        {!wasPenalized && !hasMembership && !isMatch ? (
+          <Pressable
+            accessibilityRole="button"
             onPress={() =>
               router.push({
                 pathname: '/membership',
                 params: { source: 'success' },
               })
             }
+            style={({ pressed }) => [
+              styles.membershipLink,
+              pressed ? styles.membershipLinkPressed : null,
+            ]}
             testID="challenge-success-membership"
-            variant={showShare ? 'secondary' : 'primary'}
-          />
+          >
+            <Text style={styles.membershipLinkLabel}>Unlock membership</Text>
+          </Pressable>
         ) : null}
-      </ScrollView>
+      </View>
     </SafeAreaView>
+  );
+}
+
+function FittedShareCard({ children }: { children: ReactNode }) {
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const fittedWidth =
+    box.width > 0 && box.height > 0
+      ? Math.min(box.width, box.height * SHARE_CARD_ASPECT_RATIO)
+      : 0;
+
+  return (
+    <View
+      onLayout={(event) => {
+        const { width, height } = event.nativeEvent.layout;
+        setBox({ width, height });
+      }}
+      style={styles.fitHost}
+    >
+      <View
+        style={
+          fittedWidth > 0
+            ? {
+                width: fittedWidth,
+                height: fittedWidth / SHARE_CARD_ASPECT_RATIO,
+              }
+            : styles.fitFallback
+        }
+      >
+        {children}
+      </View>
+    </View>
   );
 }
 
@@ -179,11 +240,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
-    gap: spacing.md,
+  body: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
+    minHeight: 0,
+  },
+  actions: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    gap: spacing.sm,
   },
   badgeOuter: {
     alignSelf: 'center',
@@ -222,8 +290,17 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
-  sharePreview: {
-    marginVertical: spacing.sm,
+  fitHost: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fitFallback: {
+    width: '100%',
+  },
+  shareShot: {
+    flex: 1,
     borderRadius: radii.md,
     overflow: 'hidden',
   },
@@ -253,5 +330,17 @@ const styles = StyleSheet.create({
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
     backgroundColor: colors.border,
+  },
+  membershipLink: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  membershipLinkPressed: {
+    opacity: 0.7,
+  },
+  membershipLinkLabel: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
   },
 });

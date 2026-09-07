@@ -2145,6 +2145,11 @@
                       "monthly"
                     ],
                     "type": "string"
+                  },
+                  "targetCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200000
                   }
                 },
                 "required": [
@@ -5355,6 +5360,1050 @@
                     "amountMinor",
                     "paymentMethods",
                     "hasMembership"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches": {
+      "post": {
+        "operationId": "createMatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "window": {
+                    "enum": [
+                      "today",
+                      "week"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "window"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "match": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "token": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "metric": {
+                          "enum": [
+                            "pushups"
+                          ],
+                          "type": "string"
+                        },
+                        "scoringMode": {
+                          "enum": [
+                            "best_single"
+                          ],
+                          "type": "string"
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "status": {
+                          "enum": [
+                            "open",
+                            "completed",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "participantCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "participantCap": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "yourBestCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "winnerUserId": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "standings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "userId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "displayName": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "rank": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "bestCount": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "isYou": {
+                                "type": "boolean"
+                              },
+                              "isHost": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "userId",
+                              "displayName",
+                              "rank",
+                              "bestCount",
+                              "isYou",
+                              "isHost"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "token",
+                        "metric",
+                        "scoringMode",
+                        "startsAt",
+                        "endsAt",
+                        "status",
+                        "participantCount",
+                        "participantCap",
+                        "yourBestCount",
+                        "winnerUserId",
+                        "standings"
+                      ]
+                    },
+                    "invite": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "url": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "token",
+                        "url"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "match",
+                    "invite"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listMyMatches",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "live": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "metric": {
+                            "enum": [
+                              "pushups"
+                            ],
+                            "type": "string"
+                          },
+                          "scoringMode": {
+                            "enum": [
+                              "best_single"
+                            ],
+                            "type": "string"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "enum": [
+                              "open",
+                              "completed",
+                              "cancelled"
+                            ],
+                            "type": "string"
+                          },
+                          "participantCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourBestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourRank": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "metric",
+                          "scoringMode",
+                          "endsAt",
+                          "status",
+                          "participantCount",
+                          "yourBestCount",
+                          "yourRank"
+                        ]
+                      }
+                    },
+                    "ended": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "metric": {
+                            "enum": [
+                              "pushups"
+                            ],
+                            "type": "string"
+                          },
+                          "scoringMode": {
+                            "enum": [
+                              "best_single"
+                            ],
+                            "type": "string"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "enum": [
+                              "open",
+                              "completed",
+                              "cancelled"
+                            ],
+                            "type": "string"
+                          },
+                          "participantCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourBestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourRank": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "metric",
+                          "scoringMode",
+                          "endsAt",
+                          "status",
+                          "participantCount",
+                          "yourBestCount",
+                          "yourRank"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "live",
+                    "ended"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/invite": {
+      "get": {
+        "operationId": "previewMatch",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "matchId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "hostDisplayName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "metric": {
+                      "enum": [
+                        "pushups"
+                      ],
+                      "type": "string"
+                    },
+                    "scoringMode": {
+                      "enum": [
+                        "best_single"
+                      ],
+                      "type": "string"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "completed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "alreadyJoined": {
+                      "type": "boolean"
+                    },
+                    "viewerIsHost": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "matchId",
+                    "hostDisplayName",
+                    "metric",
+                    "scoringMode",
+                    "endsAt",
+                    "participantCount",
+                    "participantCap",
+                    "status",
+                    "alreadyJoined",
+                    "viewerIsHost"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/join": {
+      "post": {
+        "operationId": "joinMatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "metric": {
+                      "enum": [
+                        "pushups"
+                      ],
+                      "type": "string"
+                    },
+                    "scoringMode": {
+                      "enum": [
+                        "best_single"
+                      ],
+                      "type": "string"
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "completed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourBestCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "winnerUserId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "standings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "bestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "isYou": {
+                            "type": "boolean"
+                          },
+                          "isHost": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "displayName",
+                          "rank",
+                          "bestCount",
+                          "isYou",
+                          "isHost"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "token",
+                    "metric",
+                    "scoringMode",
+                    "startsAt",
+                    "endsAt",
+                    "status",
+                    "participantCount",
+                    "participantCap",
+                    "yourBestCount",
+                    "winnerUserId",
+                    "standings"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/detail": {
+      "get": {
+        "operationId": "getMatch",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "metric": {
+                      "enum": [
+                        "pushups"
+                      ],
+                      "type": "string"
+                    },
+                    "scoringMode": {
+                      "enum": [
+                        "best_single"
+                      ],
+                      "type": "string"
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "completed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourBestCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "winnerUserId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "standings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "bestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "isYou": {
+                            "type": "boolean"
+                          },
+                          "isHost": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "displayName",
+                          "rank",
+                          "bestCount",
+                          "isYou",
+                          "isHost"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "token",
+                    "metric",
+                    "scoringMode",
+                    "startsAt",
+                    "endsAt",
+                    "status",
+                    "participantCount",
+                    "participantCap",
+                    "yourBestCount",
+                    "winnerUserId",
+                    "standings"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/attempts": {
+      "post": {
+        "operationId": "submitMatchAttempt",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "matchId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200000
+                  },
+                  "durationSeconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 86400
+                  },
+                  "source": {
+                    "const": "in_app_pose"
+                  }
+                },
+                "required": [
+                  "matchId",
+                  "count",
+                  "durationSeconds",
+                  "source"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "metric": {
+                      "enum": [
+                        "pushups"
+                      ],
+                      "type": "string"
+                    },
+                    "scoringMode": {
+                      "enum": [
+                        "best_single"
+                      ],
+                      "type": "string"
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "completed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourBestCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "winnerUserId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "standings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "bestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "isYou": {
+                            "type": "boolean"
+                          },
+                          "isHost": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "displayName",
+                          "rank",
+                          "bestCount",
+                          "isYou",
+                          "isHost"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "token",
+                    "metric",
+                    "scoringMode",
+                    "startsAt",
+                    "endsAt",
+                    "status",
+                    "participantCount",
+                    "participantCap",
+                    "yourBestCount",
+                    "winnerUserId",
+                    "standings"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/cancel": {
+      "post": {
+        "operationId": "cancelMatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "matchId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "matchId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "metric": {
+                      "enum": [
+                        "pushups"
+                      ],
+                      "type": "string"
+                    },
+                    "scoringMode": {
+                      "enum": [
+                        "best_single"
+                      ],
+                      "type": "string"
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "completed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourBestCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "winnerUserId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "standings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "bestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "isYou": {
+                            "type": "boolean"
+                          },
+                          "isHost": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "displayName",
+                          "rank",
+                          "bestCount",
+                          "isYou",
+                          "isHost"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "token",
+                    "metric",
+                    "scoringMode",
+                    "startsAt",
+                    "endsAt",
+                    "status",
+                    "participantCount",
+                    "participantCap",
+                    "yourBestCount",
+                    "winnerUserId",
+                    "standings"
                   ]
                 }
               }

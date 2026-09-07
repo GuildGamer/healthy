@@ -36,8 +36,8 @@ import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
 import { apiClient } from '@/lib/api';
 import heroBanner from '@/assets/hero-banner.png';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MATCH_LIVE_HINT } from '@/components/matches/match-copy';
 import { weeklyRankLabel } from './home-rank';
-import { previewTodayChallenges } from './preview-today-challenges';
 
 /** Figma uses 12px gaps (`space-y-3`) between home sections. */
 const SECTION_GAP = 12;
@@ -106,7 +106,10 @@ function ChallengeRow({
   onOpen: () => void;
 }) {
   return (
-    <View style={styles.challengeRow} testID={`home-challenge-${challenge.id}`}>
+    <View
+      style={styles.challengeRow}
+      testID={`home-challenge-${challenge.id}`}
+    >
       <Pressable
         accessibilityHint="Opens schedule and reminders"
         accessibilityLabel={challenge.title}
@@ -180,8 +183,8 @@ export function HomeScreen() {
   const pointsBalance = meQuery.data?.pointsBalance ?? 0;
   const streakDays = meQuery.data?.currentStreakDays ?? 0;
   const challenges = challengesQuery.data?.challenges ?? [];
-  const layout = buildChallengeFocusLayout(challenges);
-  const previewChallenges = previewTodayChallenges(challenges);
+  const hasMembership = meQuery.data?.hasMembership ?? false;
+  const layout = buildChallengeFocusLayout(challenges, hasMembership);
   const todayTip = selectDailyTip(
     tipsQuery.data?.tips ?? [],
     meQuery.data?.categories ?? [],
@@ -198,8 +201,26 @@ export function HomeScreen() {
     queryKey: ['leaderboard'],
     queryFn: () => apiClient.listLeaderboard({ period: 'week' }),
   });
+  const matchesQuery = useQuery({
+    queryKey: ['matches', 'mine'],
+    queryFn: () => apiClient.listMyMatches(),
+  });
+  const liveMatchCount = matchesQuery.data?.live.length ?? 0;
 
   usePushDeviceSync(meQuery.data?.reminderEnabled ?? false);
+
+  function handleAdvance(challenge: TodayChallenge) {
+    const route = completionRoute(challenge);
+    if (route) {
+      router.push(route);
+      return;
+    }
+
+    advance({
+      userChallengeId: challenge.id,
+      status: challenge.status,
+    });
+  }
 
   return (
     <View style={styles.container}>
@@ -219,6 +240,7 @@ export function HomeScreen() {
             challengesQuery.refetch(),
             notificationsQuery.refetch(),
             leaderboardQuery.refetch(),
+            matchesQuery.refetch(),
             tipsQuery.refetch(),
           ])
         }
@@ -317,13 +339,42 @@ export function HomeScreen() {
             style={styles.tipCard}
             testID="home-daily-tip"
           >
-            <Text style={styles.tipEyebrow}>
-              Tip · {healthCategoryName(todayTip.category)}
-            </Text>
+            <View style={styles.tipHeader}>
+              <Text style={styles.tipEyebrow}>
+                Tip · {healthCategoryName(todayTip.category)}
+              </Text>
+              <Feather color={colors.accent} name="chevron-right" size={16} />
+            </View>
             <Text style={styles.tipQuote}>{todayTip.title}</Text>
           </Pressable>
         ) : null}
       </View>
+
+      {liveMatchCount > 0 ? (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Matches</Text>
+          </View>
+          <Pressable
+            accessibilityHint="Opens your live matches"
+            accessibilityRole="button"
+            onPress={() => router.push('/matches')}
+            style={styles.firstRun}
+            testID="home-open-matches"
+          >
+            <Feather color={colors.accent} name="users" size={20} />
+            <View style={styles.firstRunText}>
+              <Text style={styles.firstRunTitle}>
+                {liveMatchCount === 1
+                  ? '1 live match'
+                  : `${liveMatchCount} live matches`}
+              </Text>
+              <Text style={styles.firstRunSubtitle}>{MATCH_LIVE_HINT}</Text>
+            </View>
+            <Feather color={colors.muted} name="chevron-right" size={18} />
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -367,37 +418,38 @@ export function HomeScreen() {
               <TodayWinHeader testID="home-today-win" win={layout.win} />
             ) : null}
             {layout.focus ? (
-              <Text style={styles.focusEyebrow}>Do next</Text>
-            ) : null}
-            {previewChallenges.map((challenge, index) => (
-              <View key={challenge.id}>
-                {index === 1 ? (
-                  <Text style={styles.focusEyebrow}>Up next</Text>
-                ) : null}
+              <View testID="home-section-focus">
+                <Text style={styles.doNextLabel}>Do next</Text>
                 <ChallengeRow
-                  challenge={challenge}
-                  isBusy={isAdvancing(challenge.id)}
-                  onAdvance={() => {
-                    const route = completionRoute(challenge);
-                    if (route) {
-                      router.push(route);
-                      return;
-                    }
-
-                    advance({
-                      userChallengeId: challenge.id,
-                      status: challenge.status,
-                    });
-                  }}
+                  challenge={layout.focus}
+                  isBusy={isAdvancing(layout.focus.id)}
+                  onAdvance={() => handleAdvance(layout.focus!)}
                   onOpen={() =>
-                    router.push(`/challenge/${challenge.challengeId}`)
+                    router.push(`/challenge/${layout.focus!.challengeId}`)
                   }
                 />
-                {index < previewChallenges.length - 1 ? (
-                  <View style={styles.rowDivider} />
-                ) : null}
               </View>
-            ))}
+            ) : null}
+            {layout.upNext.length > 0 ? (
+              <View style={styles.upNextBlock} testID="home-section-up-next">
+                <Text style={styles.upNextLabel}>Up next</Text>
+                {layout.upNext.map((challenge, index) => (
+                  <View key={challenge.id}>
+                    <ChallengeRow
+                      challenge={challenge}
+                      isBusy={isAdvancing(challenge.id)}
+                      onAdvance={() => handleAdvance(challenge)}
+                      onOpen={() =>
+                        router.push(`/challenge/${challenge.challengeId}`)
+                      }
+                    />
+                    {index < layout.upNext.length - 1 ? (
+                      <View style={styles.rowDivider} />
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         )}
       </View>
@@ -546,6 +598,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   tipEyebrow: {
     color: colors.accent,
     fontSize: fontSize.xs,
@@ -573,14 +631,26 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
   },
-  focusEyebrow: {
+  doNextLabel: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
+  upNextBlock: {
+    marginTop: spacing.lg,
+  },
+  upNextLabel: {
     color: colors.muted,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   seeAll: {
     color: colors.accent,

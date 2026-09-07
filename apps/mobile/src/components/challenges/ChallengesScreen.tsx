@@ -6,10 +6,17 @@ import {
   spacing,
 } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useNavigation, useRouter } from 'expo-router';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Loader, RefreshableScroll } from '@/components/feedback';
+import { ChallengeIcon } from '@/components/challenges/ChallengeIcon';
+import { PUSHUP_ICON_NAME } from '@/components/challenges/challenge-icon';
+import {
+  MATCH_CREATE_HINT,
+  MATCH_CREATE_TITLE,
+  MATCH_LIST_ENTRY,
+} from '@/components/matches/match-copy';
 import { apiClient } from '@/lib/api';
 import { ChallengeActionButton } from './ChallengeActionButton';
 import { buildChallengeFocusLayout } from './challenge-list-layout';
@@ -20,7 +27,33 @@ import { useAdvanceChallenge } from './useAdvanceChallenge';
 
 export function ChallengesScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { advance, isAdvancing } = useAdvanceChallenge();
+
+  const matchesQuery = useQuery({
+    queryKey: ['matches', 'mine'],
+    queryFn: () => apiClient.listMyMatches(),
+  });
+  const hasLiveMatch = (matchesQuery.data?.live.length ?? 0) > 0;
+  const showMatchEntry = matchesQuery.isSuccess && !hasLiveMatch;
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: showMatchEntry
+        ? () => (
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={() => router.push('/matches')}
+              style={styles.headerMatch}
+              testID="open-matches"
+            >
+              <Text style={styles.headerMatchLabel}>{MATCH_LIST_ENTRY}</Text>
+            </Pressable>
+          )
+        : () => null,
+    });
+  }, [navigation, router, showMatchEntry]);
   const [showAlso, setShowAlso] = useState(false);
   const [showWeekly, setShowWeekly] = useState(false);
   const [showMonthly, setShowMonthly] = useState(false);
@@ -30,9 +63,14 @@ export function ChallengesScreen() {
     queryKey: ['challenges', 'today'],
     queryFn: () => apiClient.listTodayChallenges(),
   });
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+  });
 
   const challenges = challengesQuery.data?.challenges ?? [];
-  const layout = buildChallengeFocusLayout(challenges);
+  const hasMembership = meQuery.data?.hasMembership ?? false;
+  const layout = buildChallengeFocusLayout(challenges, hasMembership);
   const openCount =
     (layout.focus ? 1 : 0) +
     layout.upNext.length +
@@ -57,35 +95,58 @@ export function ChallengesScreen() {
   return (
     <RefreshableScroll
       contentContainerStyle={styles.content}
-      onPullRefresh={() => challengesQuery.refetch()}
+      onPullRefresh={() =>
+        Promise.all([challengesQuery.refetch(), matchesQuery.refetch()])
+      }
       style={styles.container}
     >
+      {showMatchEntry ? (
+        <Pressable
+          accessibilityHint="Opens matches to challenge a friend"
+          accessibilityRole="button"
+          onPress={() => router.push('/matches')}
+          style={styles.matchEntry}
+          testID="challenges-open-matches"
+        >
+          <ChallengeIcon
+            category="general"
+            name={PUSHUP_ICON_NAME}
+            size="sm"
+          />
+          <View style={styles.matchEntryText}>
+            <Text style={styles.matchEntryTitle}>{MATCH_CREATE_TITLE}</Text>
+            <Text style={styles.matchEntryHint}>{MATCH_CREATE_HINT}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
       {challengesQuery.isLoading ? (
         <View style={styles.loader}>
           <Loader />
         </View>
       ) : challenges.length === 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/manage-challenges')}
-          style={styles.emptyAction}
-          testID="add-challenge"
-        >
-          <Text style={styles.empty}>Nothing on your list yet.</Text>
-          <Text style={styles.addLink}>Add a challenge</Text>
-        </Pressable>
+        <View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/manage-challenges')}
+            style={styles.emptyAction}
+            testID="add-challenge"
+          >
+            <Text style={styles.empty}>Nothing on your list yet.</Text>
+            <Text style={styles.addLink}>Add a challenge</Text>
+          </Pressable>
+        </View>
       ) : (
         <View>
           <TodayWinHeader testID="challenges-subtitle" win={layout.win} />
 
           {layout.focus ? (
             <View testID="section-focus">
-              <Text style={styles.sectionTitle}>Do next</Text>
+              <Text style={styles.doNextTitle}>Do next</Text>
               <ChallengeRow
                 challenge={layout.focus}
-                emphasized
                 isBusy={isAdvancing(layout.focus.id)}
-                isLast={layout.upNext.length === 0}
+                isLast
                 onAdvance={() => openLog(layout.focus!)}
                 onOpen={() =>
                   router.push(`/challenge/${layout.focus!.challengeId}`)
@@ -95,8 +156,8 @@ export function ChallengesScreen() {
           ) : null}
 
           {layout.upNext.length > 0 ? (
-            <View testID="section-up-next">
-              <Text style={styles.sectionTitle}>Up next</Text>
+            <View style={styles.upNextBlock} testID="section-up-next">
+              <Text style={styles.upNextTitle}>Up next</Text>
               {layout.upNext.map((challenge, index) => (
                 <ChallengeRow
                   challenge={challenge}
@@ -259,14 +320,12 @@ function CollapsedSection({
 
 function ChallengeRow({
   challenge,
-  emphasized = false,
   isBusy,
   isLast,
   onAdvance,
   onOpen,
 }: {
   challenge: TodayChallenge;
-  emphasized?: boolean;
   isBusy: boolean;
   isLast: boolean;
   onAdvance: () => void;
@@ -277,7 +336,7 @@ function ChallengeRow({
   return (
     <View>
       <View
-        style={[styles.row, emphasized && styles.rowEmphasized]}
+        style={styles.row}
         testID={`challenge-row-${challenge.id}`}
       >
         <Pressable
@@ -339,6 +398,28 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xs,
   },
+  doNextTitle: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  upNextBlock: {
+    marginTop: spacing.lg,
+  },
+  upNextTitle: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
   collapseToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,6 +447,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: spacing.sm,
   },
+  headerMatch: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  headerMatchLabel: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  matchEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  matchEntryText: {
+    flex: 1,
+    gap: 2,
+  },
+  matchEntryTitle: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  matchEntryHint: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
+  },
   emptyAction: {
     alignItems: 'center',
     gap: spacing.sm,
@@ -378,10 +488,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
-  },
-  rowEmphasized: {
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
   },
   rowBody: {
     flex: 1,

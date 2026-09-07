@@ -15,6 +15,8 @@ jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
   apiClient: {
     listTodayChallenges: jest.fn(),
+    listMyMatches: jest.fn(),
+    me: jest.fn(),
     startChallenge: jest.fn(),
     completeChallenge: jest.fn(),
   },
@@ -25,11 +27,14 @@ jest.mock('expo-router', () => {
   const push = jest.fn();
   return {
     useRouter: () => ({ push }),
+    useNavigation: () => ({ setOptions: jest.fn() }),
   };
 });
 
 const mockedApi = apiClient as unknown as {
   listTodayChallenges: jest.Mock;
+  listMyMatches: jest.Mock;
+  me: jest.Mock;
   startChallenge: jest.Mock;
   completeChallenge: jest.Mock;
 };
@@ -93,6 +98,8 @@ beforeEach(() => {
     completedCount: 0,
     totalCount: 1,
   });
+  mockedApi.listMyMatches.mockResolvedValue({ live: [], ended: [] });
+  mockedApi.me.mockResolvedValue({ hasMembership: false });
 });
 
 describe('ChallengesScreen', () => {
@@ -229,6 +236,44 @@ describe('ChallengesScreen', () => {
 
     fireEvent.press(screen.getByTestId('section-weekly-toggle'));
     expect(screen.getByText('Weekly weigh-in')).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('offers a match entry when none are live', async () => {
+    const { cleanup } = renderChallenges();
+
+    expect(await screen.findByTestId('challenges-open-matches')).toBeOnTheScreen();
+    expect(screen.getByText('Challenge a friend')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('challenges-open-matches'));
+    expect(useRouter().push).toHaveBeenCalledWith('/matches');
+
+    await cleanup();
+  });
+
+  it('hides the challenges match entry while a match is live', async () => {
+    mockedApi.listMyMatches.mockResolvedValue({
+      live: [
+        {
+          id: 'm1',
+          title: 'vs Bee',
+          metric: 'pushups',
+          scoringMode: 'best_single',
+          endsAt: '2026-09-05T21:00:00.000Z',
+          status: 'open',
+          participantCount: 2,
+          yourBestCount: 12,
+          yourRank: 1,
+        },
+      ],
+      ended: [],
+    });
+
+    const { cleanup } = renderChallenges();
+
+    expect(await screen.findByTestId('open-challenge-c1')).toBeOnTheScreen();
+    expect(screen.queryByTestId('challenges-open-matches')).toBeNull();
 
     await cleanup();
   });

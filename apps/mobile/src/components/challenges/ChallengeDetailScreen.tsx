@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import type { ChallengeFrequency, ChallengeHistoryEntry } from '@product/client';
+import { displayChallengeTitle } from '@product/contract/challenge-title';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -38,7 +39,12 @@ import {
   mergeTodayIntoHistory,
 } from './challenge-history';
 import { ChallengeIcon } from './ChallengeIcon';
+import { PushupTargetStepper } from './PushupTargetStepper';
 import { TimePickerModal } from './TimePickerModal';
+import {
+  DEFAULT_PUSHUP_TARGET,
+  clampPushupTarget,
+} from './pushup-target';
 
 function sameMinutes(left: number[], right: number[]): boolean {
   if (left.length !== right.length) {
@@ -144,6 +150,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
 
   const [tab, setTab] = useState<ChallengeDetailTab>('details');
   const [frequency, setFrequency] = useState<ChallengeFrequency>('daily');
+  const [targetCount, setTargetCount] = useState(DEFAULT_PUSHUP_TARGET);
   const [minutes, setMinutes] = useState<number[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
@@ -154,6 +161,11 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
     }
 
     setFrequency(challenge.frequency);
+    setTargetCount(
+      clampPushupTarget(
+        challenge.capture.target.count ?? DEFAULT_PUSHUP_TARGET,
+      ),
+    );
     setMinutes(challenge.reminders.map((reminder) => reminder.minuteOfDay));
     setHasLoadedDraft(true);
   }, [challenge, hasLoadedDraft]);
@@ -168,6 +180,9 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
         challengeId: challenge.challengeId,
         isEnrolled: true,
         frequency,
+        ...(challenge.capture.metric === 'pushups'
+          ? { targetCount }
+          : {}),
       });
 
       const existing = challenge.reminders;
@@ -236,8 +251,11 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
     return <ScreenLoader testID="challenge-detail-loading" />;
   }
 
+  const catalogCount = challenge.capture.target.count;
   const isDirty =
     frequency !== challenge.frequency ||
+    (challenge.capture.metric === 'pushups' &&
+      targetCount !== (catalogCount ?? DEFAULT_PUSHUP_TARGET)) ||
     !sameMinutes(
       minutes,
       challenge.reminders.map((reminder) => reminder.minuteOfDay),
@@ -279,7 +297,16 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           name={challenge.icon}
           size="md"
         />
-        <Text style={styles.title}>{challenge.title}</Text>
+        <Text style={styles.title}>
+          {displayChallengeTitle({
+            title: challenge.title,
+            metric: challenge.capture.metric,
+            count:
+              challenge.capture.metric === 'pushups'
+                ? targetCount
+                : challenge.capture.target.count,
+          })}
+        </Text>
         <Text style={styles.categoryBadge}>{categoryName}</Text>
       </View>
       <Text style={styles.meta}>
@@ -347,7 +374,8 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
 
       {occurrence?.completionKind === 'evidence_photo' ? (
         <Text style={styles.hint}>
-          Take a selfie at the gym or during the workout.
+          Take a selfie at the gym. Your face and the gym must be visible.
+          Home photos will not count.
         </Text>
       ) : null}
 
@@ -358,6 +386,15 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           loading={isBusy}
           onPress={handlePrimaryAction}
           testID="challenge-detail-start"
+        />
+      ) : null}
+
+      {challenge.capture.metric === 'pushups' ? (
+        <FormButton
+          label="Challenge a friend"
+          onPress={() => router.push('/matches/create')}
+          testID="challenge-a-friend"
+          variant="secondary"
         />
       ) : null}
 
@@ -390,6 +427,21 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           );
         })}
       </View>
+
+      {challenge.capture.metric === 'pushups' ? (
+        <>
+          <Text style={styles.sectionTitle}>Goal</Text>
+          <Text style={styles.hint}>
+            Used each time you do this challenge. Change it when it no
+            longer fits.
+          </Text>
+          <PushupTargetStepper
+            onChange={setTargetCount}
+            testID="detail-pushup-target"
+            value={targetCount}
+          />
+        </>
+      ) : null}
 
       <Text style={styles.sectionTitle}>Reminders</Text>
       <Text style={styles.hint}>

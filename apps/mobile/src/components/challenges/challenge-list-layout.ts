@@ -1,7 +1,22 @@
 import type { TodayChallenge } from '@product/client';
 
-/** Cap for “today’s win” — success without clearing every enrollment. */
+/** Free-tier cap for “today’s win” — members may finish every enrollment. */
 export const DAILY_WIN_TARGET = 2;
+
+function resolveDailyWinTarget(
+  totalCount: number,
+  hasMembership: boolean,
+): number {
+  if (totalCount === 0) {
+    return 0;
+  }
+
+  if (hasMembership) {
+    return totalCount;
+  }
+
+  return Math.min(DAILY_WIN_TARGET, totalCount);
+}
 
 /** Peers shown under the focus card before “also available”. */
 export const UP_NEXT_LIMIT = 2;
@@ -78,6 +93,7 @@ export type TodayWin = {
 export function buildTodayWin(
   completedCount: number,
   totalCount: number,
+  hasMembership = false,
 ): TodayWin {
   if (totalCount === 0) {
     return {
@@ -89,7 +105,7 @@ export function buildTodayWin(
     };
   }
 
-  const target = Math.min(DAILY_WIN_TARGET, totalCount);
+  const target = resolveDailyWinTarget(totalCount, hasMembership);
   const filled = Math.min(completedCount, target);
   const locked = filled >= target;
 
@@ -98,8 +114,8 @@ export function buildTodayWin(
       filled,
       target,
       locked: true,
-      label: 'Win locked',
-      heroMetaSuffix: 'win locked',
+      label: hasMembership ? 'All done today' : 'Win locked',
+      heroMetaSuffix: hasMembership ? 'all done today' : 'win locked',
     };
   }
 
@@ -131,10 +147,11 @@ export type ChallengeFocusLayout = {
  */
 export function buildChallengeFocusLayout(
   challenges: readonly TodayChallenge[],
+  hasMembership = false,
 ): ChallengeFocusLayout {
   const done = challenges.filter((item) => item.status === 'completed');
   const open = challenges.filter((item) => item.status !== 'completed');
-  const win = buildTodayWin(done.length, challenges.length);
+  const win = buildTodayWin(done.length, challenges.length, hasMembership);
 
   const focus = open.length === 0 ? null : sortOpenChallengesByFocus(open)[0]!;
   const remaining = focus

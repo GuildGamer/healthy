@@ -65,6 +65,7 @@ export function ManageChallengesScreen() {
   }
 
   const challenges = catalogQuery.data?.challenges ?? [];
+  const hasMembership = catalogQuery.data?.hasMembership ?? false;
   const counts = catalogEnrollmentCounts(challenges);
 
   if (tab === null) {
@@ -203,6 +204,7 @@ export function ManageChallengesScreen() {
             {group.challenges.map((item, index) => (
               <ChallengeOption
                 challenge={item}
+                hasMembership={hasMembership}
                 isBusy={
                   setEnrollment.isPending &&
                   setEnrollment.variables?.challengeId === item.challengeId
@@ -253,6 +255,7 @@ function CategorySection({
 
 function ChallengeOption({
   challenge,
+  hasMembership,
   isBusy,
   onOpen,
   onSetEnrolled,
@@ -260,13 +263,15 @@ function ChallengeOption({
   showDivider,
 }: {
   challenge: CatalogChallenge;
+  hasMembership: boolean;
   isBusy: boolean;
   onOpen: () => void;
   onSetEnrolled: (isEnrolled: boolean) => void;
   onUnlock: () => void;
   showDivider: boolean;
 }) {
-  const lockedOff = challenge.isLocked && !challenge.isEnrolled;
+  const lockedOff =
+    challenge.isLocked && !challenge.isEnrolled && !hasMembership;
 
   return (
     <View testID={`catalog-challenge-${challenge.challengeId}`}>

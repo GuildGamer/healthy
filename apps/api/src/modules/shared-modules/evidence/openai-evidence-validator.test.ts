@@ -12,15 +12,13 @@ describe('createOpenAiEvidenceValidator', () => {
   });
 
   it('accepts a photo the model approves', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          choices: [{ message: { content: '{"accepted":true}' } }],
-        }),
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"accepted":true}' } }],
       }),
-    );
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     const validator = createOpenAiEvidenceValidator({
       mode: 'openai',
@@ -31,6 +29,10 @@ describe('createOpenAiEvidenceValidator', () => {
     await expect(validator.validateGymPhoto(photo)).resolves.toEqual({
       accepted: true,
     });
+
+    const request = fetchMock.mock.calls[0]?.[1] as { body: string };
+    expect(request.body).toContain('physically inside a gym');
+    expect(request.body).toContain('Exercising alone is not enough');
   });
 
   it('fails closed when the model is unreachable', async () => {

@@ -1,6 +1,7 @@
 import { ChallengesModule } from './challenges/index.js';
 import { EnrollmentsModule } from './enrollments/index.js';
 import { LeaderboardModule } from './leaderboard/index.js';
+import { MatchesModule } from './matches/index.js';
 import { MeModule } from './me/index.js';
 import { NotificationsModule } from './notifications/index.js';
 import { PushDevicesModule } from './push/index.js';
@@ -13,6 +14,7 @@ export default [
   EnrollmentsModule,
   MeModule,
   ChallengesModule,
+  MatchesModule,
   NotificationsModule,
   LeaderboardModule,
   PushDevicesModule,

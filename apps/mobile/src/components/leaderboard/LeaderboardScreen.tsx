@@ -7,8 +7,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Loader, RefreshableScroll } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
+import { LeaderboardCategoryPicker } from './LeaderboardCategoryPicker';
 import {
-  LEADERBOARD_CATEGORIES,
   LEADERBOARD_PERIODS,
   type LeaderboardCategoryFilter,
   leaderboardIntro,
@@ -63,37 +63,6 @@ function Row({
   );
 }
 
-function FilterChip<T extends string>({
-  id,
-  label,
-  selected,
-  testID,
-  onSelect,
-}: {
-  id: T;
-  label: string;
-  selected: boolean;
-  testID: string;
-  onSelect: (id: T) => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected }}
-      onPress={() => onSelect(id)}
-      style={styles.chip}
-      testID={testID}
-    >
-      <Text style={[styles.chipLabel, selected ? styles.chipLabelSelected : null]}>
-        {label}
-      </Text>
-      <View
-        style={[styles.chipRule, selected ? styles.chipRuleSelected : null]}
-      />
-    </Pressable>
-  );
-}
-
 export function LeaderboardScreen() {
   const router = useRouter();
   const [period, setPeriod] = useState<LeaderboardPeriod>('week');
@@ -136,6 +105,38 @@ export function LeaderboardScreen() {
       style={styles.container}
       testID="leaderboard-screen"
     >
+      <View style={styles.tabs} testID="leaderboard-period-switch">
+        {LEADERBOARD_PERIODS.map((option) => {
+          const selected = option.id === period;
+
+          return (
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              key={option.id}
+              onPress={() => setPeriod(option.id)}
+              style={styles.tab}
+              testID={`leaderboard-period-${option.id}`}
+            >
+              <Text
+                style={[
+                  styles.tabLabel,
+                  selected ? styles.tabLabelSelected : null,
+                ]}
+              >
+                {option.label}
+              </Text>
+              <View
+                style={[
+                  styles.tabRule,
+                  selected ? styles.tabRuleSelected : null,
+                ]}
+              />
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Text style={styles.intro}>{leaderboardIntro(period)}</Text>
 
       {isHiddenFromBoard ? (
@@ -155,31 +156,10 @@ export function LeaderboardScreen() {
         </Pressable>
       ) : null}
 
-      <View style={styles.filters} testID="leaderboard-period-switch">
-        {LEADERBOARD_PERIODS.map((option) => (
-          <FilterChip
-            id={option.id}
-            key={option.id}
-            label={option.label}
-            onSelect={setPeriod}
-            selected={option.id === period}
-            testID={`leaderboard-period-${option.id}`}
-          />
-        ))}
-      </View>
-
-      <View style={styles.filters} testID="leaderboard-category-switch">
-        {LEADERBOARD_CATEGORIES.map((option) => (
-          <FilterChip
-            id={option.id}
-            key={option.id}
-            label={option.label}
-            onSelect={setCategory}
-            selected={option.id === category}
-            testID={`leaderboard-category-${option.id}`}
-          />
-        ))}
-      </View>
+      <LeaderboardCategoryPicker
+        onSelect={setCategory}
+        selected={category}
+      />
 
       {leaderboardQuery.isPending && entries.length === 0 ? (
         <View style={styles.loader}>
@@ -222,41 +202,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
+  },
+  tabs: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
+  },
+  tab: {
+    paddingTop: spacing.sm,
+  },
+  tabLabel: {
+    color: colors.muted,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    paddingBottom: spacing.sm,
+  },
+  tabLabelSelected: {
+    color: colors.text,
+    fontWeight: fontWeight.semibold,
+  },
+  tabRule: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: 'transparent',
+  },
+  tabRuleSelected: {
+    backgroundColor: colors.accent,
   },
   intro: {
     color: colors.muted,
     fontSize: fontSize.sm,
     lineHeight: 20,
     paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
-  },
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  chip: {
-    paddingBottom: 4,
-  },
-  chipLabel: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  chipLabelSelected: {
-    color: colors.accent,
-  },
-  chipRule: {
-    height: 2,
-    marginTop: 4,
-    backgroundColor: 'transparent',
-  },
-  chipRuleSelected: {
-    backgroundColor: colors.accent,
   },
   loader: {
     marginTop: spacing.xl,

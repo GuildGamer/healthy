@@ -1,7 +1,9 @@
-/** In-memory handoff from gym selfie submit → success share preview. */
+/** In-memory handoff from a gym selfie submit → success share preview. */
 
 export type ShareCardPayload = {
-  photoUri: string;
+  photoUri?: string;
+  photoWidth?: number;
+  photoHeight?: number;
   title: string;
   pointsAwarded: number;
   currentStreakDays: number;

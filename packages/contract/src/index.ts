@@ -27,6 +27,15 @@ import {
   waterUnitSchema,
 } from './challenge-logging.js';
 import { countryCodeSchema } from './country-code.js';
+import {
+  cancelMatchContract,
+  createMatchContract,
+  getMatchContract,
+  joinMatchContract,
+  listMyMatchesContract,
+  previewMatchContract,
+  submitMatchAttemptContract,
+} from './matches.js';
 import { getMembershipOfferContract } from './membership.js';
 
 export { challengeSpecIssue } from './challenge-spec.js';
@@ -49,10 +58,16 @@ export {
   emptyChallengeTarget,
   healthLinkStatusSchema,
   isDeviceCapture,
+  resolveEnrollmentTargetCount,
   selfReportCapture,
   toChallengeCapture,
   updateHealthLinkInputSchema,
 } from './challenge-capture.js';
+export {
+  countInWords,
+  displayChallengeTitle,
+  formatPushupChallengeTitle,
+} from './challenge-title.js';
 export type {
   ChallengeCapture,
   ChallengeCaptureKind,
@@ -428,6 +443,8 @@ export const setChallengeEnrollmentInputSchema = z.object({
   isEnrolled: z.boolean(),
   /** Omit to keep the catalog default, or the cadence already chosen. */
   frequency: challengeFrequencySchema.optional(),
+  /** Omit to keep the catalog default, or the count already chosen. */
+  targetCount: z.number().int().positive().max(200_000).optional(),
 });
 
 export const startChallengeInputSchema = z.object({
@@ -706,6 +723,13 @@ export const appContract = {
   waitlist: waitlistContract,
   listTips: listTipsContract,
   getMembershipOffer: getMembershipOfferContract,
+  createMatch: createMatchContract,
+  listMyMatches: listMyMatchesContract,
+  previewMatch: previewMatchContract,
+  joinMatch: joinMatchContract,
+  getMatch: getMatchContract,
+  submitMatchAttempt: submitMatchAttemptContract,
+  cancelMatch: cancelMatchContract,
 };
 
 export type AppContract = typeof appContract;
@@ -788,3 +812,25 @@ export type RemoveChallengeReminderInput = z.infer<
 export type RegisterPushDeviceInput = z.infer<
   typeof registerPushDeviceInputSchema
 >;
+
+export {
+  MATCH_INVITE_SCHEME,
+  MATCH_PARTICIPANT_CAP,
+  matchContestTitle,
+  matchInviteUrl,
+} from './matches.js';
+export type {
+  CreateMatchInput,
+  CreateMatchOutput,
+  ListMyMatchesOutput,
+  MatchBoard,
+  MatchInviteLink,
+  MatchListItem,
+  MatchMetric,
+  MatchPreview,
+  MatchScoringMode,
+  MatchStanding,
+  MatchStatus,
+  MatchWindow,
+  SubmitMatchAttemptInput,
+} from './matches.js';

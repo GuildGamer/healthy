@@ -1,8 +1,11 @@
 /**
- * Bundled MoveNet SinglePose Lightning (int8).
+ * Bundled MoveNet SinglePose Thunder (int8).
  *
- * Input: 1×192×192×3 uint8 RGB
+ * Input: 1×256×256×3 uint8 RGB
  * Output: 1×1×17×3 float32 — keypoints as [y, x, score]
+ *
+ * Thunder is slower than Lightning but more accurate on elbows/wrists —
+ * the main failure mode we saw on front-camera push-ups.
  */
 export {
   mapMoveNetOutput,
@@ -11,4 +14,4 @@ export {
 } from './movenet';
 
 // Metro must list `tflite` in assetExts (see metro.config.js).
-export const MOVENET_MODEL = require('../../../assets/models/movenet-lightning.tflite');
+export const MOVENET_MODEL = require('../../../assets/models/movenet-thunder.tflite');
