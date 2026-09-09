@@ -68,6 +68,12 @@ export {
   displayChallengeTitle,
   formatPushupChallengeTitle,
 } from './challenge-title.js';
+export {
+  compareChallengeCatalogOrder,
+  compareChallengeSortOrder,
+  DEFAULT_CHALLENGE_SORT_ORDER,
+} from './challenge-sort.js';
+export type { ChallengeSortable } from './challenge-sort.js';
 export type {
   ChallengeCapture,
   ChallengeCaptureKind,
@@ -382,6 +388,7 @@ export const todayChallengeSchema = z.object({
   description: z.string(),
   category: healthCategorySchema,
   rewardPoints: z.number().int().positive(),
+  sortOrder: z.number().int().min(0).max(10_000),
   status: userChallengeStatusSchema,
   frequency: challengeFrequencySchema,
   completionKind: challengeCompletionKindSchema,
@@ -417,6 +424,7 @@ export const catalogChallengeSchema = z.object({
   description: z.string(),
   category: healthCategorySchema,
   rewardPoints: z.number().int().positive(),
+  sortOrder: z.number().int().min(0).max(10_000),
   frequency: challengeFrequencySchema,
   completionKind: challengeCompletionKindSchema,
   instruction: z.string(),

@@ -26,6 +26,7 @@ export type TodayChallengeDto = {
   description: string;
   category: HealthCategory;
   rewardPoints: number;
+  sortOrder: number;
   status: UserChallengeStatus;
   frequency: ChallengeFrequency;
   completionKind: ChallengeCompletionKind;

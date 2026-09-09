@@ -60,7 +60,7 @@ export class EnrollmentsService {
     const [catalog, enrollments] = await Promise.all([
       this.prisma.challenge.findMany({
         where: { isActive: true, category: { in: categories } },
-        orderBy: [{ category: 'asc' }, { title: 'asc' }],
+        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
       }),
       this.prisma.challengeEnrollment.findMany({
         where: { userId: user.id },
@@ -97,6 +97,7 @@ export class EnrollmentsService {
         description: challenge.description,
         category: challenge.category,
         rewardPoints: challenge.rewardPoints,
+        sortOrder: challenge.sortOrder,
         frequency: enrollment?.frequency ?? challenge.defaultFrequency,
         completionKind: challenge.completionKind,
         instruction: challenge.instruction || challenge.description,

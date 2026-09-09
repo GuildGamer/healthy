@@ -65,6 +65,7 @@ function challenge(overrides: Partial<TodayChallenge>): TodayChallenge {
     description: 'A brisk walk after lunch.',
     category: 'general',
     rewardPoints: 20,
+    sortOrder: 100,
     status: 'pending',
     frequency: 'daily',
     completionKind: 'check_in',

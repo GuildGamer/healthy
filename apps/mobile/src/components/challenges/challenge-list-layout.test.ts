@@ -15,6 +15,7 @@ function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
     description: '',
     category: 'general',
     rewardPoints: 20,
+    sortOrder: 100,
     status: 'pending',
     frequency: 'daily',
     completionKind: 'check_in',
@@ -44,7 +45,62 @@ describe('sortOpenChallengesByFocus', () => {
     expect(sorted.map((item) => item.id)).toEqual(['b', 'c', 'a']);
   });
 
-  it('prefers easier captures when status matches', () => {
+  it('prefers marketing sort order before capture ease when status matches', () => {
+    const sorted = sortOpenChallengesByFocus([
+      challenge({
+        id: 'hard',
+        title: 'Gym',
+        status: 'pending',
+        sortOrder: 100,
+        capture: {
+          kind: 'self_report',
+          metric: null,
+          target: { durationMinutes: null, distanceMeters: null, count: null },
+        },
+      }),
+      challenge({
+        id: 'hero',
+        title: 'Push-ups',
+        status: 'pending',
+        sortOrder: 0,
+        capture: {
+          kind: 'device_session',
+          metric: 'pushups',
+          target: { durationMinutes: null, distanceMeters: null, count: 20 },
+        },
+      }),
+    ]);
+
+    expect(sorted.map((item) => item.id)).toEqual(['hero', 'hard']);
+  });
+
+  it('prefers marketing sort order before weekly cadence when status matches', () => {
+    const sorted = sortOpenChallengesByFocus([
+      challenge({
+        id: 'weekly',
+        title: 'Weekly weigh-in',
+        status: 'pending',
+        frequency: 'weekly',
+        sortOrder: 100,
+      }),
+      challenge({
+        id: 'hero',
+        title: 'Push-ups',
+        status: 'pending',
+        frequency: 'daily',
+        sortOrder: 0,
+        capture: {
+          kind: 'device_session',
+          metric: 'pushups',
+          target: { durationMinutes: null, distanceMeters: null, count: 20 },
+        },
+      }),
+    ]);
+
+    expect(sorted.map((item) => item.id)).toEqual(['hero', 'weekly']);
+  });
+
+  it('prefers easier captures when status and sort order match', () => {
     const sorted = sortOpenChallengesByFocus([
       challenge({
         id: 'hard',

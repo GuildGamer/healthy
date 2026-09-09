@@ -12,7 +12,7 @@ const EMAIL_PLACEHOLDERS = [
   'realperson@yes.com',
   'inbox@naptime.com',
   'mail@walking.com',
-  'hey@hydrated.com',
+  'hey@gethealthyapp.com',
   'you@foundme.com',
   'alive@andwell.com',
   'steps@counted.com',

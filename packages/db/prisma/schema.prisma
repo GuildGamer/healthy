@@ -232,12 +232,14 @@ model Challenge {
   surpriseEvidenceWindowSeconds Int          @default(60)
   /// Points deducted when they skip, time out, or fail the surprise photo.
   surpriseEvidencePenaltyPoints Int          @default(25)
+  /// Lower values surface first in catalog and challenge lists.
+  sortOrder        Int                       @default(100)
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
   assignments      UserChallenge[]
   enrollments      ChallengeEnrollment[]
 
-  @@index([isActive, category])
+  @@index([isActive, category, sortOrder])
   @@map("challenges")
 }
 

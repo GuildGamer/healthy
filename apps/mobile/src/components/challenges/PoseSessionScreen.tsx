@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import {
-  LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -14,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { MATCH_SCORING_LABEL } from '@/components/matches/match-copy';
-import { PoseLandmarkOverlay } from '@/components/challenges/PoseLandmarkOverlay';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
 import type { QuickPosePushupUpdate } from '@/lib/pose/quickpose-pushup';
 import {
@@ -28,11 +26,9 @@ import {
 } from '@/components/challenges/pose-session-copy';
 import {
   usePoseSessionCounter,
-  type PoseDriveMode,
 } from '@/components/challenges/usePoseSessionCounter';
 import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
-import type { PoseFrame } from '@/lib/pose/landmarks';
 
 const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
 
@@ -59,7 +55,6 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
   const {
     snapshot,
     elapsedSeconds,
-    driveMode,
     start,
     stop,
     ingestQuickPose,
@@ -69,11 +64,8 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
   const [modelReady, setModelReady] = useState(false);
   const [modelDetail, setModelDetail] = useState('Checking pose camera…');
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const [cameraSize, setCameraSize] = useState({ width: 0, height: 0 });
-  const [overlayFrame, setOverlayFrame] = useState<PoseFrame | null>(null);
   const [cameraSessionKey, setCameraSessionKey] = useState(0);
   const phaseRef = useRef<SessionPhase>('setup');
-  const driveModeRef = useRef<PoseDriveMode>('live');
   const [QuickPoseCamera, setQuickPoseCamera] = useState<
     ComponentType<QuickPoseCameraProps> | null
   >(null);
@@ -92,7 +84,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
     if (!QUICKPOSE_SDK_KEY) {
       setModelReady(false);
       setModelDetail(
-        'Live counting needs a QuickPose SDK key. Use guided motion for now.',
+        'Live counting needs a QuickPose SDK key configured for this build.',
       );
       return;
     }
@@ -111,7 +103,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
         if (!cancelled) {
           setModelReady(false);
           setModelDetail(
-            'Pose camera needs a native rebuild. Use guided motion for now.',
+            'Pose camera needs a native rebuild with QuickPose installed.',
           );
         }
       });
@@ -125,18 +117,11 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
     phaseRef.current = phase;
   }, [phase]);
 
-  useEffect(() => {
-    driveModeRef.current = driveMode;
-  }, [driveMode]);
-
   const handleQuickPoseUpdate = useCallback(
     (update: QuickPosePushupUpdate) => {
       const watchingSetup = phaseRef.current === 'setup';
       const countingLive = phaseRef.current === 'counting';
-      if (
-        driveModeRef.current === 'live' &&
-        (watchingSetup || countingLive)
-      ) {
+      if (watchingSetup || countingLive) {
         ingestQuickPose(update);
       }
     },
@@ -228,19 +213,16 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
   });
 
   const beginCounting = useCallback(
-    async (
-      mode: PoseDriveMode,
-      options?: { preserveCounter?: boolean },
-    ) => {
+    async (options?: { preserveCounter?: boolean }) => {
       if (!isMatch && !occurrence) {
         return;
       }
 
       setSessionError(null);
 
-      if (mode === 'live' && !modelReady) {
+      if (!modelReady) {
         setSessionError(
-          'Live camera is not ready yet. Wait a moment, or use guided motion.',
+          'Live camera is not ready yet. Wait a moment and try again.',
         );
         autoStartLockRef.current = false;
         return;
@@ -260,13 +242,11 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
 
       // Remounting the camera mid-rep drops landmarks — only reset on manual start.
       if (!preserveCounter) {
-        setOverlayFrame(null);
         setCameraSessionKey((current) => current + 1);
       }
 
-      driveModeRef.current = mode;
       phaseRef.current = 'counting';
-      start(mode, { preserveCounter });
+      start({ preserveCounter });
       setPhase('counting');
     },
     [isMatch, modelReady, occurrence, start, startOccurrence],
@@ -286,7 +266,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
     }
 
     autoStartLockRef.current = true;
-    void beginCounting('live', { preserveCounter: true }).catch(() => {
+    void beginCounting({ preserveCounter: true }).catch(() => {
       autoStartLockRef.current = false;
     });
   }, [
@@ -313,11 +293,6 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
     router.replace(isMatch && matchId ? `/matches/${matchId}` : '/(tabs)/challenges');
   }
 
-  function onCameraLayout(event: LayoutChangeEvent) {
-    const { width, height } = event.nativeEvent.layout;
-    setCameraSize({ width, height });
-  }
-
   const calibrated =
     snapshot.bodyInFrame || snapshot.visibilityRatio >= 0.5;
   const coachBanner =
@@ -337,7 +312,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
     }
 
     if (calibrated && snapshot.bodyInFrame) {
-      return driveMode === 'live' ? POSE_TRACKING : 'Guided tracking';
+      return POSE_TRACKING;
     }
 
     return POSE_MOVE_INTO_FRAME;
@@ -353,16 +328,11 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
   const showLiveCamera =
     Boolean(QUICKPOSE_SDK_KEY) &&
     QuickPoseCamera != null &&
-    (phase === 'setup' || (phase === 'counting' && driveMode === 'live'));
-  const landmarkFrame = snapshot.debugFrame ?? overlayFrame;
+    (phase === 'setup' || phase === 'counting');
 
   return (
     <View style={styles.screen} testID="pose-session-screen">
-      <View
-        style={styles.cameraStage}
-        testID="pose-camera"
-        onLayout={onCameraLayout}
-      >
+      <View style={styles.cameraStage} testID="pose-camera">
         {showLiveCamera && QuickPoseCamera ? (
           <QuickPoseCamera
             key={cameraSessionKey}
@@ -371,21 +341,9 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
           />
         ) : (
           <View style={styles.cameraFallback}>
-            <Text style={styles.cameraFallbackText}>
-              {phase === 'counting' && driveMode === 'guided'
-                ? 'Guided landmark motion driving the counter'
-                : modelDetail}
-            </Text>
+            <Text style={styles.cameraFallbackText}>{modelDetail}</Text>
           </View>
         )}
-
-        {driveMode === 'guided' ? (
-          <PoseLandmarkOverlay
-            frame={landmarkFrame}
-            height={cameraSize.height}
-            width={cameraSize.width}
-          />
-        ) : null}
 
         <View
           pointerEvents="box-none"
@@ -459,22 +417,12 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
         ) : null}
 
         {phase === 'setup' ? (
-          <>
-            <FormButton
-              label="Start counting"
-              loading={startOccurrence.isPending}
-              onPress={() => void beginCounting('live')}
-              testID="start-pose"
-            />
-            {__DEV__ ? (
-              <FormButton
-                label="Guided motion (no camera AI)"
-                onPress={() => void beginCounting('guided')}
-                testID="start-pose-guided"
-                variant="secondary"
-              />
-            ) : null}
-          </>
+          <FormButton
+            label="Start counting"
+            loading={startOccurrence.isPending}
+            onPress={() => void beginCounting()}
+            testID="start-pose"
+          />
         ) : null}
 
         {phase === 'counting' ? (
@@ -493,10 +441,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
                   : 'Short of the target'}
             </Text>
             <Text style={styles.reviewBody}>
-              {count} push-ups in {elapsedSeconds}s
-              {driveMode === 'guided'
-                ? ' · guided landmarks'
-                : ' · on-device pose'}
+              {count} push-ups in {elapsedSeconds}s · on-device pose
             </Text>
           </View>
         ) : null}
@@ -513,7 +458,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
         {phase === 'review' && !meetsTarget ? (
           <FormButton
             label="Try again"
-            onPress={() => void beginCounting(driveMode)}
+            onPress={() => void beginCounting()}
             testID="retry-pose"
           />
         ) : null}

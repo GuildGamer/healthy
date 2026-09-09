@@ -153,7 +153,11 @@ export class ChallengesService {
     const assignments = await this.prisma.userChallenge.findMany({
       where: this.dueFilter(user.id, window),
       include: ASSIGNMENT_INCLUDE,
-      orderBy: [{ frequency: 'asc' }, { challenge: { title: 'asc' } }],
+      orderBy: [
+        { challenge: { sortOrder: 'asc' } },
+        { frequency: 'asc' },
+        { challenge: { title: 'asc' } },
+      ],
     });
 
     const challenges = assignments.map((assignment) =>
@@ -951,6 +955,7 @@ export class ChallengesService {
       description: string;
       category: HealthCategory;
       rewardPoints: number;
+      sortOrder: number;
       completionKind: ChallengeCompletionKind;
       instruction: string;
       icon: string;
@@ -970,6 +975,7 @@ export class ChallengesService {
       description: assignment.challenge.description,
       category: assignment.challenge.category,
       rewardPoints: assignment.challenge.rewardPoints,
+      sortOrder: assignment.challenge.sortOrder,
       status: assignment.status,
       frequency: assignment.frequency,
       completionKind: assignment.challenge.completionKind,

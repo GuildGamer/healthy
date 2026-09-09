@@ -2,6 +2,7 @@
 
 :root {
   --font-hero: 'Archivo Black', system-ui, sans-serif;
+  --home-inline: clamp(1.5rem, 5.833vw, 5.25rem);
 }
 
 *,
@@ -34,9 +35,11 @@ a:hover {
 
 .site-header,
 .site-footer {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 1.35rem 1.5rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1.35rem var(--home-inline);
 }
 
 .site-header {
@@ -44,7 +47,6 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  border-bottom: 1px solid var(--color-border);
 }
 
 .brand-mark {
@@ -54,7 +56,7 @@ a:hover {
   overflow: visible;
   font-family: var(--font-hero);
   font-size: 1rem;
-  color: var(--color-text);
+  color: #fefefe;
 }
 
 .brand-clip {
@@ -82,7 +84,7 @@ a:hover {
 
 .brand-mark:hover {
   text-decoration: none;
-  color: var(--color-text);
+  color: #fefefe;
 }
 
 @keyframes brand-word-in {
@@ -119,39 +121,37 @@ a:hover {
 }
 
 .nav a {
-  color: var(--color-muted);
+  color: #fefefe;
   font-size: 0.875rem;
   font-weight: 500;
 }
 
 .nav a:hover {
-  color: var(--color-text);
+  color: #fefefe;
+  opacity: 0.85;
   text-decoration: none;
 }
 
 .site-main {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 0 1.5rem 5rem;
-}
-
-.site-main:has(.band) {
-  padding-bottom: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0 var(--home-inline) 5rem;
 }
 
 .site-footer {
-  border-top: 1px solid var(--color-border);
-  color: var(--color-muted);
-  font-size: 0.8125rem;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-md);
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  padding: 2.125rem var(--home-inline) 2.5rem;
+  font-size: 0.875rem;
+  line-height: 1.3125;
+  color: #fefefe;
 }
 
-.site-footer nav {
-  display: flex;
-  gap: var(--space-md);
+.site-footer p {
+  margin: 0;
 }
 
 .legal,

@@ -57,6 +57,8 @@ export function createAdminApiQueryUtils(client: AdminApiClient) {
 
 export {
   activityMeetsTarget,
+  compareChallengeCatalogOrder,
+  compareChallengeSortOrder,
   isDeviceCapture,
   selfReportCapture,
   ISO_COUNTRY_CODES,

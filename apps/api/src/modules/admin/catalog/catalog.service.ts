@@ -23,7 +23,7 @@ export class AdminCatalogService {
     requireAdminPermission(currentAdmin, 'content');
 
     const rows = await this.prisma.challenge.findMany({
-      orderBy: [{ category: 'asc' }, { title: 'asc' }],
+      orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
       include: { _count: { select: { enrollments: true } } },
     });
 
@@ -118,6 +118,7 @@ export class AdminCatalogService {
       surpriseEvidenceChancePercent: input.surpriseEvidenceChancePercent,
       surpriseEvidenceWindowSeconds: input.surpriseEvidenceWindowSeconds,
       surpriseEvidencePenaltyPoints: input.surpriseEvidencePenaltyPoints,
+      sortOrder: input.sortOrder,
     };
   }
 
@@ -146,6 +147,7 @@ export class AdminCatalogService {
       surpriseEvidenceChancePercent: row.surpriseEvidenceChancePercent,
       surpriseEvidenceWindowSeconds: row.surpriseEvidenceWindowSeconds,
       surpriseEvidencePenaltyPoints: row.surpriseEvidencePenaltyPoints,
+      sortOrder: row.sortOrder,
       enrollmentCount: row._count.enrollments,
       updatedAt: row.updatedAt.toISOString(),
     };

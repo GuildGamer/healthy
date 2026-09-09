@@ -1,26 +1,32 @@
 ---
-import CountLoop from '../components/CountLoop.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import '../styles/home.css';
 ---
 
 <BaseLayout
   title="Healthy"
-  description="Small wins, every day. Stay healthy and challenge your friends to stay healthy."
+  description="Small wins, everyday. Stay healthy and challenge your friends to stay healthy."
 >
-  <section class="hero">
-    <div class="hero-copy">
-      <h1>Small wins, every day.</h1>
-      <p class="lede">Stay healthy and challenge your friends to stay healthy.</p>
-      <a class="button" href="/waitlist" data-waitlist-open>Join the waitlist</a>
+  <div class="home-showcase">
+    <div class="home-showcase-media" aria-hidden="true">
+      <video
+        class="home-showcase-video"
+        src="/hero-pushups.mov"
+        autoplay
+        loop
+        muted
+        playsinline
+        preload="auto"
+      ></video>
+      <div class="home-showcase-overlay"></div>
     </div>
-    <CountLoop />
-  </section>
 
-  <section class="band" aria-label="What Healthy is">
-    <p>Build healthy habits.</p>
-    <p>Track your progress.</p>
-    <p>Let us keep count.</p>
-  </section>
-
+    <div class="home-showcase-inner">
+      <div class="hero-copy">
+        <h1>Small wins, everyday</h1>
+        <p class="lede">Stay healthy and challenge your friends to stay healthy</p>
+        <a class="button" href="/waitlist" data-waitlist-open>Join the waitlist</a>
+      </div>
+    </div>
+  </div>
 </BaseLayout>

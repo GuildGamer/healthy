@@ -13,6 +13,8 @@ const {
   description = 'Staying healthy, made easy. Join the waitlist.',
 } = Astro.props;
 
+const currentYear = new Date().getFullYear();
+
 const pageTitle = title === 'Healthy' ? title : `${title} · Healthy`;
 ---
 
@@ -52,7 +54,6 @@ const pageTitle = title === 'Healthy' ? title : `${title} · Healthy`;
         </span>
       </a>
       <nav class="nav" aria-label="Primary">
-        <a href="/waitlist" data-waitlist-open>Waitlist</a>
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
       </nav>
@@ -63,12 +64,7 @@ const pageTitle = title === 'Healthy' ? title : `${title} · Healthy`;
     </main>
 
     <footer class="site-footer">
-      <p>© {new Date().getFullYear()} Healthy</p>
-      <nav aria-label="Footer">
-        <a href="/privacy">Privacy</a>
-        <a href="/terms">Terms</a>
-        <a href="/waitlist" data-waitlist-open>Waitlist</a>
-      </nav>
+      <p>All rights reserved.{currentYear}, Healthy</p>
     </footer>
 
     <WaitlistModal />

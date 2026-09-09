@@ -55,6 +55,7 @@ export const adminChallengeSchema = z.object({
   surpriseEvidenceChancePercent: z.number().int().min(0).max(100),
   surpriseEvidenceWindowSeconds: z.number().int().positive().max(3_600),
   surpriseEvidencePenaltyPoints: z.number().int().min(0).max(10_000),
+  sortOrder: z.number().int().min(0).max(10_000),
   enrollmentCount: z.number().int().nonnegative(),
   updatedAt: z.string().datetime(),
 });

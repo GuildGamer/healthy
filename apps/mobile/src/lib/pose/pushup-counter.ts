@@ -38,7 +38,7 @@ export type PushupCounterSnapshot = {
   tooClose: boolean;
   rejectReason: PushupRejectReason;
   debugFrame: PoseFrame | null;
-  /** Live QuickPose form prompt; unused on the MoveNet/guided path. */
+  /** Live QuickPose form prompt; unused on the MoveNet path. */
   coachPrompt: string | null;
 };
 

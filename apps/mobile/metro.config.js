@@ -19,6 +19,10 @@ const challengeTitleSource = path.resolve(
   __dirname,
   '../../packages/contract/src/challenge-title.ts',
 );
+const challengeSortSource = path.resolve(
+  __dirname,
+  '../../packages/contract/src/challenge-sort.ts',
+);
 const previousResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === '@product/contract/country-code') {
@@ -26,6 +30,9 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
   if (moduleName === '@product/contract/challenge-title') {
     return { type: 'sourceFile', filePath: challengeTitleSource };
+  }
+  if (moduleName === '@product/contract/challenge-sort') {
+    return { type: 'sourceFile', filePath: challengeSortSource };
   }
   if (previousResolveRequest) {
     return previousResolveRequest(context, moduleName, platform);

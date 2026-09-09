@@ -61,6 +61,7 @@ describe('mergeTodayIntoHistory', () => {
     periodKey: '2026-08-30',
     status: 'completed',
     rewardPoints: 20,
+    sortOrder: 100,
     completionKind: 'check_in',
   } as TodayChallenge;
 

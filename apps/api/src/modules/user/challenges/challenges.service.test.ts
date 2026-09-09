@@ -34,6 +34,7 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
       description: 'A brisk walk after lunch.',
       category: 'general',
       rewardPoints: 20,
+      sortOrder: 100,
       completionKind: 'check_in',
       instruction: 'Step outside and walk for twenty minutes.',
       icon: 'walk',

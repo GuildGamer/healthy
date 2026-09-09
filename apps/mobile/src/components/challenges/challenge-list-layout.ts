@@ -1,4 +1,5 @@
 import type { TodayChallenge } from '@product/client';
+import { compareChallengeSortOrder } from '@product/contract/challenge-sort';
 
 /** Free-tier cap for “today’s win” — members may finish every enrollment. */
 export const DAILY_WIN_TARGET = 2;
@@ -63,6 +64,11 @@ export function sortOpenChallengesByFocus(
     const rightStatus = FOCUS_STATUS_RANK[right.status] ?? 9;
     if (leftStatus !== rightStatus) {
       return leftStatus - rightStatus;
+    }
+
+    const sortCompare = compareChallengeSortOrder(left, right);
+    if (sortCompare !== 0) {
+      return sortCompare;
     }
 
     const leftFrequency = FREQUENCY_RANK[left.frequency] ?? 9;

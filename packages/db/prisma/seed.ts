@@ -20,6 +20,8 @@ type ChallengeSeed = {
   isDefault: boolean;
   /** Opt-in / higher-friction catalog needs membership. */
   requiresMembership?: boolean;
+  /** Lower values surface first in catalog and challenge lists. */
+  sortOrder?: number;
   completionKind?:
     | 'check_in'
     | 'vitals_bp'
@@ -230,6 +232,7 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: true,
     icon: 'walk',
+    sortOrder: 2,
     captureKind: 'device_session',
     deviceMetric: 'walk',
     targetDurationMinutes: 10,
@@ -245,6 +248,7 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: false,
     icon: 'shoe-print',
+    sortOrder: 3,
     captureKind: 'device_sample',
     deviceMetric: 'steps',
     targetCount: 5_000,
@@ -261,6 +265,7 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: false,
     icon: 'arm-flex',
+    sortOrder: 0,
     captureKind: 'device_session',
     deviceMetric: 'pushups',
     targetCount: 20,
@@ -275,6 +280,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 200,
     defaultFrequency: 'daily',
     isDefault: false,
+    sortOrder: 1,
     completionKind: 'evidence_photo',
     instruction:
       'Take a selfie at the gym. Your face and the gym (machines, racks, or the gym floor) must be visible. Photos from home will not count.',
@@ -480,6 +486,7 @@ async function main(): Promise<void> {
           challenge.surpriseEvidenceWindowSeconds ?? 60,
         surpriseEvidencePenaltyPoints:
           challenge.surpriseEvidencePenaltyPoints ?? 25,
+        sortOrder: challenge.sortOrder ?? 100,
       },
       update: {
         title: challenge.title,
@@ -491,6 +498,7 @@ async function main(): Promise<void> {
         requiresMembership:
           challenge.requiresMembership ?? !challenge.isDefault,
         isActive: true,
+        sortOrder: challenge.sortOrder ?? 100,
         completionKind,
         captureKind,
         deviceMetric: challenge.deviceMetric ?? null,

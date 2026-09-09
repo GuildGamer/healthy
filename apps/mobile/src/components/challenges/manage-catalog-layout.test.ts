@@ -20,6 +20,7 @@ function challenge(
     title: overrides.title ?? overrides.challengeId,
     description: 'desc',
     rewardPoints: 10,
+    sortOrder: 100,
     frequency: 'daily',
     completionKind: 'check_in',
     instruction: 'Do it',
@@ -34,21 +35,27 @@ function challenge(
   };
 }
 
-describe('defaultCatalogBrowseTab', () => {
-  it('opens Add so the first thing to do is find challenges', () => {
-    expect(defaultCatalogBrowseTab()).toBe('off');
-  });
-});
-
 describe('defaultCatalogCategoryFilter', () => {
-  it('opens the first category so the list starts short', () => {
+  it('opens General when available so marketing heroes show first', () => {
     expect(
-      defaultCatalogCategoryFilter(['hypertension', 'diabetes']),
-    ).toBe('hypertension');
+      defaultCatalogCategoryFilter(['hypertension', 'diabetes', 'general']),
+    ).toBe('general');
+  });
+
+  it('falls back to the first category when General is absent', () => {
+    expect(defaultCatalogCategoryFilter(['hypertension', 'diabetes'])).toBe(
+      'hypertension',
+    );
   });
 
   it('falls back to all when nothing is available', () => {
     expect(defaultCatalogCategoryFilter([])).toBe('all');
+  });
+});
+
+describe('defaultCatalogBrowseTab', () => {
+  it('opens Add so the first thing to do is find challenges', () => {
+    expect(defaultCatalogBrowseTab()).toBe('off');
   });
 });
 
@@ -143,6 +150,30 @@ describe('groupCatalogByCategory', () => {
     expect(groups[0]?.challenges.map((item) => item.challengeId)).toEqual([
       'bp',
       'bp2',
+    ]);
+  });
+
+  it('sorts within a category by sortOrder', () => {
+    const groups = groupCatalogByCategory([
+      challenge({
+        challengeId: 'walk',
+        category: 'general',
+        isEnrolled: false,
+        sortOrder: 100,
+        title: 'Walk',
+      }),
+      challenge({
+        challengeId: 'pushups',
+        category: 'general',
+        isEnrolled: false,
+        sortOrder: 0,
+        title: 'Push-ups',
+      }),
+    ]);
+
+    expect(groups[0]?.challenges.map((item) => item.challengeId)).toEqual([
+      'pushups',
+      'walk',
     ]);
   });
 });

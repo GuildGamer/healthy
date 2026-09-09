@@ -1,4 +1,5 @@
 import type { CatalogChallenge, HealthCategory } from '@product/client';
+import { compareChallengeCatalogOrder } from '@product/contract/challenge-sort';
 import { healthCategoryName } from '@/constants/health-categories';
 
 export type CatalogScope = 'all' | 'on' | 'off';
@@ -32,10 +33,17 @@ export function defaultCatalogBrowseTab(): CatalogBrowseTab {
   return 'off';
 }
 
-/** Open on one category so the first paint is a short list, not the whole catalog. */
+/** General holds the marketing heroes we surface first in Add. */
+const MARKETING_CATEGORY: HealthCategory = 'general';
+
+/** Open on General when available so push-ups and friends are visible first. */
 export function defaultCatalogCategoryFilter(
   available: readonly HealthCategory[],
 ): CatalogCategoryFilter {
+  if (available.includes(MARKETING_CATEGORY)) {
+    return MARKETING_CATEGORY;
+  }
+
   return available[0] ?? 'all';
 }
 
@@ -113,7 +121,10 @@ export function groupCatalogByCategory(
       continue;
     }
 
-    groups.push({ category, challenges: bucket });
+    groups.push({
+      category,
+      challenges: [...bucket].sort(compareChallengeCatalogOrder),
+    });
   }
 
   for (const [category, bucket] of byCategory) {
@@ -121,7 +132,10 @@ export function groupCatalogByCategory(
       continue;
     }
 
-    groups.push({ category, challenges: bucket });
+    groups.push({
+      category,
+      challenges: [...bucket].sort(compareChallengeCatalogOrder),
+    });
   }
 
   return groups;

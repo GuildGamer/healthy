@@ -24,6 +24,7 @@ const empty: UpsertAdminChallengeInput = {
   surpriseEvidenceChancePercent: 0,
   surpriseEvidenceWindowSeconds: 60,
   surpriseEvidencePenaltyPoints: 25,
+  sortOrder: 100,
 };
 
 export function ChallengeForm({
@@ -115,6 +116,14 @@ export function ChallengeForm({
             onChange={(e) => set('rewardPoints', Number(e.target.value))}
             type="number"
             value={value.rewardPoints}
+          />
+        </label>
+        <label>
+          List order
+          <input
+            onChange={(e) => set('sortOrder', Number(e.target.value))}
+            type="number"
+            value={value.sortOrder}
           />
         </label>
         <label>

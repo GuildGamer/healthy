@@ -20,6 +20,7 @@ type CatalogRow = {
   captureKind?: string;
   deviceMetric?: string | null;
   targetCount?: number | null;
+  sortOrder?: number;
 };
 
 function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
@@ -35,6 +36,7 @@ function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
     instruction: 'Ten minutes outside.',
     icon: 'walk',
     requiresMembership: false,
+    sortOrder: 100,
     ...overrides,
   };
 }
@@ -104,6 +106,23 @@ function createService(prisma: ReturnType<typeof createPrismaMock>) {
 }
 
 describe('EnrollmentsService.listCatalog', () => {
+  it('orders catalog rows by sortOrder in the database query', async () => {
+    const prisma = createPrismaMock({
+      catalog: [
+        catalogRow({ id: 'c2', slug: 'walk', title: 'Walk', sortOrder: 100 }),
+        catalogRow({ id: 'c1', slug: 'pushups', title: 'Push-ups', sortOrder: 0 }),
+      ],
+    });
+
+    await createService(prisma).listCatalog(user);
+
+    expect(prisma.challenge.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
+      }),
+    );
+  });
+
   it('falls back to the catalog cadence for a challenge with no enrolment', async () => {
     const prisma = createPrismaMock({
       catalog: [catalogRow({ defaultFrequency: 'weekly' })],
