@@ -2,7 +2,7 @@
 
 Greenfield monorepo: Expo mobile app, Astro marketing site, NestJS API, shared contract.
 
-Rename the folder and `@product` scope when the product name is final.
+Local monorepo folder: `~/healthy`. The `@product` npm scope can be renamed to `@healthy` when you want that sweep.
 
 ## Conventions (agents and humans)
 
@@ -21,12 +21,16 @@ For the mobile simulator lane, also install Xcode + CocoaPods (iOS) and/or Andro
 ## Quick start
 
 ```bash
+git clone --recurse-submodules git@github.com:GuildGamer/healthy.git
+cd healthy
 cp .env.example .env
 pnpm install
 make up          # Postgres on host port 5433 (avoids local :5432 collisions)
 make migrate     # Prisma migrations
 make seed        # Disposable local seed data
 ```
+
+If you already cloned without submodules: `git submodule update --init --recursive`.
 
 Every `make` target prints the command it runs before executing.
 
@@ -38,7 +42,7 @@ Enough when changing Nest, Prisma, contract, or the marketing site:
 make api         # NestJS on :3000
 make typecheck
 make test
-make web         # optional — Astro marketing site
+make website     # optional — Astro marketing site
 make admin       # optional — Next.js operator console on :3001 alone
                  # local login admin@example.com / admin-dev after API boot
 ```
@@ -81,7 +85,7 @@ API URL, EAS vs local Simulator, Maestro, and “as you go” checks: [`docs/tes
 | Path | Role |
 |------|------|
 | `apps/mobile` | Expo + expo-router |
-| `apps/web` | Astro marketing website |
+| `apps/website` | Astro marketing site — git submodule → [GuildGamer/healthy-website](https://github.com/GuildGamer/healthy-website) (develop here; Vercel deploys this repo) |
 | `apps/admin` | Next.js operator console (`make admin`, :3001) |
 | `apps/api` | NestJS + oRPC |
 | `packages/contract` | Zod + oRPC contract (source of truth) |
@@ -92,6 +96,7 @@ API URL, EAS vs local Simulator, Maestro, and “as you go” checks: [`docs/tes
 
 ## Deploy
 
+- **Marketing site**: develop in `apps/website` (submodule → [GuildGamer/healthy-website](https://github.com/GuildGamer/healthy-website)). Commit and push inside `apps/website` to deploy on Vercel; then commit the submodule pointer in `healthy`. After changing `packages/brand`, run `make sync-brand-tokens`. Reserve `apps/web` for the future product web app.
 - **Local / early**: Docker Compose
 - **Simple cloud**: `render.yaml` (same API Docker image)
 - **AWS**: CDK stacks in `infra/` when Activate credits or scale require it

@@ -1,6 +1,6 @@
 ---
 description: Astro marketing site — static-first, separate from the mobile app
-globs: apps/web/**/*
+globs: apps/website/**/*
 alwaysApply: false
 ---
 
@@ -8,8 +8,9 @@ alwaysApply: false
 
 ## Role
 
-`apps/web` is the **marketing / legal / waitlist** surface. It is not the mobile app
-and not a full product SPA unless the human explicitly expands scope.
+`apps/website` is the **marketing / legal / waitlist** surface. It is not the mobile app,
+not the future product web app (`apps/web`), and not a full product SPA unless the human
+explicitly expands scope.
 
 ## Stack discipline
 
@@ -19,9 +20,9 @@ and not a full product SPA unless the human explicitly expands scope.
 
 ## Sharing
 
-- Brand tokens/assets: `@product/brand`.
+- Brand tokens: vendored at `apps/website/src/brand/tokens.css` (sync from `@product/brand` via `make sync-brand-tokens`).
 - Do **not** share React Native components with the website.
-- API calls (waitlist, etc.) go through the contract/client — not ad-hoc backends in Astro.
+- Waitlist uses Formspree (`PUBLIC_WAITLIST_FORM_URL`) — no API dependency for marketing deploy.
 
 ## SEO and legal
 

@@ -19,7 +19,7 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 |------|------|
 | `03-contract-first` | `packages/contract`, `packages/client`, `apps/api` |
 | `06-mobile` | `apps/mobile` |
-| `07-web` | `apps/web` |
+| `07-website` | `apps/website` |
 | `11-admin` | `apps/admin`, `apps/api/src/modules/admin` |
 | `09-prisma` | `packages/db` |
 | `10-typescript` | `*.ts` / `*.tsx` |

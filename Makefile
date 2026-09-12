@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help install up down logs migrate migrate-deploy seed api mobile ios android web admin e2e-web build typecheck test test-integration openapi openapi-check split-repos lane-b lane-b-stop lane-b-restart lane-b-status lane-b-logs
+.PHONY: help install up down logs migrate migrate-deploy seed api mobile ios android website admin e2e-website build typecheck test test-integration openapi openapi-check split-repos sync-brand-tokens lane-b lane-b-stop lane-b-restart lane-b-status lane-b-logs
 
 help:
 	@echo "Available targets:"; grep -E '^[a-zA-Z0-9_-]+:' Makefile | cut -d: -f1 | sort
@@ -71,17 +71,17 @@ android:
 	@echo "+ pnpm --filter @product/mobile android"
 	@pnpm --filter @product/mobile android
 
-web:
-	@echo "+ pnpm --filter @product/web dev"
-	@pnpm --filter @product/web dev
+website:
+	@echo "+ pnpm --filter @product/website dev"
+	@pnpm --filter @product/website dev
 
 admin:
 	@echo "+ pnpm --filter @product/admin dev"
 	@pnpm --filter @product/admin dev
 
-e2e-web:
-	@echo "+ pnpm --filter @product/web test:e2e"
-	@pnpm --filter @product/web test:e2e
+e2e-website:
+	@echo "+ pnpm --filter @product/website test:e2e"
+	@pnpm --filter @product/website test:e2e
 
 build:
 	@echo "+ pnpm build"
@@ -110,3 +110,7 @@ openapi-check:
 split-repos:
 	@echo "+ bash scripts/split-repos.sh"
 	@bash scripts/split-repos.sh
+
+sync-brand-tokens:
+	@echo "+ bash scripts/sync-brand-tokens.sh"
+	@bash scripts/sync-brand-tokens.sh

@@ -10,7 +10,7 @@ alwaysApply: false
 
 - `apps/admin` is the **operator console** (Next.js). It is not the marketing
   site and not the mobile app.
-- `apps/web` stays Astro. Do not move marketing pages to Next.
+- `apps/website` stays Astro. Do not move marketing pages to Next.
 - Member tokens never authorize admin routes. Admin tokens never authorize
   member routes.
 

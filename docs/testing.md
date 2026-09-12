@@ -48,13 +48,13 @@ Then:
 make typecheck
 make test
 make openapi-check   # when contract or oRPC handlers changed
-make web             # optional marketing site
-make e2e-web         # Playwright homepage smoke
+make website         # optional marketing site
+make e2e-website     # Playwright homepage smoke
 ```
 
 Manual checks when those paths changed:
 
-- Waitlist: site `/waitlist` → API `POST /waitlist`
+- Waitlist: site `/waitlist` → Formspree (`PUBLIC_WAITLIST_FORM_URL`)
 - `/me` only with a session (no mobile auth UI yet)
 
 ## Lane B — API + mobile + admin
@@ -125,7 +125,7 @@ maestro test apps/mobile/.maestro/home.yml
 | Contract / API | Edit `packages/contract` first → implement in `apps/api` → `make typecheck` → `make test` → `make openapi-check` → curl touched routes |
 | Persistence | `make migrate` (and `make seed` if seed data matters) |
 | Mobile JS only | `make mobile` + Simulator smoke; rebuild native only after plugins / `app.config` / SDK changes |
-| Web | `make web` + `make e2e-web`; waitlist form against a running API |
+| Website | `make website` + `make e2e-website`; waitlist form via Formspree (`PUBLIC_WAITLIST_FORM_URL`) |
 
 ## Automated layers
 
