@@ -1,12 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import type { ComponentProps, ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChallengeIcon } from '@/components/challenges/ChallengeIcon';
-import { PUSHUP_ICON_NAME } from '@/components/challenges/challenge-icon';
 import { podiumMedalColor } from '@/components/leaderboard/podium';
+import type { MatchActivity } from './match-metric';
 
-export const MATCH_CARD_RADIUS = radii.md;
 export const MATCH_HERO_SIZE = 34;
 export const MATCH_HERO_LINE = 38;
 
@@ -33,8 +32,15 @@ export function MatchCard({
   );
 }
 
-export function MatchRankMark({ rank }: { rank: number }) {
-  const medal = podiumMedalColor(rank);
+/** A medal before the player has logged anything is a place nobody earned. */
+export function MatchRankMark({
+  rank,
+  scored,
+}: {
+  rank: number;
+  scored: boolean;
+}) {
+  const medal = scored ? podiumMedalColor(rank) : undefined;
 
   return (
     <View style={styles.rankWell}>
@@ -47,37 +53,51 @@ export function MatchRankMark({ rank }: { rank: number }) {
   );
 }
 
-export function MatchInitial({
-  name,
-  accent = false,
+/** A tertiary action that should not compete with the screen's primary button. */
+export function MatchChip({
+  icon,
+  label,
+  onPress,
+  testID,
 }: {
-  name: string;
-  accent?: boolean;
+  icon: ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+  testID?: string;
 }) {
-  const letter = name.trim().charAt(0).toUpperCase() || '?';
-
   return (
-    <View style={[styles.initial, accent ? styles.initialAccent : null]}>
-      <Text
-        style={[styles.initialLetter, accent ? styles.initialLetterAccent : null]}
-      >
-        {letter}
-      </Text>
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.chip, pressed ? styles.chipPressed : null]}
+      testID={testID}
+    >
+      <Ionicons color={colors.text} name={icon} size={16} />
+      <Text style={styles.chipLabel}>{label}</Text>
+    </Pressable>
   );
 }
 
-export function MatchMetricMark({
+export function MatchActivityMark({
+  activity,
   size = 'md',
 }: {
+  activity: MatchActivity;
   size?: 'sm' | 'md';
 }) {
+  return <ChallengeIcon category="general" name={activity.icon} size={size} />;
+}
+
+/**
+ * Stands in for the metric mark on surfaces that exist before any contest
+ * does. An empty groups list has no activity to draw yet, and picking one
+ * would promise the host a contest they have not chosen.
+ */
+export function MatchGroupMark() {
   return (
-    <ChallengeIcon
-      category="general"
-      name={PUSHUP_ICON_NAME}
-      size={size}
-    />
+    <View style={styles.groupMark}>
+      <Ionicons color={colors.accent} name="people" size={26} />
+    </View>
   );
 }
 
@@ -91,11 +111,21 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: MATCH_CARD_RADIUS,
+    borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.sm,
   },
   cardEmphasized: {
+    backgroundColor: colors.accentSurface,
+    borderColor: colors.accentContainer,
+    borderWidth: 1,
+  },
+  groupMark: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.lg,
     backgroundColor: colors.accentSurface,
     borderColor: colors.accentContainer,
     borderWidth: 1,
@@ -113,23 +143,24 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
-  initial: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  chip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceRaised,
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  initialAccent: {
-    backgroundColor: colors.accentContainer,
+  chipPressed: {
+    opacity: 0.7,
   },
-  initialLetter: {
+  chipLabel: {
     color: colors.text,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
-  },
-  initialLetterAccent: {
-    color: colors.accent,
   },
 });

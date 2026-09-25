@@ -12,12 +12,13 @@ import { formatRelativeTime } from './relative-time';
 
 const kindIcon: Record<
   NotificationKind,
-  'check-circle' | 'bell' | 'camera' | 'alert-circle'
+  'check-circle' | 'bell' | 'camera' | 'alert-circle' | 'users'
 > = {
   success: 'check-circle',
   reminder: 'bell',
   evidence: 'camera',
   penalty: 'alert-circle',
+  social: 'users',
 };
 
 function closeInbox(router: ReturnType<typeof useRouter>) {

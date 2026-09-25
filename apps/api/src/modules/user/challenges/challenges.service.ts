@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server';
 import {
   displayChallengeTitle,
   fieldProgress,
+  practiceActivityReason,
   resolveEnrollmentTargetCount,
   toChallengeCapture,
   toChallengeIcon,
@@ -29,13 +30,19 @@ import {
   previousDayKey,
 } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
+import {
+  canAccessChallenge,
+  challengeAccessFilter,
+} from '../../../shared/membership/entitlements.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
   createAcceptEvidenceValidator,
   EVIDENCE_VALIDATOR,
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
+import { PracticeService } from '../practice/index.js';
 import type {
+  ActivityItemDto,
   CompleteChallengeDto,
   ListActivityDto,
   ListChallengeHistoryDto,
@@ -65,6 +72,9 @@ import {
 } from './history.js';
 import { requireLogFor, type ChallengeLogPayload } from './logs.js';
 import { requireVitalsFor, type ChallengeVitalsInput } from './vitals.js';
+
+/** Rows returned by the activity feed, per source, before the merge is trimmed. */
+const ACTIVITY_PAGE_SIZE = 50;
 
 type AssignmentRecord = UserChallenge & {
   challenge: Challenge;
@@ -126,6 +136,7 @@ export class ChallengesService {
 
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
+    private readonly practice: PracticeService,
     @Inject(EVIDENCE_VALIDATOR)
     private readonly evidenceValidator: EvidenceValidator = createAcceptEvidenceValidator(),
     @Optional()
@@ -144,14 +155,20 @@ export class ChallengesService {
     currentUser: AuthenticatedUser | null | undefined,
   ): Promise<ListTodayChallengesDto> {
     const user = requireUser(currentUser);
-    const timeZone = await this.timeZoneFor(user.id);
+    const [timeZone, membershipActive] = await Promise.all([
+      this.timeZoneFor(user.id),
+      this.membershipActiveFor(user.id),
+    ]);
     const window = this.dueWindow(timeZone);
 
     await this.settleExpiredEvidence(user.id);
-    await this.materialiseDueOccurrences(user.id, window);
+    await this.materialiseDueOccurrences(user.id, window, membershipActive);
 
     const assignments = await this.prisma.userChallenge.findMany({
-      where: this.dueFilter(user.id, window),
+      where: {
+        ...this.dueFilter(user.id, window),
+        challenge: challengeAccessFilter(membershipActive),
+      },
       include: ASSIGNMENT_INCLUDE,
       orderBy: [
         { challenge: { sortOrder: 'asc' } },
@@ -714,25 +731,48 @@ export class ChallengesService {
     };
   }
 
+  /**
+   * The activity feed is the points ledger merged with practice sessions, which
+   * are recorded but unrewarded. Both sources are read at the page size, then
+   * trimmed together so the newest rows win regardless of which source they
+   * came from.
+   */
   async listActivity(
     currentUser: AuthenticatedUser | null | undefined,
   ): Promise<ListActivityDto> {
     const user = requireUser(currentUser);
 
-    const entries = await this.prisma.pointLedgerEntry.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    const [entries, practice] = await Promise.all([
+      this.prisma.pointLedgerEntry.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        take: ACTIVITY_PAGE_SIZE,
+      }),
+      this.practice.listRecent(user.id, ACTIVITY_PAGE_SIZE),
+    ]);
 
-    return {
-      items: entries.map((entry) => ({
+    const items: ActivityItemDto[] = [
+      ...entries.map((entry) => ({
         id: entry.id,
         delta: entry.delta,
         reason: entry.reason,
         createdAt: entry.createdAt.toISOString(),
+        kind: 'points' as const,
+        count: null,
       })),
-    };
+      ...practice.map((session) => ({
+        id: session.id,
+        delta: 0,
+        reason: practiceActivityReason(session.metric),
+        createdAt: session.recordedAt,
+        kind: 'practice' as const,
+        count: session.count,
+      })),
+    ];
+
+    items.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+    return { items: items.slice(0, ACTIVITY_PAGE_SIZE) };
   }
 
   async listHistory(
@@ -820,9 +860,17 @@ export class ChallengesService {
   private async materialiseDueOccurrences(
     userId: string,
     window: DueWindow,
+    membershipActive: boolean,
   ): Promise<void> {
     const enrollments = await this.prisma.challengeEnrollment.findMany({
-      where: { userId, isActive: true, challenge: { isActive: true } },
+      where: {
+        userId,
+        isActive: true,
+        challenge: {
+          isActive: true,
+          ...challengeAccessFilter(membershipActive),
+        },
+      },
       select: { id: true, challengeId: true, frequency: true },
     });
 
@@ -884,7 +932,43 @@ export class ChallengesService {
       });
     }
 
+    await this.assertChallengeAccess(userId, assignment.challenge);
+
     return assignment;
+  }
+
+  /**
+   * Every occurrence mutation — start, draft, complete, skip — passes through
+   * `findOwnedAssignment`, so a lapsed membership cannot keep playing a paid
+   * challenge that was already on the board when it lapsed.
+   */
+  private async assertChallengeAccess(
+    userId: string,
+    challenge: { requiresMembership: boolean },
+  ): Promise<void> {
+    if (!challenge.requiresMembership) {
+      return;
+    }
+
+    const membershipActive = await this.membershipActiveFor(userId);
+
+    if (canAccessChallenge({ requiresMembership: true, membershipActive })) {
+      return;
+    }
+
+    throw new ORPCError('FORBIDDEN', {
+      message: 'Membership is required for this challenge',
+      data: { reason: 'membership_required' },
+    });
+  }
+
+  private async membershipActiveFor(userId: string): Promise<boolean> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { membershipActive: true },
+    });
+
+    return profile?.membershipActive ?? false;
   }
 
   private async ensureProfile(userId: string) {

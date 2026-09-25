@@ -14,7 +14,7 @@ export class MatchesController {
   createMatch(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;
     return implement(appContract.createMatch).handler(async ({ input }) => {
-      return this.matchesService.create(user, input.window);
+      return this.matchesService.create(user, input);
     });
   }
 

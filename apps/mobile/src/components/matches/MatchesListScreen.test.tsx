@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 import { apiClient } from '@/lib/api';
+import { MATCH_EMPTY_STEPS } from './match-copy';
 import { MatchesListScreen } from './MatchesListScreen';
 
 jest.mock('@/lib/api', () => ({
@@ -13,10 +14,10 @@ jest.mock('@/lib/api', () => ({
 }));
 
 jest.mock('expo-router', () => {
-  const push = jest.fn();
+  const navigate = jest.fn();
   const setOptions = jest.fn();
   return {
-    useRouter: () => ({ push }),
+    useRouter: () => ({ navigate }),
     useNavigation: () => ({ setOptions }),
   };
 });
@@ -47,12 +48,27 @@ function renderList() {
 }
 
 describe('MatchesListScreen', () => {
-  it('offers create when the list is empty', async () => {
+  it('teaches the loop and offers create when the list is empty', async () => {
     mockedApi.listMyMatches.mockResolvedValue({ live: [], ended: [] });
     const { cleanup } = renderList();
 
     expect(await screen.findByTestId('matches-empty')).toBeOnTheScreen();
     expect(screen.getByTestId('matches-empty-create')).toBeOnTheScreen();
+    for (const step of MATCH_EMPTY_STEPS) {
+      expect(screen.getByText(step.title)).toBeOnTheScreen();
+    }
+
+    await cleanup();
+  });
+
+  // Groups run on whatever challenge the host picks, and that set grows past
+  // push-ups. The front door must not promise one activity.
+  it('names no activity in the empty state', async () => {
+    mockedApi.listMyMatches.mockResolvedValue({ live: [], ended: [] });
+    const { cleanup } = renderList();
+
+    await screen.findByTestId('matches-empty');
+    expect(screen.queryByText(/push-?ups/i)).toBeNull();
 
     await cleanup();
   });
@@ -68,7 +84,7 @@ describe('MatchesListScreen', () => {
           endsAt: '2026-09-05T21:00:00.000Z',
           status: 'open',
           participantCount: 2,
-          yourBestCount: 12,
+          yourScore: 12,
           yourRank: 1,
         },
       ],
@@ -80,15 +96,15 @@ describe('MatchesListScreen', () => {
     fireEvent.press(screen.getByTestId('open-match-m1'));
     const { useNavigation, useRouter } = jest.requireMock('expo-router') as {
       useNavigation: () => { setOptions: jest.Mock };
-      useRouter: () => { push: jest.Mock };
+      useRouter: () => { navigate: jest.Mock };
     };
-    expect(useRouter().push).toHaveBeenCalledWith('/matches/m1');
+    expect(useRouter().navigate).toHaveBeenCalledWith('/matches/m1');
 
     const headerRight = useNavigation().setOptions.mock.calls.at(-1)?.[0]
       ?.headerRight as () => ReactElement;
     const header = render(headerRight());
     fireEvent.press(header.getByTestId('matches-create'));
-    expect(useRouter().push).toHaveBeenCalledWith('/matches/create');
+    expect(useRouter().navigate).toHaveBeenCalledWith('/matches/create');
     header.unmount();
 
     await cleanup();

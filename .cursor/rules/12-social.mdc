@@ -1,0 +1,120 @@
+---
+description: Social features — one group primitive, no feed, no follow graph
+globs: apps/api/src/modules/user/matches/**/*,apps/mobile/src/components/matches/**/*,packages/contract/src/matches.ts,packages/contract/src/match-board.ts
+alwaysApply: false
+---
+
+# Social
+
+Rationale and delivery plan: [`docs/social.md`](../../docs/social.md).
+
+## One place
+
+Social has one place: a **group challenge** — a private, time-boxed,
+invite-link contest over a shared goal. Built by extending the existing `Match`
+primitive: host, invite token, metric, scoring mode, window, capped
+participants, standings, lazy settlement.
+
+Do not add a follow graph, an activity feed, comments, clubs, or a public group
+directory.
+
+A **crew** is a saved roster, not a place. It may appear in the create flow and
+in a management list, and nowhere else. A crew has no feed, no board, no home
+surface, and no notifications of its own — if it grows one it has become a
+club. Crews are saved from a finished contest, never assembled from scratch.
+
+## Consent
+
+Members seated from a crew are pending until they open the contest: no scoring,
+no nudges, greyed in standings. Any member may leave a crew, not just its
+owner, and leaving blocks re-adding. The person being added holds the veto.
+
+Enforce both structurally, not by convention. Leaving sets `CrewMember.leftAt`
+so the unique key blocks re-adding; do not hard-delete the row. Pending members
+get no progress entry in `computeStandings`, so passing their events in cannot
+score them, and `days_completed` must not even query a pending member's
+challenge rows.
+
+## Identity
+
+`User.name`, `UserProfile.displayName`, and the `publicNameFor` pseudonym are
+the identity strings that exist. Do not add a fourth without an explicit product
+decision.
+
+If usernames ever ship they are a **lookup key, displayed nowhere**, resolved by
+exact match only — no search, no autocomplete, no directory — rate-limited, and
+opt-in with a default of false.
+
+## Surface
+
+- No fifth tab. Groups live under the Challenges tab as a segment.
+- One primary action per screen.
+- Reuse the `MatchBoardScreen` layout, but not its chrome — the match card kit
+  drifted from the app (see "Visual consistency" in `docs/social.md`). Group
+  lists and standings are divider lists matching `LeaderboardScreen` and
+  `ChallengesScreen`, not per-row cards.
+- Reactions are one tap and finite (cheer, nudge). No free text in group UI.
+
+## Score
+
+Group score derives from work the member already logs — `UserChallenge`
+completions for `days_completed` (all of them, or only those of the contest's
+activity when the host narrowed the scope), `MatchAttempt` for the
+attempt-driven modes, plus the member's own tracked walks (`DeviceActivityLog`)
+for a walk contest. Never require a second log of the same activity.
+
+Only sensor-measured work scores. A hand-confirmed walk stays out of the
+standings: a score anybody can type is not one the rest of the group can trust.
+
+`computeStandings` takes an accumulator and ranks every mode the same way:
+score first, then who reached that score first. Add a mode by adding a fold
+step, never a parallel ranking function.
+
+`cumulative_total` caps what one day contributes, per metric
+(`MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC`). Volume modes must not reward grinding
+a single session.
+
+Which modes a metric can run lives in `MATCH_MODES_BY_METRIC`; the client
+filters to it and the contract rejects the rest. A new metric is entries in the
+contract maps plus `match-metric.ts` on mobile — never a hardcoded activity
+name in a screen.
+
+How short a contest a mode can run lives in `MATCH_MIN_DAYS_BY_SCORING_MODE`,
+and the shortcut tiles (`MATCH_WINDOWS_BY_SCORING_MODE`) are derived from it.
+The client filters to them and the contract rejects the rest; do not restate
+the matrix or add a second rule for custom lengths.
+
+A length is a preset `window` or a `durationDays` count, never both. One
+resolver (`resolveMatchLength`) turns either into a `MatchLength`, so no
+caller carries a precedence rule.
+
+New scoring modes need a product decision, not a convenient addition.
+
+## Privacy
+
+- Display name inside a group; pseudonym on the global leaderboard
+  (`publicNameFor`). Do not leak one into the other.
+- A group is defined by an activity, never a health category. `days_completed`
+  counts any finished daily occurrence by default (`dailyScope: any_challenge`),
+  so a board cannot imply a diagnosis. A host may narrow it to the contest's own
+  activity (`chosen_activity`), which scopes by `Challenge.deviceMetric` — an
+  activity, still never a category. Do not bind a group to one named challenge
+  without revisiting that.
+- Standings carry a name and a score. No category, no vitals, no challenge
+  history from outside the group.
+- Invite-only. No discovery, no public listing.
+
+## Lifecycle
+
+Every group has an end. Settlement stays lazy-on-read; do not introduce a
+background settler. Re-engagement is "Run it back", not an open-ended club.
+
+## Notifications
+
+At most one group push per group per day, plus the settlement result. Cheers and
+nudges are rate-limited and idempotent on `(groupId, fromUserId, toUserId, day)`.
+
+## Contract
+
+Additive changes only — new enum values and optional fields. Store clients
+linger and `oasdiff` must stay green.

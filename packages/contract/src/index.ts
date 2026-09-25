@@ -28,6 +28,12 @@ import {
 } from './challenge-logging.js';
 import { countryCodeSchema } from './country-code.js';
 import {
+  leaveCrewContract,
+  listCrewsContract,
+  renameCrewContract,
+  saveCrewContract,
+} from './crews.js';
+import {
   cancelMatchContract,
   createMatchContract,
   getMatchContract,
@@ -36,9 +42,30 @@ import {
   previewMatchContract,
   submitMatchAttemptContract,
 } from './matches.js';
-import { getMembershipOfferContract } from './membership.js';
+import {
+  getMembershipOfferContract,
+  syncApplePurchaseContract,
+} from './membership.js';
+import {
+  getPracticeTotalsContract,
+  recordPracticeSessionContract,
+} from './practice.js';
 
 export { challengeSpecIssue } from './challenge-spec.js';
+export {
+  getPracticeTotalsContract,
+  practiceActivityReason,
+  practiceSessionSchema,
+  practiceTotalsSchema,
+  recordPracticeSessionContract,
+  recordPracticeSessionInputSchema,
+} from './practice.js';
+export type {
+  PracticeSession,
+  PracticeTotals,
+  RecordPracticeSessionInput,
+  RecordPracticeSessionOutput,
+} from './practice.js';
 export {
   ISO_COUNTRY_CODES,
   countryCodeSchema,
@@ -64,7 +91,6 @@ export {
   updateHealthLinkInputSchema,
 } from './challenge-capture.js';
 export {
-  countInWords,
   displayChallengeTitle,
   formatPushupChallengeTitle,
 } from './challenge-title.js';
@@ -181,13 +207,20 @@ export {
   membershipCurrencySchema,
   membershipIntervalSchema,
   membershipPaymentMethodIdSchema,
+  subscriptionProviderSchema,
+  subscriptionStatusSchema,
 } from './membership.js';
 export { formatMembershipAmount, resolveMembershipMarketKey } from './membership-format.js';
 export type {
   MembershipCurrency,
+  MembershipCurrentSubscription,
   MembershipInterval,
   MembershipOffer,
+  MembershipOfferedPlan,
   MembershipPaymentMethodId,
+  SubscriptionProvider,
+  SubscriptionStatus,
+  SyncApplePurchaseOutput,
 } from './membership.js';
 
 export const challengeVitalsSchema = z.object({
@@ -226,7 +259,7 @@ export const meOutputSchema = z.object({
   inProgressNudgeDelayMinutes: z.number().int().min(5).max(1_440),
   /** Whether this installation may read Health / Health Connect samples. */
   healthLinkStatus: healthLinkStatusSchema,
-  /** Paid membership entitlements (checkout later). */
+  /** Paid membership entitlements. Derived from the subscription domain. */
   hasMembership: z.boolean(),
   /** Reminder slots allowed per challenge for this member. */
   maxRemindersPerChallenge: z.number().int().positive(),
@@ -311,6 +344,8 @@ export const notificationKindSchema = z.enum([
   'success',
   'evidence',
   'penalty',
+  /** From another person rather than a clock — today, a crew seating you. */
+  'social',
 ]);
 
 /** Open surprise-photo window after a check-in or vitals completion. */
@@ -495,11 +530,17 @@ export const skipChallengeEvidenceInputSchema = z.object({
   userChallengeId: z.string().min(1),
 });
 
+export const activityItemKindSchema = z.enum(['points', 'practice']);
+
 export const activityItemSchema = z.object({
   id: z.string(),
+  /** Points moved. Always zero for a `practice` row, which earns nothing. */
   delta: z.number().int(),
   reason: z.string(),
   createdAt: z.string().datetime(),
+  kind: activityItemKindSchema,
+  /** Reps behind a `practice` row. Null on the points ledger. */
+  count: z.number().int().nonnegative().nullable(),
 });
 
 export const listActivityOutputSchema = z.object({
@@ -731,6 +772,7 @@ export const appContract = {
   waitlist: waitlistContract,
   listTips: listTipsContract,
   getMembershipOffer: getMembershipOfferContract,
+  syncApplePurchase: syncApplePurchaseContract,
   createMatch: createMatchContract,
   listMyMatches: listMyMatchesContract,
   previewMatch: previewMatchContract,
@@ -738,6 +780,12 @@ export const appContract = {
   getMatch: getMatchContract,
   submitMatchAttempt: submitMatchAttemptContract,
   cancelMatch: cancelMatchContract,
+  listCrews: listCrewsContract,
+  saveCrew: saveCrewContract,
+  renameCrew: renameCrewContract,
+  leaveCrew: leaveCrewContract,
+  recordPracticeSession: recordPracticeSessionContract,
+  getPracticeTotals: getPracticeTotalsContract,
 };
 
 export type AppContract = typeof appContract;
@@ -822,17 +870,37 @@ export type RegisterPushDeviceInput = z.infer<
 >;
 
 export {
-  MATCH_INVITE_SCHEME,
+  MATCH_ATTEMPT_MAX_BY_METRIC,
+  MATCH_ATTEMPT_SOURCE_BY_METRIC,
+  MATCH_CUMULATIVE_DAILY_CAP,
+  MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC,
+  MATCH_LENGTH_MAX_DAYS,
+  MATCH_LENGTH_MIN_DAYS,
+  MATCH_MIN_DAYS_BY_SCORING_MODE,
+  MATCH_MODES_BY_METRIC,
   MATCH_PARTICIPANT_CAP,
+  MATCH_PRESET_DAYS,
+  MATCH_WINDOWS_BY_SCORING_MODE,
+  isLengthAllowedForScoringMode,
+  isScoringModeAllowedForMetric,
+  isWindowAllowedForScoringMode,
   matchContestTitle,
   matchInviteUrl,
+  matchLengthDays,
+  matchScoreUnit,
+  matchWindowLength,
+  resolveMatchLength,
 } from './matches.js';
 export type {
   CreateMatchInput,
   CreateMatchOutput,
   ListMyMatchesOutput,
+  MatchAttemptSource,
   MatchBoard,
+  MatchDailyScope,
+  MatchDurationDays,
   MatchInviteLink,
+  MatchLength,
   MatchListItem,
   MatchMetric,
   MatchPreview,
@@ -840,5 +908,16 @@ export type {
   MatchStanding,
   MatchStatus,
   MatchWindow,
+  ResolvedCreateMatchInput,
   SubmitMatchAttemptInput,
 } from './matches.js';
+
+export { CREW_NAME_MAX, crewLabel, crewNameSchema, crewSchema } from './crews.js';
+export type {
+  Crew,
+  CrewIdInput,
+  ListCrewsOutput,
+  RenameCrewInput,
+  SaveCrewInput,
+  SaveCrewOutput,
+} from './crews.js';

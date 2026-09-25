@@ -169,7 +169,6 @@ export class EnrollmentsService {
       !canEnrollInChallenge({
         requiresMembership: challenge.requiresMembership,
         membershipActive,
-        currentlyEnrolled: existing?.isActive ?? false,
         enrolling: isEnrolled,
       })
     ) {

@@ -15,6 +15,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Loader, RefreshableScroll } from '@/components/feedback';
 import { ConnectHealthSheet } from '@/components/health/ConnectHealthSheet';
 import { healthCategories } from '@/constants/health-categories';
+import {
+  canOpenWriteReviewPage,
+  openWriteReviewPage,
+} from '@/lib/app-review';
 import { signOut, useSession } from '@/lib/auth-client';
 import { apiClient } from '@/lib/api';
 import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
@@ -398,6 +402,19 @@ export function ProfileScreen() {
           onPress={() => router.push('/edit-profile')}
           testID="open-edit-profile"
         />
+        {canOpenWriteReviewPage() ? (
+          <>
+            <View style={styles.divider} />
+            <LinkRow
+              hint="Opens the store so you can leave stars and a review"
+              label="Rate the app"
+              onPress={() => {
+                void openWriteReviewPage();
+              }}
+              testID="open-rate-app"
+            />
+          </>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Nudges</Text>
         <PreferenceRow

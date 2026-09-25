@@ -89,7 +89,7 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess({
       completedCount: 25,
       targetCount: 20,
-      title: 'Do twenty push-ups',
+      title: 'Do 20 push-ups',
       pointsAwarded: 150,
     });
 
@@ -106,8 +106,8 @@ describe('ChallengeSuccessScreen share card', () => {
     });
 
     expect(screen.getByText('25')).toBeOnTheScreen();
-    expect(screen.getAllByText('Match set').length).toBeGreaterThan(0);
-    expect(screen.getByText('Back to match')).toBeOnTheScreen();
+    expect(screen.getAllByText('Group set').length).toBeGreaterThan(0);
+    expect(screen.getByText('Back to group')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('challenge-success-done'));
     const { useRouter } = jest.requireMock('expo-router') as {

@@ -31,7 +31,7 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 jest.mock('expo-location', () => ({
-  Accuracy: { Balanced: 3 },
+  Accuracy: { Balanced: 3, High: 4 },
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
   requestForegroundPermissionsAsync: jest.fn(async () => ({
     status: 'granted',
@@ -45,6 +45,12 @@ jest.mock('expo-sensors', () => ({
     getPermissionsAsync: jest.fn(async () => ({ granted: false })),
     requestPermissionsAsync: jest.fn(async () => ({ granted: false })),
     getStepCountAsync: jest.fn(async () => ({ steps: 0 })),
+    watchStepCount: jest.fn(() => ({ remove: jest.fn() })),
+  },
+  Accelerometer: {
+    isAvailableAsync: jest.fn(async () => false),
+    setUpdateInterval: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
   },
 }));
 
@@ -57,8 +63,17 @@ jest.mock('react-native-maps', () => {
   function MockPolyline() {
     return null;
   }
+  function MockMarker() {
+    return null;
+  }
   MockMapView.Polyline = MockPolyline;
-  return { __esModule: true, default: MockMapView, Polyline: MockPolyline };
+  MockMapView.Marker = MockMarker;
+  return {
+    __esModule: true,
+    default: MockMapView,
+    Marker: MockMarker,
+    Polyline: MockPolyline,
+  };
 });
 
 jest.mock('expo-secure-store', () => ({
@@ -86,3 +101,35 @@ jest.mock('quickpose-camera', () => {
     QuickPoseCameraView: MockQuickPoseCameraView,
   };
 });
+
+jest.mock('expo-iap', () => ({
+  useIAP: () => ({
+    connected: true,
+    requestPurchase: jest.fn(async () => undefined),
+    finishTransaction: jest.fn(async () => undefined),
+    getAvailablePurchases: jest.fn(async () => undefined),
+    restorePurchases: jest.fn(async () => undefined),
+  }),
+  fetchProducts: jest.fn(async () => [
+    { id: 'com.healthyapp.app.premium.month' },
+  ]),
+  finishTransaction: jest.fn(async () => undefined),
+  getAvailablePurchases: jest.fn(async () => []),
+  requestPurchase: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-haptics', () => ({
+  notificationAsync: jest.fn(async () => undefined),
+  NotificationFeedbackType: {
+    Success: 'success',
+    Warning: 'warning',
+    Error: 'error',
+  },
+}));
+
+jest.mock('expo-store-review', () => ({
+  hasAction: jest.fn(async () => true),
+  isAvailableAsync: jest.fn(async () => true),
+  requestReview: jest.fn(async () => undefined),
+  storeUrl: jest.fn(() => null),
+}));

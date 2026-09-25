@@ -19,6 +19,53 @@ export const POSE_TRACKING_WEAK =
 export const POSE_MOVE_INTO_FRAME =
   'Move into frame. Head, torso, arms, and legs should all be visible.';
 
+export const POSE_TARGET_BADGE = 'Target hit';
+
+export const PRACTICE_SESSION_TITLE = 'Push-ups';
+
+/** Sets the expectation before the user submits an unscored set. */
+export const POSE_PRACTICE_HINT = 'Saved to your activity · no points, no streak';
+
+export type PoseSessionMode = 'challenge' | 'match' | 'practice';
+
+/** Heading on the review card once counting stops. */
+export function poseReviewTitle(input: {
+  mode: PoseSessionMode;
+  count: number;
+  meetsTarget: boolean;
+}): string {
+  if (input.count === 0) {
+    return 'No reps yet';
+  }
+
+  if (input.mode === 'match') {
+    return 'Set ready';
+  }
+
+  if (input.mode === 'practice') {
+    return 'Set recorded';
+  }
+
+  return input.meetsTarget ? 'Target reached' : 'Short of the target';
+}
+
+/**
+ * Pill on the live counter once the required reps are in, so extra reps never
+ * leave the user guessing whether the target already landed. Null while short.
+ */
+export function poseTargetBadge(input: {
+  count: number;
+  target: number;
+}): string | null {
+  if (input.target <= 0 || input.count < input.target) {
+    return null;
+  }
+
+  const extra = input.count - input.target;
+
+  return extra === 0 ? POSE_TARGET_BADGE : `${POSE_TARGET_BADGE} · +${extra}`;
+}
+
 /** Large on-camera prompt. Framing first, then QuickPose form copy. */
 export function poseCoachBanner(input: {
   tooClose: boolean;

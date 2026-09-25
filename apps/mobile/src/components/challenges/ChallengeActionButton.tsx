@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { PRACTICE_AGAIN_SHORT_LABEL } from './practice-entry';
 
 /**
  * The pill is 32pt tall so it sits comfortably in a list row; hit slop pads the
@@ -29,6 +30,8 @@ type ChallengeActionButtonProps = {
   isBusy: boolean;
   onPress: () => void;
   testID?: string;
+  /** A finished challenge that still invites free, unscored sets. */
+  offersPractice?: boolean;
 };
 
 /**
@@ -43,13 +46,41 @@ export function ChallengeActionButton({
   isBusy,
   onPress,
   testID,
+  offersPractice = false,
 }: ChallengeActionButtonProps) {
-  if (status === 'completed') {
+  if (status === 'completed' && !offersPractice) {
     return (
       <View style={styles.doneBadge}>
         <Feather color={colors.accent} name="check" size={14} />
         <Text style={styles.doneLabel}>Done</Text>
       </View>
+    );
+  }
+
+  // Done, but the exercise stays open — a quiet pill rather than a second CTA.
+  if (status === 'completed') {
+    return (
+      <Pressable
+        accessibilityHint="Records extra push-ups without points"
+        accessibilityRole="button"
+        hitSlop={{
+          top: VERTICAL_HIT_SLOP,
+          bottom: VERTICAL_HIT_SLOP,
+          left: spacing.sm,
+          right: spacing.sm,
+        }}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.pill,
+          styles.pillQuiet,
+          pressed ? styles.pillQuietPressed : null,
+        ]}
+        testID={testID}
+      >
+        <Text style={[styles.label, styles.labelQuiet]}>
+          {PRACTICE_AGAIN_SHORT_LABEL}
+        </Text>
+      </Pressable>
     );
   }
 
@@ -125,10 +156,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentPressed,
     borderColor: colors.accentPressed,
   },
+  pillQuiet: {
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+  },
+  pillQuietPressed: {
+    backgroundColor: colors.accentContainer,
+  },
   label: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     textAlign: 'center',
+  },
+  labelQuiet: {
+    color: colors.muted,
   },
   doneBadge: {
     flexDirection: 'row',

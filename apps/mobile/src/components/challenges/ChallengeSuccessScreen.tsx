@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import type { MatchMetric } from '@product/client';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
@@ -11,10 +12,18 @@ import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
 import {
+  markMembershipCtaShownThisSession,
+  markSuccessWasPenalty,
+} from '@/lib/app-review-session';
+import {
   clearPendingShareCard,
   peekPendingShareCard,
   type ShareCardPayload,
 } from '@/lib/share-card-session';
+import {
+  MATCH_DEFAULT_METRIC,
+  MATCH_LOGGED_KICKER,
+} from '@/components/matches/match-metric';
 import {
   ChallengeShareCard,
   SHARE_CARD_ASPECT_RATIO,
@@ -28,6 +37,10 @@ type ChallengeSuccessScreenProps = {
   completedCount?: number;
   targetCount?: number;
   matchId?: string;
+  /** What the contest is scored on, so the kicker names what was banked. */
+  matchMetric?: MatchMetric;
+  /** An extra set after the daily challenge: shareable, but worth nothing. */
+  practice?: boolean;
 };
 
 export function ChallengeSuccessScreen({
@@ -38,6 +51,8 @@ export function ChallengeSuccessScreen({
   completedCount,
   targetCount,
   matchId,
+  matchMetric = MATCH_DEFAULT_METRIC,
+  practice = false,
 }: ChallengeSuccessScreenProps) {
   const router = useRouter();
   const meQuery = useQuery({
@@ -52,6 +67,10 @@ export function ChallengeSuccessScreen({
   );
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+
+  useEffect(() => {
+    markSuccessWasPenalty(penaltyApplied);
+  }, [penaltyApplied]);
 
   useEffect(() => {
     return () => {
@@ -92,10 +111,16 @@ export function ChallengeSuccessScreen({
   }
 
   const isMatch = Boolean(matchId);
-  const cardKicker = isMatch ? 'Match set' : 'Challenge complete';
-  const streakDays = isMatch
-    ? (meQuery.data?.currentStreakDays ?? currentStreakDays)
-    : currentStreakDays;
+  const cardKicker = isMatch
+    ? MATCH_LOGGED_KICKER[matchMetric]
+    : practice
+      ? 'Extra set'
+      : 'Challenge complete';
+  // Neither a match nor practice moves the streak, so read the standing one.
+  const streakDays =
+    isMatch || practice
+      ? (meQuery.data?.currentStreakDays ?? currentStreakDays)
+      : currentStreakDays;
   const showShare = !wasPenalized;
 
   return (
@@ -173,7 +198,7 @@ export function ChallengeSuccessScreen({
         ) : null}
 
         <FormButton
-          label={isMatch ? 'Back to match' : "See what's next"}
+          label={isMatch ? 'Back to group' : "See what's next"}
           onPress={() =>
             router.replace(isMatch && matchId ? `/matches/${matchId}` : '/(tabs)/challenges')
           }
@@ -181,15 +206,16 @@ export function ChallengeSuccessScreen({
           variant="secondary"
         />
 
-        {!wasPenalized && !hasMembership && !isMatch ? (
+        {!wasPenalized && !hasMembership && !isMatch && !practice ? (
           <Pressable
             accessibilityRole="button"
-            onPress={() =>
+            onPress={() => {
+              markMembershipCtaShownThisSession();
               router.push({
                 pathname: '/membership',
                 params: { source: 'success' },
-              })
-            }
+              });
+            }}
             style={({ pressed }) => [
               styles.membershipLink,
               pressed ? styles.membershipLinkPressed : null,

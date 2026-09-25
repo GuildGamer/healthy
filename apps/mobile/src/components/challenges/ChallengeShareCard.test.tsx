@@ -59,7 +59,7 @@ describe('ChallengeShareCard', () => {
         currentStreakDays={12}
         pointsAwarded={150}
         targetCount={20}
-        title="Do twenty push-ups"
+        title="Do 20 push-ups"
       />,
     );
 

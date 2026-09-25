@@ -257,7 +257,7 @@ const challengeSeeds: ChallengeSeed[] = [
   },
   {
     slug: 'twenty-push-ups',
-    title: 'Do twenty push-ups',
+    title: 'Do 20 push-ups',
     description:
       'Prop your phone, get your whole body in frame, and complete your set of push-ups counted on-device.',
     category: 'general',
@@ -551,7 +551,7 @@ async function main(): Promise<void> {
       paymentMethodIds: [],
       prices: {
         create: [
-          { marketKey: 'NG', currency: 'NGN', amountMinor: 100_000 },
+          { marketKey: 'NG', currency: 'NGN', amountMinor: 120_000 },
           { marketKey: '*', currency: 'USD', amountMinor: 200 },
         ],
       },
@@ -584,9 +584,9 @@ async function main(): Promise<void> {
         planId: starter.id,
         marketKey: 'NG',
         currency: 'NGN',
-        amountMinor: 100_000,
+        amountMinor: 120_000,
       },
-      update: { currency: 'NGN', amountMinor: 100_000 },
+      update: { currency: 'NGN', amountMinor: 120_000 },
     });
     await prisma.membershipPlanPrice.upsert({
       where: {
@@ -599,6 +599,22 @@ async function main(): Promise<void> {
         amountMinor: 200,
       },
       update: { currency: 'USD', amountMinor: 200 },
+    });
+    await prisma.membershipProduct.upsert({
+      where: {
+        provider_providerProductId: {
+          provider: 'apple',
+          providerProductId: 'com.healthyapp.app.premium.month',
+        },
+      },
+      create: {
+        planId: starter.id,
+        provider: 'apple',
+        providerProductId: 'com.healthyapp.app.premium.month',
+        marketKey: '*',
+        isLive: false,
+      },
+      update: {},
     });
   }
 

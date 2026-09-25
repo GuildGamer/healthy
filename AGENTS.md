@@ -23,10 +23,12 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 | `11-admin` | `apps/admin`, `apps/api/src/modules/admin` |
 | `09-prisma` | `packages/db` |
 | `10-typescript` | `*.ts` / `*.tsx` |
+| `12-social` | Groups, matches, invites, leaderboard-facing surfaces |
 
 ## Human docs
 
 - `README.md` — quick start
+- `docs/social.md` — group challenges, invite loop, anti-complexity tenets
 - `docs/testing.md` — device + CI testing loop
 - `docs/releases.md` — EAS Update vs store
 - `docs/splitting-repos.md` — optional later split

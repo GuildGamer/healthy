@@ -3,6 +3,7 @@ import type {
   ChallengeCompletionKind,
   UserChallengeStatus,
 } from '@product/client';
+import { canPracticeAgain, PRACTICE_AGAIN_LABEL } from './practice-entry';
 
 export function primaryActionLabel(occurrence: {
   status: UserChallengeStatus;
@@ -14,7 +15,7 @@ export function primaryActionLabel(occurrence: {
   }
 
   if (occurrence.status === 'completed') {
-    return 'Done';
+    return canPracticeAgain(occurrence) ? PRACTICE_AGAIN_LABEL : 'Done';
   }
 
   if (occurrence.status === 'awaiting_evidence') {

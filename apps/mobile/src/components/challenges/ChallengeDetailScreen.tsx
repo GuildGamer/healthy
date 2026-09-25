@@ -23,6 +23,7 @@ import {
   frequencyOptions,
 } from './constants/frequency-labels';
 import { completionRoute } from './completion-route';
+import { canPracticeAgain, practiceTallyCopy } from './practice-entry';
 import { primaryActionLabel } from './primary-action';
 import {
   defaultReminderMinute,
@@ -147,6 +148,13 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
   const occurrence = todayQuery.data?.challenges.find(
     (item) => item.challengeId === challengeId,
   );
+
+  const isPushups = challenge?.capture.metric === 'pushups';
+  const practiceQuery = useQuery({
+    queryKey: ['practice', 'totals', 'pushups'],
+    queryFn: () => apiClient.getPracticeTotals({ metric: 'pushups' }),
+    enabled: isPushups,
+  });
 
   const [tab, setTab] = useState<ChallengeDetailTab>('details');
   const [frequency, setFrequency] = useState<ChallengeFrequency>('daily');
@@ -284,6 +292,9 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
   }
 
   const primaryLabel = primaryActionLabel(occurrence);
+  const isFinished = occurrence?.status === 'completed';
+  const offersPractice = canPracticeAgain(occurrence);
+  const practiceTally = practiceTallyCopy(practiceQuery.data);
 
   return (
     <ScrollView
@@ -379,9 +390,15 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
         </Text>
       ) : null}
 
+      {practiceTally ? (
+        <Text style={styles.hint} testID="challenge-practice-tally">
+          {practiceTally}
+        </Text>
+      ) : null}
+
       {primaryLabel ? (
         <FormButton
-          disabled={occurrence?.status === 'completed' || isBusy}
+          disabled={(isFinished && !offersPractice) || isBusy}
           label={primaryLabel}
           loading={isBusy}
           onPress={handlePrimaryAction}
@@ -392,7 +409,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       {challenge.capture.metric === 'pushups' ? (
         <FormButton
           label="Challenge a friend"
-          onPress={() => router.push('/matches/create')}
+          onPress={() => router.navigate('/matches/create')}
           testID="challenge-a-friend"
           variant="secondary"
         />

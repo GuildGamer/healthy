@@ -5,6 +5,8 @@ export interface PointsLedgerItem {
   delta: number;
   reason: string;
   createdAt: string;
+  kind: 'points' | 'practice';
+  count: number | null;
 }
 
 export const POINTS_SCOPES: readonly {
@@ -54,4 +56,20 @@ export function formatLedgerTime(createdAt: string): string {
 
 export function formatPointsDelta(delta: number): string {
   return delta > 0 ? `+${delta}` : String(delta);
+}
+
+/**
+ * Practice earns nothing, so its row trades the points column for the reps that
+ * were actually done. Rendering `+0` there would read as a broken reward.
+ */
+export function formatActivityAmount(
+  item: Pick<PointsLedgerItem, 'kind' | 'delta' | 'count'>,
+): string {
+  if (item.kind !== 'practice') {
+    return formatPointsDelta(item.delta);
+  }
+
+  const reps = item.count ?? 0;
+
+  return reps === 1 ? '1 rep' : `${reps} reps`;
 }

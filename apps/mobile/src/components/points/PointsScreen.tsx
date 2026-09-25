@@ -14,11 +14,12 @@ import { displayFontFamily } from '@/lib/fonts';
 import {
   emptyPointsCopy,
   filterPointsItems,
+  formatActivityAmount,
   formatLedgerTime,
-  formatPointsDelta,
   POINTS_SCOPES,
   type PointsScope,
 } from './points-scope';
+import { SegmentedTabs } from '@/components/navigation';
 
 export function PointsScreen() {
   const [scope, setScope] = useState<PointsScope>('all');
@@ -53,37 +54,12 @@ export function PointsScreen() {
         <Text style={styles.balanceHint}>points on your ledger</Text>
       </View>
 
-      <View style={styles.scopes} testID="points-scope-switch">
-        {POINTS_SCOPES.map((option) => {
-          const isSelected = option.id === scope;
-
-          return (
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isSelected }}
-              key={option.id}
-              onPress={() => setScope(option.id)}
-              style={styles.scope}
-              testID={`points-scope-${option.id}`}
-            >
-              <Text
-                style={[
-                  styles.scopeLabel,
-                  isSelected ? styles.scopeLabelSelected : null,
-                ]}
-              >
-                {option.label}
-              </Text>
-              <View
-                style={[
-                  styles.scopeRule,
-                  isSelected ? styles.scopeRuleSelected : null,
-                ]}
-              />
-            </Pressable>
-          );
-        })}
-      </View>
+      <SegmentedTabs
+        onSelect={setScope}
+        options={POINTS_SCOPES}
+        selected={scope}
+        testID="points-scope"
+      />
 
       {isLoading && items.length === 0 ? (
         <View style={styles.loader}>
@@ -105,9 +81,10 @@ export function PointsScreen() {
                 style={[
                   styles.delta,
                   item.delta < 0 ? styles.deltaPenalty : null,
+                  item.kind === 'practice' ? styles.deltaPractice : null,
                 ]}
               >
-                {formatPointsDelta(item.delta)}
+                {formatActivityAmount(item)}
               </Text>
             </View>
             {index === visible.length - 1 ? null : (
@@ -154,31 +131,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: fontSize.sm,
   },
-  scopes: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  scope: {
-    paddingBottom: 4,
-  },
-  scopeLabel: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  scopeLabelSelected: {
-    color: colors.accent,
-  },
-  scopeRule: {
-    height: 2,
-    marginTop: 4,
-    backgroundColor: 'transparent',
-  },
-  scopeRuleSelected: {
-    backgroundColor: colors.accent,
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -206,6 +158,9 @@ const styles = StyleSheet.create({
   },
   deltaPenalty: {
     color: colors.danger,
+  },
+  deltaPractice: {
+    color: colors.muted,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

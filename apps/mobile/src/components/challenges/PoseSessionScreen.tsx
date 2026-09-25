@@ -12,23 +12,29 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
-import { MATCH_SCORING_LABEL } from '@/components/matches/match-copy';
+import {
+  MATCH_DEFAULT_METRIC,
+  MATCH_METRIC_LABEL,
+} from '@/components/matches/match-metric';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
 import type { QuickPosePushupUpdate } from '@/lib/pose/quickpose-pushup';
 import {
   POSE_MOVE_CLOSER,
   POSE_MOVE_INTO_FRAME,
+  POSE_PRACTICE_HINT,
   POSE_SETUP_HUD_READY,
   POSE_SETUP_INSTRUCTION,
   POSE_TRACKING,
   POSE_TRACKING_WEAK,
+  PRACTICE_SESSION_TITLE,
   poseCoachBanner,
+  poseReviewTitle,
 } from '@/components/challenges/pose-session-copy';
+import { PoseCountHud } from '@/components/challenges/PoseCountHud';
 import {
   usePoseSessionCounter,
 } from '@/components/challenges/usePoseSessionCounter';
 import { apiClient } from '@/lib/api';
-import { displayFontFamily } from '@/lib/fonts';
 
 const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
 
@@ -40,13 +46,18 @@ type QuickPoseCameraProps = {
 };
 
 export type PoseSessionScreenProps =
-  | { challengeId: string; matchId?: undefined }
-  | { challengeId?: undefined; matchId: string };
+  /** The daily occurrence: scored, streak-bearing, target-bound. */
+  | { mode: 'challenge'; challengeId: string }
+  /** A head-to-head set, scored on the match board. */
+  | { mode: 'match'; matchId: string }
+  /** A free set after the daily one is done: recorded, but worth nothing. */
+  | { mode: 'practice'; challengeId: string };
 
 export function PoseSessionScreen(props: PoseSessionScreenProps) {
-  const challengeId = props.challengeId;
-  const matchId = props.matchId;
-  const isMatch = Boolean(matchId);
+  const isMatch = props.mode === 'match';
+  const isPractice = props.mode === 'practice';
+  const challengeId = isMatch ? undefined : props.challengeId;
+  const matchId = isMatch ? props.matchId : undefined;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -130,7 +141,11 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
 
   const startOccurrence = useMutation({
     mutationFn: async () => {
-      if (isMatch || !occurrence || occurrence.status !== 'pending') {
+      if (isMatch || isPractice || !occurrence) {
+        return;
+      }
+
+      if (occurrence.status !== 'pending') {
         return;
       }
 
@@ -149,6 +164,21 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
           count: reps,
           durationSeconds: elapsedSeconds,
           source: 'in_app_pose',
+        });
+      }
+
+      if (isPractice) {
+        const endedAt = new Date().toISOString();
+        const startedAt = startedAtRef.current ?? endedAt;
+
+        return apiClient.recordPracticeSession({
+          metric: 'pushups',
+          source: 'in_app_pose',
+          count: reps,
+          durationSeconds: elapsedSeconds,
+          startedAt,
+          endedAt,
+          externalId: `practice:${challengeId ?? 'pushups'}:${startedAt}`,
         });
       }
 
@@ -180,9 +210,26 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
         router.replace({
           pathname: '/challenge/success',
           params: {
-            title: MATCH_SCORING_LABEL,
+            title: MATCH_METRIC_LABEL[MATCH_DEFAULT_METRIC],
             count: String(reps),
             matchId,
+          },
+        });
+        return;
+      }
+
+      if (isPractice) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['activity'] }),
+          queryClient.invalidateQueries({ queryKey: ['practice'] }),
+        ]);
+
+        router.replace({
+          pathname: '/challenge/success',
+          params: {
+            title: occurrence?.title ?? PRACTICE_SESSION_TITLE,
+            count: String(reps),
+            practice: '1',
           },
         });
         return;
@@ -214,7 +261,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
 
   const beginCounting = useCallback(
     async (options?: { preserveCounter?: boolean }) => {
-      if (!isMatch && !occurrence) {
+      if (props.mode === 'challenge' && !occurrence) {
         return;
       }
 
@@ -249,7 +296,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
       start({ preserveCounter });
       setPhase('counting');
     },
-    [isMatch, modelReady, occurrence, start, startOccurrence],
+    [modelReady, occurrence, props.mode, start, startOccurrence],
   );
 
   useEffect(() => {
@@ -318,13 +365,15 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
     return POSE_MOVE_INTO_FRAME;
   }
 
-  if (!isMatch && (todayQuery.isLoading || !occurrence)) {
+  // Practice needs no occurrence — the title is a nicety, not a gate.
+  if (props.mode === 'challenge' && (todayQuery.isLoading || !occurrence)) {
     return <ScreenLoader />;
   }
 
-  const target = isMatch ? 0 : (occurrence?.capture.target.count ?? 0);
+  const isUnscored = isMatch || isPractice;
+  const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
   const count = snapshot.count;
-  const meetsTarget = isMatch ? count > 0 : count >= target && target > 0;
+  const meetsTarget = isUnscored ? count > 0 : count >= target && target > 0;
   const showLiveCamera =
     Boolean(QUICKPOSE_SDK_KEY) &&
     QuickPoseCamera != null &&
@@ -364,7 +413,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
               <Feather color={colors.text} name="arrow-left" size={22} />
             </Pressable>
             <Text style={styles.title}>
-              {isMatch ? 'Push-ups' : occurrence?.title}
+              {isMatch ? 'Push-ups' : isPractice ? PRACTICE_SESSION_TITLE : occurrence?.title}
             </Text>
           </View>
           {phase === 'setup' ? (
@@ -384,22 +433,11 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
           </View>
         ) : null}
 
-        <View
-          pointerEvents="none"
-          style={[styles.hud, { bottom: spacing.md }]}
-        >
-          <Text style={styles.count} testID="pose-count">
-            {count}
-            {isMatch ? null : (
-              <Text style={styles.countTarget}> / {target}</Text>
-            )}
-          </Text>
-          {coachBanner ? null : (
-            <Text style={styles.hudMeta} testID="pose-status">
-              {poseStatusLabel()}
-            </Text>
-          )}
-        </View>
+        <PoseCountHud
+          count={count}
+          meta={coachBanner ? null : poseStatusLabel()}
+          target={target}
+        />
       </View>
 
       <View
@@ -432,23 +470,22 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
         {phase === 'review' ? (
           <View style={styles.reviewCard} testID="pose-review">
             <Text style={styles.reviewTitle}>
-              {isMatch
-                ? count > 0
-                  ? 'Set ready'
-                  : 'No reps yet'
-                : meetsTarget
-                  ? 'Target reached'
-                  : 'Short of the target'}
+              {poseReviewTitle({ mode: props.mode, count, meetsTarget })}
             </Text>
             <Text style={styles.reviewBody}>
               {count} push-ups in {elapsedSeconds}s · on-device pose
             </Text>
+            {isPractice ? (
+              <Text style={styles.reviewBody} testID="pose-practice-hint">
+                {POSE_PRACTICE_HINT}
+              </Text>
+            ) : null}
           </View>
         ) : null}
 
         {phase === 'review' && meetsTarget ? (
           <FormButton
-            label="Submit"
+            label={isPractice ? 'Save set' : 'Submit'}
             loading={complete.isPending}
             onPress={() => complete.mutate(count)}
             testID="submit-pose"
@@ -522,12 +559,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     lineHeight: 22,
   },
-  hud: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    backgroundColor: 'transparent',
-  },
   coachBanner: {
     position: 'absolute',
     left: spacing.lg,
@@ -546,41 +577,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-  },
-  depthTrack: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    height: 4,
-    borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden',
-  },
-  depthFill: {
-    height: '100%',
-    borderRadius: radii.full,
-    backgroundColor: colors.accent,
-  },
-  count: {
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: 56,
-    textShadowColor: 'rgba(0,0,0,0.65)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  countTarget: {
-    color: colors.muted,
-    fontSize: 28,
-    fontWeight: fontWeight.semibold,
-  },
-  hudMeta: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    marginTop: spacing.xs,
-    textShadowColor: 'rgba(0,0,0,0.65)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   controls: {
     paddingHorizontal: spacing.lg,

@@ -11,6 +11,7 @@ import {
 } from '../../../../test/integration-db.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
+import { PracticeService } from '../practice/practice.service.js';
 import { RemindersService } from '../reminders/reminders.service.js';
 import { ChallengesService } from './challenges.service.js';
 
@@ -81,7 +82,7 @@ function dailySpecs(count: number): CatalogSpec[] {
 
 beforeAll(() => {
   prisma = createTestPrismaClient();
-  challenges = new ChallengesService(prisma);
+  challenges = new ChallengesService(prisma, new PracticeService(prisma));
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
   me = new MeService(prisma, enrollments);
 });

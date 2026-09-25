@@ -1,11 +1,11 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fontSize, fontWeight, radii } from '@product/brand';
-import type { ComponentProps } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { categoryIconTint } from '@/components/challenges/challenge-icon';
 import type { OnboardingArt } from './constants/onboarding-slides';
+import { TintedMark } from './TintedMark';
 
-type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+/** Deep green wash behind the points art — no brand token sits at this value. */
+const POINTS_GLOW = '#1A2E24';
 
 /**
  * Composed onboarding visuals — category-tinted marks from the challenge
@@ -16,30 +16,26 @@ export function OnboardingSlideArt({ art }: { art: OnboardingArt }) {
     return (
       <View style={styles.stage}>
         <View style={[styles.glow, { backgroundColor: colors.accentContainer }]} />
-        <Mark
-          color={categoryIconTint.hypertension.iconColor}
+        <TintedMark
           icon="heart-pulse"
           style={[styles.float, styles.habitsTopLeft]}
-          tint={categoryIconTint.hypertension.tint}
+          {...categoryIconTint.hypertension}
         />
-        <Mark
-          color={categoryIconTint.diabetes.iconColor}
+        <TintedMark
           icon="water-check"
           style={[styles.float, styles.habitsTopRight]}
-          tint={categoryIconTint.diabetes.tint}
+          {...categoryIconTint.diabetes}
         />
-        <Mark
-          color={categoryIconTint.asthma.iconColor}
+        <TintedMark
           icon="lungs"
           style={[styles.float, styles.habitsBottomLeft]}
-          tint={categoryIconTint.asthma.tint}
+          {...categoryIconTint.asthma}
         />
-        <Mark
-          color={categoryIconTint.general.iconColor}
+        <TintedMark
           icon="leaf"
           size="lg"
           style={[styles.float, styles.habitsCenter]}
-          tint={categoryIconTint.general.tint}
+          {...categoryIconTint.general}
         />
       </View>
     );
@@ -48,7 +44,7 @@ export function OnboardingSlideArt({ art }: { art: OnboardingArt }) {
   if (art === 'points') {
     return (
       <View style={styles.stage}>
-        <View style={[styles.glow, { backgroundColor: '#1A2E24' }]} />
+        <View style={[styles.glow, { backgroundColor: POINTS_GLOW }]} />
         <View style={[styles.chip, styles.chipLeft]}>
           <Text style={styles.chipText}>+15</Text>
         </View>
@@ -58,9 +54,9 @@ export function OnboardingSlideArt({ art }: { art: OnboardingArt }) {
         <View style={[styles.chip, styles.chipBottom]}>
           <Text style={styles.chipText}>streak</Text>
         </View>
-        <Mark
-          color={colors.accent}
+        <TintedMark
           icon="star-four-points"
+          iconColor={colors.accent}
           size="lg"
           style={styles.pointsCore}
           tint={colors.accentContainer}
@@ -71,62 +67,30 @@ export function OnboardingSlideArt({ art }: { art: OnboardingArt }) {
 
   return (
     <View style={styles.stage}>
-      <View style={[styles.glow, { backgroundColor: '#1A2438' }]} />
+      <View style={[styles.glow, { backgroundColor: colors.surfaceRaised }]} />
       <View style={styles.shieldRing}>
-        <Mark
-          color={colors.accent}
+        <TintedMark
           icon="shield-check"
+          iconColor={colors.accent}
           size="lg"
           tint={colors.accentContainer}
         />
       </View>
-      <Mark
-        color={categoryIconTint.hypertension.iconColor}
+      <TintedMark
         icon="heart-pulse"
         style={[styles.float, styles.aheadOrbitTop]}
-        tint={categoryIconTint.hypertension.tint}
+        {...categoryIconTint.hypertension}
       />
-      <Mark
-        color={categoryIconTint.diabetes.iconColor}
+      <TintedMark
         icon="water-check"
         style={[styles.float, styles.aheadOrbitRight]}
-        tint={categoryIconTint.diabetes.tint}
+        {...categoryIconTint.diabetes}
       />
-      <Mark
-        color={categoryIconTint.asthma.iconColor}
+      <TintedMark
         icon="lungs"
         style={[styles.float, styles.aheadOrbitLeft]}
-        tint={categoryIconTint.asthma.tint}
+        {...categoryIconTint.asthma}
       />
-    </View>
-  );
-}
-
-function Mark({
-  color,
-  icon,
-  size = 'md',
-  style,
-  tint,
-}: {
-  color: string;
-  icon: IconName;
-  size?: 'md' | 'lg';
-  style?: StyleProp<ViewStyle>;
-  tint: string;
-}) {
-  const box = size === 'lg' ? 72 : 48;
-  const glyph = size === 'lg' ? 34 : 22;
-
-  return (
-    <View
-      style={[
-        styles.mark,
-        { backgroundColor: tint, height: box, width: box },
-        style,
-      ]}
-    >
-      <MaterialCommunityIcons color={color} name={icon} size={glyph} />
     </View>
   );
 }
@@ -146,11 +110,6 @@ const styles = StyleSheet.create({
     height: STAGE * 0.72,
     borderRadius: radii.full,
     opacity: 0.9,
-  },
-  mark: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
   },
   float: {
     position: 'absolute',

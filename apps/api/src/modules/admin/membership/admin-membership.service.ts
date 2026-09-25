@@ -31,8 +31,11 @@ export class AdminMembershipService {
       include: { prices: { orderBy: { marketKey: 'asc' } } },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
+    const livePlanIds = await this.livePlanIds(rows.map((row) => row.id));
 
-    return { items: rows.map((row) => this.toDto(row)) };
+    return {
+      items: rows.map((row) => this.toDto(row, livePlanIds.has(row.id))),
+    };
   }
 
   async create(
@@ -66,7 +69,7 @@ export class AdminMembershipService {
       include: { prices: { orderBy: { marketKey: 'asc' } } },
     });
 
-    return { plan: this.toDto(created) };
+    return { plan: this.toDto(created, false) };
   }
 
   async update(
@@ -77,11 +80,22 @@ export class AdminMembershipService {
 
     const current = await this.prisma.membershipPlan.findUnique({
       where: { id: input.id },
-      select: { id: true },
+      select: { id: true, slug: true, interval: true },
     });
 
     if (!current) {
       throw new ORPCError('NOT_FOUND', { message: 'Plan not found' });
+    }
+
+    const hasLiveBilling = await this.planHasLiveBilling(input.id);
+    if (
+      hasLiveBilling &&
+      (input.slug !== current.slug || input.interval !== current.interval)
+    ) {
+      throw new ORPCError('BAD_REQUEST', {
+        message:
+          'Slug and interval cannot change after a plan has live billing',
+      });
     }
 
     await this.assertSlugAvailable(input.slug, input.id);
@@ -115,7 +129,34 @@ export class AdminMembershipService {
       });
     });
 
-    return { plan: this.toDto(updated) };
+    return { plan: this.toDto(updated, hasLiveBilling) };
+  }
+
+  private async planHasLiveBilling(planId: string): Promise<boolean> {
+    const live = await this.livePlanIds([planId]);
+    return live.has(planId);
+  }
+
+  private async livePlanIds(planIds: string[]): Promise<Set<string>> {
+    if (planIds.length === 0) {
+      return new Set();
+    }
+
+    const [liveProducts, billed] = await Promise.all([
+      this.prisma.membershipProduct.findMany({
+        where: { planId: { in: planIds }, isLive: true },
+        select: { planId: true },
+      }),
+      this.prisma.subscription.findMany({
+        where: { planId: { in: planIds } },
+        distinct: ['planId'],
+        select: { planId: true },
+      }),
+    ]);
+
+    return new Set(
+      [...liveProducts, ...billed].map((row) => row.planId),
+    );
   }
 
   private assertPrices(input: UpsertMembershipPlanInput) {
@@ -152,7 +193,7 @@ export class AdminMembershipService {
     }
   }
 
-  private toDto(row: PlanWithPrices): MembershipPlan {
+  private toDto(row: PlanWithPrices, hasLiveBilling: boolean): MembershipPlan {
     return {
       id: row.id,
       slug: row.slug,
@@ -180,6 +221,7 @@ export class AdminMembershipService {
         currency: price.currency as 'NGN' | 'USD',
         amountMinor: price.amountMinor,
       })),
+      hasLiveBilling,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

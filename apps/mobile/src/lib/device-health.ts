@@ -11,7 +11,7 @@ type LocationPermissionStatus = { GRANTED: string };
 
 type LocationModule = {
   PermissionStatus: LocationPermissionStatus;
-  Accuracy: { Balanced: number };
+  Accuracy: { Balanced: number; High: number };
   requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
   watchPositionAsync: (
     options: {
@@ -26,7 +26,7 @@ type LocationModule = {
   ) => Promise<{ remove: () => void }>;
 };
 
-type PedometerModule = {
+export type PedometerModule = {
   isAvailableAsync: () => Promise<boolean>;
   getPermissionsAsync: () => Promise<{ granted: boolean }>;
   requestPermissionsAsync: () => Promise<{ granted: boolean }>;
@@ -34,6 +34,21 @@ type PedometerModule = {
     start: Date,
     end: Date,
   ) => Promise<{ steps: number }>;
+  /** Live running total since the subscription started. */
+  watchStepCount: (callback: (result: { steps: number }) => void) => {
+    remove: () => void;
+  };
+};
+
+/** Acceleration on each axis, in g, gravity included. */
+export type AccelerometerSample = { x: number; y: number; z: number };
+
+export type AccelerometerModule = {
+  isAvailableAsync: () => Promise<boolean>;
+  setUpdateInterval: (intervalMs: number) => void;
+  addListener: (callback: (sample: AccelerometerSample) => void) => {
+    remove: () => void;
+  };
 };
 
 export function startOfLocalDay(at: Date = new Date()): Date {
@@ -50,10 +65,19 @@ export async function loadLocationModule(): Promise<LocationModule | null> {
   }
 }
 
-async function loadPedometerModule(): Promise<PedometerModule | null> {
+export async function loadPedometerModule(): Promise<PedometerModule | null> {
   try {
     const sensors = await import('expo-sensors');
     return sensors.Pedometer;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadAccelerometerModule(): Promise<AccelerometerModule | null> {
+  try {
+    const sensors = await import('expo-sensors');
+    return sensors.Accelerometer;
   } catch {
     return null;
   }

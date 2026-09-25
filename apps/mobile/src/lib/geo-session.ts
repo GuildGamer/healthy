@@ -33,7 +33,9 @@ export function pathDistanceMeters(points: readonly GeoPoint[]): number {
     total += haversineMeters(previous, current);
   }
 
-  return Math.round(total);
+  // Precise on purpose. Round at the edge that needs a whole number, so the
+  // live readout can still show the first few strides.
+  return total;
 }
 
 export function formatDuration(totalSeconds: number): string {
@@ -42,11 +44,13 @@ export function formatDuration(totalSeconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+/**
+ * Kilometres to two decimals, always, the way a running app shows a live
+ * distance. The unit stays put: a readout that climbs through centimetres and
+ * metres before reaching kilometres looks unsure of itself, and the walker is
+ * watching one number, not learning a scale.
+ */
 export function formatDistance(meters: number): string {
-  if (meters < 1_000) {
-    return `${meters} m`;
-  }
-
   return `${(meters / 1_000).toFixed(2)} km`;
 }
 

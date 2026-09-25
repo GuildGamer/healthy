@@ -1,4 +1,4 @@
-import { clampPushupTarget, stepPushupTarget } from './pushup-target';
+import { clampPushupTarget } from './pushup-target';
 
 describe('clampPushupTarget', () => {
   it('keeps a count inside the allowed range', () => {
@@ -12,13 +12,5 @@ describe('clampPushupTarget', () => {
 
   it('falls back when the value is not a number', () => {
     expect(clampPushupTarget(Number.NaN)).toBe(20);
-  });
-});
-
-describe('stepPushupTarget', () => {
-  it('steps up and down without leaving the range', () => {
-    expect(stepPushupTarget(20, 1)).toBe(21);
-    expect(stepPushupTarget(1, -1)).toBe(1);
-    expect(stepPushupTarget(100, 1)).toBe(100);
   });
 });

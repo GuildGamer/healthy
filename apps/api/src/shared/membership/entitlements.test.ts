@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_REMINDERS_FREE_TIER,
+  canAccessChallenge,
   canEnrollInChallenge,
   isCatalogChallengeLocked,
   maxRemindersForMembership,
@@ -17,13 +18,41 @@ describe('maxRemindersForMembership', () => {
   });
 });
 
+describe('canAccessChallenge', () => {
+  it('opens free challenges to everyone', () => {
+    expect(
+      canAccessChallenge({
+        requiresMembership: false,
+        membershipActive: false,
+      }),
+    ).toBe(true);
+  });
+
+  it('opens membership challenges to members', () => {
+    expect(
+      canAccessChallenge({
+        requiresMembership: true,
+        membershipActive: true,
+      }),
+    ).toBe(true);
+  });
+
+  it('closes membership challenges once a membership lapses', () => {
+    expect(
+      canAccessChallenge({
+        requiresMembership: true,
+        membershipActive: false,
+      }),
+    ).toBe(false);
+  });
+});
+
 describe('canEnrollInChallenge', () => {
   it('always allows leaving a challenge', () => {
     expect(
       canEnrollInChallenge({
         requiresMembership: true,
         membershipActive: false,
-        currentlyEnrolled: true,
         enrolling: false,
       }),
     ).toBe(true);
@@ -34,21 +63,9 @@ describe('canEnrollInChallenge', () => {
       canEnrollInChallenge({
         requiresMembership: true,
         membershipActive: false,
-        currentlyEnrolled: false,
         enrolling: true,
       }),
     ).toBe(false);
-  });
-
-  it('lets free users keep an already-active membership challenge', () => {
-    expect(
-      canEnrollInChallenge({
-        requiresMembership: true,
-        membershipActive: false,
-        currentlyEnrolled: true,
-        enrolling: true,
-      }),
-    ).toBe(true);
   });
 
   it('allows members to join membership challenges', () => {
@@ -56,7 +73,6 @@ describe('canEnrollInChallenge', () => {
       canEnrollInChallenge({
         requiresMembership: true,
         membershipActive: true,
-        currentlyEnrolled: false,
         enrolling: true,
       }),
     ).toBe(true);

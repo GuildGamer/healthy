@@ -19,5 +19,5 @@ export default function ChallengePoseRoute() {
     return <Redirect href="/(tabs)/challenges" />;
   }
 
-  return <PoseSessionScreen challengeId={challengeId} />;
+  return <PoseSessionScreen challengeId={challengeId} mode="challenge" />;
 }

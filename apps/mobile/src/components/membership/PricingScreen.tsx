@@ -2,13 +2,19 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import type { MembershipPaymentMethodId } from '@product/contract';
 import { formatMembershipAmount } from '@product/contract';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { Loader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
+import {
+  APPLE_IAP_REBUILD_MESSAGE,
+  isAppleIapNativeAvailable,
+  resolveAppleProductId,
+} from '@/lib/apple-membership';
+import { useAppleMembership } from '@/lib/use-apple-membership';
 import { displayFontFamily } from '@/lib/fonts';
 
 /** Prefer sentence punctuation over dash separators in plan copy. */
@@ -18,6 +24,14 @@ function punctuateMembershipCopy(value: string): string {
     .replace(/\s{2,}/g, ' ')
     .replace(/\.\s*\./g, '.')
     .trim();
+}
+
+function formatMembershipDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 const METHOD_ICON: Record<MembershipPaymentMethodId, string> = {
@@ -44,9 +58,15 @@ export function PricingScreen({
   });
   const [selectedMethod, setSelectedMethod] =
     useState<MembershipPaymentMethodId | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [payMessage, setPayMessage] = useState<string | null>(null);
 
   const offer = offerQuery.data;
+  const selectedPlan =
+    offer?.plans.find((plan) => plan.planId === selectedPlanId) ??
+    offer?.plans.find((plan) => plan.planId === offer.planId) ??
+    offer?.plans[0] ??
+    null;
 
   if (offerQuery.isPending) {
     return (
@@ -56,7 +76,7 @@ export function PricingScreen({
     );
   }
 
-  if (offerQuery.isError || !offer) {
+  if (offerQuery.isError || !offer || !selectedPlan) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.body}>
@@ -67,20 +87,30 @@ export function PricingScreen({
     );
   }
 
-  const amountLabel = formatMembershipAmount(offer.currency, offer.amountMinor);
+  const appleIap = Platform.OS === 'ios';
+  const appleProductId = resolveAppleProductId({
+    planAppleProductId: selectedPlan.appleProductId,
+    offerAppleProductId: offer.appleProductId,
+    interval: selectedPlan.interval,
+  });
+  const amountLabel = formatMembershipAmount(
+    selectedPlan.currency,
+    selectedPlan.amountMinor,
+  );
   const activeMethod = selectedMethod ?? offer.paymentMethods[0]?.id ?? null;
   const intervalLabel =
-    offer.interval === 'month' ? 'per month' : 'per year';
-  const cta =
-    offer.ctaLabel?.trim() || `Pay ${amountLabel} ${intervalLabel}`;
+    selectedPlan.interval === 'month' ? 'per month' : 'per year';
+  const cta = appleIap
+    ? selectedPlan.ctaLabel?.trim() || 'Subscribe'
+    : selectedPlan.ctaLabel?.trim() || `Pay ${amountLabel} ${intervalLabel}`;
   const marketHint =
     offer.countryCode === 'NG' ? 'Nigeria' : 'USD';
   const headline = punctuateMembershipCopy(
-    offer.headline?.trim() ||
-      (source === 'success' ? 'Keep that win going' : offer.name),
+    selectedPlan.headline?.trim() ||
+      (source === 'success' ? 'Keep that win going' : selectedPlan.name),
   );
-  const tagline = offer.tagline
-    ? punctuateMembershipCopy(offer.tagline)
+  const tagline = selectedPlan.tagline
+    ? punctuateMembershipCopy(selectedPlan.tagline)
     : null;
 
   if (offer.hasMembership) {
@@ -107,6 +137,17 @@ export function PricingScreen({
               Full catalog, extra reminders, and finish-what-you-started nudges
               are unlocked.
             </Text>
+            {offer.currentSubscription ? (
+              <Text style={styles.tagline}>
+                {offer.currentSubscription.autoRenewing
+                  ? `Renews ${formatMembershipDate(
+                      offer.currentSubscription.currentPeriodEndsAt,
+                    )}.`
+                  : `Access until ${formatMembershipDate(
+                      offer.currentSubscription.currentPeriodEndsAt,
+                    )}.`}
+              </Text>
+            ) : null}
 
             {offer.features.length > 0 ? (
               <View style={styles.perks}>
@@ -162,9 +203,9 @@ export function PricingScreen({
             </Text>
           ) : null}
 
-          {offer.features.length > 0 ? (
+          {selectedPlan.features.length > 0 ? (
             <View style={styles.perks}>
-              {offer.features.map((feature) => (
+              {selectedPlan.features.map((feature) => (
                 <View key={feature} style={styles.perkRow}>
                   <Text style={styles.perkMark}>✦</Text>
                   <Text numberOfLines={1} style={styles.perkText}>
@@ -176,6 +217,40 @@ export function PricingScreen({
           ) : null}
         </View>
 
+          {offer.plans.length > 1 ? (
+            <View style={styles.intervalRow}>
+              {offer.plans.map((plan) => {
+                const selected = plan.planId === selectedPlan.planId;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    key={plan.planId}
+                    onPress={() => setSelectedPlanId(plan.planId)}
+                    style={[
+                      styles.intervalChip,
+                      selected ? styles.intervalChipSelected : null,
+                    ]}
+                    testID={`pricing-interval-${plan.interval}`}
+                  >
+                    <Text
+                      style={[
+                        styles.intervalLabel,
+                        selected ? styles.intervalLabelSelected : null,
+                      ]}
+                    >
+                      {plan.interval === 'month' ? 'Monthly' : 'Yearly'}
+                    </Text>
+                    <Text style={styles.intervalHint}>
+                      {formatMembershipAmount(plan.currency, plan.amountMinor)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
+        {appleIap ? null : (
         <View style={styles.methodsSection}>
           <Text style={styles.methodsLabel}>Pay the way that fits you</Text>
           <View style={styles.methods}>
@@ -215,7 +290,11 @@ export function PricingScreen({
             })}
           </View>
         </View>
+        )}
 
+        {appleIap ? (
+          <AppleCheckoutFooter ctaLabel={cta} productId={appleProductId} />
+        ) : (
         <View style={styles.footer}>
           {payMessage ? <FormErrorBanner message={payMessage} /> : null}
           <FormButton
@@ -228,8 +307,87 @@ export function PricingScreen({
             testID="pricing-pay"
           />
         </View>
+        )}
       </View>
     </SafeAreaView>
+  );
+}
+
+function AppleCheckoutFooter({
+  ctaLabel,
+  productId,
+}: {
+  ctaLabel: string;
+  productId: string | null;
+}) {
+  if (isAppleIapNativeAvailable()) {
+    return (
+      <AppleStoreCheckoutFooter ctaLabel={ctaLabel} productId={productId} />
+    );
+  }
+
+  return <UnavailableAppleCheckoutFooter ctaLabel={ctaLabel} />;
+}
+
+function UnavailableAppleCheckoutFooter({ ctaLabel }: { ctaLabel: string }) {
+  const [message, setMessage] = useState<string | null>(null);
+
+  return (
+    <View style={styles.footer}>
+      {message ? <FormErrorBanner message={message} /> : null}
+      <FormButton
+        label={ctaLabel}
+        onPress={() => setMessage(APPLE_IAP_REBUILD_MESSAGE)}
+        testID="pricing-pay"
+      />
+      <FormButton
+        label="Restore purchases"
+        onPress={() => setMessage(APPLE_IAP_REBUILD_MESSAGE)}
+        testID="pricing-restore"
+        variant="secondary"
+      />
+    </View>
+  );
+}
+
+function AppleStoreCheckoutFooter({
+  ctaLabel,
+  productId,
+}: {
+  ctaLabel: string;
+  productId: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const { busy, error, restore, subscribe } = useAppleMembership({
+    onSynced: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['membership-offer'] }),
+        queryClient.invalidateQueries({ queryKey: ['me'] }),
+      ]);
+    },
+  });
+
+  return (
+    <View style={styles.footer}>
+      {error ? <FormErrorBanner message={error} /> : null}
+      <FormButton
+        label={ctaLabel}
+        loading={busy}
+        onPress={() => {
+          void subscribe(productId ?? '');
+        }}
+        testID="pricing-pay"
+      />
+      <FormButton
+        label="Restore purchases"
+        loading={busy}
+        onPress={() => {
+          void restore();
+        }}
+        testID="pricing-restore"
+        variant="secondary"
+      />
+    </View>
   );
 }
 
@@ -319,6 +477,36 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
+  },
+  intervalRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  intervalChip: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    gap: 2,
+  },
+  intervalChipSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSurface,
+  },
+  intervalLabel: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  intervalLabelSelected: {
+    color: colors.accent,
+  },
+  intervalHint: {
+    color: colors.muted,
+    fontSize: fontSize.xs,
   },
   methods: {
     flexDirection: 'row',

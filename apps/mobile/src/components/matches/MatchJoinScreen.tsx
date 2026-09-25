@@ -11,7 +11,7 @@ import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { stashPendingMatchToken } from '@/lib/pending-match-token';
 import { formatMatchTimeLeft } from './format-match-time';
-import { MatchCard, MatchKicker, MatchMetricMark } from './match-chrome';
+import { MatchActivityMark, MatchCard, MatchKicker } from './match-chrome';
 import {
   MATCH_ACCEPT,
   MATCH_INVITE_KICKER,
@@ -20,10 +20,10 @@ import {
   MATCH_JOIN_IN,
   MATCH_NOT_NOW,
   MATCH_OPEN_BOARD,
-  MATCH_RULE,
-  MATCH_SCORING_LABEL,
-  MATCH_TITLE,
+  MATCH_MODE_HINT,
+  matchModeRule,
 } from './match-copy';
+import { matchActivity } from './match-metric';
 
 export function MatchJoinScreen({ token }: { token: string }) {
   const router = useRouter();
@@ -84,6 +84,11 @@ export function MatchJoinScreen({ token }: { token: string }) {
   }
 
   const matchId = preview.matchId;
+  const activity = matchActivity(
+    preview.scoringMode,
+    preview.metric,
+    preview.dailyScope,
+  );
   const ended = preview.status !== 'open';
   const full = preview.participantCount >= preview.participantCap;
   const statusLine = ended
@@ -117,17 +122,23 @@ export function MatchJoinScreen({ token }: { token: string }) {
 
         <MatchCard>
           <View style={styles.metricRow}>
-            <MatchMetricMark />
+            <MatchActivityMark activity={activity} />
             <View style={styles.metricText}>
-              <Text style={styles.metricTitle}>{MATCH_TITLE}</Text>
+              <Text style={styles.metricTitle}>{activity.label}</Text>
               <Text style={styles.metricSub}>
-                {MATCH_SCORING_LABEL}
+                {MATCH_MODE_HINT[preview.scoringMode]}
                 {' · '}
                 {formatMatchTimeLeft(preview.endsAt)}
               </Text>
             </View>
           </View>
-          <Text style={styles.rule}>{MATCH_RULE}</Text>
+          <Text style={styles.rule}>
+            {matchModeRule(
+              preview.scoringMode,
+              preview.metric,
+              preview.dailyScope,
+            )}
+          </Text>
           <Text style={styles.seats}>
             {preview.participantCount} of {preview.participantCap} joined
           </Text>

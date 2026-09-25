@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchWindowBounds, startOfNextLocalDay } from './match-window.js';
+import { matchLengthBounds, startOfNextLocalDay } from './match-window.js';
 
 describe('startOfNextLocalDay', () => {
   it('finds midnight in Africa/Nairobi from an evening UTC instant', () => {
@@ -17,20 +17,34 @@ describe('startOfNextLocalDay', () => {
   });
 });
 
-describe('matchWindowBounds', () => {
+describe('matchLengthBounds', () => {
   const now = new Date('2026-09-04T10:00:00.000Z');
 
-  it('ends a today window at the next local midnight', () => {
-    expect(matchWindowBounds('today', 'Africa/Nairobi', now)).toEqual({
+  it('ends a today contest at the next local midnight', () => {
+    expect(matchLengthBounds({ kind: 'today' }, 'Africa/Nairobi', now)).toEqual({
       startsAt: now,
       endsAt: new Date('2026-09-04T21:00:00.000Z'),
     });
   });
 
-  it('ends a week window seven days from now', () => {
-    expect(matchWindowBounds('week', 'UTC', now)).toEqual({
+  it('ends a seven day contest a week from now', () => {
+    expect(matchLengthBounds({ kind: 'days', days: 7 }, 'UTC', now)).toEqual({
       startsAt: now,
       endsAt: new Date('2026-09-11T10:00:00.000Z'),
+    });
+  });
+
+  it('ends a custom length at the day count the host picked', () => {
+    expect(matchLengthBounds({ kind: 'days', days: 45 }, 'UTC', now)).toEqual({
+      startsAt: now,
+      endsAt: new Date('2026-10-19T10:00:00.000Z'),
+    });
+  });
+
+  it('ends a year long contest at the ceiling the contract allows', () => {
+    expect(matchLengthBounds({ kind: 'days', days: 365 }, 'UTC', now)).toEqual({
+      startsAt: now,
+      endsAt: new Date('2027-09-04T10:00:00.000Z'),
     });
   });
 });

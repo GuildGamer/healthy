@@ -21,9 +21,13 @@ import {
 import { Loader, RefreshableScroll } from '@/components/feedback';
 import { ChallengeActionButton } from '@/components/challenges/ChallengeActionButton';
 import { ChallengeProgressRing } from '@/components/challenges/ChallengeProgressRing';
-import { buildChallengeFocusLayout } from '@/components/challenges/challenge-list-layout';
+import {
+  buildChallengeFocusLayout,
+  focusSectionLabel,
+} from '@/components/challenges/challenge-list-layout';
 import { completionRoute } from '@/components/challenges/completion-route';
 import { frequencyBadge } from '@/components/challenges/constants/frequency-labels';
+import { canPracticeAgain } from '@/components/challenges/practice-entry';
 import { TodayWinHeader } from '@/components/challenges/TodayWinHeader';
 import { useAdvanceChallenge } from '@/components/challenges/useAdvanceChallenge';
 import { podiumMedalColor } from '@/components/leaderboard/podium';
@@ -31,12 +35,17 @@ import { selectDailyTip } from '@/components/tips';
 import { healthCategoryName } from '@/constants/health-categories';
 import { useSession } from '@/lib/auth-client';
 import { useSyncTimeZone } from '@/lib/time-zone';
+import { useAppReviewPrompt } from '@/lib/use-app-review-prompt';
 import { usePushDeviceSync } from '@/lib/use-push-device';
 import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
 import { apiClient } from '@/lib/api';
 import heroBanner from '@/assets/hero-banner.png';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MATCH_LIVE_HINT } from '@/components/matches/match-copy';
+import {
+  MATCH_HOME_SECTION,
+  MATCH_LIVE_HINT,
+  matchLiveCountLabel,
+} from '@/components/matches/match-copy';
 import { weeklyRankLabel } from './home-rank';
 
 /** Figma uses 12px gaps (`space-y-3`) between home sections. */
@@ -146,6 +155,7 @@ function ChallengeRow({
         captureKind={challenge.capture.kind}
         completionKind={challenge.completionKind}
         isBusy={isBusy}
+        offersPractice={canPracticeAgain(challenge)}
         onPress={onAdvance}
         status={challenge.status}
         testID={`advance-challenge-${challenge.id}`}
@@ -209,6 +219,15 @@ export function HomeScreen() {
 
   usePushDeviceSync(meQuery.data?.reminderEnabled ?? false);
 
+  useAppReviewPrompt({
+    userId: meQuery.data?.id,
+    dayKey: challengesQuery.data?.dayKey,
+    winLocked: layout.win.locked,
+    completedCountToday: layout.completedCount,
+    currentStreakDays: streakDays,
+    ready: meQuery.isSuccess && challengesQuery.isSuccess,
+  });
+
   function handleAdvance(challenge: TodayChallenge) {
     const route = completionRoute(challenge);
     if (route) {
@@ -227,7 +246,6 @@ export function HomeScreen() {
       <Image
         accessibilityElementsHidden
         importantForAccessibility="no"
-        pointerEvents="none"
         resizeMode="cover"
         source={heroBanner}
         style={styles.pageBanner}
@@ -353,21 +371,19 @@ export function HomeScreen() {
       {liveMatchCount > 0 ? (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Matches</Text>
+            <Text style={styles.sectionTitle}>{MATCH_HOME_SECTION}</Text>
           </View>
           <Pressable
-            accessibilityHint="Opens your live matches"
+            accessibilityHint="Opens your live groups"
             accessibilityRole="button"
-            onPress={() => router.push('/matches')}
+            onPress={() => router.navigate('/matches')}
             style={styles.firstRun}
             testID="home-open-matches"
           >
             <Feather color={colors.accent} name="users" size={20} />
             <View style={styles.firstRunText}>
               <Text style={styles.firstRunTitle}>
-                {liveMatchCount === 1
-                  ? '1 live match'
-                  : `${liveMatchCount} live matches`}
+                {matchLiveCountLabel(liveMatchCount)}
               </Text>
               <Text style={styles.firstRunSubtitle}>{MATCH_LIVE_HINT}</Text>
             </View>
@@ -419,7 +435,9 @@ export function HomeScreen() {
             ) : null}
             {layout.focus ? (
               <View testID="home-section-focus">
-                <Text style={styles.doNextLabel}>Do next</Text>
+                <Text style={styles.doNextLabel}>
+                  {focusSectionLabel(layout.focus)}
+                </Text>
                 <ChallengeRow
                   challenge={layout.focus}
                   isBusy={isAdvancing(layout.focus.id)}
@@ -465,6 +483,9 @@ const styles = StyleSheet.create({
   },
   pageBanner: {
     ...StyleSheet.absoluteFillObject,
+    // Decorative and full-bleed behind the scroll, so it must not swallow
+    // touches. A style rather than a prop: `Image` does not take one.
+    pointerEvents: 'none',
   },
   scroll: {
     flex: 1,

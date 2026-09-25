@@ -3,9 +3,16 @@ import {
   buildChallengeFocusLayout,
   buildTodayWin,
   DAILY_WIN_TARGET,
+  focusSectionLabel,
   sortOpenChallengesByFocus,
   UP_NEXT_LIMIT,
 } from './challenge-list-layout';
+
+const pushupCapture = {
+  kind: 'device_session',
+  metric: 'pushups',
+  target: { durationMinutes: null, distanceMeters: null, count: 20 },
+} as const;
 
 function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
   return {
@@ -205,8 +212,80 @@ describe('buildChallengeFocusLayout', () => {
     expect(layout.alsoAvailable.map((item) => item.id)).toEqual(['extra2']);
     expect(layout.weekly.map((item) => item.id)).toEqual(['week']);
     expect(layout.done.map((item) => item.id)).toEqual(['done']);
+    expect(layout.repeatable).toEqual([]);
+    expect(layout.openCount).toBe(5);
     expect(layout.win.label).toBe("Today's win · 1 of 2");
     expect(layout.hasMoreBeyondPreview).toBe(true);
     expect(UP_NEXT_LIMIT).toBe(2);
+  });
+
+  it('keeps a finished push-up challenge out of the archive', () => {
+    const layout = buildChallengeFocusLayout([
+      challenge({ id: 'open', title: 'Water', status: 'pending' }),
+      challenge({
+        id: 'pushups',
+        title: 'Push-ups',
+        status: 'completed',
+        capture: pushupCapture,
+      }),
+      challenge({ id: 'walk', title: 'Walk', status: 'completed' }),
+    ]);
+
+    expect(layout.focus?.id).toBe('open');
+    expect(layout.repeatable.map((item) => item.id)).toEqual(['pushups']);
+    // Only the challenge with nothing left to give is collapsible.
+    expect(layout.done.map((item) => item.id)).toEqual(['walk']);
+  });
+
+  it('counts every finished challenge toward the win, repeatable or not', () => {
+    const layout = buildChallengeFocusLayout([
+      challenge({ id: 'open', title: 'Water', status: 'pending' }),
+      challenge({
+        id: 'pushups',
+        title: 'Push-ups',
+        status: 'completed',
+        capture: pushupCapture,
+      }),
+      challenge({ id: 'walk', title: 'Walk', status: 'completed' }),
+    ]);
+
+    expect(layout.win.filled).toBe(2);
+    expect(layout.win.locked).toBe(true);
+  });
+
+  it('promotes the repeatable set to focus once the scored day is over', () => {
+    const layout = buildChallengeFocusLayout([
+      challenge({
+        id: 'pushups',
+        title: 'Push-ups',
+        status: 'completed',
+        capture: pushupCapture,
+      }),
+      challenge({ id: 'walk', title: 'Walk', status: 'completed' }),
+    ]);
+
+    expect(layout.focus?.id).toBe('pushups');
+    expect(layout.openCount).toBe(0);
+    // Promoted into focus, so it must not also list below.
+    expect(layout.repeatable).toEqual([]);
+  });
+
+  it('leaves focus empty when a finished day has nothing repeatable', () => {
+    const layout = buildChallengeFocusLayout([
+      challenge({ id: 'walk', title: 'Walk', status: 'completed' }),
+    ]);
+
+    expect(layout.focus).toBeNull();
+    expect(layout.done.map((item) => item.id)).toEqual(['walk']);
+  });
+});
+
+describe('focusSectionLabel', () => {
+  it('switches from the scored day to the free set that follows', () => {
+    expect(focusSectionLabel(challenge({ status: 'pending' }))).toBe('Do next');
+    expect(focusSectionLabel(challenge({ status: 'completed' }))).toBe(
+      'Go again',
+    );
+    expect(focusSectionLabel(null)).toBe('Do next');
   });
 });

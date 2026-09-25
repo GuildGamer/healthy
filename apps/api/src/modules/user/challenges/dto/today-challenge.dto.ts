@@ -64,6 +64,8 @@ export type ActivityItemDto = {
   delta: number;
   reason: string;
   createdAt: string;
+  kind: 'points' | 'practice';
+  count: number | null;
 };
 
 export type ListActivityDto = {

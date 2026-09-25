@@ -32,6 +32,17 @@ export type EvidenceVisionConfig =
   | { mode: 'accept' }
   | { mode: 'openai'; apiKey: string; model: string };
 
+export type AppleIapEnvironmentName = 'Sandbox' | 'Production';
+
+export type AppleIapConfig =
+  | { mode: 'disabled' }
+  | {
+      mode: 'enabled';
+      bundleId: string;
+      environment: AppleIapEnvironmentName;
+      appAppleId: number | null;
+    };
+
 export type Environment = {
   isProd: boolean;
   isLocal: boolean;
@@ -42,8 +53,14 @@ export type Environment = {
   expoAccessToken: string | null;
   mail: MailConfig;
   evidenceVision: EvidenceVisionConfig;
+  appleIap: AppleIapConfig;
   /** Origin of the Next.js admin console. */
   adminAppUrl: string;
+  /**
+   * Origin of the marketing site. Invite links are built against it, so a
+   * staging API points at a staging site and never mints a production link.
+   */
+  websiteUrl: string;
   adminBootstrapEmail: string | null;
   adminBootstrapPassword: string | null;
 };
@@ -127,6 +144,44 @@ function readEvidenceVision(
   return { mode: 'accept' };
 }
 
+function readAppleIap(source: NodeJS.ProcessEnv): AppleIapConfig {
+  const configured = readOptional(source.APPLE_ENVIRONMENT);
+  if (!configured) {
+    return { mode: 'disabled' };
+  }
+
+  if (configured !== 'sandbox' && configured !== 'production') {
+    throw new Error(
+      `APPLE_ENVIRONMENT must be 'sandbox' or 'production', got '${configured}'`,
+    );
+  }
+
+  const bundleId =
+    readConfigured(source.APPLE_BUNDLE_ID) ?? 'com.healthyapp.app';
+  const appAppleIdValue = readConfigured(source.APPLE_APP_APPLE_ID);
+  const appAppleId = appAppleIdValue ? Number(appAppleIdValue) : null;
+
+  if (
+    appAppleIdValue &&
+    (appAppleId === null || !Number.isInteger(appAppleId) || appAppleId <= 0)
+  ) {
+    throw new Error('APPLE_APP_APPLE_ID must be a positive integer');
+  }
+
+  if (configured === 'production' && appAppleId === null) {
+    throw new Error(
+      'APPLE_APP_APPLE_ID is required when APPLE_ENVIRONMENT is production',
+    );
+  }
+
+  return {
+    mode: 'enabled',
+    bundleId,
+    environment: configured === 'production' ? 'Production' : 'Sandbox',
+    appAppleId,
+  };
+}
+
 function readSchedulerMode(value: string | undefined): SchedulerMode {
   const mode = readOptional(value) ?? 'in_process';
 
@@ -162,7 +217,12 @@ export function readEnvironment(
     expoAccessToken: readOptional(source.EXPO_ACCESS_TOKEN),
     mail: readMail(source, isProd),
     evidenceVision: readEvidenceVision(source, isProd),
+    appleIap: readAppleIap(source),
     adminAppUrl: readOptional(source.ADMIN_APP_URL) ?? 'http://localhost:3001',
+    // Not localhost by default: an invite is shared with someone else, so a
+    // link only this machine can open is worse than one pointing at the
+    // public site.
+    websiteUrl: readOptional(source.WEBSITE_URL) ?? 'https://gethealthyapp.com',
     adminBootstrapEmail: readOptional(source.ADMIN_BOOTSTRAP_EMAIL),
     adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
   };

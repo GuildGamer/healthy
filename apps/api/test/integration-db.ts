@@ -35,6 +35,10 @@ const TABLES_IN_DELETE_ORDER = [
   'user_challenges',
   'challenge_enrollments',
   'challenges',
+  'subscription_provider_events',
+  'entitlements',
+  'subscriptions',
+  'membership_products',
   'user_profiles',
   'user',
 ] as const;

@@ -40,8 +40,9 @@ jest.mock('@/lib/auth-client', () => ({
 
 jest.mock('expo-router', () => {
   const push = jest.fn();
+  const navigate = jest.fn();
   return {
-    useRouter: () => ({ push }),
+    useRouter: () => ({ push, navigate }),
   };
 });
 
@@ -298,7 +299,7 @@ describe('HomeScreen', () => {
           endsAt: '2026-09-05T21:00:00.000Z',
           status: 'open',
           participantCount: 2,
-          yourBestCount: 12,
+          yourScore: 12,
           yourRank: 1,
         },
       ],
@@ -307,9 +308,9 @@ describe('HomeScreen', () => {
 
     const { cleanup } = renderHome();
 
-    expect(await screen.findByText('1 live match')).toBeOnTheScreen();
+    expect(await screen.findByText('1 live group')).toBeOnTheScreen();
     fireEvent.press(screen.getByTestId('home-open-matches'));
-    expect(useRouter().push).toHaveBeenCalledWith('/matches');
+    expect(useRouter().navigate).toHaveBeenCalledWith('/matches');
 
     await cleanup();
   });

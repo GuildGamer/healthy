@@ -25,8 +25,9 @@ jest.mock('@/lib/api', () => ({
 
 jest.mock('expo-router', () => {
   const push = jest.fn();
+  const navigate = jest.fn();
   return {
-    useRouter: () => ({ push }),
+    useRouter: () => ({ push, navigate }),
     useNavigation: () => ({ setOptions: jest.fn() }),
   };
 });
@@ -241,41 +242,4 @@ describe('ChallengesScreen', () => {
     await cleanup();
   });
 
-  it('offers a match entry when none are live', async () => {
-    const { cleanup } = renderChallenges();
-
-    expect(await screen.findByTestId('challenges-open-matches')).toBeOnTheScreen();
-    expect(screen.getByText('Challenge a friend')).toBeOnTheScreen();
-
-    fireEvent.press(screen.getByTestId('challenges-open-matches'));
-    expect(useRouter().push).toHaveBeenCalledWith('/matches');
-
-    await cleanup();
-  });
-
-  it('hides the challenges match entry while a match is live', async () => {
-    mockedApi.listMyMatches.mockResolvedValue({
-      live: [
-        {
-          id: 'm1',
-          title: 'vs Bee',
-          metric: 'pushups',
-          scoringMode: 'best_single',
-          endsAt: '2026-09-05T21:00:00.000Z',
-          status: 'open',
-          participantCount: 2,
-          yourBestCount: 12,
-          yourRank: 1,
-        },
-      ],
-      ended: [],
-    });
-
-    const { cleanup } = renderChallenges();
-
-    expect(await screen.findByTestId('open-challenge-c1')).toBeOnTheScreen();
-    expect(screen.queryByTestId('challenges-open-matches')).toBeNull();
-
-    await cleanup();
-  });
 });

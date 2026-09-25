@@ -24,6 +24,27 @@ alwaysApply: false
 - Shared visual tokens come from `@product/brand` where applicable — do not fork a second palette.
 - Avoid premature `useMemo` / `useCallback` unless profiling or repo convention requires it.
 
+## Visual consistency
+
+A feature folder must not grow its own look. Before adding chrome, find the
+screen that already solves the same shape and match it.
+
+- **Display face is rare.** `displayFontFamily` is for one hero numeral or one
+  celebration/auth title per screen — the role `streakValue` plays on Home and
+  `balanceValue` on Points. Never on a repeating list row, never on every
+  screen title in a folder.
+- **Lists are divider lists.** Rows sit on `colors.background` separated by a
+  `StyleSheet.hairlineWidth` rule in `colors.border`, as in `LeaderboardScreen`
+  and `ChallengesScreen`. A `colors.surface` card is for a single emphasised
+  block per screen, not the default row container.
+- **Row type scale:** `fontSize.sm` title, `fontSize.xs` muted meta.
+- **Section labels** are uppercase `fontSize.xs` with `letterSpacing: 0.6`,
+  accent for the active step and muted otherwise.
+- Do not alias brand tokens behind local constants (`MATCH_CARD_RADIUS` for
+  `radii.md`). Use the token.
+- Shared chrome lives in a shared folder. If two features need the same row,
+  promote it rather than importing across feature folders or copying it.
+
 ## Release lanes
 
 - JS-only: EAS Update.

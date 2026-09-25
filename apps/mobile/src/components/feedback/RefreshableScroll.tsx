@@ -26,7 +26,9 @@ export function RefreshableScroll({
   ...scrollProps
 }: RefreshableScrollProps) {
   const { isRefreshing, onRefresh } = usePullRefresh(onPullRefresh);
-  const [tintColor, setTintColor] = useState(colors.muted);
+  // Widened: the initial brand token infers as its own literal, which would
+  // make the mint re-tint below unassignable.
+  const [tintColor, setTintColor] = useState<string>(colors.muted);
 
   useEffect(() => {
     const timer = setTimeout(() => {

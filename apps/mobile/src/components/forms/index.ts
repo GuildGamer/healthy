@@ -4,6 +4,7 @@ export type { FieldMarkRole } from './FieldMark';
 export { FormButton } from './FormButton';
 export { FormErrorBanner } from './FormErrorBanner';
 export { FormField } from './FormField';
+export { NumberStepper } from './NumberStepper';
 export { OptionCard } from './OptionCard';
 export { OtpInput } from './OtpInput';
 export { PasswordField } from './PasswordField';

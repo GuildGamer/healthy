@@ -20,6 +20,10 @@ eas update --branch preview --message "describe change"
 
 Ship JS/asset changes over the air via EAS Update. Native dependency, permission, or SDK changes require a new store/build cycle.
 
+Native modules such as `expo-iap`, `expo-store-review`, and `expo-splash-screen` are not present until you rebuild the development / preview / production binary (`make ios` / `make android`, or `eas build`). A JS-only EAS Update will not link them — stale installs fail closed instead of crashing.
+
+The native splash (background, icon, corner radius) is generated at prebuild from the `expo-splash-screen` plugin config in `app.config.ts`. Changing it needs a new binary, not an update; on a stale install the native splash simply auto-hides early and the animated `SplashScreen` replays.
+
 ### Store / internal testing
 
 ```bash

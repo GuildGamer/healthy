@@ -55,6 +55,16 @@ describe('primaryActionLabel', () => {
     ).toBe('Start push-ups');
   });
 
+  it('invites another set on a finished push-up challenge', () => {
+    expect(
+      primaryActionLabel({
+        status: 'completed',
+        completionKind: 'check_in',
+        capture: { kind: 'device_session', metric: 'pushups' },
+      }),
+    ).toBe('Push-ups again');
+  });
+
   it('hides the button when today has no occurrence', () => {
     expect(primaryActionLabel(undefined)).toBeNull();
   });

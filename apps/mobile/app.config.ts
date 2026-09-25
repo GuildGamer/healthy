@@ -1,5 +1,14 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+/**
+ * Host for universal / app links. Invite links are served from here, and the
+ * `/match/<token>` path deliberately mirrors the `app/match/[token]` route so
+ * an opened link resolves without any extra linking config.
+ */
+const LINK_HOST = 'gethealthyapp.com';
+/** Trailing slash matters: without it Android would also claim `/matches/...`. */
+const MATCH_INVITE_PATH_PREFIX = '/match/';
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Healthy',
@@ -13,6 +22,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.healthyapp.app',
+    associatedDomains: [`applinks:${LINK_HOST}`],
+    // Set once the App Store listing exists (numeric id from App Store Connect).
+    // appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
     infoPlist: {
       NSCameraUsageDescription:
         'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
@@ -28,6 +40,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#3DDC97',
     },
     package: 'com.healthyapp.app',
+    intentFilters: [
+      {
+        action: 'VIEW',
+        // Verified against /.well-known/assetlinks.json, so an invite opens
+        // the app directly instead of showing a chooser.
+        autoVerify: true,
+        category: ['BROWSABLE', 'DEFAULT'],
+        data: [
+          {
+            scheme: 'https',
+            host: LINK_HOST,
+            pathPrefix: MATCH_INVITE_PATH_PREFIX,
+          },
+        ],
+      },
+    ],
+    playStoreUrl:
+      'https://play.google.com/store/apps/details?id=com.healthyapp.app',
     permissions: [
       'CAMERA',
       'ACCESS_COARSE_LOCATION',
@@ -41,6 +71,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-notifications',
     'expo-font',
+    'expo-iap',
+    [
+      // Hands off to the animated `SplashScreen` component: same background,
+      // same 104pt rounded icon, dead centre. Colours mirror `@product/brand`
+      // (`background`, `accent`), which cannot be imported here because the
+      // package resolves to a build output Expo CLI may not have yet.
+      'expo-splash-screen',
+      {
+        backgroundColor: '#0B1220',
+        image: './assets/splash-icon.png',
+        imageWidth: 104,
+        resizeMode: 'contain',
+        dark: {
+          backgroundColor: '#0B1220',
+          image: './assets/splash-icon.png',
+        },
+      },
+    ],
     [
       'expo-build-properties',
       {
@@ -116,5 +164,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     eas: {
       projectId: 'be6f70ce-9076-4d48-8d07-b841eb0dce17',
     },
+    /**
+     * Numeric App Store id (not the bundle id). Required for the Profile
+     * “Rate the app” write-review deep link on iOS. Leave unset until listed.
+     * Do not set null — plist serialization turns null into {}, which is not a string.
+     */
   },
 });

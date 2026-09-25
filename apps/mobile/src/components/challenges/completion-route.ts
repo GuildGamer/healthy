@@ -3,6 +3,7 @@ import type {
   ChallengeCompletionKind,
   UserChallengeStatus,
 } from '@product/client';
+import { canPracticeAgain, practiceRoute } from './practice-entry';
 
 const LOG_KINDS = new Set<ChallengeCompletionKind>([
   'vitals_bp',
@@ -24,9 +25,12 @@ export function completionRoute(challenge: {
   | `/challenge/${string}/confirm`
   | `/challenge/${string}/session`
   | `/challenge/${string}/pose`
+  | `/challenge/${string}/practice`
   | null {
   if (challenge.status === 'completed') {
-    return null;
+    return canPracticeAgain(challenge)
+      ? practiceRoute(challenge.challengeId)
+      : null;
   }
 
   if (challenge.status === 'awaiting_evidence') {

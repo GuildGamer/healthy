@@ -68,6 +68,27 @@ describe('completionRoute', () => {
     ).toBe('/challenge/c-push/pose');
   });
 
+  it('offers a free set once the push-up challenge is done', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-push',
+        status: 'completed',
+        completionKind: 'check_in',
+        capture: { kind: 'device_session', metric: 'pushups' },
+      }),
+    ).toBe('/challenge/c-push/practice');
+  });
+
+  it('leaves every other finished challenge closed', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-walk',
+        status: 'completed',
+        completionKind: 'check_in',
+      }),
+    ).toBeNull();
+  });
+
   it('opens the photo check when a surprise window is open', () => {
     expect(
       completionRoute({

@@ -65,7 +65,6 @@ export function ManageChallengesScreen() {
   }
 
   const challenges = catalogQuery.data?.challenges ?? [];
-  const hasMembership = catalogQuery.data?.hasMembership ?? false;
   const counts = catalogEnrollmentCounts(challenges);
 
   if (tab === null) {
@@ -204,7 +203,6 @@ export function ManageChallengesScreen() {
             {group.challenges.map((item, index) => (
               <ChallengeOption
                 challenge={item}
-                hasMembership={hasMembership}
                 isBusy={
                   setEnrollment.isPending &&
                   setEnrollment.variables?.challengeId === item.challengeId
@@ -255,7 +253,6 @@ function CategorySection({
 
 function ChallengeOption({
   challenge,
-  hasMembership,
   isBusy,
   onOpen,
   onSetEnrolled,
@@ -263,15 +260,15 @@ function ChallengeOption({
   showDivider,
 }: {
   challenge: CatalogChallenge;
-  hasMembership: boolean;
   isBusy: boolean;
   onOpen: () => void;
   onSetEnrolled: (isEnrolled: boolean) => void;
   onUnlock: () => void;
   showDivider: boolean;
 }) {
-  const lockedOff =
-    challenge.isLocked && !challenge.isEnrolled && !hasMembership;
+  // A lapsed membership locks a paid challenge even while the enrolment
+  // survives, because the server will no longer run it either.
+  const lockedOff = challenge.isLocked;
 
   return (
     <View testID={`catalog-challenge-${challenge.challengeId}`}>

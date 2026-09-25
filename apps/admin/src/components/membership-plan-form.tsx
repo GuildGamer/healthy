@@ -25,7 +25,7 @@ const empty: UpsertMembershipPlanInput = {
   ctaLabel: null,
   paymentMethodIds: [],
   prices: [
-    { marketKey: 'NG', currency: 'NGN', amountMinor: 100_000 },
+    { marketKey: 'NG', currency: 'NGN', amountMinor: 120_000 },
     { marketKey: MEMBERSHIP_DEFAULT_MARKET, currency: 'USD', amountMinor: 200 },
   ],
 };
@@ -42,10 +42,13 @@ export function MembershipPlanForm({
   initial,
   onSubmit,
   pending,
+  lockIdentity = false,
 }: {
   initial?: UpsertMembershipPlanInput;
   onSubmit: (input: UpsertMembershipPlanInput) => void;
   pending: boolean;
+  /** Slug and interval freeze after a plan has live billing. */
+  lockIdentity?: boolean;
 }) {
   const [value, setValue] = useState<UpsertMembershipPlanInput>(
     initial ?? empty,
@@ -95,6 +98,7 @@ export function MembershipPlanForm({
         <label>
           Slug
           <input
+            disabled={lockIdentity}
             onChange={(event) =>
               setValue((current) => ({ ...current, slug: event.target.value }))
             }
@@ -142,6 +146,7 @@ export function MembershipPlanForm({
           <label>
             Interval
             <select
+              disabled={lockIdentity}
               onChange={(event) =>
                 setValue((current) => ({
                   ...current,
@@ -168,6 +173,14 @@ export function MembershipPlanForm({
             />
           </label>
         </div>
+        {lockIdentity ? (
+          <p className="muted">
+            Slug and interval are locked because this plan already has live
+            billing. Price changes apply to new purchases only; current
+            subscribers stay on their snapshot until they cancel or you migrate
+            them.
+          </p>
+        ) : null}
         <label>
           CTA label (optional)
           <input
@@ -200,7 +213,7 @@ export function MembershipPlanForm({
                 }));
               }}
               type="number"
-              value={ngPrice?.amountMinor ?? 100_000}
+              value={ngPrice?.amountMinor ?? 120_000}
             />
           </label>
           <label>

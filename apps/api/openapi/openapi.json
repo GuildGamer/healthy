@@ -1279,7 +1279,8 @@
                               "reminder",
                               "success",
                               "evidence",
-                              "penalty"
+                              "penalty",
+                              "social"
                             ],
                             "type": "string"
                           },
@@ -1517,6 +1518,11 @@
                           "rewardPoints": {
                             "type": "integer",
                             "minimum": 0
+                          },
+                          "sortOrder": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
                           },
                           "status": {
                             "enum": [
@@ -1859,6 +1865,7 @@
                           "description",
                           "category",
                           "rewardPoints",
+                          "sortOrder",
                           "status",
                           "frequency",
                           "completionKind",
@@ -1934,6 +1941,11 @@
                           "rewardPoints": {
                             "type": "integer",
                             "minimum": 0
+                          },
+                          "sortOrder": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
                           },
                           "frequency": {
                             "enum": [
@@ -2084,6 +2096,7 @@
                           "description",
                           "category",
                           "rewardPoints",
+                          "sortOrder",
                           "frequency",
                           "completionKind",
                           "instruction",
@@ -2198,6 +2211,11 @@
                             "type": "integer",
                             "minimum": 0
                           },
+                          "sortOrder": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
+                          },
                           "frequency": {
                             "enum": [
                               "daily",
@@ -2347,6 +2365,7 @@
                           "description",
                           "category",
                           "rewardPoints",
+                          "sortOrder",
                           "frequency",
                           "completionKind",
                           "instruction",
@@ -2684,6 +2703,11 @@
                           "type": "integer",
                           "minimum": 0
                         },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
                         "status": {
                           "enum": [
                             "pending",
@@ -3025,6 +3049,7 @@
                         "description",
                         "category",
                         "rewardPoints",
+                        "sortOrder",
                         "status",
                         "frequency",
                         "completionKind",
@@ -3287,6 +3312,11 @@
                           "type": "integer",
                           "minimum": 0
                         },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
                         "status": {
                           "enum": [
                             "pending",
@@ -3628,6 +3658,7 @@
                         "description",
                         "category",
                         "rewardPoints",
+                        "sortOrder",
                         "status",
                         "frequency",
                         "completionKind",
@@ -3759,6 +3790,11 @@
                           "type": "integer",
                           "minimum": 0
                         },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
                         "status": {
                           "enum": [
                             "pending",
@@ -4100,6 +4136,7 @@
                         "description",
                         "category",
                         "rewardPoints",
+                        "sortOrder",
                         "status",
                         "frequency",
                         "completionKind",
@@ -4388,6 +4425,11 @@
                           "type": "integer",
                           "minimum": 0
                         },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
                         "status": {
                           "enum": [
                             "pending",
@@ -4729,6 +4771,7 @@
                         "description",
                         "category",
                         "rewardPoints",
+                        "sortOrder",
                         "status",
                         "frequency",
                         "completionKind",
@@ -4780,13 +4823,33 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "kind": {
+                            "enum": [
+                              "points",
+                              "practice"
+                            ],
+                            "type": "string"
+                          },
+                          "count": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
                           "id",
                           "delta",
                           "reason",
-                          "createdAt"
+                          "createdAt",
+                          "kind",
+                          "count"
                         ]
                       }
                     }
@@ -5344,6 +5407,199 @@
                     },
                     "hasMembership": {
                       "type": "boolean"
+                    },
+                    "currentSubscription": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "planId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "interval": {
+                              "enum": [
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "provider": {
+                              "enum": [
+                                "apple",
+                                "google",
+                                "web"
+                              ],
+                              "type": "string"
+                            },
+                            "status": {
+                              "enum": [
+                                "pending",
+                                "active",
+                                "grace_period",
+                                "billing_retry",
+                                "cancelled",
+                                "expired",
+                                "revoked"
+                              ],
+                              "type": "string"
+                            },
+                            "autoRenewing": {
+                              "type": "boolean"
+                            },
+                            "currentPeriodEndsAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "cancelledAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "currency": {
+                              "enum": [
+                                "NGN",
+                                "USD"
+                              ],
+                              "type": "string"
+                            },
+                            "amountMinor": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "planId",
+                            "interval",
+                            "provider",
+                            "status",
+                            "autoRenewing",
+                            "currentPeriodEndsAt",
+                            "cancelledAt",
+                            "currency",
+                            "amountMinor"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "plans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "planId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "slug": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "tagline": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "features": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "interval": {
+                            "enum": [
+                              "month",
+                              "year"
+                            ],
+                            "type": "string"
+                          },
+                          "headline": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "ctaLabel": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "currency": {
+                            "enum": [
+                              "NGN",
+                              "USD"
+                            ],
+                            "type": "string"
+                          },
+                          "amountMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "appleProductId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "planId",
+                          "slug",
+                          "name",
+                          "tagline",
+                          "features",
+                          "interval",
+                          "headline",
+                          "ctaLabel",
+                          "currency",
+                          "amountMinor",
+                          "appleProductId"
+                        ]
+                      },
+                      "minItems": 1
+                    },
+                    "appleProductId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -5359,7 +5615,66 @@
                     "currency",
                     "amountMinor",
                     "paymentMethods",
-                    "hasMembership"
+                    "hasMembership",
+                    "currentSubscription",
+                    "plans",
+                    "appleProductId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/membership/apple/sync": {
+      "post": {
+        "operationId": "syncApplePurchase",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "signedTransactionInfo": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "signedTransactionInfo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "hasMembership": {
+                      "type": "boolean"
+                    },
+                    "currentPeriodEndsAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "hasMembership",
+                    "currentPeriodEndsAt"
                   ]
                 }
               }
@@ -5381,14 +5696,46 @@
                   "window": {
                     "enum": [
                       "today",
-                      "week"
+                      "week",
+                      "month"
                     ],
                     "type": "string"
+                  },
+                  "durationDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365
+                  },
+                  "metric": {
+                    "default": "pushups",
+                    "enum": [
+                      "pushups",
+                      "walk"
+                    ],
+                    "type": "string"
+                  },
+                  "scoringMode": {
+                    "default": "best_single",
+                    "enum": [
+                      "best_single",
+                      "cumulative_total",
+                      "days_completed"
+                    ],
+                    "type": "string"
+                  },
+                  "dailyScope": {
+                    "default": "any_challenge",
+                    "enum": [
+                      "any_challenge",
+                      "chosen_activity"
+                    ],
+                    "type": "string"
+                  },
+                  "crewId": {
+                    "type": "string",
+                    "minLength": 1
                   }
-                },
-                "required": [
-                  "window"
-                ]
+                }
               }
             }
           }
@@ -5412,15 +5759,29 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "inviteUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
                         "metric": {
                           "enum": [
-                            "pushups"
+                            "pushups",
+                            "walk"
                           ],
                           "type": "string"
                         },
                         "scoringMode": {
                           "enum": [
-                            "best_single"
+                            "best_single",
+                            "cumulative_total",
+                            "days_completed"
+                          ],
+                          "type": "string"
+                        },
+                        "dailyScope": {
+                          "enum": [
+                            "any_challenge",
+                            "chosen_activity"
                           ],
                           "type": "string"
                         },
@@ -5445,6 +5806,10 @@
                           "minimum": 0
                         },
                         "participantCap": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "yourScore": {
                           "type": "integer",
                           "minimum": 0
                         },
@@ -5480,6 +5845,10 @@
                                 "type": "integer",
                                 "minimum": 0
                               },
+                              "score": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
                               "bestCount": {
                                 "type": "integer",
                                 "minimum": 0
@@ -5489,32 +5858,44 @@
                               },
                               "isHost": {
                                 "type": "boolean"
+                              },
+                              "isPending": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
                               "userId",
                               "displayName",
                               "rank",
+                              "score",
                               "bestCount",
                               "isYou",
-                              "isHost"
+                              "isHost",
+                              "isPending"
                             ]
                           }
+                        },
+                        "canSaveCrew": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "id",
                         "token",
+                        "inviteUrl",
                         "metric",
                         "scoringMode",
+                        "dailyScope",
                         "startsAt",
                         "endsAt",
                         "status",
                         "participantCount",
                         "participantCap",
+                        "yourScore",
                         "yourBestCount",
                         "winnerUserId",
-                        "standings"
+                        "standings",
+                        "canSaveCrew"
                       ]
                     },
                     "invite": {
@@ -5570,13 +5951,23 @@
                           },
                           "metric": {
                             "enum": [
-                              "pushups"
+                              "pushups",
+                              "walk"
                             ],
                             "type": "string"
                           },
                           "scoringMode": {
                             "enum": [
-                              "best_single"
+                              "best_single",
+                              "cumulative_total",
+                              "days_completed"
+                            ],
+                            "type": "string"
+                          },
+                          "dailyScope": {
+                            "enum": [
+                              "any_challenge",
+                              "chosen_activity"
                             ],
                             "type": "string"
                           },
@@ -5593,6 +5984,10 @@
                             "type": "string"
                           },
                           "participantCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourScore": {
                             "type": "integer",
                             "minimum": 0
                           },
@@ -5617,9 +6012,11 @@
                           "title",
                           "metric",
                           "scoringMode",
+                          "dailyScope",
                           "endsAt",
                           "status",
                           "participantCount",
+                          "yourScore",
                           "yourBestCount",
                           "yourRank"
                         ]
@@ -5640,13 +6037,23 @@
                           },
                           "metric": {
                             "enum": [
-                              "pushups"
+                              "pushups",
+                              "walk"
                             ],
                             "type": "string"
                           },
                           "scoringMode": {
                             "enum": [
-                              "best_single"
+                              "best_single",
+                              "cumulative_total",
+                              "days_completed"
+                            ],
+                            "type": "string"
+                          },
+                          "dailyScope": {
+                            "enum": [
+                              "any_challenge",
+                              "chosen_activity"
                             ],
                             "type": "string"
                           },
@@ -5663,6 +6070,10 @@
                             "type": "string"
                           },
                           "participantCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourScore": {
                             "type": "integer",
                             "minimum": 0
                           },
@@ -5687,9 +6098,11 @@
                           "title",
                           "metric",
                           "scoringMode",
+                          "dailyScope",
                           "endsAt",
                           "status",
                           "participantCount",
+                          "yourScore",
                           "yourBestCount",
                           "yourRank"
                         ]
@@ -5747,13 +6160,23 @@
                     },
                     "metric": {
                       "enum": [
-                        "pushups"
+                        "pushups",
+                        "walk"
                       ],
                       "type": "string"
                     },
                     "scoringMode": {
                       "enum": [
-                        "best_single"
+                        "best_single",
+                        "cumulative_total",
+                        "days_completed"
+                      ],
+                      "type": "string"
+                    },
+                    "dailyScope": {
+                      "enum": [
+                        "any_challenge",
+                        "chosen_activity"
                       ],
                       "type": "string"
                     },
@@ -5790,6 +6213,7 @@
                     "hostDisplayName",
                     "metric",
                     "scoringMode",
+                    "dailyScope",
                     "endsAt",
                     "participantCount",
                     "participantCap",
@@ -5844,15 +6268,29 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "inviteUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
                     "metric": {
                       "enum": [
-                        "pushups"
+                        "pushups",
+                        "walk"
                       ],
                       "type": "string"
                     },
                     "scoringMode": {
                       "enum": [
-                        "best_single"
+                        "best_single",
+                        "cumulative_total",
+                        "days_completed"
+                      ],
+                      "type": "string"
+                    },
+                    "dailyScope": {
+                      "enum": [
+                        "any_challenge",
+                        "chosen_activity"
                       ],
                       "type": "string"
                     },
@@ -5877,6 +6315,10 @@
                       "minimum": 0
                     },
                     "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourScore": {
                       "type": "integer",
                       "minimum": 0
                     },
@@ -5912,6 +6354,10 @@
                             "type": "integer",
                             "minimum": 0
                           },
+                          "score": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "bestCount": {
                             "type": "integer",
                             "minimum": 0
@@ -5921,32 +6367,44 @@
                           },
                           "isHost": {
                             "type": "boolean"
+                          },
+                          "isPending": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
                           "userId",
                           "displayName",
                           "rank",
+                          "score",
                           "bestCount",
                           "isYou",
-                          "isHost"
+                          "isHost",
+                          "isPending"
                         ]
                       }
+                    },
+                    "canSaveCrew": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "id",
                     "token",
+                    "inviteUrl",
                     "metric",
                     "scoringMode",
+                    "dailyScope",
                     "startsAt",
                     "endsAt",
                     "status",
                     "participantCount",
                     "participantCap",
+                    "yourScore",
                     "yourBestCount",
                     "winnerUserId",
-                    "standings"
+                    "standings",
+                    "canSaveCrew"
                   ]
                 }
               }
@@ -5987,15 +6445,29 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "inviteUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
                     "metric": {
                       "enum": [
-                        "pushups"
+                        "pushups",
+                        "walk"
                       ],
                       "type": "string"
                     },
                     "scoringMode": {
                       "enum": [
-                        "best_single"
+                        "best_single",
+                        "cumulative_total",
+                        "days_completed"
+                      ],
+                      "type": "string"
+                    },
+                    "dailyScope": {
+                      "enum": [
+                        "any_challenge",
+                        "chosen_activity"
                       ],
                       "type": "string"
                     },
@@ -6020,6 +6492,10 @@
                       "minimum": 0
                     },
                     "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourScore": {
                       "type": "integer",
                       "minimum": 0
                     },
@@ -6055,6 +6531,10 @@
                             "type": "integer",
                             "minimum": 0
                           },
+                          "score": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "bestCount": {
                             "type": "integer",
                             "minimum": 0
@@ -6064,32 +6544,44 @@
                           },
                           "isHost": {
                             "type": "boolean"
+                          },
+                          "isPending": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
                           "userId",
                           "displayName",
                           "rank",
+                          "score",
                           "bestCount",
                           "isYou",
-                          "isHost"
+                          "isHost",
+                          "isPending"
                         ]
                       }
+                    },
+                    "canSaveCrew": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "id",
                     "token",
+                    "inviteUrl",
                     "metric",
                     "scoringMode",
+                    "dailyScope",
                     "startsAt",
                     "endsAt",
                     "status",
                     "participantCount",
                     "participantCap",
+                    "yourScore",
                     "yourBestCount",
                     "winnerUserId",
-                    "standings"
+                    "standings",
+                    "canSaveCrew"
                   ]
                 }
               }
@@ -6123,7 +6615,11 @@
                     "maximum": 86400
                   },
                   "source": {
-                    "const": "in_app_pose"
+                    "enum": [
+                      "in_app_pose",
+                      "in_app_walk"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -6152,15 +6648,29 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "inviteUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
                     "metric": {
                       "enum": [
-                        "pushups"
+                        "pushups",
+                        "walk"
                       ],
                       "type": "string"
                     },
                     "scoringMode": {
                       "enum": [
-                        "best_single"
+                        "best_single",
+                        "cumulative_total",
+                        "days_completed"
+                      ],
+                      "type": "string"
+                    },
+                    "dailyScope": {
+                      "enum": [
+                        "any_challenge",
+                        "chosen_activity"
                       ],
                       "type": "string"
                     },
@@ -6185,6 +6695,10 @@
                       "minimum": 0
                     },
                     "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourScore": {
                       "type": "integer",
                       "minimum": 0
                     },
@@ -6220,6 +6734,10 @@
                             "type": "integer",
                             "minimum": 0
                           },
+                          "score": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "bestCount": {
                             "type": "integer",
                             "minimum": 0
@@ -6229,32 +6747,44 @@
                           },
                           "isHost": {
                             "type": "boolean"
+                          },
+                          "isPending": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
                           "userId",
                           "displayName",
                           "rank",
+                          "score",
                           "bestCount",
                           "isYou",
-                          "isHost"
+                          "isHost",
+                          "isPending"
                         ]
                       }
+                    },
+                    "canSaveCrew": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "id",
                     "token",
+                    "inviteUrl",
                     "metric",
                     "scoringMode",
+                    "dailyScope",
                     "startsAt",
                     "endsAt",
                     "status",
                     "participantCount",
                     "participantCap",
+                    "yourScore",
                     "yourBestCount",
                     "winnerUserId",
-                    "standings"
+                    "standings",
+                    "canSaveCrew"
                   ]
                 }
               }
@@ -6301,15 +6831,29 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "inviteUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
                     "metric": {
                       "enum": [
-                        "pushups"
+                        "pushups",
+                        "walk"
                       ],
                       "type": "string"
                     },
                     "scoringMode": {
                       "enum": [
-                        "best_single"
+                        "best_single",
+                        "cumulative_total",
+                        "days_completed"
+                      ],
+                      "type": "string"
+                    },
+                    "dailyScope": {
+                      "enum": [
+                        "any_challenge",
+                        "chosen_activity"
                       ],
                       "type": "string"
                     },
@@ -6334,6 +6878,10 @@
                       "minimum": 0
                     },
                     "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourScore": {
                       "type": "integer",
                       "minimum": 0
                     },
@@ -6369,6 +6917,10 @@
                             "type": "integer",
                             "minimum": 0
                           },
+                          "score": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "bestCount": {
                             "type": "integer",
                             "minimum": 0
@@ -6378,32 +6930,515 @@
                           },
                           "isHost": {
                             "type": "boolean"
+                          },
+                          "isPending": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
                           "userId",
                           "displayName",
                           "rank",
+                          "score",
                           "bestCount",
                           "isYou",
-                          "isHost"
+                          "isHost",
+                          "isPending"
                         ]
                       }
+                    },
+                    "canSaveCrew": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "id",
                     "token",
+                    "inviteUrl",
                     "metric",
                     "scoringMode",
+                    "dailyScope",
                     "startsAt",
                     "endsAt",
                     "status",
                     "participantCount",
                     "participantCap",
+                    "yourScore",
                     "yourBestCount",
                     "winnerUserId",
-                    "standings"
+                    "standings",
+                    "canSaveCrew"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/crews": {
+      "get": {
+        "operationId": "listCrews",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "crews": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "memberCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "memberNames": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "isOwner": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "memberCount",
+                          "memberNames",
+                          "isOwner"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "crews"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveCrew",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "matchId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "matchId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "crew": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "memberCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "memberNames": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "isOwner": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "memberCount",
+                        "memberNames",
+                        "isOwner"
+                      ]
+                    },
+                    "alreadyExisted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "crew",
+                    "alreadyExisted"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/crews/rename": {
+      "post": {
+        "operationId": "renameCrew",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "crewId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "crewId",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "memberCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "memberNames": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "isOwner": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "memberCount",
+                    "memberNames",
+                    "isOwner"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/crews/leave": {
+      "post": {
+        "operationId": "leaveCrew",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "crewId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "crewId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "crews": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "memberCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "memberNames": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "isOwner": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "memberCount",
+                          "memberNames",
+                          "isOwner"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "crews"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/practice-sessions": {
+      "post": {
+        "operationId": "recordPracticeSession",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metric": {
+                    "const": "pushups"
+                  },
+                  "source": {
+                    "const": "in_app_pose"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200000
+                  },
+                  "durationSeconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 86400
+                  },
+                  "startedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "externalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "metric",
+                  "source",
+                  "count",
+                  "durationSeconds",
+                  "startedAt",
+                  "endedAt",
+                  "externalId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "metric": {
+                          "enum": [
+                            "walk",
+                            "run",
+                            "cycle",
+                            "steps",
+                            "sleep",
+                            "weight",
+                            "heart_rate",
+                            "pushups"
+                          ],
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "durationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "recordedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "metric",
+                        "count",
+                        "durationSeconds",
+                        "recordedAt"
+                      ]
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "todayCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "todaySessions": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "todayCount",
+                        "todaySessions"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "session",
+                    "totals"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/practice-sessions/totals": {
+      "get": {
+        "operationId": "getPracticeTotals",
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "walk",
+                "run",
+                "cycle",
+                "steps",
+                "sleep",
+                "weight",
+                "heart_rate",
+                "pushups"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "todayCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "todaySessions": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "todayCount",
+                    "todaySessions"
                   ]
                 }
               }
@@ -6631,6 +7666,11 @@
                             "minimum": 0,
                             "maximum": 10000
                           },
+                          "sortOrder": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
+                          },
                           "enrollmentCount": {
                             "type": "integer",
                             "minimum": 0
@@ -6662,6 +7702,7 @@
                           "surpriseEvidenceChancePercent",
                           "surpriseEvidenceWindowSeconds",
                           "surpriseEvidencePenaltyPoints",
+                          "sortOrder",
                           "enrollmentCount",
                           "updatedAt"
                         ]
@@ -6835,6 +7876,11 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 10000
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
                   }
                 },
                 "required": [
@@ -6857,7 +7903,8 @@
                   "targetCount",
                   "surpriseEvidenceChancePercent",
                   "surpriseEvidenceWindowSeconds",
-                  "surpriseEvidencePenaltyPoints"
+                  "surpriseEvidencePenaltyPoints",
+                  "sortOrder"
                 ]
               }
             }
@@ -7027,6 +8074,11 @@
                           "minimum": 0,
                           "maximum": 10000
                         },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
                         "enrollmentCount": {
                           "type": "integer",
                           "minimum": 0
@@ -7058,6 +8110,7 @@
                         "surpriseEvidenceChancePercent",
                         "surpriseEvidenceWindowSeconds",
                         "surpriseEvidencePenaltyPoints",
+                        "sortOrder",
                         "enrollmentCount",
                         "updatedAt"
                       ]
@@ -7231,6 +8284,11 @@
                     "minimum": 0,
                     "maximum": 10000
                   },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -7257,6 +8315,7 @@
                   "surpriseEvidenceChancePercent",
                   "surpriseEvidenceWindowSeconds",
                   "surpriseEvidencePenaltyPoints",
+                  "sortOrder",
                   "id"
                 ]
               }
@@ -7427,6 +8486,11 @@
                           "minimum": 0,
                           "maximum": 10000
                         },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
                         "enrollmentCount": {
                           "type": "integer",
                           "minimum": 0
@@ -7458,6 +8522,7 @@
                         "surpriseEvidenceChancePercent",
                         "surpriseEvidenceWindowSeconds",
                         "surpriseEvidencePenaltyPoints",
+                        "sortOrder",
                         "enrollmentCount",
                         "updatedAt"
                       ]
@@ -10067,6 +11132,9 @@
                               ]
                             }
                           },
+                          "hasLiveBilling": {
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -10089,6 +11157,7 @@
                           "ctaLabel",
                           "paymentMethodIds",
                           "prices",
+                          "hasLiveBilling",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -10362,6 +11431,9 @@
                             ]
                           }
                         },
+                        "hasLiveBilling": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -10384,6 +11456,7 @@
                         "ctaLabel",
                         "paymentMethodIds",
                         "prices",
+                        "hasLiveBilling",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -10661,6 +11734,9 @@
                             ]
                           }
                         },
+                        "hasLiveBilling": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -10683,6 +11759,7 @@
                         "ctaLabel",
                         "paymentMethodIds",
                         "prices",
+                        "hasLiveBilling",
                         "createdAt",
                         "updatedAt"
                       ]

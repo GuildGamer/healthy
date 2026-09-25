@@ -72,6 +72,8 @@ make ios        # expo run:ios → iOS Simulator
 
 Push-up counting uses QuickPose on a **physical device**. After pulling native deps, rebuild with `make ios` / `make android`.
 
+In-app App Store / Play review (`expo-store-review`) also needs that native rebuild. The system review sheet does not appear on TestFlight; use a development or production build on a real device to smoke-test it.
+
 ### Daily loop
 
 One command (API + Metro + admin in the background; brings Postgres up):

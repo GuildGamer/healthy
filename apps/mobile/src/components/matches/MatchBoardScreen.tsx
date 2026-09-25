@@ -1,10 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { matchInviteUrl, type MatchStanding } from '@product/client';
-import { matchContestTitle } from '@product/contract';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import {
+  matchContestTitle,
+  type MatchStanding,
+} from '@product/contract/match-board';
+import { colors, fontSize, fontWeight, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { Fragment } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RefreshableScroll, ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { displayFontFamily } from '@/lib/fonts';
@@ -13,32 +17,46 @@ import { formatMatchTimeLeft } from './format-match-time';
 import {
   MATCH_HERO_LINE,
   MATCH_HERO_SIZE,
+  MatchActivityMark,
   MatchCard,
-  MatchInitial,
+  MatchChip,
   MatchKicker,
-  MatchMetricMark,
   MatchRankMark,
 } from './match-chrome';
+import {
+  matchActivity,
+  matchBoardAction,
+  matchScoreUnitFor,
+} from './match-metric';
+import { standingProgress } from './standing-progress';
 import {
   MATCH_CANCEL,
   MATCH_CANCEL_CONFIRM_BODY,
   MATCH_CANCEL_CONFIRM_TITLE,
+  MATCH_CANCEL_FAILED,
   MATCH_CANCEL_KEEP,
   MATCH_CANCELLED,
   MATCH_CANCELLED_BANNER,
-  MATCH_DO_SET,
+  MATCH_CREW_SAVE_FAILED,
+  MATCH_CREW_SAVED,
   MATCH_ENDED_LABEL,
   MATCH_LIVE,
-  MATCH_RULE,
-  MATCH_SCORING_LABEL,
+  MATCH_LOAD_FAILED,
+  MATCH_PENDING,
+  MATCH_SAVE_CREW,
   MATCH_SHARE_LINK,
   MATCH_STANDINGS,
-  MATCH_YOUR_BEST,
+  MATCH_WAITING_BODY,
+  MATCH_WAITING_NOTE,
+  MATCH_WAITING_TITLE,
+  MATCH_YOUR_SCORE_LABEL,
+  matchModeRule,
 } from './match-copy';
 import { shareMatchLink } from './share-match-link';
 
 export function MatchBoardScreen({ matchId }: { matchId: string }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const matchQuery = useQuery({
     queryKey: ['matches', 'detail', matchId],
@@ -50,6 +68,12 @@ export function MatchBoardScreen({ matchId }: { matchId: string }) {
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
   });
+  const saveCrew = useMutation({
+    mutationFn: () => apiClient.saveCrew({ matchId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['crews'] });
+    },
+  });
 
   if (matchQuery.isPending) {
     return <ScreenLoader testID="match-board-loading" />;
@@ -59,7 +83,7 @@ export function MatchBoardScreen({ matchId }: { matchId: string }) {
   if (!match || matchQuery.isError) {
     return (
       <View style={styles.screen} testID="match-board-missing">
-        <FormErrorBanner message="We could not load this match." />
+        <FormErrorBanner message={MATCH_LOAD_FAILED} />
       </View>
     );
   }
@@ -81,34 +105,56 @@ export function MatchBoardScreen({ matchId }: { matchId: string }) {
       .filter((row) => !row.isYou)
       .map((row) => row.displayName),
   );
+  const leadScore = Math.max(0, ...match.standings.map((row) => row.score));
+  const action = matchBoardAction(match.scoringMode, match.metric);
+  // Until someone else is in, there is nothing to rank and the invite is the job.
+  const waitingForOthers = open && match.participantCount === 1;
+  // Except once there is a score. A walk that shows up as a grey line beneath
+  // "Nobody has joined yet" reads as a walk that was thrown away, so the number
+  // takes the hero back and the invite drops to a note.
+  const soloWithScore = waitingForOthers && match.yourScore > 0;
+  const scoreUnit = matchScoreUnitFor(
+    match.scoringMode,
+    match.metric,
+    match.yourScore,
+  );
 
-  return (
+  const board = (
     <RefreshableScroll
       contentContainerStyle={styles.content}
       onPullRefresh={() => matchQuery.refetch()}
-      style={styles.screen}
       testID="match-board-screen"
     >
       <MatchKicker>{kicker}</MatchKicker>
       <View style={styles.titleRow}>
-        <MatchMetricMark />
+        <MatchActivityMark
+          activity={matchActivity(
+            match.scoringMode,
+            match.metric,
+            match.dailyScope,
+          )}
+        />
         <Text style={styles.title}>{title}</Text>
       </View>
-      <Text style={styles.sub}>
-        {MATCH_SCORING_LABEL}
-        {' · '}
-        {formatMatchTimeLeft(match.endsAt)}
+      {/* The rule sentence already names the scoring mode, so the meta line
+          carries only what it cannot: how long is left. */}
+      <Text style={styles.sub}>{formatMatchTimeLeft(match.endsAt)}</Text>
+      <Text style={styles.rule}>
+        {matchModeRule(match.scoringMode, match.metric, match.dailyScope)}
       </Text>
-      <Text style={styles.rule}>{MATCH_RULE}</Text>
 
-      <MatchCard emphasized>
-        <Text style={styles.heroKicker}>{MATCH_YOUR_BEST}</Text>
-        <Text style={styles.heroCount}>{match.yourBestCount}</Text>
-        <Text style={styles.heroHint}>
-          push-ups
-          {you?.rank ? ` · #${you.rank}` : ''}
-        </Text>
-      </MatchCard>
+      {waitingForOthers && !soloWithScore ? (
+        <WaitingCard />
+      ) : (
+        <ScoreHero
+          label={MATCH_YOUR_SCORE_LABEL[match.scoringMode]}
+          // A place needs someone to hold it against, and only once somebody
+          // has played for it.
+          rank={waitingForOthers || leadScore === 0 ? null : (you?.rank ?? null)}
+          score={match.yourScore}
+          unit={scoreUnit}
+        />
+      )}
 
       {cancelled ? (
         <MatchCard emphasized testID="match-cancelled">
@@ -120,38 +166,58 @@ export function MatchBoardScreen({ matchId }: { matchId: string }) {
         <WinnerBanner winner={winner} />
       ) : null}
 
-      <Text style={styles.section}>{MATCH_STANDINGS}</Text>
-      <View style={styles.standings}>
-        {match.standings.map((row) => (
-          <StandingRow
-            key={row.userId}
-            leadCount={match.standings[0]?.bestCount ?? 0}
-            row={row}
-          />
-        ))}
-      </View>
-
-      {open ? (
-        <FormButton
-          label={MATCH_DO_SET}
-          onPress={() => router.push(`/matches/${match.id}/pose`)}
-          testID="match-do-set"
-          trailingIcon="play"
+      {/* Sharing is the primary button while you are alone, so the quiet
+          version of it only appears once the board has someone to beat. */}
+      {open && underCap && !waitingForOthers ? (
+        <MatchChip
+          icon="share-outline"
+          label={MATCH_SHARE_LINK}
+          onPress={() => void shareMatchLink(match.inviteUrl)}
+          testID="match-share-link"
         />
       ) : null}
 
-      {open && underCap ? (
-        <FormButton
-          label={MATCH_SHARE_LINK}
-          onPress={() => void shareMatchLink(matchInviteUrl(match.token))}
-          testID="match-share-link"
-          trailingIcon="share"
-          variant="secondary"
+      {soloWithScore ? (
+        <Text style={styles.soloNote} testID="match-waiting-note">
+          {MATCH_WAITING_NOTE}
+        </Text>
+      ) : waitingForOthers ? (
+        <Text style={styles.soloNote} testID="match-solo-score">
+          {`${MATCH_YOUR_SCORE_LABEL[match.scoringMode]}: ${match.yourScore} ${scoreUnit}`}
+        </Text>
+      ) : (
+        <>
+          <Text style={styles.section}>{MATCH_STANDINGS}</Text>
+          <View style={styles.standings}>
+            {match.standings.map((row, index) => (
+              <Fragment key={row.userId}>
+                <StandingRow leadScore={leadScore} row={row} />
+                {index === match.standings.length - 1 ? null : (
+                  <View style={styles.divider} />
+                )}
+              </Fragment>
+            ))}
+          </View>
+        </>
+      )}
+
+      {/* Offered from a result, never from an empty "create a crew" screen:
+          the roster is already known, so keeping it costs one tap. */}
+      {match.canSaveCrew ? (
+        <MatchChip
+          icon={saveCrew.isSuccess ? 'checkmark' : 'bookmark-outline'}
+          label={saveCrew.isSuccess ? MATCH_CREW_SAVED : MATCH_SAVE_CREW}
+          onPress={() => saveCrew.mutate()}
+          testID="match-save-crew"
         />
+      ) : null}
+
+      {saveCrew.isError ? (
+        <FormErrorBanner message={MATCH_CREW_SAVE_FAILED} />
       ) : null}
 
       {cancel.isError ? (
-        <FormErrorBanner message="We could not cancel this match." />
+        <FormErrorBanner message={MATCH_CANCEL_FAILED} />
       ) : null}
 
       {open && you?.isHost ? (
@@ -183,6 +249,78 @@ export function MatchBoardScreen({ matchId }: { matchId: string }) {
       ) : null}
     </RefreshableScroll>
   );
+
+  return (
+    <View style={styles.screen}>
+      {board}
+      {open ? (
+        <View
+          style={[
+            styles.actionBar,
+            { paddingBottom: Math.max(insets.bottom, spacing.md) },
+          ]}
+        >
+          {waitingForOthers ? (
+            <FormButton
+              label={MATCH_SHARE_LINK}
+              onPress={() => void shareMatchLink(match.inviteUrl)}
+              testID="match-share-link"
+              trailingIcon="share"
+            />
+          ) : null}
+          <FormButton
+            label={action.label}
+            onPress={() =>
+              router.navigate(
+                action.session
+                  ? `/matches/${match.id}/${action.session}`
+                  : '/(tabs)/challenges',
+              )
+            }
+            testID="match-do-set"
+            trailingIcon={action.session ? 'play' : 'arrow-right'}
+            variant={waitingForOthers ? 'secondary' : 'primary'}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** The one display numeral the screen is allowed, in the role Home gives a streak. */
+function ScoreHero({
+  label,
+  score,
+  unit,
+  rank,
+}: {
+  label: string;
+  score: number;
+  unit: string;
+  rank: number | null;
+}) {
+  return (
+    <MatchCard emphasized>
+      <Text style={styles.heroKicker}>{label}</Text>
+      <Text style={[styles.heroCount, score > 0 ? null : styles.heroCountEmpty]}>
+        {score}
+      </Text>
+      <Text style={styles.heroHint}>
+        {unit}
+        {rank ? ` · #${rank}` : ''}
+      </Text>
+    </MatchCard>
+  );
+}
+
+/** Replaces the hero while the host is alone: the invite is the only score that matters. */
+function WaitingCard() {
+  return (
+    <MatchCard emphasized testID="match-waiting">
+      <Text style={styles.waitingTitle}>{MATCH_WAITING_TITLE}</Text>
+      <Text style={styles.waitingBody}>{MATCH_WAITING_BODY}</Text>
+    </MatchCard>
+  );
 }
 
 function WinnerBanner({ winner }: { winner: MatchStanding }) {
@@ -198,64 +336,53 @@ function WinnerBanner({ winner }: { winner: MatchStanding }) {
   );
 }
 
-function gapBehindLead(bestCount: number, leadCount: number): string | null {
-  if (leadCount <= 0 || bestCount >= leadCount) {
-    return null;
-  }
-
-  const gap = leadCount - bestCount;
-  return gap === 1 ? '1 behind' : `${gap} behind`;
-}
-
 function StandingRow({
   row,
-  leadCount,
+  leadScore,
 }: {
   row: MatchStanding;
-  leadCount: number;
+  leadScore: number;
 }) {
-  const leading = row.rank === 1 && row.bestCount > 0;
-  const gapLabel = gapBehindLead(row.bestCount, leadCount);
+  const { fraction, note } = standingProgress({
+    score: row.score,
+    leadScore,
+  });
+  const hasScore = row.score > 0;
 
   return (
     <View
       style={[
-        styles.standingCard,
+        styles.standingRow,
         row.isYou ? styles.standingYou : null,
-        leading && !row.isYou ? styles.standingLead : null,
+        // Greyed until they accept: on the board, but plainly not playing yet.
+        row.isPending ? styles.standingPending : null,
       ]}
       testID={`match-standing-${row.userId}`}
     >
-      <MatchRankMark rank={row.rank} />
-      <MatchInitial accent={row.isYou} name={row.displayName} />
-      <View style={styles.nameBlock}>
-        <Text numberOfLines={1} style={styles.name}>
-          {row.displayName}
-        </Text>
-        <View style={styles.pills}>
-          {row.isYou ? (
-            <View style={styles.youPill}>
-              <Text style={styles.youPillLabel}>You</Text>
-            </View>
-          ) : null}
-          {row.isHost ? (
-            <View style={styles.hostPill}>
-              <Text style={styles.hostPillLabel}>Host</Text>
-            </View>
+      <View style={styles.standingTop}>
+        <MatchRankMark rank={row.rank} scored={hasScore} />
+        <View style={styles.nameBlock}>
+          <Text numberOfLines={1} style={styles.name}>
+            {row.isYou ? 'You' : row.displayName}
+          </Text>
+          {row.isPending ? (
+            <Text style={styles.hostNote}>{MATCH_PENDING}</Text>
+          ) : row.isHost ? (
+            <Text style={styles.hostNote}>Host</Text>
           ) : null}
         </View>
+        <Text style={[styles.count, hasScore ? null : styles.countEmpty]}>
+          {hasScore ? row.score : '—'}
+        </Text>
       </View>
-      <View style={styles.score}>
-        {row.bestCount > 0 ? (
-          <>
-            <Text style={[styles.count, leading ? styles.countLead : null]}>
-              {row.bestCount}
-            </Text>
-            <Text style={styles.countHint}>{gapLabel ?? 'best'}</Text>
-          </>
-        ) : (
-          <Text style={styles.emptySet}>No set yet</Text>
-        )}
+
+      <View style={styles.barRow}>
+        <View style={styles.barTrack}>
+          <View style={[styles.barFill, { width: `${fraction * 100}%` }]} />
+        </View>
+        <Text numberOfLines={1} style={styles.barNote}>
+          {row.isPending ? MATCH_PENDING : (note ?? '')}
+        </Text>
       </View>
     </View>
   );
@@ -278,9 +405,8 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xxl,
-    lineHeight: 36,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
   },
   sub: {
     color: colors.muted,
@@ -304,9 +430,27 @@ const styles = StyleSheet.create({
     fontSize: MATCH_HERO_SIZE,
     lineHeight: MATCH_HERO_LINE,
   },
+  heroCountEmpty: {
+    color: colors.disabledText,
+  },
   heroHint: {
     color: colors.muted,
     fontSize: fontSize.sm,
+  },
+  waitingTitle: {
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+  },
+  waitingBody: {
+    color: colors.muted,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+  },
+  soloNote: {
+    color: colors.muted,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
   },
   winnerRow: {
     flexDirection: 'row',
@@ -333,7 +477,6 @@ const styles = StyleSheet.create({
   cancelLabel: {
     color: colors.danger,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
   },
   section: {
     color: colors.muted,
@@ -344,83 +487,80 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   standings: {
-    gap: spacing.sm,
+    marginHorizontal: -spacing.lg,
   },
-  standingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  standingRow: {
     gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   standingYou: {
     backgroundColor: colors.accentSurface,
-    borderColor: colors.accentContainer,
   },
-  standingLead: {
-    backgroundColor: colors.surfaceRaised,
+  standingPending: {
+    opacity: 0.5,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+  },
+  standingTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   nameBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 6,
   },
   name: {
     color: colors.text,
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
   },
-  pills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  youPill: {
-    backgroundColor: colors.accentContainer,
-    borderRadius: radii.full,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  youPillLabel: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-  },
-  hostPill: {
-    backgroundColor: colors.background,
-    borderRadius: radii.full,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  hostPillLabel: {
+  hostNote: {
     color: colors.muted,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-  },
-  score: {
-    alignItems: 'flex-end',
-    minWidth: 56,
   },
   count: {
     color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xl,
-    lineHeight: 28,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
   },
-  countLead: {
-    color: colors.accent,
+  countEmpty: {
+    color: colors.disabledText,
   },
-  countHint: {
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  barTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  // Fixed so every bar shares one baseline and the counts stay comparable.
+  barNote: {
+    width: 76,
+    textAlign: 'right',
     color: colors.muted,
     fontSize: fontSize.xs,
   },
-  emptySet: {
-    color: colors.disabledText,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+  actionBar: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    backgroundColor: colors.background,
   },
 });

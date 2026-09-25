@@ -18,7 +18,9 @@
     "db:generate": "pnpm --filter @product/db generate",
     "db:migrate": "pnpm --filter @product/db migrate:dev",
     "db:migrate:deploy": "pnpm --filter @product/db migrate:deploy",
-    "db:seed": "pnpm --filter @product/db seed"
+    "db:seed": "pnpm --filter @product/db seed",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "devDependencies": {
     "prettier": "^3.5.3",
@@ -29,5 +31,11 @@
     "overrides": {
       "@better-auth/utils": "0.4.2"
     }
+  },
+  "version": "1.0.0",
+  "dependencies": {
+    "expo": "~54.0.37",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
   }
 }

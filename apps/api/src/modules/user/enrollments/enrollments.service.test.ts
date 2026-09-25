@@ -189,7 +189,7 @@ describe('EnrollmentsService.listCatalog', () => {
     const result = await createService(prisma).listCatalog(user);
 
     expect(result.challenges[0]?.capture.target.count).toBe(12);
-    expect(result.challenges[0]?.title).toBe('Do twelve push-ups');
+    expect(result.challenges[0]?.title).toBe('Do 12 push-ups');
   });
 
   it('treats a deactivated enrolment as not enrolled', async () => {

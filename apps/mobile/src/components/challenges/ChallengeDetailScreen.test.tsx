@@ -240,7 +240,7 @@ describe('ChallengeDetailScreen push-up target', () => {
     mockedApi.listChallengeCatalog.mockResolvedValue({
       challenges: [
         catalogChallenge({
-          title: 'Do twenty push-ups',
+          title: 'Do 20 push-ups',
           capture: {
             kind: 'device_session',
             metric: 'pushups',
@@ -265,11 +265,11 @@ describe('ChallengeDetailScreen push-up target', () => {
       '20',
     );
 
-    expect(await screen.findByText('Do twenty push-ups')).toBeOnTheScreen();
+    expect(await screen.findByText('Do 20 push-ups')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('detail-pushup-target-dec'));
     expect(screen.getByTestId('detail-pushup-target-value')).toHaveTextContent('19');
-    expect(screen.getByText('Do nineteen push-ups')).toBeOnTheScreen();
+    expect(screen.getByText('Do 19 push-ups')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('challenge-detail-save'));
 

@@ -13,6 +13,10 @@ module.exports = {
       '<rootDir>/../../packages/contract/src/challenge-title.ts',
     '^@product/contract/challenge-sort$':
       '<rootDir>/../../packages/contract/src/challenge-sort.ts',
+    '^@product/contract/challenge-capture$':
+      '<rootDir>/../../packages/contract/src/challenge-capture.ts',
+    '^@product/contract/match-board$':
+      '<rootDir>/../../packages/contract/src/match-board.ts',
     '^@product/contract$': '<rootDir>/../../packages/contract/src/index.ts',
     '\\.tflite$': '<rootDir>/jest.tflite-mock.js',
   },

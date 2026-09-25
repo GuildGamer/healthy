@@ -6,8 +6,16 @@ import {
 } from './matches';
 
 describe('matchInviteUrl', () => {
-  it('uses the app scheme so a share link opens the join screen', () => {
-    expect(matchInviteUrl('abc_token-1')).toBe('healthy://match/abc_token-1');
+  it('builds an https link so a recipient without the app reaches a page', () => {
+    expect(matchInviteUrl('https://gethealthyapp.com', 'abc_token-1')).toBe(
+      'https://gethealthyapp.com/match/abc_token-1',
+    );
+  });
+
+  it('tolerates a configured origin with a trailing slash', () => {
+    expect(matchInviteUrl('https://gethealthyapp.com/', 'abc_token-1')).toBe(
+      'https://gethealthyapp.com/match/abc_token-1',
+    );
   });
 });
 

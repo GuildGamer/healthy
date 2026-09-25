@@ -22,16 +22,27 @@ function parseMatchId(value: string | undefined): string | undefined {
 
 export default function ChallengeSuccessRoute() {
   const { data: session, isPending } = useSession();
-  const { title, points, streak, penalty, count, target, matchId } =
-    useLocalSearchParams<{
-      title?: string;
-      points?: string;
-      streak?: string;
-      penalty?: string;
-      count?: string;
-      target?: string;
-      matchId?: string;
-    }>();
+  const {
+    title,
+    points,
+    streak,
+    penalty,
+    count,
+    target,
+    matchId,
+    metric,
+    practice,
+  } = useLocalSearchParams<{
+    title?: string;
+    points?: string;
+    streak?: string;
+    penalty?: string;
+    count?: string;
+    target?: string;
+    matchId?: string;
+    metric?: string;
+    practice?: string;
+  }>();
 
   if (isPending) {
     return <ScreenLoader />;
@@ -47,9 +58,11 @@ export default function ChallengeSuccessRoute() {
       currentStreakDays={parseCount(streak)}
       penaltyApplied={parseCount(penalty)}
       pointsAwarded={parseCount(points)}
+      practice={practice === '1'}
       targetCount={target ? parseCount(target) : undefined}
       title={title || 'Challenge'}
       matchId={parseMatchId(typeof matchId === 'string' ? matchId : undefined)}
+      matchMetric={metric === 'walk' ? 'walk' : 'pushups'}
     />
   );
 }

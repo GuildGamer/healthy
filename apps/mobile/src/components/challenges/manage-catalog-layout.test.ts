@@ -21,6 +21,8 @@ function challenge(
     description: 'desc',
     rewardPoints: 10,
     sortOrder: 100,
+    requiresMembership: false,
+    isLocked: false,
     frequency: 'daily',
     completionKind: 'check_in',
     instruction: 'Do it',

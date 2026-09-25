@@ -11,28 +11,24 @@ config.resolver.assetExts.push('tflite');
 
 // Metro does not reliably honor package.json "exports" subpaths for workspace
 // packages. Jest maps this the same way in jest.config.js.
-const countryCodeSource = path.resolve(
-  __dirname,
-  '../../packages/contract/src/country-code.ts',
+const contractSubpathSources = Object.fromEntries(
+  [
+    'country-code',
+    'challenge-title',
+    'challenge-sort',
+    'challenge-capture',
+    'match-board',
+  ].map((subpath) => [
+    `@product/contract/${subpath}`,
+    path.resolve(__dirname, `../../packages/contract/src/${subpath}.ts`),
+  ]),
 );
-const challengeTitleSource = path.resolve(
-  __dirname,
-  '../../packages/contract/src/challenge-title.ts',
-);
-const challengeSortSource = path.resolve(
-  __dirname,
-  '../../packages/contract/src/challenge-sort.ts',
-);
+
 const previousResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === '@product/contract/country-code') {
-    return { type: 'sourceFile', filePath: countryCodeSource };
-  }
-  if (moduleName === '@product/contract/challenge-title') {
-    return { type: 'sourceFile', filePath: challengeTitleSource };
-  }
-  if (moduleName === '@product/contract/challenge-sort') {
-    return { type: 'sourceFile', filePath: challengeSortSource };
+  const contractSource = contractSubpathSources[moduleName];
+  if (contractSource) {
+    return { type: 'sourceFile', filePath: contractSource };
   }
   if (previousResolveRequest) {
     return previousResolveRequest(context, moduleName, platform);

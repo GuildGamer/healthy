@@ -1,7 +1,7 @@
-import type { MatchWindow } from '@product/contract';
+import type { MatchLength } from '@product/contract';
 import { dayKeyFor } from '../../../shared/utils/day-key.js';
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const SEARCH_HORIZON_MS = 36 * 60 * 60 * 1000;
 
 /** First instant after `at` whose local calendar day differs. */
@@ -22,20 +22,20 @@ export function startOfNextLocalDay(timeZone: string, at: Date): Date {
   return new Date(high);
 }
 
-export function matchWindowBounds(
-  window: MatchWindow,
+export function matchLengthBounds(
+  length: MatchLength,
   timeZone: string,
   now: Date,
 ): { startsAt: Date; endsAt: Date } {
-  if (window === 'week') {
+  if (length.kind === 'today') {
     return {
       startsAt: now,
-      endsAt: new Date(now.getTime() + WEEK_MS),
+      endsAt: startOfNextLocalDay(timeZone, now),
     };
   }
 
   return {
     startsAt: now,
-    endsAt: startOfNextLocalDay(timeZone, now),
+    endsAt: new Date(now.getTime() + length.days * DAY_MS),
   };
 }

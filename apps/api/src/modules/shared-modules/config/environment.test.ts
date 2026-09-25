@@ -11,7 +11,9 @@ describe('readEnvironment', () => {
     expect(environment.reminderDispatchSecret).toBeNull();
     expect(environment.mail).toEqual({ mode: 'log' });
     expect(environment.evidenceVision).toEqual({ mode: 'accept' });
+    expect(environment.appleIap).toEqual({ mode: 'disabled' });
     expect(environment.adminAppUrl).toBe('http://localhost:3001');
+    expect(environment.websiteUrl).toBe('https://gethealthyapp.com');
     expect(environment.adminBootstrapEmail).toBeNull();
   });
 
@@ -139,5 +141,45 @@ describe('readEnvironment', () => {
         SMTP_FROM: 'noreply@example.com',
       }),
     ).toThrow(/EVIDENCE_VISION_API_KEY is required/);
+  });
+
+  it('enables Apple IAP in sandbox without an App Apple ID', () => {
+    const environment = readEnvironment({
+      APPLE_ENVIRONMENT: 'sandbox',
+      APPLE_BUNDLE_ID: 'com.healthyapp.app',
+    });
+
+    expect(environment.appleIap).toEqual({
+      mode: 'enabled',
+      bundleId: 'com.healthyapp.app',
+      environment: 'Sandbox',
+      appAppleId: null,
+    });
+  });
+
+  it('requires APPLE_APP_APPLE_ID in the production Apple environment', () => {
+    expect(() =>
+      readEnvironment({ APPLE_ENVIRONMENT: 'production' }),
+    ).toThrow(/APPLE_APP_APPLE_ID is required/);
+  });
+
+  it('enables production Apple IAP when an App Apple ID is set', () => {
+    const environment = readEnvironment({
+      APPLE_ENVIRONMENT: 'production',
+      APPLE_APP_APPLE_ID: '1234567890',
+    });
+
+    expect(environment.appleIap).toEqual({
+      mode: 'enabled',
+      bundleId: 'com.healthyapp.app',
+      environment: 'Production',
+      appAppleId: 1_234_567_890,
+    });
+  });
+
+  it('rejects an unknown APPLE_ENVIRONMENT', () => {
+    expect(() => readEnvironment({ APPLE_ENVIRONMENT: 'staging' })).toThrow(
+      /APPLE_ENVIRONMENT must be 'sandbox' or 'production'/,
+    );
   });
 });

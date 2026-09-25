@@ -10,18 +10,16 @@ import { useNavigation, useRouter } from 'expo-router';
 import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Loader, RefreshableScroll } from '@/components/feedback';
-import { ChallengeIcon } from '@/components/challenges/ChallengeIcon';
-import { PUSHUP_ICON_NAME } from '@/components/challenges/challenge-icon';
-import {
-  MATCH_CREATE_HINT,
-  MATCH_CREATE_TITLE,
-  MATCH_LIST_ENTRY,
-} from '@/components/matches/match-copy';
 import { apiClient } from '@/lib/api';
+import { useAppReviewPrompt } from '@/lib/use-app-review-prompt';
 import { ChallengeActionButton } from './ChallengeActionButton';
-import { buildChallengeFocusLayout } from './challenge-list-layout';
+import {
+  buildChallengeFocusLayout,
+  focusSectionLabel,
+} from './challenge-list-layout';
 import { ChallengeProgressRing } from './ChallengeProgressRing';
 import { completionRoute } from './completion-route';
+import { canPracticeAgain } from './practice-entry';
 import { TodayWinHeader } from './TodayWinHeader';
 import { useAdvanceChallenge } from './useAdvanceChallenge';
 
@@ -30,30 +28,10 @@ export function ChallengesScreen() {
   const navigation = useNavigation();
   const { advance, isAdvancing } = useAdvanceChallenge();
 
-  const matchesQuery = useQuery({
-    queryKey: ['matches', 'mine'],
-    queryFn: () => apiClient.listMyMatches(),
-  });
-  const hasLiveMatch = (matchesQuery.data?.live.length ?? 0) > 0;
-  const showMatchEntry = matchesQuery.isSuccess && !hasLiveMatch;
-
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: showMatchEntry
-        ? () => (
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={12}
-              onPress={() => router.push('/matches')}
-              style={styles.headerMatch}
-              testID="open-matches"
-            >
-              <Text style={styles.headerMatchLabel}>{MATCH_LIST_ENTRY}</Text>
-            </Pressable>
-          )
-        : () => null,
-    });
-  }, [navigation, router, showMatchEntry]);
+    navigation.setOptions({ headerRight: () => null });
+  }, [navigation]);
+
   const [showAlso, setShowAlso] = useState(false);
   const [showWeekly, setShowWeekly] = useState(false);
   const [showMonthly, setShowMonthly] = useState(false);
@@ -71,13 +49,17 @@ export function ChallengesScreen() {
   const challenges = challengesQuery.data?.challenges ?? [];
   const hasMembership = meQuery.data?.hasMembership ?? false;
   const layout = buildChallengeFocusLayout(challenges, hasMembership);
-  const openCount =
-    (layout.focus ? 1 : 0) +
-    layout.upNext.length +
-    layout.alsoAvailable.length +
-    layout.weekly.length +
-    layout.monthly.length;
-  const doneVisible = showDone || openCount === 0;
+
+  useAppReviewPrompt({
+    userId: meQuery.data?.id,
+    dayKey: challengesQuery.data?.dayKey,
+    winLocked: layout.win.locked,
+    completedCountToday: layout.completedCount,
+    currentStreakDays: meQuery.data?.currentStreakDays ?? 0,
+    ready: meQuery.isSuccess && challengesQuery.isSuccess,
+  });
+
+  const doneVisible = showDone || layout.openCount === 0;
 
   function openLog(challenge: TodayChallenge) {
     const route = completionRoute(challenge);
@@ -95,31 +77,9 @@ export function ChallengesScreen() {
   return (
     <RefreshableScroll
       contentContainerStyle={styles.content}
-      onPullRefresh={() =>
-        Promise.all([challengesQuery.refetch(), matchesQuery.refetch()])
-      }
+      onPullRefresh={() => challengesQuery.refetch()}
       style={styles.container}
     >
-      {showMatchEntry ? (
-        <Pressable
-          accessibilityHint="Opens matches to challenge a friend"
-          accessibilityRole="button"
-          onPress={() => router.push('/matches')}
-          style={styles.matchEntry}
-          testID="challenges-open-matches"
-        >
-          <ChallengeIcon
-            category="general"
-            name={PUSHUP_ICON_NAME}
-            size="sm"
-          />
-          <View style={styles.matchEntryText}>
-            <Text style={styles.matchEntryTitle}>{MATCH_CREATE_TITLE}</Text>
-            <Text style={styles.matchEntryHint}>{MATCH_CREATE_HINT}</Text>
-          </View>
-        </Pressable>
-      ) : null}
-
       {challengesQuery.isLoading ? (
         <View style={styles.loader}>
           <Loader />
@@ -142,7 +102,9 @@ export function ChallengesScreen() {
 
           {layout.focus ? (
             <View testID="section-focus">
-              <Text style={styles.doNextTitle}>Do next</Text>
+              <Text style={styles.doNextTitle}>
+                {focusSectionLabel(layout.focus)}
+              </Text>
               <ChallengeRow
                 challenge={layout.focus}
                 isBusy={isAdvancing(layout.focus.id)}
@@ -163,6 +125,24 @@ export function ChallengesScreen() {
                   challenge={challenge}
                   isBusy={isAdvancing(challenge.id)}
                   isLast={index === layout.upNext.length - 1}
+                  key={challenge.id}
+                  onAdvance={() => openLog(challenge)}
+                  onOpen={() =>
+                    router.push(`/challenge/${challenge.challengeId}`)
+                  }
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {layout.repeatable.length > 0 ? (
+            <View style={styles.upNextBlock} testID="section-repeatable">
+              <Text style={styles.upNextTitle}>Go again</Text>
+              {layout.repeatable.map((challenge, index) => (
+                <ChallengeRow
+                  challenge={challenge}
+                  isBusy={isAdvancing(challenge.id)}
+                  isLast={index === layout.repeatable.length - 1}
                   key={challenge.id}
                   onAdvance={() => openLog(challenge)}
                   onOpen={() =>
@@ -369,6 +349,7 @@ function ChallengeRow({
           captureKind={challenge.capture.kind}
           completionKind={challenge.completionKind}
           isBusy={isBusy}
+          offersPractice={canPracticeAgain(challenge)}
           onPress={onAdvance}
           status={challenge.status}
           testID={`advance-challenge-${challenge.id}`}
@@ -446,35 +427,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     textAlign: 'center',
     paddingVertical: spacing.sm,
-  },
-  headerMatch: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  headerMatchLabel: {
-    color: colors.accent,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  matchEntry: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  matchEntryText: {
-    flex: 1,
-    gap: 2,
-  },
-  matchEntryTitle: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  matchEntryHint: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
   },
   emptyAction: {
     alignItems: 'center',
