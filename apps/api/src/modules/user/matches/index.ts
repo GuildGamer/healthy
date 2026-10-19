@@ -3,6 +3,7 @@ export type {
   ListMyMatchesDto,
   MatchBoardDto,
   MatchPreviewDto,
+  PublicMatchInvitePreviewDto,
   SubmitMatchAttemptDto,
 } from './dto/match.dto.js';
 export { MatchesModule } from './matches.module.js';

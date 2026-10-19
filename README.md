@@ -84,10 +84,10 @@ API URL, EAS vs local Simulator, Maestro, and “as you go” checks: [`docs/tes
 
 | Path | Role |
 |------|------|
-| `apps/mobile` | Expo + expo-router |
+| `apps/mobile` | Expo + expo-router — develop here; deploy via satellite [GuildGamer/healthy-mobile](https://github.com/GuildGamer/healthy-mobile) (`make sync-deploy-mobile`) |
 | `apps/website` | Astro marketing site — git submodule → [GuildGamer/healthy-website](https://github.com/GuildGamer/healthy-website) (develop here; Vercel deploys this repo) |
 | `apps/admin` | Next.js operator console (`make admin`, :3001) |
-| `apps/api` | NestJS + oRPC |
+| `apps/api` | NestJS + oRPC — develop here; deploy via satellite [GuildGamer/healthy-api](https://github.com/GuildGamer/healthy-api) (`make sync-deploy-api`) |
 | `packages/contract` | Zod + oRPC contract (source of truth) |
 | `packages/client` | Typed client + TanStack Query helpers |
 | `packages/db` | Prisma schema + migrations |
@@ -97,8 +97,9 @@ API URL, EAS vs local Simulator, Maestro, and “as you go” checks: [`docs/tes
 ## Deploy
 
 - **Marketing site**: develop in `apps/website` (submodule → [GuildGamer/healthy-website](https://github.com/GuildGamer/healthy-website)). Commit and push inside `apps/website` to deploy on Vercel; then commit the submodule pointer in `healthy`. After changing `packages/brand`, run `make sync-brand-tokens`. Reserve `apps/web` for the future product web app.
+- **API / mobile (separate GitHub repos for deploy hosts):** develop in this monorepo, then `make sync-deploy-api` / `make sync-deploy-mobile` to push mini-monorepo slices to [healthy-api](https://github.com/GuildGamer/healthy-api) and [healthy-mobile](https://github.com/GuildGamer/healthy-mobile). Point Render / EAS at those repos. Details: [`docs/splitting-repos.md`](docs/splitting-repos.md).
 - **Local / early**: Docker Compose
-- **Simple cloud**: `render.yaml` (same API Docker image)
+- **Simple cloud**: `render.yaml` in the monorepo, or the satellite `healthy-api` repo after sync
 - **AWS**: CDK stacks in `infra/` when Activate credits or scale require it
 
 Application code stays provider-neutral (`PORT`, `0.0.0.0`, liveness/readiness).

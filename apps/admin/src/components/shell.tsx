@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { href: '/analytics/engagement', label: 'Engagement', access: 'any' },
   { href: '/analytics/catalog', label: 'Catalog insights', access: 'any' },
   { href: '/analytics/reminders', label: 'Reminders', access: 'any' },
+  { href: '/experiments', label: 'Experiments', access: 'any' },
   { href: '/catalog', label: 'Catalog', access: 'content' },
   { href: '/membership', label: 'Membership', access: 'content' },
   { href: '/tips', label: 'Tips', access: 'content' },

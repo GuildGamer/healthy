@@ -78,6 +78,21 @@ export const createMatchInputSchema = z
      * host shares a link, which stays the default path.
      */
     crewId: z.string().min(1).optional(),
+    /**
+     * Habit occurrence that motivated this contest (distribution flywheel).
+     * When set, the server may seed the host's first attempt from that
+     * completion's verified count.
+     */
+    sourceUserChallengeId: z.string().min(1).optional(),
+    /** Prior contest in a challenge chain (A → B → C). */
+    parentMatchId: z.string().min(1).optional(),
+    experimentId: z.string().min(1).optional(),
+    experimentVariantKey: z.string().min(1).max(64).optional(),
+    /**
+     * Optional host score to bank immediately (e.g. reps just performed).
+     * Preferred over deriving from `sourceUserChallengeId` when both are set.
+     */
+    seedCount: z.number().int().positive().max(200_000).optional(),
   })
   .superRefine((input, ctx) => {
     if (input.window !== undefined && input.durationDays !== undefined) {
@@ -178,6 +193,26 @@ export const matchPreviewSchema = z.object({
   status: matchStatusSchema,
   alreadyJoined: z.boolean(),
   viewerIsHost: z.boolean(),
+  /** Host's best attempt so far — the score to beat when present. */
+  hostScore: z.number().int().nonnegative().nullable(),
+  parentMatchId: z.string().min(1).nullable(),
+  experimentId: z.string().min(1).nullable(),
+  experimentVariantKey: z.string().min(1).nullable(),
+});
+
+/**
+ * Public, rate-safe invite card for the marketing site / deferred install.
+ * Intentionally omits private health data and match id enumeration aids beyond
+ * the unguessable token.
+ */
+export const publicMatchInvitePreviewSchema = z.object({
+  token: z.string().min(1),
+  hostDisplayName: z.string().min(1),
+  metric: matchMetricSchema,
+  scoringMode: matchScoringModeSchema,
+  hostScore: z.number().int().nonnegative().nullable(),
+  status: matchStatusSchema,
+  endsAt: z.string().datetime(),
 });
 
 export const matchIdInputSchema = z.object({
@@ -231,6 +266,11 @@ export const previewMatchContract = oc
   .input(matchTokenInputSchema)
   .output(matchPreviewSchema);
 
+export const publicPreviewMatchContract = oc
+  .route({ method: 'GET', path: '/matches/invite/public' })
+  .input(matchTokenInputSchema)
+  .output(publicMatchInvitePreviewSchema);
+
 export const joinMatchContract = oc
   .route({ method: 'POST', path: '/matches/join' })
   .input(matchTokenInputSchema)
@@ -264,6 +304,9 @@ export type CreateMatchInput = z.input<typeof createMatchInputSchema>;
 export type ResolvedCreateMatchInput = z.output<typeof createMatchInputSchema>;
 export type CreateMatchOutput = z.infer<typeof createMatchOutputSchema>;
 export type MatchPreview = z.infer<typeof matchPreviewSchema>;
+export type PublicMatchInvitePreview = z.infer<
+  typeof publicMatchInvitePreviewSchema
+>;
 export type MatchListItem = z.infer<typeof matchListItemSchema>;
 export type ListMyMatchesOutput = z.infer<typeof listMyMatchesOutputSchema>;
 export type SubmitMatchAttemptInput = z.infer<

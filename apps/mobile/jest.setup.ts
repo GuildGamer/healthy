@@ -82,6 +82,11 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock('expo-clipboard', () => ({
+  getStringAsync: jest.fn(async () => ''),
+  setStringAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock('expo-sharing', () => ({
   isAvailableAsync: jest.fn(async () => true),
   shareAsync: jest.fn(async () => undefined),

@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help install up down logs migrate migrate-deploy seed api mobile ios android website admin e2e-website build typecheck test test-integration openapi openapi-check split-repos sync-brand-tokens lane-b lane-b-stop lane-b-restart lane-b-status lane-b-logs
+.PHONY: help install up down logs migrate migrate-deploy seed api mobile ios android website admin e2e-website build typecheck test test-integration openapi openapi-check split-repos sync-brand-tokens sync-deploy-api sync-deploy-mobile lane-b lane-b-stop lane-b-restart lane-b-status lane-b-logs
 
 help:
 	@echo "Available targets:"; grep -E '^[a-zA-Z0-9_-]+:' Makefile | cut -d: -f1 | sort
@@ -114,3 +114,12 @@ split-repos:
 sync-brand-tokens:
 	@echo "+ bash scripts/sync-brand-tokens.sh"
 	@bash scripts/sync-brand-tokens.sh
+
+# Deploy satellites (GuildGamer/healthy-api, healthy-mobile) — see docs/splitting-repos.md
+sync-deploy-api:
+	@echo "+ bash scripts/sync-deploy-repo.sh api --create --push"
+	@bash scripts/sync-deploy-repo.sh api --create --push
+
+sync-deploy-mobile:
+	@echo "+ bash scripts/sync-deploy-repo.sh mobile --create --push"
+	@bash scripts/sync-deploy-repo.sh mobile --create --push

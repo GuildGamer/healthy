@@ -9,3 +9,7 @@ export const MATCH_INVALID_SOURCE = 'Only a live set on this phone counts.';
 export const MATCH_WRONG_ACTIVITY =
   'That does not count towards this group’s activity.';
 export const MATCH_COUNT_TOO_LARGE = 'That score is out of range.';
+export const MATCH_INVALID_SOURCE_CHALLENGE =
+  'That completed set cannot start a challenge.';
+export const MATCH_INVALID_PARENT =
+  'You can only continue from a group you are in.';

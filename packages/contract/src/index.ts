@@ -34,12 +34,19 @@ import {
   saveCrewContract,
 } from './crews.js';
 import {
+  trackAnalyticsEventContract,
+} from './analytics-events.js';
+import {
+  getExperimentAssignmentContract,
+} from './experiments.js';
+import {
   cancelMatchContract,
   createMatchContract,
   getMatchContract,
   joinMatchContract,
   listMyMatchesContract,
   previewMatchContract,
+  publicPreviewMatchContract,
   submitMatchAttemptContract,
 } from './matches.js';
 import {
@@ -173,6 +180,8 @@ export {
 export type {
   AdminChallenge,
   AdminContract,
+  AdminExperimentDetail,
+  AdminExperimentListItem,
   AdminMeOutput,
   AdminMemberListItem,
   AdminMemberOutput,
@@ -187,6 +196,7 @@ export type {
   PublicTip,
   SetAdminMemberActiveInput,
   UpdateAdminChallengeInput,
+  UpdateAdminExperimentWeightsInput,
   UpdateAdminTipInput,
   UpdateMembershipPlanInput,
   UpsertAdminChallengeInput,
@@ -776,10 +786,13 @@ export const appContract = {
   createMatch: createMatchContract,
   listMyMatches: listMyMatchesContract,
   previewMatch: previewMatchContract,
+  publicPreviewMatch: publicPreviewMatchContract,
   joinMatch: joinMatchContract,
   getMatch: getMatchContract,
   submitMatchAttempt: submitMatchAttemptContract,
   cancelMatch: cancelMatchContract,
+  getExperimentAssignment: getExperimentAssignmentContract,
+  trackAnalyticsEvent: trackAnalyticsEventContract,
   listCrews: listCrewsContract,
   saveCrew: saveCrewContract,
   renameCrew: renameCrewContract,
@@ -908,9 +921,33 @@ export type {
   MatchStanding,
   MatchStatus,
   MatchWindow,
+  PublicMatchInvitePreview,
   ResolvedCreateMatchInput,
   SubmitMatchAttemptInput,
 } from './matches.js';
+
+export {
+  ANALYTICS_EVENT_NAMES,
+  analyticsEventNameSchema,
+  trackAnalyticsEventContract,
+} from './analytics-events.js';
+export type {
+  AnalyticsEventName,
+  TrackAnalyticsEventInput,
+} from './analytics-events.js';
+
+export {
+  EXPERIMENT_KEYS,
+  experimentAssignmentSchema,
+  experimentKeySchema,
+  experimentStatusSchema,
+  getExperimentAssignmentContract,
+} from './experiments.js';
+export type {
+  ExperimentAssignment,
+  ExperimentKey,
+  ExperimentStatus,
+} from './experiments.js';
 
 export { CREW_NAME_MAX, crewLabel, crewNameSchema, crewSchema } from './crews.js';
 export type {

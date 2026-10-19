@@ -1,5 +1,6 @@
 import { AdminAnalyticsModule } from './analytics/index.js';
 import { AdminCatalogModule } from './catalog/index.js';
+import { AdminExperimentsModule } from './experiments/index.js';
 import { AdminMeModule } from './me/index.js';
 import { AdminMembersModule } from './members/index.js';
 import { AdminMembershipModule } from './membership/index.js';
@@ -11,6 +12,7 @@ export default [
   AdminMeModule,
   AdminAnalyticsModule,
   AdminCatalogModule,
+  AdminExperimentsModule,
   AdminMembershipModule,
   AdminTipsModule,
   AdminWaitlistModule,

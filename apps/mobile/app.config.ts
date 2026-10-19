@@ -9,6 +9,19 @@ const LINK_HOST = 'gethealthyapp.com';
 /** Trailing slash matters: without it Android would also claim `/matches/...`. */
 const MATCH_INVITE_PATH_PREFIX = '/match/';
 
+/**
+ * Canonical store IDs for your own Apple/Google account later.
+ * Override for disposable TestFlight / friend-account builds so you do not
+ * register the real ID on a team you will abandon (Apple App IDs stick to the
+ * team that creates them).
+ *
+ * Example throwaway: IOS_BUNDLE_IDENTIFIER=com.healthyapp.tfpreview
+ */
+const IOS_BUNDLE_IDENTIFIER =
+  process.env.IOS_BUNDLE_IDENTIFIER?.trim() || 'com.healthyapp.app';
+const ANDROID_PACKAGE =
+  process.env.ANDROID_PACKAGE?.trim() || 'com.healthyapp.app';
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Healthy',
@@ -21,7 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/icon.png',
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.healthyapp.app',
+    bundleIdentifier: IOS_BUNDLE_IDENTIFIER,
     associatedDomains: [`applinks:${LINK_HOST}`],
     // Set once the App Store listing exists (numeric id from App Store Connect).
     // appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
@@ -39,7 +52,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/icon.png',
       backgroundColor: '#3DDC97',
     },
-    package: 'com.healthyapp.app',
+    package: ANDROID_PACKAGE,
     intentFilters: [
       {
         action: 'VIEW',
@@ -56,8 +69,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ],
       },
     ],
-    playStoreUrl:
-      'https://play.google.com/store/apps/details?id=com.healthyapp.app',
+    playStoreUrl: `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`,
     permissions: [
       'CAMERA',
       'ACCESS_COARSE_LOCATION',

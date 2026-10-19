@@ -2,8 +2,7 @@ import type { HealthCategory } from '@product/client';
 import { useRouter } from 'expo-router';
 import { CategorySelectionScreen } from '@/components/auth';
 import { apiClient } from '@/lib/api';
-import { readEmailVerified } from '@/lib/auth-client';
-import { routeAfterCategories } from '@/lib/post-auth-route';
+import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 
 export default function CategorySelection() {
   const router = useRouter();
@@ -12,8 +11,8 @@ export default function CategorySelection() {
     await apiClient.updateCategories({
       categories: [...categories],
     });
-    const emailVerified = await readEmailVerified();
-    router.replace(routeAfterCategories(emailVerified));
+    const href = await resolvePostAuthHref();
+    router.replace(href ?? '/(tabs)');
   }
 
   return <CategorySelectionScreen onContinue={handleContinue} />;

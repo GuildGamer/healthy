@@ -5734,6 +5734,28 @@
                   "crewId": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "sourceUserChallengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "parentMatchId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "experimentId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "experimentVariantKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "seedCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200000
                   }
                 }
               }
@@ -6205,6 +6227,50 @@
                     },
                     "viewerIsHost": {
                       "type": "boolean"
+                    },
+                    "hostScore": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parentMatchId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "experimentId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "experimentVariantKey": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -6219,7 +6285,100 @@
                     "participantCap",
                     "status",
                     "alreadyJoined",
-                    "viewerIsHost"
+                    "viewerIsHost",
+                    "hostScore",
+                    "parentMatchId",
+                    "experimentId",
+                    "experimentVariantKey"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/invite/public": {
+      "get": {
+        "operationId": "publicPreviewMatch",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "hostDisplayName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "metric": {
+                      "enum": [
+                        "pushups",
+                        "walk"
+                      ],
+                      "type": "string"
+                    },
+                    "scoringMode": {
+                      "enum": [
+                        "best_single",
+                        "cumulative_total",
+                        "days_completed"
+                      ],
+                      "type": "string"
+                    },
+                    "hostScore": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "completed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "hostDisplayName",
+                    "metric",
+                    "scoringMode",
+                    "hostScore",
+                    "status",
+                    "endsAt"
                   ]
                 }
               }
@@ -6968,6 +7127,173 @@
                     "winnerUserId",
                     "standings",
                     "canSaveCrew"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/experiments/assign": {
+      "post": {
+        "operationId": "getExperimentAssignment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "experimentKey": {
+                    "enum": [
+                      "challenge_referral_v1"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "experimentKey"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "experimentId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "experimentKey": {
+                          "enum": [
+                            "challenge_referral_v1"
+                          ],
+                          "type": "string"
+                        },
+                        "variantId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "variantKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "configuration": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "assignedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "experimentId",
+                        "experimentKey",
+                        "variantId",
+                        "variantKey",
+                        "configuration",
+                        "assignedAt"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/events": {
+      "post": {
+        "operationId": "trackAnalyticsEvent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "challenge_completed",
+                      "challenge_cta_viewed",
+                      "challenge_friend_clicked",
+                      "challenge_created",
+                      "challenge_share_sheet_opened",
+                      "challenge_link_copied",
+                      "challenge_shared",
+                      "challenge_link_opened",
+                      "challenge_recipient_signed_up",
+                      "challenge_accepted",
+                      "challenge_started_by_recipient",
+                      "challenge_completed_by_recipient",
+                      "challenge_again_clicked",
+                      "challenge_new_friend_clicked",
+                      "challenge_new_challenge_created",
+                      "deferred_invite_stashed",
+                      "deferred_invite_claimed",
+                      "invite_restored_on_launch",
+                      "user_active"
+                    ],
+                    "type": "string"
+                  },
+                  "anonymousId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "properties": {
+                    "default": {},
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
                   ]
                 }
               }
@@ -11767,6 +12093,553 @@
                   },
                   "required": [
                     "plan"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/experiments": {
+      "get": {
+        "operationId": "listExperiments",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "experiments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "key": {
+                            "enum": [
+                              "challenge_referral_v1"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "status": {
+                            "enum": [
+                              "draft",
+                              "running",
+                              "ended"
+                            ],
+                            "type": "string"
+                          },
+                          "primaryMetric": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "participantCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "startAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "endAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "key",
+                          "name",
+                          "status",
+                          "primaryMetric",
+                          "participantCount",
+                          "startAt",
+                          "endAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "experiments"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/experiments/detail": {
+      "get": {
+        "operationId": "getExperiment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "key": {
+                      "enum": [
+                        "challenge_referral_v1"
+                      ],
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "draft",
+                        "running",
+                        "ended"
+                      ],
+                      "type": "string"
+                    },
+                    "primaryMetric": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "startAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "endAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "stageHint": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "variants": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "variantKey": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "variantName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "weight": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "assignedCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "funnel": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label",
+                                "count"
+                              ]
+                            }
+                          },
+                          "challengeSendRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "inviteAcceptRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "activatedFriendRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "secondGenerationRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "variantKey",
+                          "variantName",
+                          "weight",
+                          "assignedCount",
+                          "funnel",
+                          "challengeSendRate",
+                          "inviteAcceptRate",
+                          "activatedFriendRate",
+                          "secondGenerationRate"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "key",
+                    "name",
+                    "description",
+                    "status",
+                    "primaryMetric",
+                    "startAt",
+                    "endAt",
+                    "participantCount",
+                    "stageHint",
+                    "variants"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/experiments/weights": {
+      "post": {
+        "operationId": "updateExperimentWeights",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "variantKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "weight": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        }
+                      },
+                      "required": [
+                        "variantKey",
+                        "weight"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 16
+                  }
+                },
+                "required": [
+                  "id",
+                  "variants"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "key": {
+                      "enum": [
+                        "challenge_referral_v1"
+                      ],
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "draft",
+                        "running",
+                        "ended"
+                      ],
+                      "type": "string"
+                    },
+                    "primaryMetric": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "startAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "endAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "stageHint": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "variants": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "variantKey": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "variantName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "weight": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "assignedCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "funnel": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label",
+                                "count"
+                              ]
+                            }
+                          },
+                          "challengeSendRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "inviteAcceptRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "activatedFriendRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "secondGenerationRate": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "variantKey",
+                          "variantName",
+                          "weight",
+                          "assignedCount",
+                          "funnel",
+                          "challengeSendRate",
+                          "inviteAcceptRate",
+                          "activatedFriendRate",
+                          "secondGenerationRate"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "key",
+                    "name",
+                    "description",
+                    "status",
+                    "primaryMetric",
+                    "startAt",
+                    "endAt",
+                    "participantCount",
+                    "stageHint",
+                    "variants"
                   ]
                 }
               }

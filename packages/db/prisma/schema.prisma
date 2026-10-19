@@ -31,10 +31,12 @@ model User {
   wonMatches           Match[]               @relation("MatchWinner")
   matchParticipations  MatchParticipant[]
   matchAttempts        MatchAttempt[]
-  ownedCrews           Crew[]                @relation("CrewOwner")
-  crewMemberships      CrewMember[]
-  subscriptions        Subscription[]
-  entitlements         Entitlement[]
+  ownedCrews             Crew[]                  @relation("CrewOwner")
+  crewMemberships        CrewMember[]
+  subscriptions          Subscription[]
+  entitlements           Entitlement[]
+  experimentAssignments  ExperimentAssignment[]
+  analyticsEvents        AnalyticsEvent[]
 
   @@map("user")
 }
@@ -348,6 +350,8 @@ model UserChallenge {
   deviceActivityLog       DeviceActivityLog?
   surpriseEvidenceRequest SurpriseEvidenceRequest?
   inProgressNudgeDelivery InProgressNudgeDelivery?
+  /// Contests created from this completed occurrence (distribution flywheel).
+  sourcedMatches          Match[]
 
   @@unique([userId, challengeId, periodKey])
   @@index([userId, periodKey])
@@ -848,30 +852,44 @@ enum MatchDailyScope {
 
 /// Private contest a host can send by link. Isolated from habit points.
 model Match {
-  id           String             @id @default(cuid())
-  hostUserId   String
-  hostUser     User               @relation("MatchHost", fields: [hostUserId], references: [id], onDelete: Cascade)
-  inviteToken  String             @unique
-  metric       MatchMetric        @default(pushups)
-  scoringMode  MatchScoringMode   @default(best_single)
-  dailyScope   MatchDailyScope    @default(any_challenge)
-  startsAt     DateTime
-  endsAt       DateTime
-  status       MatchStatus        @default(open)
-  winnerUserId String?
-  winnerUser   User?              @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
-  settledAt    DateTime?
+  id                    String             @id @default(cuid())
+  hostUserId            String
+  hostUser              User               @relation("MatchHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  inviteToken           String             @unique
+  metric                MatchMetric        @default(pushups)
+  scoringMode           MatchScoringMode   @default(best_single)
+  dailyScope            MatchDailyScope    @default(any_challenge)
+  startsAt              DateTime
+  endsAt                DateTime
+  status                MatchStatus        @default(open)
+  winnerUserId          String?
+  winnerUser            User?              @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
+  settledAt             DateTime?
   /// Which saved roster seated this contest, if any. Kept for provenance so a
   /// crew can be offered again without re-deriving it from the participants.
-  crewId       String?
-  crew         Crew?              @relation(fields: [crewId], references: [id], onDelete: SetNull)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  participants MatchParticipant[]
-  attempts     MatchAttempt[]
+  crewId                String?
+  crew                  Crew?              @relation(fields: [crewId], references: [id], onDelete: SetNull)
+  /// Prior contest in a distribution chain (A challenged B → B challenges C).
+  parentMatchId         String?
+  parentMatch           Match?             @relation("MatchDistribution", fields: [parentMatchId], references: [id], onDelete: SetNull)
+  childMatches          Match[]            @relation("MatchDistribution")
+  /// Habit occurrence that motivated this contest, when created from completion.
+  sourceUserChallengeId String?
+  sourceUserChallenge   UserChallenge?     @relation(fields: [sourceUserChallengeId], references: [id], onDelete: SetNull)
+  experimentId          String?
+  experiment            Experiment?        @relation(fields: [experimentId], references: [id], onDelete: SetNull)
+  experimentVariantKey  String?
+  /// First time any client opened the invite (web or app). Funnel H2.
+  firstOpenedAt         DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  participants          MatchParticipant[]
+  attempts              MatchAttempt[]
 
   @@index([hostUserId, createdAt])
   @@index([status, endsAt])
+  @@index([parentMatchId])
+  @@index([experimentId, experimentVariantKey])
   @@map("matches")
 }
 
@@ -943,4 +961,85 @@ model MatchAttempt {
 
   @@index([matchId, userId, recordedAt])
   @@map("match_attempts")
+}
+
+enum ExperimentStatus {
+  draft
+  running
+  ended
+}
+
+/// Product experiment definition. Sticky assignment lives on ExperimentAssignment.
+model Experiment {
+  id            String                 @id @default(cuid())
+  /// Stable key used in code and analytics (`challenge_referral_v1`).
+  key           String                 @unique
+  name          String
+  description   String                 @default("")
+  status        ExperimentStatus       @default(draft)
+  /// Primary metric label for admin (e.g. activated_friend_rate).
+  primaryMetric String
+  startAt       DateTime?
+  endAt         DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  variants      ExperimentVariant[]
+  assignments   ExperimentAssignment[]
+  matches       Match[]
+
+  @@map("experiments")
+}
+
+model ExperimentVariant {
+  id              String                 @id @default(cuid())
+  experimentId    String
+  experiment      Experiment             @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  /// Stable key within the experiment (`control`, `treatment`).
+  key             String
+  name            String
+  /// Relative allocation weight. Equal weights → 50/50.
+  weight          Int                    @default(1)
+  /// UI / product config for this variant (CTA copy, etc.).
+  configuration   Json?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  assignments     ExperimentAssignment[]
+
+  @@unique([experimentId, key])
+  @@index([experimentId])
+  @@map("experiment_variants")
+}
+
+model ExperimentAssignment {
+  id           String            @id @default(cuid())
+  experimentId String
+  experiment   Experiment        @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variantId    String
+  variant      ExperimentVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime          @default(now())
+
+  @@unique([experimentId, userId])
+  @@index([userId])
+  @@index([variantId])
+  @@map("experiment_assignments")
+}
+
+/// First-party product analytics. Not a warehouse — funnel events for experiments.
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  name        String
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Client-generated id before auth, or web visitor id.
+  anonymousId String?
+  properties  Json     @default("{}")
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([name, occurredAt])
+  @@index([userId, occurredAt])
+  @@index([anonymousId, occurredAt])
+  @@map("analytics_events")
 }

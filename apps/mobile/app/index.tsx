@@ -2,6 +2,7 @@ import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { SplashScreen } from '@/components/auth';
 import { useSession } from '@/lib/auth-client';
+import { claimDeferredInviteToken } from '@/lib/deferred-invite';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 
@@ -16,6 +17,12 @@ export default function Index() {
   useEffect(() => {
     const timer = setTimeout(() => setIsSplashComplete(true), SPLASH_DURATION_MS);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Claim clipboard / SecureStore invite on every cold open — including the
+  // unauthenticated onboarding path — without blocking splash.
+  useEffect(() => {
+    void claimDeferredInviteToken();
   }, []);
 
   useEffect(() => {

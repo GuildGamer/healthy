@@ -26,6 +26,7 @@ import {
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { AnalyticsService } from '../analytics/index.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
 import type {
@@ -33,11 +34,14 @@ import type {
   CreateMatchInputDto,
   ListMyMatchesDto,
   MatchBoardDto,
+  PublicMatchInvitePreviewDto,
 } from './dto/match.dto.js';
 import {
   MATCH_COUNT_TOO_LARGE,
   MATCH_ENDED,
   MATCH_FULL,
+  MATCH_INVALID_PARENT,
+  MATCH_INVALID_SOURCE_CHALLENGE,
   MATCH_NOT_FOUND,
   MATCH_NOT_HOST,
   MATCH_NOT_OPEN,
@@ -93,7 +97,43 @@ export class MatchesService {
     @Inject(ENVIRONMENT) private readonly environment: Environment,
     private readonly crewsService: CrewsService,
     private readonly crewSeatNotifier: CrewSeatNotifierService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
+
+  private async trackMatchEvent(
+    user: AuthenticatedUser | null,
+    name:
+      | 'challenge_accepted'
+      | 'challenge_recipient_signed_up'
+      | 'challenge_started_by_recipient'
+      | 'challenge_completed_by_recipient',
+    match: Pick<
+      LoadedMatch,
+      | 'id'
+      | 'inviteToken'
+      | 'experimentId'
+      | 'experimentVariantKey'
+      | 'parentMatchId'
+    >,
+  ): Promise<void> {
+    try {
+      await this.analyticsService.track(user, {
+        name,
+        properties: {
+          matchId: match.id,
+          inviteToken: match.inviteToken,
+          experimentId: match.experimentId,
+          experimentVariantKey: match.experimentVariantKey,
+          parentMatchId: match.parentMatchId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not track ${name} for match ${match.id}`,
+        error,
+      );
+    }
+  }
 
   private inviteUrlFor(token: string): string {
     return matchInviteUrl(this.environment.websiteUrl, token);
@@ -137,6 +177,11 @@ export class MatchesService {
     );
 
     const seatedUserIds = await this.crewSeats(user.id, input.crewId);
+    const seedAttempt = await this.resolveHostSeedAttempt(user.id, input);
+
+    if (input.parentMatchId) {
+      await this.assertParentMatchParticipant(user.id, input.parentMatchId);
+    }
 
     const created = await this.prisma.$transaction(async (tx) => {
       const match = await tx.match.create({
@@ -149,6 +194,10 @@ export class MatchesService {
           startsAt: bounds.startsAt,
           endsAt: bounds.endsAt,
           crewId: input.crewId ?? null,
+          sourceUserChallengeId: input.sourceUserChallengeId ?? null,
+          parentMatchId: input.parentMatchId ?? null,
+          experimentId: input.experimentId ?? null,
+          experimentVariantKey: input.experimentVariantKey ?? null,
         },
       });
 
@@ -165,6 +214,19 @@ export class MatchesService {
             userId,
             acceptedAt: null,
           })),
+        });
+      }
+
+      if (seedAttempt) {
+        await tx.matchAttempt.create({
+          data: {
+            matchId: match.id,
+            userId: user.id,
+            count: seedAttempt.count,
+            durationSeconds: seedAttempt.durationSeconds,
+            source: seedAttempt.source,
+            recordedAt: now,
+          },
         });
       }
 
@@ -226,6 +288,55 @@ export class MatchesService {
       status: live.status,
       alreadyJoined: this.isParticipant(live, user.id),
       viewerIsHost: live.hostUserId === user.id,
+      hostScore: this.hostScoreFor(live),
+      parentMatchId: live.parentMatchId,
+      experimentId: live.experimentId,
+      experimentVariantKey: live.experimentVariantKey,
+    };
+  }
+
+  /**
+   * Unauthenticated invite card for the marketing site / deferred install.
+   * Skips settlement so a public hit cannot race host settlement side effects.
+   */
+  async publicPreview(token: string): Promise<PublicMatchInvitePreviewDto> {
+    const match = await this.loadByToken(token);
+
+    if (match.firstOpenedAt === null) {
+      await this.prisma.match.updateMany({
+        where: { id: match.id, firstOpenedAt: null },
+        data: { firstOpenedAt: new Date() },
+      });
+    }
+
+    try {
+      await this.analyticsService.track(null, {
+        name: 'challenge_link_opened',
+        properties: {
+          matchId: match.id,
+          inviteToken: match.inviteToken,
+          experimentId: match.experimentId,
+          experimentVariantKey: match.experimentVariantKey,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not track challenge_link_opened for match ${match.id}`,
+        error,
+      );
+    }
+
+    return {
+      token: match.inviteToken,
+      hostDisplayName: publicNameFor(
+        match.hostUserId,
+        match.hostUser.profile?.displayName,
+      ),
+      metric: match.metric,
+      scoringMode: match.scoringMode,
+      hostScore: this.hostScoreFor(match),
+      status: match.status,
+      endsAt: match.endsAt.toISOString(),
     };
   }
 
@@ -274,7 +385,10 @@ export class MatchesService {
       throw new ORPCError('BAD_REQUEST', { message: MATCH_FULL });
     }
 
-    return await this.buildBoard(await this.loadByToken(token), user.id);
+    const joined = await this.loadByToken(token);
+    await this.trackMatchEvent(user, 'challenge_accepted', joined);
+    await this.trackMatchEvent(user, 'challenge_recipient_signed_up', joined);
+    return await this.buildBoard(joined, user.id);
   }
 
   async get(
@@ -350,6 +464,11 @@ export class MatchesService {
 
     this.assertAttemptFitsMetric(match.metric, input);
 
+    const isRecipient = user.id !== match.hostUserId;
+    const priorRecipientAttempts = match.attempts.filter(
+      (attempt) => attempt.userId === user.id,
+    ).length;
+
     await this.prisma.matchAttempt.create({
       data: {
         matchId: match.id,
@@ -359,6 +478,19 @@ export class MatchesService {
         source: input.source,
       },
     });
+
+    if (isRecipient && priorRecipientAttempts === 0) {
+      await this.trackMatchEvent(
+        user,
+        'challenge_started_by_recipient',
+        match,
+      );
+      await this.trackMatchEvent(
+        user,
+        'challenge_completed_by_recipient',
+        match,
+      );
+    }
 
     const fresh = await this.loadById(match.id);
     return await this.buildBoard(fresh, user.id);
@@ -503,6 +635,129 @@ export class MatchesService {
 
   private isParticipant(match: LoadedMatch, userId: string): boolean {
     return match.participants.some((row) => row.userId === userId);
+  }
+
+  private hostScoreFor(match: LoadedMatch): number | null {
+    const hostAttempts = match.attempts.filter(
+      (attempt) => attempt.userId === match.hostUserId,
+    );
+    if (hostAttempts.length === 0) {
+      return null;
+    }
+
+    return hostAttempts.reduce(
+      (best, attempt) => Math.max(best, attempt.count),
+      0,
+    );
+  }
+
+  private async assertParentMatchParticipant(
+    userId: string,
+    parentMatchId: string,
+  ): Promise<void> {
+    const parent = await this.prisma.match.findUnique({
+      where: { id: parentMatchId },
+      include: { participants: true },
+    });
+
+    if (!parent) {
+      throw new ORPCError('BAD_REQUEST', { message: MATCH_INVALID_PARENT });
+    }
+
+    const isParticipant = parent.participants.some(
+      (row) => row.userId === userId,
+    );
+    if (!isParticipant) {
+      throw new ORPCError('FORBIDDEN', { message: MATCH_INVALID_PARENT });
+    }
+  }
+
+  /**
+   * When the host creates from a finished habit occurrence, seed their first
+   * attempt from the verified device activity so the invite already shows a
+   * score to beat.
+   */
+  private async resolveHostSeedAttempt(
+    hostUserId: string,
+    input: CreateMatchInputDto,
+  ): Promise<{
+    count: number;
+    durationSeconds: number;
+    source: (typeof MATCH_ATTEMPT_SOURCE_BY_METRIC)[MatchMetric];
+  } | null> {
+    if (input.seedCount != null) {
+      return {
+        count: input.seedCount,
+        durationSeconds: 0,
+        source: MATCH_ATTEMPT_SOURCE_BY_METRIC[input.metric],
+      };
+    }
+
+    if (!input.sourceUserChallengeId) {
+      return null;
+    }
+
+    const occurrence = await this.prisma.userChallenge.findUnique({
+      where: { id: input.sourceUserChallengeId },
+      include: { deviceActivityLog: true },
+    });
+
+    if (!occurrence || occurrence.userId !== hostUserId) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: MATCH_INVALID_SOURCE_CHALLENGE,
+      });
+    }
+
+    if (
+      occurrence.status !== 'completed' &&
+      occurrence.status !== 'awaiting_evidence'
+    ) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: MATCH_INVALID_SOURCE_CHALLENGE,
+      });
+    }
+
+    const log = occurrence.deviceActivityLog;
+    if (!log) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: MATCH_INVALID_SOURCE_CHALLENGE,
+      });
+    }
+
+    if (input.metric === 'pushups') {
+      if (log.metric !== 'pushups' || log.count == null || log.count <= 0) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: MATCH_INVALID_SOURCE_CHALLENGE,
+        });
+      }
+
+      return {
+        count: log.count,
+        durationSeconds: log.durationSeconds ?? 0,
+        source: MATCH_ATTEMPT_SOURCE_BY_METRIC.pushups,
+      };
+    }
+
+    if (input.metric === 'walk') {
+      const minutes =
+        log.count ??
+        (log.durationSeconds != null
+          ? Math.floor(log.durationSeconds / 60)
+          : null);
+      if (log.metric !== 'walk' || minutes == null || minutes <= 0) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: MATCH_INVALID_SOURCE_CHALLENGE,
+        });
+      }
+
+      return {
+        count: minutes,
+        durationSeconds: log.durationSeconds ?? minutes * 60,
+        source: MATCH_ATTEMPT_SOURCE_BY_METRIC.walk,
+      };
+    }
+
+    return null;
   }
 
   private standingParticipants(match: LoadedMatch) {

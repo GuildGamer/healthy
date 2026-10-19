@@ -4,5 +4,6 @@ export type {
   ListMyMatchesOutput as ListMyMatchesDto,
   MatchBoard as MatchBoardDto,
   MatchPreview as MatchPreviewDto,
+  PublicMatchInvitePreview as PublicMatchInvitePreviewDto,
   SubmitMatchAttemptInput as SubmitMatchAttemptDto,
 } from '@product/contract';

@@ -64,6 +64,11 @@ type MockMatch = {
   winnerUserId: string | null;
   settledAt: Date | null;
   crewId: string | null;
+  parentMatchId: string | null;
+  sourceUserChallengeId: string | null;
+  experimentId: string | null;
+  experimentVariantKey: string | null;
+  firstOpenedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   hostUser: ReturnType<typeof userWithProfile>;
@@ -86,6 +91,11 @@ function loadedMatch(overrides: Partial<MockMatch> = {}): MockMatch {
     winnerUserId: null,
     settledAt: null,
     crewId: null,
+    parentMatchId: null,
+    sourceUserChallengeId: null,
+    experimentId: null,
+    experimentVariantKey: null,
+    firstOpenedAt: null,
     createdAt: new Date('2026-09-04T10:00:00.000Z'),
     updatedAt: new Date('2026-09-04T10:00:00.000Z'),
     hostUser: userWithProfile(host.id, 'Ada'),
@@ -189,30 +199,45 @@ function createPrismaMock(match = loadedMatch()) {
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     matchAttempt: {
-      create: vi.fn().mockImplementation(async ({ data }: { data: { count: number } }) => {
-        current.match = {
-          ...current.match,
-          attempts: [
-            ...current.match.attempts,
-            {
-              id: 'a1',
-              matchId: current.match.id,
-              userId: guest.id,
-              count: data.count,
-              durationSeconds: 30,
-              source: 'in_app_pose',
-              recordedAt: new Date(),
-            },
-          ],
-        };
-        return { id: 'a1' };
-      }),
+      create: vi.fn().mockImplementation(
+        async ({
+          data,
+        }: {
+          data: {
+            userId: string;
+            count: number;
+            durationSeconds: number;
+            source: string;
+          };
+        }) => {
+          current.match = {
+            ...current.match,
+            attempts: [
+              ...current.match.attempts,
+              {
+                id: 'a1',
+                matchId: current.match.id,
+                userId: data.userId,
+                count: data.count,
+                durationSeconds: data.durationSeconds,
+                source: data.source,
+                recordedAt: new Date(),
+              },
+            ],
+          };
+          return { id: 'a1' };
+        },
+      ),
     },
     userChallenge: {
+      findUnique: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
     },
     deviceActivityLog: {
       findMany: vi.fn().mockResolvedValue([]),
+    },
+    analyticsEvent: {
+      create: vi.fn().mockResolvedValue({ id: 'evt1' }),
     },
     $transaction: vi.fn(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
       fn(prisma),
@@ -227,15 +252,21 @@ function createNotifierSpy() {
   return { notifySeated: vi.fn().mockResolvedValue(undefined) };
 }
 
+function createAnalyticsSpy() {
+  return { track: vi.fn().mockResolvedValue({ ok: true as const }) };
+}
+
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   notifier: ReturnType<typeof createNotifierSpy> = createNotifierSpy(),
+  analytics: ReturnType<typeof createAnalyticsSpy> = createAnalyticsSpy(),
 ): MatchesService {
   return new MatchesService(
     prisma as never,
     readEnvironment({ WEBSITE_URL: websiteUrl }),
     new CrewsService(prisma as never),
     notifier as never,
+    analytics as never,
   );
 }
 
@@ -294,14 +325,82 @@ describe('MatchesService', () => {
     await expect(service.preview(null, 'invite_token_1')).rejects.toBeInstanceOf(ORPCError);
   });
 
+  it('returns host score and distribution fields on preview', async () => {
+    const match = loadedMatch({
+      parentMatchId: 'parent-1',
+      experimentId: 'exp-1',
+      experimentVariantKey: 'treatment',
+      attempts: [
+        {
+          id: 'a1',
+          matchId: 'm1',
+          userId: host.id,
+          count: 22,
+          durationSeconds: 40,
+          source: 'in_app_pose',
+          recordedAt: new Date(),
+        },
+        {
+          id: 'a2',
+          matchId: 'm1',
+          userId: host.id,
+          count: 18,
+          durationSeconds: 35,
+          source: 'in_app_pose',
+          recordedAt: new Date(),
+        },
+      ],
+    });
+    const service = createService(createPrismaMock(match));
+
+    await expect(service.preview(guest, 'invite_token_1')).resolves.toMatchObject({
+      hostScore: 22,
+      parentMatchId: 'parent-1',
+      experimentId: 'exp-1',
+      experimentVariantKey: 'treatment',
+      alreadyJoined: false,
+      viewerIsHost: false,
+    });
+  });
+
+  it('public preview marks first open and tracks anonymously', async () => {
+    const prisma = createPrismaMock();
+    const analytics = createAnalyticsSpy();
+    const service = createService(prisma, createNotifierSpy(), analytics);
+
+    await expect(service.publicPreview('invite_token_1')).resolves.toMatchObject({
+      token: 'invite_token_1',
+      hostDisplayName: 'Ada',
+      metric: 'pushups',
+      hostScore: null,
+      status: 'open',
+    });
+
+    expect(prisma.match.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'm1', firstOpenedAt: null },
+        data: expect.objectContaining({ firstOpenedAt: expect.any(Date) }),
+      }),
+    );
+    expect(analytics.track).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ name: 'challenge_link_opened' }),
+    );
+  });
+
   it('lets a guest join an open match under the cap', async () => {
     const prisma = createPrismaMock();
-    const service = createService(prisma);
+    const analytics = createAnalyticsSpy();
+    const service = createService(prisma, createNotifierSpy(), analytics);
 
     const board = await service.join(guest, 'invite_token_1');
 
     expect(board.participantCount).toBe(2);
     expect(board.standings.some((row) => row.isYou)).toBe(true);
+    expect(analytics.track).toHaveBeenCalledWith(
+      guest,
+      expect.objectContaining({ name: 'challenge_accepted' }),
+    );
   });
 
   it('returns the board when the guest is already in', async () => {
@@ -564,6 +663,51 @@ describe('MatchesService', () => {
     expect(prisma.match.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ scoringMode: 'days_completed' }),
+      }),
+    );
+  });
+
+  it('seeds the host attempt from a completed push-up occurrence', async () => {
+    const prisma = createPrismaMock();
+    prisma.userChallenge.findUnique.mockResolvedValue({
+      id: 'uc-1',
+      userId: host.id,
+      status: 'completed',
+      deviceActivityLog: {
+        metric: 'pushups',
+        count: 27,
+        durationSeconds: 45,
+      },
+    });
+    const service = createService(prisma);
+
+    await service.create(host, {
+      window: 'today',
+      metric: 'pushups',
+      scoringMode: 'best_single',
+      dailyScope: 'any_challenge',
+      sourceUserChallengeId: 'uc-1',
+      experimentId: 'exp-1',
+      experimentVariantKey: 'treatment',
+    });
+
+    expect(prisma.match.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sourceUserChallengeId: 'uc-1',
+          experimentId: 'exp-1',
+          experimentVariantKey: 'treatment',
+        }),
+      }),
+    );
+    expect(prisma.matchAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: host.id,
+          count: 27,
+          durationSeconds: 45,
+          source: 'in_app_pose',
+        }),
       }),
     );
   });
@@ -897,7 +1041,11 @@ describe('MatchesService', () => {
       scoringMode: 'cumulative_total',
       dailyScope: 'any_challenge',
     });
-    seated.participants[1] = { ...seated.participants[1], acceptedAt: null };
+    const guestSeat = seated.participants[1];
+    if (!guestSeat) {
+      throw new Error('expected a guest seat');
+    }
+    seated.participants[1] = { ...guestSeat, acceptedAt: null };
     const prisma = createPrismaMock(seated);
     const service = createService(prisma);
 

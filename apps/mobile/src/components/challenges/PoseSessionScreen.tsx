@@ -35,6 +35,7 @@ import {
   usePoseSessionCounter,
 } from '@/components/challenges/usePoseSessionCounter';
 import { apiClient } from '@/lib/api';
+import { trackEvent } from '@/lib/track-event';
 
 const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
 
@@ -246,6 +247,12 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
         queryClient.invalidateQueries({ queryKey: ['activity'] }),
       ]);
 
+      trackEvent('challenge_completed', {
+        user_challenge_id: occurrence?.id,
+        challenge_goal: reps,
+        challenge_type: 'pushups',
+      });
+
       router.replace({
         pathname: '/challenge/success',
         params: {
@@ -254,6 +261,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
           streak: String(result.currentStreakDays),
           count: String(reps),
           target: String(occurrence?.capture.target.count ?? 0),
+          userChallengeId: occurrence?.id ?? '',
         },
       });
     },

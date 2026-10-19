@@ -9,6 +9,11 @@ import {
   getAdminRemindersAnalyticsContract,
 } from './admin-analytics.js';
 import {
+  getAdminExperimentContract,
+  listAdminExperimentsContract,
+  updateAdminExperimentWeightsContract,
+} from './admin-experiments.js';
+import {
   challengeCaptureKindSchema,
   deviceMetricSchema,
 } from './challenge-capture.js';
@@ -380,6 +385,9 @@ export const adminContract = {
   listMembershipPlans: listAdminMembershipPlansContract,
   createMembershipPlan: createAdminMembershipPlanContract,
   updateMembershipPlan: updateAdminMembershipPlanContract,
+  listExperiments: listAdminExperimentsContract,
+  getExperiment: getAdminExperimentContract,
+  updateExperimentWeights: updateAdminExperimentWeightsContract,
 };
 
 export type AdminContract = typeof adminContract;
@@ -415,3 +423,8 @@ export type AdminOperator = z.infer<typeof adminOperatorSchema>;
 export type InviteAdminInput = z.infer<typeof inviteAdminInputSchema>;
 export type PublicTip = z.infer<typeof publicTipSchema>;
 export type ListPublicTipsOutput = z.infer<typeof listPublicTipsOutputSchema>;
+export type {
+  AdminExperimentDetail,
+  AdminExperimentListItem,
+  UpdateAdminExperimentWeightsInput,
+} from './admin-experiments.js';

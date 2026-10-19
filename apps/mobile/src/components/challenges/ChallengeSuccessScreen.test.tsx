@@ -14,9 +14,24 @@ import { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
   apiClient: {
-    me: jest.fn(async () => ({ hasMembership: true })),
+    me: jest.fn(async () => ({
+      hasMembership: true,
+      name: 'Ada',
+      countryCode: 'US',
+      categories: ['general'],
+    })),
+    getExperimentAssignment: jest.fn(async () => null),
+    createMatch: jest.fn(),
+    trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
   },
   apiQuery: {},
+}));
+
+jest.mock('@/lib/auth-client', () => ({
+  getSessionData: jest.fn(async () => ({
+    user: { emailVerified: true, name: 'Ada' },
+  })),
+  isEmailVerified: () => true,
 }));
 
 jest.mock('expo-router', () => {
@@ -63,7 +78,7 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess({ title: 'Walk 20 minutes' });
 
     expect(screen.getByTestId('challenge-share-card')).toBeOnTheScreen();
-    expect(screen.getAllByText('Walk 20 minutes').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Walk 20 minutes/).length).toBeGreaterThan(0);
     expect(screen.getByText('+40')).toBeOnTheScreen();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
   });
@@ -93,11 +108,34 @@ describe('ChallengeSuccessScreen share card', () => {
       pointsAwarded: 150,
     });
 
-    expect(screen.getByText('25/20')).toBeOnTheScreen();
+    expect(screen.getByText('25')).toBeOnTheScreen();
     expect(screen.getByText('push-ups')).toBeOnTheScreen();
+    expect(screen.getByText('Goal')).toBeOnTheScreen();
+    expect(screen.getByText('Counted by camera')).toBeOnTheScreen();
   });
 
-  it('shares a match set and returns to the board', () => {
+  it('does not claim camera counting for a non-rep habit', () => {
+    renderSuccess({ title: 'Walk 20 minutes' });
+
+    expect(screen.queryByText('Counted by camera')).toBeNull();
+  });
+
+  it('keeps a quiet way out while the experiment assignment loads', () => {
+    const { apiClient } = jest.requireMock('@/lib/api') as {
+      apiClient: { getExperimentAssignment: jest.Mock };
+    };
+    apiClient.getExperimentAssignment.mockReturnValueOnce(
+      new Promise(() => undefined),
+    );
+
+    renderSuccess({ completedCount: 20, title: 'Do 20 push-ups' });
+
+    expect(screen.getByTestId('challenge-success-assigning')).toBeOnTheScreen();
+    expect(screen.getByText('Not now')).toBeOnTheScreen();
+    expect(screen.queryByTestId('challenge-success-membership')).toBeNull();
+  });
+
+  it('shares a match set and returns to the board', async () => {
     renderSuccess({
       completedCount: 25,
       matchId: 'm1',
@@ -106,14 +144,115 @@ describe('ChallengeSuccessScreen share card', () => {
     });
 
     expect(screen.getByText('25')).toBeOnTheScreen();
-    expect(screen.getAllByText('Group set').length).toBeGreaterThan(0);
-    expect(screen.getByText('Back to group')).toBeOnTheScreen();
+    expect(screen.getAllByText('Group set.').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByText('Back to group')).toBeOnTheScreen();
+    });
 
     fireEvent.press(screen.getByTestId('challenge-success-done'));
     const { useRouter } = jest.requireMock('expo-router') as {
       useRouter: () => { replace: jest.Mock };
     };
-    expect(useRouter().replace).toHaveBeenCalledWith('/matches/m1');
+    await waitFor(() => {
+      expect(useRouter().replace).toHaveBeenCalledWith('/matches/m1');
+    });
+  });
+
+  it('shows challenge-a-friend as the primary treatment CTA', async () => {
+    const { apiClient } = jest.requireMock('@/lib/api') as {
+      apiClient: {
+        getExperimentAssignment: jest.Mock;
+      };
+    };
+    apiClient.getExperimentAssignment.mockResolvedValueOnce({
+      experimentId: 'exp1',
+      experimentKey: 'challenge_referral_v1',
+      variantId: 'v1',
+      variantKey: 'treatment',
+      configuration: { completionCta: 'challenge_friend_primary' },
+      assignedAt: new Date().toISOString(),
+    });
+
+    renderSuccess({
+      completedCount: 20,
+      userChallengeId: 'uc-1',
+      title: 'Do 20 push-ups',
+      pointsAwarded: 150,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('challenge-success-challenge-friend'),
+      ).toBeOnTheScreen();
+    });
+    expect(screen.getByText('Think a friend can beat you?')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Challenge a friend')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-success-share')).toHaveProp(
+      'accessibilityLabel',
+      'Share result',
+    );
+    expect(screen.queryByLabelText('Share')).toBeNull();
+    expect(screen.getByText('Not now')).toBeOnTheScreen();
+  });
+
+  it('keeps share as the only solid action outside the treatment', async () => {
+    renderSuccess({ completedCount: 20, title: 'Do 20 push-ups' });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Share')).toBeOnTheScreen();
+    });
+    expect(screen.queryByTestId('challenge-success-challenge-friend')).toBeNull();
+    expect(screen.getByText("See what's next")).toBeOnTheScreen();
+  });
+
+  it('pairs the membership link with dismiss for non-members', async () => {
+    const { apiClient } = jest.requireMock('@/lib/api') as {
+      apiClient: { me: jest.Mock };
+    };
+    apiClient.me.mockResolvedValueOnce({
+      hasMembership: false,
+      name: 'Ada',
+      countryCode: 'US',
+      categories: ['general'],
+    });
+
+    renderSuccess();
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('challenge-success-membership'),
+      ).toBeOnTheScreen();
+    });
+    expect(screen.getByTestId('challenge-success-done')).toBeOnTheScreen();
+  });
+
+  it('offers challenge-a-friend after a practice set too', async () => {
+    const { apiClient } = jest.requireMock('@/lib/api') as {
+      apiClient: {
+        getExperimentAssignment: jest.Mock;
+      };
+    };
+    apiClient.getExperimentAssignment.mockResolvedValueOnce({
+      experimentId: 'exp1',
+      experimentKey: 'challenge_referral_v1',
+      variantId: 'v1',
+      variantKey: 'treatment',
+      configuration: { completionCta: 'challenge_friend_primary' },
+      assignedAt: new Date().toISOString(),
+    });
+
+    renderSuccess({
+      completedCount: 30,
+      practice: true,
+      pointsAwarded: 0,
+      title: 'Extra set',
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('challenge-success-challenge-friend'),
+      ).toBeOnTheScreen();
+    });
   });
 
   it('hides share after a missed photo check', () => {
@@ -122,14 +261,28 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.queryByTestId('challenge-share-card')).toBeNull();
     expect(screen.queryByTestId('challenge-success-share')).toBeNull();
     expect(screen.getByText('Photo check missed')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-success-done')).toBeOnTheScreen();
   });
 
   it('shares a captured card image', async () => {
     renderSuccess();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
+    });
+
     fireEvent.press(screen.getByTestId('challenge-success-share'));
 
     await waitFor(() => {
-      expect(captureRef).toHaveBeenCalled();
+      expect(captureRef).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          format: 'jpg',
+          quality: 1,
+          width: 1080,
+          height: 1440,
+        }),
+      );
       expect(Sharing.shareAsync).toHaveBeenCalledWith(
         'file://share-card.jpg',
         expect.objectContaining({ mimeType: 'image/jpeg' }),

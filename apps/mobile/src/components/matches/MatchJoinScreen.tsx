@@ -9,7 +9,7 @@ import { FormButton, FormErrorBanner } from '@/components/forms';
 import { displayFontFamily } from '@/lib/fonts';
 import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
-import { stashPendingMatchToken } from '@/lib/pending-match-token';
+import { stashDeferredInviteToken } from '@/lib/deferred-invite';
 import { formatMatchTimeLeft } from './format-match-time';
 import { MatchActivityMark, MatchCard, MatchKicker } from './match-chrome';
 import {
@@ -40,6 +40,7 @@ export function MatchJoinScreen({ token }: { token: string }) {
   const join = useMutation({
     mutationFn: () => apiClient.joinMatch({ token }),
     onSuccess: async (board) => {
+      // challenge_accepted is recorded server-side on join (authoritative).
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       router.replace(`/matches/${board.id}`);
     },
@@ -50,8 +51,9 @@ export function MatchJoinScreen({ token }: { token: string }) {
   }
 
   if (!session) {
-    void stashPendingMatchToken(token);
-    return <Redirect href="/login" />;
+    void stashDeferredInviteToken(token, 'deep_link');
+    // Challenge-first: new recipients should create an account, not hunt for login.
+    return <Redirect href="/sign-up" />;
   }
 
   if (previewQuery.isPending) {

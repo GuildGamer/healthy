@@ -34,6 +34,15 @@ export class MatchesController {
     });
   }
 
+  @Implement(appContract.publicPreviewMatch)
+  publicPreviewMatch() {
+    return implement(appContract.publicPreviewMatch).handler(
+      async ({ input }) => {
+        return this.matchesService.publicPreview(input.token);
+      },
+    );
+  }
+
   @Implement(appContract.joinMatch)
   joinMatch(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;
