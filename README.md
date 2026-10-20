@@ -97,7 +97,7 @@ API URL, EAS vs local Simulator, Maestro, and “as you go” checks: [`docs/tes
 ## Deploy
 
 - **Marketing site**: develop in `apps/website` (submodule → [GuildGamer/healthy-website](https://github.com/GuildGamer/healthy-website)). Commit and push inside `apps/website` to deploy on Vercel; then commit the submodule pointer in `healthy`. After changing `packages/brand`, run `make sync-brand-tokens`. Reserve `apps/web` for the future product web app.
-- **API / mobile (separate GitHub repos for deploy hosts):** develop in this monorepo, then `make sync-deploy-api` / `make sync-deploy-mobile` to push mini-monorepo slices to [healthy-api](https://github.com/GuildGamer/healthy-api) and [healthy-mobile](https://github.com/GuildGamer/healthy-mobile). Point Render / EAS at those repos. Details: [`docs/splitting-repos.md`](docs/splitting-repos.md).
+- **API / mobile (separate GitHub repos for deploy hosts):** develop in this monorepo, then `make sync-deploy-api` / `make sync-deploy-mobile` to push mini-monorepo slices to [healthy-api](https://github.com/GuildGamer/healthy-api) and [healthy-mobile](https://github.com/GuildGamer/healthy-mobile). Point Render / Codemagic at those repos. Details: [`docs/splitting-repos.md`](docs/splitting-repos.md). Friend-account TestFlight: [`docs/codemagic-ios.md`](docs/codemagic-ios.md).
 - **Local / early**: Docker Compose
 - **Simple cloud**: `render.yaml` in the monorepo, or the satellite `healthy-api` repo after sync
 - **AWS**: CDK stacks in `infra/` when Activate credits or scale require it

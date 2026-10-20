@@ -1,0 +1,74 @@
+# Copied to repo root as codemagic.yaml on `make sync-deploy-mobile`.
+# Setup steps: docs/codemagic-ios.md
+
+workflows:
+  ios-testflight:
+    name: iOS TestFlight (friend account)
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    integrations:
+      # Must match the name you give the key in Codemagic →
+      # Teams → Integrations → Developer Portal (copy exact reference name).
+      app_store_connect: HealthyFriend
+    environment:
+      node: v22.14.0
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        # Must match the App ID / provisioning profile on the friend's team.
+        bundle_identifier: com.healthyapp.tfpreview
+      vars:
+        XCODE_WORKSPACE: Healthy.xcworkspace
+        XCODE_SCHEME: Healthy
+        # Numeric App Store Connect app id (App Information). Set in Codemagic
+        # env group "testflight" as APP_STORE_APPLE_ID if you prefer not to commit it.
+        APP_STORE_APPLE_ID: $APP_STORE_APPLE_ID
+        IOS_BUNDLE_IDENTIFIER: com.healthyapp.tfpreview
+        ANDROID_PACKAGE: com.healthyapp.tfpreview
+      groups:
+        - testflight
+    scripts:
+      - name: Enable pnpm
+        script: |
+          corepack enable
+          corepack prepare pnpm@9.15.4 --activate
+      - name: Install workspace
+        script: |
+          pnpm install --frozen-lockfile
+      - name: Build shared packages
+        script: |
+          pnpm --filter @product/contract build
+          pnpm --filter @product/brand build
+          pnpm --filter @product/client build
+      - name: Expo prebuild (ios)
+        script: |
+          cd apps/mobile
+          export IOS_BUNDLE_IDENTIFIER
+          export ANDROID_PACKAGE
+          npx expo prebuild --platform ios --clean
+      - name: Install CocoaPods
+        script: |
+          cd apps/mobile/ios && pod install
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles --warn-only
+      - name: Increment build number
+        script: |
+          cd apps/mobile/ios
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          agvtool new-version -all $((LATEST_BUILD_NUMBER + 1))
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

@@ -127,7 +127,8 @@ cp "${ROOT}/.npmrc" "${OUT}/.npmrc"
 if [[ "$TARGET" == "api" ]]; then
   cp "${ROOT}/apps/api/Dockerfile" "${OUT}/Dockerfile"
   cat > "${OUT}/render.yaml" <<'EOF'
-# Render Blueprint — point this service at GuildGamer/healthy-api.
+# Render Blueprint — connect Blueprint to GuildGamer/healthy-api (this repo).
+# Docs: https://render.com/docs/blueprint-spec
 services:
   - type: web
     name: product-api
@@ -142,6 +143,38 @@ services:
         value: production
       - key: PORT
         value: "10000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: product-db
+          property: connectionString
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      # Set after first deploy to https://<your-service>.onrender.com
+      - key: BETTER_AUTH_URL
+        sync: false
+      - key: WEBSITE_URL
+        value: https://gethealthyapp.com
+      # Required in production (API refuses to boot without them)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: EVIDENCE_VISION_API_KEY
+        sync: false
+      - key: EVIDENCE_VISION_MODEL
+        value: gpt-4o-mini
+
+databases:
+  - name: product-db
+    plan: basic_256mb
+    databaseName: product
+    user: product
 EOF
 fi
 
@@ -176,16 +209,22 @@ docker build -t healthy-api .
 
 EOF
 else
+  if [[ -f "${ROOT}/deploy/codemagic.mobile.yaml" ]]; then
+    cp "${ROOT}/deploy/codemagic.mobile.yaml" "${OUT}/codemagic.yaml"
+  fi
   cat >> "${OUT}/README.md" <<'EOF'
-## Deploy (EAS)
+## Deploy (Codemagic / TestFlight)
+
+`codemagic.yaml` at repo root. Setup: see `docs/codemagic-ios.md` in the monorepo.
 
 ```bash
-cd apps/mobile
-eas build --profile preview --platform ios
-eas submit --platform ios
+# from GuildGamer/healthy
+make sync-deploy-mobile
 ```
 
-Expo / EAS project settings should use this GitHub repo with app directory `apps/mobile`.
+Then in Codemagic → Check for configuration files → run **iOS TestFlight (friend account)**.
+
+App directory in the satellite is still `apps/mobile` (mini-monorepo).
 
 EOF
 fi
