@@ -54,8 +54,7 @@ workflows:
         script: |
           # Fail here if cert/profile do not match — do not soft-warn into a vague archive 65.
           xcode-project use-profiles \
-            --project "$CM_BUILD_DIR/apps/mobile/ios/Healthy.xcodeproj" \
-            --project "$CM_BUILD_DIR/apps/mobile/ios/Pods/Pods.xcodeproj"
+            --project "$CM_BUILD_DIR/apps/mobile/ios/Healthy.xcodeproj"
       - name: Increment build number
         script: |
           cd apps/mobile/ios
@@ -64,16 +63,15 @@ workflows:
       - name: Build IPA
         script: |
           set -o pipefail
-          xcode-project build-ipa \
+          if ! xcode-project build-ipa \
             --workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME" \
             --export-options-plist=/Users/builder/export_options.plist \
             -v \
-            --log-stream=stdout
-          # If archive still fails, dump the raw xcodebuild log tail for the real error.
-          if [[ ! -d "$CM_BUILD_DIR/build/ios/ipa" ]] && ls /tmp/xcodebuild_logs/*.log >/dev/null 2>&1; then
-            echo "===== xcodebuild log (last 120 lines) ====="
-            tail -n 120 /tmp/xcodebuild_logs/*.log || true
+            --log-stream=stdout; then
+            echo "===== xcodebuild log (last 150 lines) ====="
+            tail -n 150 /tmp/xcodebuild_logs/*.log 2>/dev/null || true
+            exit 1
           fi
     artifacts:
       - build/ios/ipa/*.ipa
