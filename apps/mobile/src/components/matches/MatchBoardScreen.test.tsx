@@ -199,11 +199,10 @@ describe('MatchBoardScreen', () => {
     fireEvent.press(await screen.findByTestId('match-share-link'));
 
     await waitFor(() => {
-      expect(share).toHaveBeenCalledWith(
-        expect.objectContaining({
-          url: 'https://gethealthyapp.com/match/tok-1',
-        }),
-      );
+      expect(share).toHaveBeenCalledTimes(1);
+    });
+    expect(share).toHaveBeenCalledWith({
+      url: 'https://gethealthyapp.com/match/tok-1',
     });
 
     share.mockRestore();

@@ -78,8 +78,8 @@ describe('MatchCreateScreen', () => {
         dailyScope: 'any_challenge',
       });
     });
+    expect(share).toHaveBeenCalledTimes(1);
     expect(share).toHaveBeenCalledWith({
-      message: 'https://gethealthyapp.com/match/tok',
       url: 'https://gethealthyapp.com/match/tok',
     });
 
