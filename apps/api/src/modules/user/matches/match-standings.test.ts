@@ -18,18 +18,21 @@ function pushupRules(scoringMode: MatchScoringMode): MatchScoringRules {
 const host = {
   userId: 'host',
   displayName: 'Ada',
+  image: null,
   isHost: true,
   isPending: false,
 };
 const bee = {
   userId: 'bee',
   displayName: 'Bee',
+  image: null,
   isHost: false,
   isPending: false,
 };
 const cam = {
   userId: 'cam',
   displayName: 'Cam',
+  image: null,
   isHost: false,
   isPending: false,
 };
@@ -60,6 +63,7 @@ describe('computeStandings — best_single', () => {
       {
         userId: 'bee',
         displayName: 'Bee',
+        image: null,
         rank: 1,
         score: 20,
         bestCount: 20,
@@ -69,6 +73,7 @@ describe('computeStandings — best_single', () => {
       {
         userId: 'host',
         displayName: 'Ada',
+        image: null,
         rank: 2,
         score: 12,
         bestCount: 12,

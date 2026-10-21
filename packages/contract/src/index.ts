@@ -199,6 +199,8 @@ export type {
   UpdateAdminExperimentWeightsInput,
   UpdateAdminTipInput,
   UpdateMembershipPlanInput,
+  SendAdminNotificationInput,
+  SendAdminNotificationOutput,
   UpsertAdminChallengeInput,
   UpsertAdminTipInput,
   UpsertMembershipPlanInput,

@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import type { MailConfig } from '../config/environment.js';
-import type { Mailer, OtpMailMessage } from './mailer.js';
+import type { Mailer, OtpMailMessage, PlainMailMessage } from './mailer.js';
 import { otpMailContent, type OtpMailKind } from './otp-mail-content.js';
 
 type SmtpMailConfig = Extract<MailConfig, { mode: 'smtp' }>;
@@ -35,6 +35,14 @@ export function createSmtpMailer(mail: SmtpMailConfig): Mailer {
     },
     async sendChangeEmailOtp(message: OtpMailMessage) {
       await sendOtp(message, 'change-email');
+    },
+    async sendMessage(message: PlainMailMessage) {
+      await transport.sendMail({
+        from: mail.from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+      });
     },
   };
 }

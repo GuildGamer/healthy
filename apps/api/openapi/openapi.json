@@ -5863,6 +5863,17 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "image": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "rank": {
                                 "type": "integer",
                                 "minimum": 0
@@ -6509,6 +6520,17 @@
                             "type": "string",
                             "minLength": 1
                           },
+                          "image": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "rank": {
                             "type": "integer",
                             "minimum": 0
@@ -6685,6 +6707,17 @@
                           "displayName": {
                             "type": "string",
                             "minLength": 1
+                          },
+                          "image": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "rank": {
                             "type": "integer",
@@ -6889,6 +6922,17 @@
                             "type": "string",
                             "minLength": 1
                           },
+                          "image": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "rank": {
                             "type": "integer",
                             "minimum": 0
@@ -7071,6 +7115,17 @@
                           "displayName": {
                             "type": "string",
                             "minLength": 1
+                          },
+                          "image": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "rank": {
                             "type": "integer",
@@ -11331,6 +11386,125 @@
                     "notificationsReadInRange",
                     "notificationReadRate",
                     "surpriseEvidenceInRange"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/notifications/send": {
+      "post": {
+        "operationId": "sendNotification",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 80
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 280
+                  },
+                  "sendPush": {
+                    "type": "boolean"
+                  },
+                  "sendEmail": {
+                    "type": "boolean"
+                  },
+                  "sendInbox": {
+                    "type": "boolean"
+                  },
+                  "audience": {
+                    "enum": [
+                      "reminders_on",
+                      "member"
+                    ],
+                    "type": "string"
+                  },
+                  "memberUserId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "destination": {
+                    "enum": [
+                      "today",
+                      "challenges",
+                      "challenge"
+                    ],
+                    "type": "string"
+                  },
+                  "challengeId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "idempotencyKey",
+                  "title",
+                  "body",
+                  "sendPush",
+                  "sendEmail",
+                  "sendInbox",
+                  "audience",
+                  "destination"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "audienceCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "pushSentCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "emailSentCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "inboxWrittenCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "skippedNoDeviceCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "audienceCount",
+                    "pushSentCount",
+                    "emailSentCount",
+                    "inboxWrittenCount",
+                    "skippedNoDeviceCount",
+                    "replayed"
                   ]
                 }
               }

@@ -13,6 +13,7 @@ import { RefreshableScroll, ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { displayFontFamily } from '@/lib/fonts';
 import { apiClient } from '@/lib/api';
+import { ProfileAvatar } from '@/components/profile/ProfileAvatar';
 import { formatMatchTimeLeft } from './format-match-time';
 import {
   MATCH_HERO_LINE,
@@ -361,6 +362,12 @@ function StandingRow({
     >
       <View style={styles.standingTop}>
         <MatchRankMark rank={row.rank} scored={hasScore} />
+        <ProfileAvatar
+          imageUri={row.image ?? null}
+          name={row.displayName}
+          size={36}
+          testID={`match-standing-avatar-${row.userId}`}
+        />
         <View style={styles.nameBlock}>
           <Text numberOfLines={1} style={styles.name}>
             {row.isYou ? 'You' : row.displayName}

@@ -8,6 +8,7 @@ import { ScreenLoader } from '@/components/feedback';
 import { useSession } from '@/lib/auth-client';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
+import { useRequestReminderOnLaunch } from '@/lib/use-request-reminder-on-launch';
 
 /**
  * React Navigation draws `paddingBottom` inside `height`. A fixed 60pt bar
@@ -19,11 +20,6 @@ const TAB_BAR_BASE_HEIGHT = 60;
 const TAB_BAR_MIN_BOTTOM_PADDING = spacing.sm;
 
 export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
-  const tabBarBottomPadding = Math.max(
-    insets.bottom,
-    TAB_BAR_MIN_BOTTOM_PADDING,
-  );
   const { data: session, isPending, isRefetching } = useSession();
   const [gateHref, setGateHref] = useState<PostAuthHref | null>(null);
   const [isResolving, setIsResolving] = useState(false);
@@ -64,6 +60,17 @@ export default function TabsLayout() {
   if (gateHref && gateHref !== '/(tabs)') {
     return <Redirect href={gateHref} />;
   }
+
+  return <TabsShell />;
+}
+
+function TabsShell() {
+  const insets = useSafeAreaInsets();
+  const tabBarBottomPadding = Math.max(
+    insets.bottom,
+    TAB_BAR_MIN_BOTTOM_PADDING,
+  );
+  useRequestReminderOnLaunch(true);
 
   return (
     <Tabs

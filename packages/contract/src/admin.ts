@@ -359,6 +359,59 @@ export const listTipsContract = oc
   .route({ method: 'GET', path: '/tips' })
   .output(listPublicTipsOutputSchema);
 
+export const sendAdminNotificationInputSchema = z
+  .object({
+    idempotencyKey: z.string().trim().min(8).max(80),
+    title: z.string().trim().min(1).max(80),
+    body: z.string().trim().min(1).max(280),
+    sendPush: z.boolean(),
+    sendEmail: z.boolean(),
+    sendInbox: z.boolean(),
+    audience: z.enum(['reminders_on', 'member']),
+    memberUserId: z.string().trim().min(1).optional(),
+    destination: z.enum(['today', 'challenges', 'challenge']),
+    challengeId: z.string().trim().min(1).optional(),
+  })
+  .superRefine((value, context) => {
+    if (!value.sendPush && !value.sendEmail && !value.sendInbox) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Pick at least one channel',
+        path: ['sendPush'],
+      });
+    }
+
+    if (value.audience === 'member' && !value.memberUserId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Pick a member',
+        path: ['memberUserId'],
+      });
+    }
+
+    if (value.destination === 'challenge' && !value.challengeId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Pick a challenge',
+        path: ['challengeId'],
+      });
+    }
+  });
+
+export const sendAdminNotificationOutputSchema = z.object({
+  audienceCount: z.number().int().nonnegative(),
+  pushSentCount: z.number().int().nonnegative(),
+  emailSentCount: z.number().int().nonnegative(),
+  inboxWrittenCount: z.number().int().nonnegative(),
+  skippedNoDeviceCount: z.number().int().nonnegative(),
+  replayed: z.boolean(),
+});
+
+export const sendAdminNotificationContract = oc
+  .route({ method: 'POST', path: '/admin/notifications/send' })
+  .input(sendAdminNotificationInputSchema)
+  .output(sendAdminNotificationOutputSchema);
+
 export const adminContract = {
   me: adminMeContract,
   listChallenges: listAdminChallengesContract,
@@ -382,6 +435,7 @@ export const adminContract = {
   getEngagementAnalytics: getAdminEngagementAnalyticsContract,
   getCatalogAnalytics: getAdminCatalogAnalyticsContract,
   getRemindersAnalytics: getAdminRemindersAnalyticsContract,
+  sendNotification: sendAdminNotificationContract,
   listMembershipPlans: listAdminMembershipPlansContract,
   createMembershipPlan: createAdminMembershipPlanContract,
   updateMembershipPlan: updateAdminMembershipPlanContract,
@@ -418,6 +472,12 @@ export type AdjustAdminMemberPointsInput = z.infer<
 >;
 export type SetAdminMemberActiveInput = z.infer<
   typeof setAdminMemberActiveInputSchema
+>;
+export type SendAdminNotificationInput = z.infer<
+  typeof sendAdminNotificationInputSchema
+>;
+export type SendAdminNotificationOutput = z.infer<
+  typeof sendAdminNotificationOutputSchema
 >;
 export type AdminOperator = z.infer<typeof adminOperatorSchema>;
 export type InviteAdminInput = z.infer<typeof inviteAdminInputSchema>;

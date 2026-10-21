@@ -23,10 +23,15 @@ function profile(userId: string, displayName: string) {
   };
 }
 
-function userWithProfile(userId: string, displayName: string) {
+function userWithProfile(
+  userId: string,
+  displayName: string,
+  image: string | null = null,
+) {
   return {
     id: userId,
     name: displayName,
+    image,
     profile: profile(userId, displayName),
   };
 }
@@ -250,6 +255,10 @@ function createInviteAcceptedSpy() {
   return { notifyHost: vi.fn().mockResolvedValue(undefined) };
 }
 
+function createBoardMoveSpy() {
+  return { notifyParticipants: vi.fn().mockResolvedValue(undefined) };
+}
+
 function createAnalyticsSpy() {
   return { track: vi.fn().mockResolvedValue({ ok: true as const }) };
 }
@@ -259,6 +268,7 @@ function createService(
   notifier: ReturnType<typeof createNotifierSpy> = createNotifierSpy(),
   analytics: ReturnType<typeof createAnalyticsSpy> = createAnalyticsSpy(),
   inviteAccepted: ReturnType<typeof createInviteAcceptedSpy> = createInviteAcceptedSpy(),
+  boardMove: ReturnType<typeof createBoardMoveSpy> = createBoardMoveSpy(),
 ): MatchesService {
   return new MatchesService(
     prisma as never,
@@ -267,6 +277,7 @@ function createService(
     notifier as never,
     analytics as never,
     inviteAccepted as never,
+    boardMove as never,
   );
 }
 
@@ -546,7 +557,14 @@ describe('MatchesService', () => {
       ],
     });
     const prisma = createPrismaMock(match);
-    const service = createService(prisma);
+    const boardMove = createBoardMoveSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      boardMove,
+    );
 
     const board = await service.submitAttempt(guest, {
       matchId: 'm1',
@@ -556,6 +574,106 @@ describe('MatchesService', () => {
     });
 
     expect(board.yourBestCount).toBe(18);
+    expect(prisma.matchAttempt.create).toHaveBeenCalled();
+    expect(boardMove.notifyParticipants).toHaveBeenCalledWith({
+      matchId: 'm1',
+      attemptOrEventId: 'a1',
+      actorUserId: guest.id,
+      actorDisplayName: 'Bee',
+      actorScoreBefore: 0,
+      actorScoreAfter: 18,
+      recipients: [{ userId: host.id, score: 0 }],
+    });
+  });
+
+  it('reads the live display name and profile image on the board', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada', 'data:image/jpeg;base64,ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'OldBee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    const service = createService(prisma);
+
+    // Rename after join — the board must not keep the join-time string.
+    const guestSeat = match.participants.find((row) => row.userId === guest.id);
+    if (guestSeat) {
+      guestSeat.user = userWithProfile(guest.id, 'NewBee', 'data:image/jpeg;base64,bee');
+    }
+
+    const board = await service.get(host, 'm1');
+
+    expect(board.standings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: host.id,
+          displayName: 'Ada',
+          image: 'data:image/jpeg;base64,ada',
+        }),
+        expect.objectContaining({
+          userId: guest.id,
+          displayName: 'NewBee',
+          image: 'data:image/jpeg;base64,bee',
+        }),
+      ]),
+    );
+  });
+
+  it('keeps the attempt when the board-move push fails', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    const boardMove = createBoardMoveSpy();
+    boardMove.notifyParticipants.mockRejectedValue(new Error('expo down'));
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      boardMove,
+    );
+
+    const board = await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 18,
+      durationSeconds: 40,
+      source: 'in_app_pose',
+    });
+
+    expect(board.yourScore).toBe(18);
     expect(prisma.matchAttempt.create).toHaveBeenCalled();
   });
 

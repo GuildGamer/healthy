@@ -1,6 +1,6 @@
 import { SendByte, SendByteError } from '@sendbyte/node';
 import type { MailConfig } from '../config/environment.js';
-import type { Mailer, OtpMailMessage } from './mailer.js';
+import type { Mailer, OtpMailMessage, PlainMailMessage } from './mailer.js';
 import { otpMailContent, type OtpMailKind } from './otp-mail-content.js';
 
 export type SendByteMailConfig = Extract<MailConfig, { mode: 'sendbyte' }>;
@@ -37,10 +37,25 @@ export function createSendByteMailer(
     }
   }
 
+  async function sendMessage(message: PlainMailMessage): Promise<void> {
+    try {
+      await client.emails.send({
+        from: mail.from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: toHtml(message.text),
+      });
+    } catch (error) {
+      throw toSendFailure(error);
+    }
+  }
+
   return {
     sendPasswordResetOtp: (message) => sendOtp(message, 'password-reset'),
     sendEmailVerificationOtp: (message) => sendOtp(message, 'email-verification'),
     sendChangeEmailOtp: (message) => sendOtp(message, 'change-email'),
+    sendMessage,
   };
 }
 

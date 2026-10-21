@@ -18,13 +18,20 @@ export class ReminderDispatchController {
   @Post('dispatch')
   @HttpCode(200)
   async dispatch(): Promise<DispatchSummaryDto> {
-    const reminders = await this.dispatcher.dispatchDue();
+    const habit = await this.dispatcher.dispatchHabitSlots();
+    const reminders = await this.dispatcher.dispatchDue(
+      new Date(),
+      habit.sentUserIds,
+    );
     const nudges = await this.dispatcher.dispatchInProgressNudges();
 
     return {
-      dueCount: reminders.dueCount + nudges.dueCount,
-      sentCount: reminders.sentCount + nudges.sentCount,
-      suppressedCount: reminders.suppressedCount + nudges.suppressedCount,
+      dueCount: habit.dueCount + reminders.dueCount + nudges.dueCount,
+      sentCount: habit.sentCount + reminders.sentCount + nudges.sentCount,
+      suppressedCount:
+        habit.suppressedCount +
+        reminders.suppressedCount +
+        nudges.suppressedCount,
     };
   }
 }

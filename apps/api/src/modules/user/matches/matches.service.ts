@@ -22,6 +22,7 @@ import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { AnalyticsService } from '../analytics/index.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
+import { BoardMoveNotifierService } from './board-move-notifier.service.js';
 import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
 import type {
   CreateMatchDto,
@@ -89,6 +90,7 @@ export class MatchesService {
     private readonly crewSeatNotifier: CrewSeatNotifierService,
     private readonly analyticsService: AnalyticsService,
     private readonly inviteAcceptedNotifier: InviteAcceptedNotifierService,
+    private readonly boardMoveNotifier: BoardMoveNotifierService,
   ) {}
 
   private async trackMatchEvent(
@@ -449,7 +451,9 @@ export class MatchesService {
       (attempt) => attempt.userId === user.id,
     ).length;
 
-    await this.prisma.matchAttempt.create({
+    const scoreBefore = await this.viewerScore(match, user.id);
+
+    const attempt = await this.prisma.matchAttempt.create({
       data: {
         matchId: match.id,
         userId: user.id,
@@ -465,7 +469,9 @@ export class MatchesService {
     }
 
     const fresh = await this.loadById(match.id);
-    return await this.buildBoard(fresh, user.id);
+    const board = await this.buildBoard(fresh, user.id);
+    await this.notifyBoardMove(fresh, board, user.id, attempt.id, scoreBefore);
+    return board;
   }
 
   async cancel(
@@ -718,10 +724,61 @@ export class MatchesService {
   private standingParticipants(match: LoadedMatch) {
     return match.participants.map((row) => ({
       userId: row.userId,
+      // Live profile name on every board read — never a join-time snapshot.
       displayName: publicNameFor(row.userId, row.user.profile?.displayName),
+      image: row.user.image?.trim() ? row.user.image : null,
       isHost: row.userId === match.hostUserId,
       isPending: row.acceptedAt === null,
     }));
+  }
+
+  /**
+   * Competitive social notice after a scoring attempt. Fail closed: a push
+   * failure must not undo the write that just moved the board.
+   */
+  private async notifyBoardMove(
+    match: LoadedMatch,
+    board: MatchBoard,
+    actorUserId: string,
+    attemptId: string,
+    actorScoreBefore: number,
+  ): Promise<void> {
+    const actorStanding = board.standings.find((row) => row.userId === actorUserId);
+    if (!actorStanding) {
+      return;
+    }
+
+    const acceptedIds = new Set(this.acceptedUserIds(match));
+    const recipients = board.standings
+      .filter((row) => acceptedIds.has(row.userId) && row.userId !== actorUserId)
+      .map((row) => ({ userId: row.userId, score: row.score }));
+
+    if (recipients.length === 0) {
+      return;
+    }
+
+    try {
+      await this.boardMoveNotifier.notifyParticipants({
+        matchId: match.id,
+        attemptOrEventId: attemptId,
+        actorUserId,
+        actorDisplayName: actorStanding.displayName,
+        actorScoreBefore,
+        actorScoreAfter: actorStanding.score,
+        recipients,
+      });
+    } catch (error) {
+      this.logger.error(`Could not notify board move for match ${match.id}`, error);
+    }
+  }
+
+  private async viewerScore(match: LoadedMatch, userId: string): Promise<number> {
+    const { standings } = computeStandings(
+      this.standingParticipants(match),
+      await this.loadScoringEvents(match),
+      scoringRulesFor(match),
+    );
+    return standings.find((row) => row.userId === userId)?.score ?? 0;
   }
 
   private acceptedUserIds(match: LoadedMatch): string[] {

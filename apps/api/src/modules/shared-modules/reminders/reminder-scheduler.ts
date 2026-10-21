@@ -35,7 +35,8 @@ export class ReminderScheduler {
     this.isDispatching = true;
 
     try {
-      await this.dispatcher.dispatchDue();
+      const habit = await this.dispatcher.dispatchHabitSlots();
+      await this.dispatcher.dispatchDue(new Date(), habit.sentUserIds);
       await this.dispatcher.dispatchInProgressNudges();
     } catch (error) {
       // Throwing here would take down the timer, and reminders would stop

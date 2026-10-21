@@ -13,6 +13,7 @@ import { SplashScreen } from '@/components/auth';
 import { ToastProvider } from '@/components/forms';
 import { useDisplayFont } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
+import { usePushResponse } from '@/lib/use-push-response';
 
 /**
  * Cross-fade out of the native splash, covering the handoff frame. iOS only —
@@ -30,6 +31,7 @@ setOptions({ duration: NATIVE_SPLASH_FADE_MS, fade: true });
 
 export default function RootLayout() {
   const isDisplayFontReady = useDisplayFont();
+  usePushResponse();
 
   useEffect(() => {
     if (!isDisplayFontReady) {

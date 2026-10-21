@@ -1,4 +1,4 @@
-import type { Mailer, OtpMailMessage } from './mailer.js';
+import type { Mailer, OtpMailMessage, PlainMailMessage } from './mailer.js';
 
 /**
  * Local and development stand-in so OTP mail is exercisable before
@@ -22,6 +22,12 @@ export function createLogMailer(): Mailer {
       // eslint-disable-next-line no-console
       console.info(
         `[mail] change email OTP for ${message.to}: ${message.otp}`,
+      );
+    },
+    async sendMessage(message: PlainMailMessage) {
+      // eslint-disable-next-line no-console
+      console.info(
+        `[mail] message to ${message.to}: ${message.subject}\n${message.text}`,
       );
     },
   };

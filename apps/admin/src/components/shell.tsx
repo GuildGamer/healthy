@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { href: '/tips', label: 'Tips', access: 'content' },
   { href: '/waitlist', label: 'Waitlist', access: 'content' },
   { href: '/members', label: 'Members', access: 'support' },
+  { href: '/notifications', label: 'Send notification', access: 'support' },
   { href: '/admins', label: 'Admins', access: 'superadmin' },
 ];
 

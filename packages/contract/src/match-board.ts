@@ -53,6 +53,12 @@ export const matchInviteTokenSchema = z
 export const matchStandingSchema = z.object({
   userId: z.string().min(1),
   displayName: z.string().min(1),
+  /**
+   * Profile photo URL (or data URL) from `User.image`. Null/absent when they
+   * have not set one — clients fall back to initials, same as ProfileAvatar.
+   * Optional so store clients and older API builds stay compatible.
+   */
+  image: z.string().min(1).nullable().optional(),
   rank: z.number().int().positive(),
   /**
    * The member's score under the contest's `scoringMode` — reps in their best

@@ -26,6 +26,8 @@ export type StandingEvent = {
 export type StandingParticipant = {
   userId: string;
   displayName: string;
+  /** Profile photo from `User.image`, or null when unset. */
+  image: string | null;
   isHost: boolean;
   /**
    * Seated from a crew, not yet accepted. Holds a seat and appears on the
@@ -206,6 +208,7 @@ export function computeStandings(
     standings.push({
       userId: row.userId,
       displayName: row.displayName,
+      image: row.image,
       rank,
       score: row.score,
       // Mirrors `score` for clients that predate scoring modes.

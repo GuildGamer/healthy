@@ -723,6 +723,7 @@ enum AdminAuditAction {
   admin_deactivate
   admin_reactivate
   admin_roles_update
+  notification_broadcast
 }
 
 /// Better Auth tables for operators. Separate from member `user`.

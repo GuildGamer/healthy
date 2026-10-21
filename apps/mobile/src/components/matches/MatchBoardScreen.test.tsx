@@ -42,6 +42,7 @@ const mockedApi = apiClient as unknown as {
 type Standing = {
   userId: string;
   displayName: string;
+  image: string | null;
   score: number;
   rank: number;
   isYou: boolean;
@@ -52,6 +53,7 @@ type Standing = {
 function standing(overrides: Partial<Standing> & { userId: string }): Standing {
   return {
     displayName: 'Bee',
+    image: null,
     score: 0,
     rank: 1,
     isYou: false,
@@ -128,6 +130,41 @@ describe('MatchBoardScreen', () => {
     expect(yourRow.getByText('You')).toBeOnTheScreen();
     expect(yourRow.getByText('Host')).toBeOnTheScreen();
     expect(screen.queryByText('Nurul')).toBeNull();
+
+    await cleanup();
+  });
+
+  it('shows a profile avatar next to each standing name', async () => {
+    mockedApi.getMatch.mockResolvedValue(
+      liveMatch({
+        standings: [
+          standing({
+            userId: 'u1',
+            displayName: 'Bee',
+            image: 'data:image/jpeg;base64,bee',
+            score: 40,
+            rank: 1,
+          }),
+          standing({
+            userId: 'u2',
+            displayName: 'Nurul',
+            image: null,
+            score: 30,
+            rank: 2,
+            isYou: true,
+            isHost: true,
+          }),
+        ],
+      }),
+    );
+    const { cleanup } = renderBoard();
+
+    expect(
+      await screen.findByTestId('match-standing-avatar-u1'),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('match-standing-avatar-u2')).toBeOnTheScreen();
+    // Initials fallback when there is no photo.
+    expect(within(screen.getByTestId('match-standing-avatar-u2')).getByText('N')).toBeOnTheScreen();
 
     await cleanup();
   });

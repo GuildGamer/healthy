@@ -52,7 +52,7 @@ describe('InviteAcceptedNotifierService', () => {
         {
           userId: 'host',
           kind: 'social',
-          title: 'Challenge accepted',
+          title: 'See who joined',
           body: 'Bee accepted your challenge.',
           idempotencyKey: 'invite_accepted:m1:guest',
         },
@@ -62,7 +62,7 @@ describe('InviteAcceptedNotifierService', () => {
     expect(pushSender.send).toHaveBeenCalledWith([
       {
         expoPushToken: 'ExponentPushToken[host]',
-        title: 'Challenge accepted',
+        title: 'See who joined',
         body: 'Bee accepted your challenge.',
         data: { matchId: 'm1' },
       },
