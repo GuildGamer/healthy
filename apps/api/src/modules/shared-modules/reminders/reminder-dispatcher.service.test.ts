@@ -193,6 +193,10 @@ describe('ReminderDispatcherService', () => {
           kind: 'reminder',
           title: 'Do one now',
           body: 'Walk',
+          payload: {
+            destination: 'challenge',
+            challengeId: 'c1',
+          },
           idempotencyKey: 'reminder:r1:2026-08-29',
         },
       ],
@@ -233,6 +237,10 @@ describe('ReminderDispatcherService', () => {
       data: [
         expect.objectContaining({
           idempotencyKey: 'habit_slot:u1:2026-08-29:480',
+          payload: {
+            destination: 'today',
+            challengeId: 'c1',
+          },
         }),
       ],
       skipDuplicates: true,

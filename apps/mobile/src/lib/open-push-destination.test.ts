@@ -1,4 +1,4 @@
-import { hrefForPushData } from './open-push-destination';
+import { hrefForPushData, isNavigablePushData } from './open-push-destination';
 
 describe('hrefForPushData', () => {
   it('opens Today for a habit slot', () => {
@@ -23,5 +23,21 @@ describe('hrefForPushData', () => {
 
   it('stays on home when the payload is empty', () => {
     expect(hrefForPushData(null)).toBe('/(tabs)');
+  });
+});
+
+describe('isNavigablePushData', () => {
+  it('is false for null or empty payloads', () => {
+    expect(isNavigablePushData(null)).toBe(false);
+    expect(isNavigablePushData({})).toBe(false);
+  });
+
+  it('is true for match, challenge, and today destinations', () => {
+    expect(isNavigablePushData({ matchId: 'm1' })).toBe(true);
+    expect(
+      isNavigablePushData({ destination: 'challenge', challengeId: 'c1' }),
+    ).toBe(true);
+    expect(isNavigablePushData({ destination: 'today' })).toBe(true);
+    expect(isNavigablePushData({ destination: 'challenges' })).toBe(true);
   });
 });

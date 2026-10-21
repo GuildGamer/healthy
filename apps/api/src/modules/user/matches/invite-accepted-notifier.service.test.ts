@@ -54,6 +54,7 @@ describe('InviteAcceptedNotifierService', () => {
           kind: 'social',
           title: 'See who joined',
           body: 'Bee accepted your challenge.',
+          payload: { matchId: 'm1' },
           idempotencyKey: 'invite_accepted:m1:guest',
         },
       ],

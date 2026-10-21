@@ -367,6 +367,15 @@ export const surpriseEvidenceRequestSchema = z.object({
   penaltyPoints: z.number().int().nonnegative(),
 });
 
+/** Same keys as Expo push `data` — inbox taps reuse `hrefForPushData`. */
+export const notificationPayloadSchema = z
+  .object({
+    matchId: z.string().min(1),
+    challengeId: z.string().min(1),
+    destination: z.enum(['today', 'challenges', 'challenge']),
+  })
+  .partial();
+
 export const inboxNotificationSchema = z.object({
   id: z.string(),
   kind: notificationKindSchema,
@@ -374,6 +383,8 @@ export const inboxNotificationSchema = z.object({
   body: z.string(),
   isRead: z.boolean(),
   createdAt: z.string().datetime(),
+  /** Null/absent on older rows — those stay non-tappable in the inbox. */
+  payload: notificationPayloadSchema.nullable().optional(),
 });
 
 export const listNotificationsOutputSchema = z.object({
@@ -814,6 +825,7 @@ export type UpdateNotificationSettingsInput = z.infer<
   typeof updateNotificationSettingsInputSchema
 >;
 export type NotificationKind = z.infer<typeof notificationKindSchema>;
+export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 export type InboxNotification = z.infer<typeof inboxNotificationSchema>;
 export type ListNotificationsOutput = z.infer<
   typeof listNotificationsOutputSchema

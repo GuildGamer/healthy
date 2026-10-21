@@ -151,12 +151,14 @@ export class AdminNotificationsService {
     audience: readonly AudienceMember[],
     input: SendAdminNotificationInput,
   ): Promise<number> {
+    const payload = this.pushData(input);
     const result = await this.prisma.notification.createMany({
       data: audience.map((member) => ({
         userId: member.id,
         kind: 'reminder' as const,
         title: input.title,
         body: input.body,
+        payload,
         idempotencyKey: `admin_broadcast:${input.idempotencyKey}:${member.id}`,
       })),
       skipDuplicates: true,

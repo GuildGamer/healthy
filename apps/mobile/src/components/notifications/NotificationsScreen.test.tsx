@@ -16,9 +16,13 @@ jest.mock('@/lib/api', () => ({
 const mockBack = jest.fn();
 const mockDismiss = jest.fn();
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => callback(),
+  useRouter: () => ({
+    push: (href: string) => mockPush(href),
+  }),
   router: {
     canDismiss: () => true,
     back: () => mockBack(),
@@ -69,6 +73,7 @@ beforeEach(() => {
   mockBack.mockClear();
   mockDismiss.mockClear();
   mockReplace.mockClear();
+  mockPush.mockClear();
   mockedApi.markNotificationsRead.mockResolvedValue({ unreadCount: 0 });
 });
 
@@ -118,6 +123,56 @@ describe('NotificationsScreen', () => {
     fireEvent.press(await screen.findByTestId('notifications-back'));
     expect(mockDismiss).toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
+
+    await cleanup();
+  });
+
+  it('opens the match board when a social row has a match payload', async () => {
+    mockedApi.listNotifications.mockResolvedValue(
+      inbox({
+        notifications: [
+          {
+            id: 'n-board',
+            kind: 'social',
+            title: 'See the board',
+            body: 'Quiet Falcon just scored.',
+            isRead: true,
+            createdAt: '2026-08-29T10:00:00.000Z',
+            payload: { matchId: 'm1' },
+          },
+        ],
+      }),
+    );
+
+    const { cleanup } = renderInbox();
+
+    fireEvent.press(await screen.findByTestId('notification-open-n-board'));
+    expect(mockPush).toHaveBeenCalledWith('/matches/m1');
+
+    await cleanup();
+  });
+
+  it('does not offer a tap target when the payload is missing', async () => {
+    mockedApi.listNotifications.mockResolvedValue(
+      inbox({
+        notifications: [
+          {
+            id: 'n-old',
+            kind: 'reminder',
+            title: 'Do one now',
+            body: 'One challenge still open',
+            isRead: true,
+            createdAt: '2026-08-29T10:00:00.000Z',
+            payload: null,
+          },
+        ],
+      }),
+    );
+
+    const { cleanup } = renderInbox();
+
+    expect(await screen.findByText('Do one now')).toBeOnTheScreen();
+    expect(screen.queryByTestId('notification-open-n-old')).toBeNull();
 
     await cleanup();
   });

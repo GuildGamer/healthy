@@ -64,6 +64,7 @@ describe('BoardMoveNotifierService', () => {
           kind: 'social',
           title: 'Stay ahead',
           body: 'Bee just passed you.',
+          payload: { matchId: 'm1' },
           idempotencyKey: 'match_board_move:m1:a1:host',
         },
         {
@@ -71,6 +72,7 @@ describe('BoardMoveNotifierService', () => {
           kind: 'social',
           title: 'See the board',
           body: 'Bee just scored.',
+          payload: { matchId: 'm1' },
           idempotencyKey: 'match_board_move:m1:a1:cam',
         },
       ],

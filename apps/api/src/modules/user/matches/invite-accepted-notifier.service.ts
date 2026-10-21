@@ -54,6 +54,7 @@ export class InviteAcceptedNotifierService {
           kind: 'social' as const,
           title: INVITE_ACCEPTED_PUSH_TITLE,
           body,
+          payload: { matchId: notice.matchId },
           idempotencyKey,
         },
       ],

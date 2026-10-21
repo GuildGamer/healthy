@@ -140,11 +140,19 @@ export class ReminderDispatcherService {
       await this.prisma.notification.createMany({
         data: deliverable.map((item) => {
           const copy = habitSlotCopy(item.minuteOfDay);
+          const challengeId =
+            item.openChallengeIds.length === 1
+              ? item.openChallengeIds[0]
+              : undefined;
           return {
             userId: item.userId,
             kind: 'reminder' as const,
             title: copy?.title ?? 'Do one now',
             body: copy?.body ?? 'One challenge still open',
+            payload: {
+              destination: 'today' as const,
+              ...(challengeId ? { challengeId } : {}),
+            },
             idempotencyKey: habitSlotIdempotencyKey(
               item.userId,
               item.dayKey,
@@ -529,6 +537,10 @@ export class ReminderDispatcherService {
         kind: 'reminder' as const,
         title: CHALLENGE_REMINDER_PUSH_TITLE,
         body: item.challengeTitle,
+        payload: {
+          destination: 'challenge' as const,
+          challengeId: item.challengeId,
+        },
         idempotencyKey: `reminder:${item.reminderId}:${item.periodKey}`,
       })),
       skipDuplicates: true,
@@ -624,6 +636,10 @@ export class ReminderDispatcherService {
           kind: 'reminder' as const,
           title: IN_PROGRESS_NUDGE_PUSH_TITLE,
           body: IN_PROGRESS_NUDGE_PUSH_BODY,
+          payload: {
+            destination: 'challenge' as const,
+            challengeId: item.challengeId,
+          },
           idempotencyKey: `in_progress_nudge:${item.id}`,
         })),
         skipDuplicates: true,

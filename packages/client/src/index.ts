@@ -128,6 +128,7 @@ export type {
   HealthCategory,
   HealthOutput,
   InboxNotification,
+  NotificationPayload,
   SetChallengeEnrollmentInput,
   ChallengeHistoryEntry,
   ChallengeHistoryLog,

@@ -403,6 +403,8 @@ model Notification {
   kind           NotificationKind
   title          String
   body           String
+  /// Same shape as Expo push `data` so inbox taps open the same screen.
+  payload        Json?
   readAt         DateTime?
   /// Same key as the event that produced the row, so retries do not duplicate.
   idempotencyKey String           @unique

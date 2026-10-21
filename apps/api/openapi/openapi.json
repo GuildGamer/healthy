@@ -1296,6 +1296,34 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "payload": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "matchId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "challengeId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "destination": {
+                                    "enum": [
+                                      "today",
+                                      "challenges",
+                                      "challenge"
+                                    ],
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [

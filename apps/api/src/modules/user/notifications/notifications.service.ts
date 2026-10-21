@@ -6,6 +6,7 @@ import {
 } from '../../../shared/types/authenticated-user.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import type { NotificationInboxDto } from './dto/inbox-notification.dto.js';
+import { parseNotificationPayload } from './notification-payload.js';
 
 const INBOX_PAGE_SIZE = 50;
 
@@ -37,6 +38,7 @@ export class NotificationsService {
         body: row.body,
         isRead: row.readAt !== null,
         createdAt: row.createdAt.toISOString(),
+        payload: parseNotificationPayload(row.payload),
       })),
       unreadCount,
     };

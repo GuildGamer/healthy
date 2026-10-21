@@ -47,10 +47,12 @@ describe('CrewSeatNotifierService', () => {
         expect.objectContaining({
           userId: 'bee',
           kind: 'social',
+          payload: { matchId: 'm1' },
           idempotencyKey: 'crew_seat:m1:bee',
         }),
         expect.objectContaining({
           userId: 'cam',
+          payload: { matchId: 'm1' },
           idempotencyKey: 'crew_seat:m1:cam',
         }),
       ],

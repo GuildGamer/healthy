@@ -48,6 +48,7 @@ export class CrewSeatNotifierService {
         kind: 'social' as const,
         title: CREW_SEAT_PUSH_TITLE,
         body: CREW_SEAT_PUSH_BODY,
+        payload: { matchId },
         idempotencyKey: this.seatKey(matchId, userId),
       })),
       skipDuplicates: true,

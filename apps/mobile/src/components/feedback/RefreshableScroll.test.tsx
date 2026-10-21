@@ -14,7 +14,7 @@ describe('RefreshableScroll', () => {
     expect(screen.queryByTestId('pull-refresh-loader')).toBeNull();
   });
 
-  it('does not mount an overlay loader while refreshing', async () => {
+  it('shows a single overlay loader while refreshing', async () => {
     let finishRefresh: (() => void) | undefined;
     const onPullRefresh = () =>
       new Promise<void>((resolve) => {
@@ -32,11 +32,18 @@ describe('RefreshableScroll', () => {
       refreshControl.props.onRefresh?.();
     });
 
-    expect(screen.queryByTestId('pull-refresh-loader')).toBeNull();
+    expect(screen.getByTestId('pull-refresh-loader')).toBeOnTheScreen();
     expect(screen.getByText('Challenges')).toBeOnTheScreen();
 
     await act(async () => {
       finishRefresh?.();
     });
+
+    // usePullRefresh keeps the spinner up for a minimum dwell.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 650));
+    });
+
+    expect(screen.queryByTestId('pull-refresh-loader')).toBeNull();
   });
 });

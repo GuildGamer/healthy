@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import type { InboxNotification, NotificationKind } from '@product/client';
 import { colors, fontSize, fontWeight, spacing } from '@product/brand';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +9,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RefreshableScroll, ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
+import {
+  hrefForPushData,
+  isNavigablePushData,
+} from '@/lib/open-push-destination';
 import { formatRelativeTime } from './relative-time';
 
 const kindIcon: Record<
@@ -99,36 +103,58 @@ function NotificationRow({
   notification: InboxNotification;
   isLast: boolean;
 }) {
+  const router = useRouter();
+  const canOpen = isNavigablePushData(notification.payload);
+  const row = (
+    <View
+      style={[styles.row, notification.isRead ? null : styles.rowUnread]}
+    >
+      <Feather
+        color={notification.isRead ? colors.muted : colors.accent}
+        name={kindIcon[notification.kind]}
+        size={16}
+        style={styles.rowIcon}
+      />
+      <View style={styles.rowBody}>
+        <View style={styles.rowTitleLine}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.rowTitle,
+              notification.isRead ? null : styles.rowTitleUnread,
+            ]}
+          >
+            {notification.title}
+          </Text>
+          <Text style={styles.rowTime}>
+            {formatRelativeTime(notification.createdAt)}
+          </Text>
+        </View>
+        <Text style={styles.rowText}>{notification.body}</Text>
+      </View>
+      {canOpen ? (
+        <Feather color={colors.muted} name="chevron-right" size={18} />
+      ) : null}
+      {notification.isRead ? null : <View style={styles.unreadDot} />}
+    </View>
+  );
+
   return (
     <View testID={`notification-${notification.id}`}>
-      <View
-        style={[styles.row, notification.isRead ? null : styles.rowUnread]}
-      >
-        <Feather
-          color={notification.isRead ? colors.muted : colors.accent}
-          name={kindIcon[notification.kind]}
-          size={16}
-          style={styles.rowIcon}
-        />
-        <View style={styles.rowBody}>
-          <View style={styles.rowTitleLine}>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.rowTitle,
-                notification.isRead ? null : styles.rowTitleUnread,
-              ]}
-            >
-              {notification.title}
-            </Text>
-            <Text style={styles.rowTime}>
-              {formatRelativeTime(notification.createdAt)}
-            </Text>
-          </View>
-          <Text style={styles.rowText}>{notification.body}</Text>
-        </View>
-        {notification.isRead ? null : <View style={styles.unreadDot} />}
-      </View>
+      {canOpen ? (
+        <Pressable
+          accessibilityLabel={notification.title}
+          accessibilityRole="button"
+          onPress={() => {
+            router.push(hrefForPushData(notification.payload));
+          }}
+          testID={`notification-open-${notification.id}`}
+        >
+          {row}
+        </Pressable>
+      ) : (
+        row
+      )}
       {isLast ? null : <View style={styles.divider} />}
     </View>
   );

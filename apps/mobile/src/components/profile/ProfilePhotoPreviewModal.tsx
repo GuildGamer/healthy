@@ -46,13 +46,10 @@ export function ProfilePhotoPreviewModal({
             style={styles.closeButton}
             testID="profile-photo-preview-close"
           >
-            <Feather color={colors.onAccent} name="x" size={22} />
+            <Feather color={colors.text} name="x" size={22} />
           </Pressable>
         </View>
-        <Pressable
-          onPress={(event) => event.stopPropagation()}
-          style={styles.imageHost}
-        >
+        <View pointerEvents="none" style={styles.imageHost}>
           <Image
             accessibilityIgnoresInvertColors
             resizeMode="contain"
@@ -60,7 +57,7 @@ export function ProfilePhotoPreviewModal({
             style={styles.image}
             testID="profile-photo-preview-image"
           />
-        </Pressable>
+        </View>
       </Pressable>
     </Modal>
   );
@@ -81,7 +78,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   imageHost: {
     flex: 1,
