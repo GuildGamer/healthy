@@ -29,6 +29,7 @@ export function EmailOtpScreen({
   onBackPress,
   onResend,
   onSuccess,
+  onUseAnotherAccount,
   onVerify,
   testIDPrefix,
   title,
@@ -37,6 +38,7 @@ export function EmailOtpScreen({
   onBackPress: () => void;
   onResend: () => Promise<AuthActionResult>;
   onSuccess: (otp: string) => void;
+  onUseAnotherAccount?: () => Promise<AuthActionResult>;
   onVerify: (otp: string) => Promise<AuthActionResult>;
   testIDPrefix: string;
   title: string;
@@ -46,6 +48,7 @@ export function EmailOtpScreen({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isLeavingAccount, setIsLeavingAccount] = useState(false);
 
   useEffect(() => {
     if (secondsLeft === 0) {
@@ -80,6 +83,26 @@ export function EmailOtpScreen({
       setErrorMessage(NETWORK_FAILED_MESSAGE);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleUseAnotherAccount() {
+    if (!onUseAnotherAccount || isLeavingAccount) {
+      return;
+    }
+
+    setIsLeavingAccount(true);
+    setErrorMessage(null);
+
+    try {
+      const { error } = await onUseAnotherAccount();
+      if (error) {
+        setErrorMessage(NETWORK_FAILED_MESSAGE);
+        setIsLeavingAccount(false);
+      }
+    } catch {
+      setErrorMessage(NETWORK_FAILED_MESSAGE);
+      setIsLeavingAccount(false);
     }
   }
 
@@ -167,6 +190,21 @@ export function EmailOtpScreen({
             }}
             testID={`${testIDPrefix}-verify`}
           />
+
+          {onUseAnotherAccount ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isLeavingAccount }}
+              disabled={isLeavingAccount}
+              onPress={() => {
+                void handleUseAnotherAccount();
+              }}
+              style={styles.alternateAccount}
+              testID={`${testIDPrefix}-use-another-account`}
+            >
+              <Text style={styles.alternateAccountLabel}>Use another account</Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -197,6 +235,13 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   resendAction: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+  },
+  alternateAccount: {
+    alignItems: 'center',
+  },
+  alternateAccountLabel: {
     color: colors.accent,
     fontSize: fontSize.sm,
   },
