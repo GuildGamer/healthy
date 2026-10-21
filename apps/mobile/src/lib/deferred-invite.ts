@@ -1,4 +1,5 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
+import * as SecureStore from 'expo-secure-store';
 import {
   peekPendingMatchToken,
   stashPendingMatchToken,
@@ -12,6 +13,12 @@ export const DEFERRED_INVITE_PREFIX = 'healthy-invite:';
 
 /** Play Install Referrer payload written into the store URL by the website. */
 export const PLAY_REFERRER_INVITE_PREFIX = 'healthy_invite=';
+
+/**
+ * Set after the first clipboard probe this install so cold opens do not keep
+ * triggering the iOS paste permission dialog.
+ */
+export const CLIPBOARD_INVITE_PROBED_KEY = 'clipboard_invite_probed';
 
 const MATCH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -116,12 +123,29 @@ async function readClipboardInviteToken(): Promise<string | null> {
   }
 }
 
+async function hasProbedClipboardInvite(): Promise<boolean> {
+  try {
+    const value = await SecureStore.getItemAsync(CLIPBOARD_INVITE_PROBED_KEY);
+    return value === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function markClipboardInviteProbed(): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(CLIPBOARD_INVITE_PROBED_KEY, '1');
+  } catch {
+    // Fail-soft: a missed flag only means we may probe once more later.
+  }
+}
+
 /**
  * Claim a first-party deferred invite after install / cold open.
  *
  * Order: SecureStore (universal link / prior stash) → clipboard marker from the
- * marketing invite page. Play Install Referrer needs a native module later;
- * `tokenFromPlayReferrer` is ready when that lands.
+ * marketing invite page (at most once per install). Play Install Referrer needs
+ * a native module later; `tokenFromPlayReferrer` is ready when that lands.
  *
  * Fail-soft: never throws; empty / stale clipboard returns null.
  */
@@ -133,7 +157,13 @@ export async function claimDeferredInviteToken(): Promise<string | null> {
       return existing;
     }
 
+    if (await hasProbedClipboardInvite()) {
+      return null;
+    }
+
     const fromClipboard = await readClipboardInviteToken();
+    await markClipboardInviteProbed();
+
     if (!fromClipboard) {
       return null;
     }

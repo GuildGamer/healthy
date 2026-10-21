@@ -7,7 +7,6 @@ import {
   View,
   type ScrollViewProps,
 } from 'react-native';
-import { Loader } from './Loader';
 import { usePullRefresh } from './use-pull-refresh';
 
 interface RefreshableScrollProps extends Omit<ScrollViewProps, 'refreshControl'> {
@@ -17,8 +16,8 @@ interface RefreshableScrollProps extends Omit<ScrollViewProps, 'refreshControl'>
 
 /**
  * iOS Fabric ignores RefreshControl tintColor on first mount, so the system
- * spinner stays dark and disappears on our navy screens. We re-apply the mint
- * tint after attach, and draw our own loader while a pull is in flight.
+ * spinner stays dark and disappears on our navy screens. Re-apply the mint
+ * tint after attach so pull-to-refresh keeps a single native spinner.
  */
 export function RefreshableScroll({
   onPullRefresh,
@@ -55,11 +54,6 @@ export function RefreshableScroll({
       >
         {children}
       </ScrollView>
-      {isRefreshing ? (
-        <View pointerEvents="none" style={styles.overlay} testID="pull-refresh-loader">
-          <Loader />
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -67,12 +61,5 @@ export function RefreshableScroll({
 const styles = StyleSheet.create({
   host: {
     flex: 1,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 56,
-    right: 0,
-    left: 0,
-    alignItems: 'center',
   },
 });

@@ -2,6 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import * as SecureStore from 'expo-secure-store';
 import {
+  CLIPBOARD_INVITE_PROBED_KEY,
   DEFERRED_INVITE_PREFIX,
   claimDeferredInviteToken,
   resetDeferredInviteTrackingForTests,
@@ -26,6 +27,16 @@ jest.mock('expo-modules-core', () => {
 const mockedRequireOptionalNativeModule = jest.mocked(
   requireOptionalNativeModule,
 );
+
+const PENDING_MATCH_TOKEN_KEY = 'pending_match_token';
+
+function mockSecureStoreItems(
+  items: Record<string, string | null> = {},
+): void {
+  jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
+    return items[key] ?? null;
+  });
+}
 
 describe('tokenFromDeferredMarker', () => {
   it('parses a valid marker', () => {
@@ -67,13 +78,14 @@ describe('claimDeferredInviteToken', () => {
     jest.mocked(Clipboard.getStringAsync).mockReset();
     jest.mocked(trackEvent).mockReset();
     mockedRequireOptionalNativeModule.mockReset();
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
+    mockSecureStoreItems();
+    jest.mocked(SecureStore.setItemAsync).mockResolvedValue(undefined);
     jest.mocked(Clipboard.getStringAsync).mockResolvedValue('');
     mockedRequireOptionalNativeModule.mockReturnValue({});
   });
 
   it('returns an existing SecureStore token without reading clipboard', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue('stored_tok1');
+    mockSecureStoreItems({ [PENDING_MATCH_TOKEN_KEY]: 'stored_tok1' });
 
     await expect(claimDeferredInviteToken()).resolves.toBe('stored_tok1');
     expect(Clipboard.getStringAsync).not.toHaveBeenCalled();
@@ -89,7 +101,11 @@ describe('claimDeferredInviteToken', () => {
 
     await expect(claimDeferredInviteToken()).resolves.toBe('clip_token1');
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      'pending_match_token',
+      CLIPBOARD_INVITE_PROBED_KEY,
+      '1',
+    );
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+      PENDING_MATCH_TOKEN_KEY,
       'clip_token1',
     );
     expect(trackEvent).toHaveBeenCalledWith('deferred_invite_claimed', {
@@ -98,11 +114,29 @@ describe('claimDeferredInviteToken', () => {
     });
   });
 
-  it('fails soft on empty clipboard', async () => {
+  it('skips clipboard when already probed this install', async () => {
+    mockSecureStoreItems({ [CLIPBOARD_INVITE_PROBED_KEY]: '1' });
+    jest
+      .mocked(Clipboard.getStringAsync)
+      .mockResolvedValue(`${DEFERRED_INVITE_PREFIX}clip_token1`);
+
+    await expect(claimDeferredInviteToken()).resolves.toBeNull();
+    expect(Clipboard.getStringAsync).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  it('marks probed after an empty clipboard read', async () => {
     jest.mocked(Clipboard.getStringAsync).mockResolvedValue('');
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+      CLIPBOARD_INVITE_PROBED_KEY,
+      '1',
+    );
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
+      PENDING_MATCH_TOKEN_KEY,
+      expect.anything(),
+    );
   });
 
   it('fails soft on stale / invalid clipboard marker', async () => {
@@ -111,7 +145,14 @@ describe('claimDeferredInviteToken', () => {
       .mockResolvedValue(`${DEFERRED_INVITE_PREFIX}short`);
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+      CLIPBOARD_INVITE_PROBED_KEY,
+      '1',
+    );
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
+      PENDING_MATCH_TOKEN_KEY,
+      expect.anything(),
+    );
   });
 
   it('fails soft when clipboard throws', async () => {
@@ -120,6 +161,10 @@ describe('claimDeferredInviteToken', () => {
       .mockRejectedValue(new Error('denied'));
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+      CLIPBOARD_INVITE_PROBED_KEY,
+      '1',
+    );
   });
 
   it('skips the clipboard when ExpoClipboard is not linked', async () => {
@@ -130,6 +175,10 @@ describe('claimDeferredInviteToken', () => {
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
     expect(Clipboard.getStringAsync).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+      CLIPBOARD_INVITE_PROBED_KEY,
+      '1',
+    );
   });
 });
 

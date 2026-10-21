@@ -38,45 +38,63 @@ export function ProfileAvatar({
   imageUri,
   name,
   onEditPress,
+  onPreviewPress,
   size = DEFAULT_SIZE,
   testID,
 }: {
   imageUri?: string | null;
   name: string;
   onEditPress?: () => void;
+  onPreviewPress?: () => void;
   size?: number;
   testID?: string;
 }) {
   const initials = initialsFor(name);
   const radius = size / 2;
+  const canPreview = Boolean(imageUri && onPreviewPress);
+
+  const face = (
+    <View
+      style={[
+        styles.face,
+        {
+          width: size,
+          height: size,
+          borderRadius: radius,
+        },
+      ]}
+      testID={testID}
+    >
+      {imageUri ? (
+        <Image
+          accessibilityIgnoresInvertColors
+          source={{ uri: imageUri }}
+          style={{ width: size, height: size, borderRadius: radius }}
+        />
+      ) : initials ? (
+        <Text style={[styles.initials, { fontSize: size * 0.36 }]}>
+          {initials}
+        </Text>
+      ) : (
+        <Feather color={colors.accent} name="user" size={size * 0.42} />
+      )}
+    </View>
+  );
 
   return (
     <View style={{ width: size, height: size }}>
-      <View
-        style={[
-          styles.face,
-          {
-            width: size,
-            height: size,
-            borderRadius: radius,
-          },
-        ]}
-        testID={testID}
-      >
-        {imageUri ? (
-          <Image
-            accessibilityIgnoresInvertColors
-            source={{ uri: imageUri }}
-            style={{ width: size, height: size, borderRadius: radius }}
-          />
-        ) : initials ? (
-          <Text style={[styles.initials, { fontSize: size * 0.36 }]}>
-            {initials}
-          </Text>
-        ) : (
-          <Feather color={colors.accent} name="user" size={size * 0.42} />
-        )}
-      </View>
+      {canPreview ? (
+        <Pressable
+          accessibilityLabel="Preview profile photo"
+          accessibilityRole="button"
+          onPress={onPreviewPress}
+          testID={testID ? `${testID}-preview` : 'profile-avatar-preview'}
+        >
+          {face}
+        </Pressable>
+      ) : (
+        face
+      )}
       {onEditPress ? (
         <Pressable
           accessibilityLabel="Edit profile photo"

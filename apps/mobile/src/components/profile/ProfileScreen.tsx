@@ -26,6 +26,7 @@ import { requestReminderPermission } from '@/lib/notifications';
 import { usePushDeviceSync } from '@/lib/use-push-device';
 import { ChangePhotoSheet } from './ChangePhotoSheet';
 import { ProfileAvatar, avatarNameFor } from './ProfileAvatar';
+import { ProfilePhotoPreviewModal } from './ProfilePhotoPreviewModal';
 import { useUpdateProfilePhoto } from './useUpdateProfilePhoto';
 
 function isMembershipRequiredError(error: unknown): boolean {
@@ -207,6 +208,7 @@ export function ProfileScreen() {
   const heroName = savedDisplayName || legalName;
   const photoUri = session?.user.image;
   const photo = useUpdateProfilePhoto();
+  const [isPhotoPreviewOpen, setIsPhotoPreviewOpen] = useState(false);
 
   function saveDisplayName() {
     if (!canSaveName) {
@@ -277,6 +279,9 @@ export function ProfileScreen() {
                 name: legalName,
               })}
               onEditPress={photo.openSheet}
+              onPreviewPress={
+                photoUri ? () => setIsPhotoPreviewOpen(true) : undefined
+              }
               testID="profile-avatar"
             />
             <Text style={styles.heroName}>{heroName}</Text>
@@ -531,6 +536,13 @@ export function ProfileScreen() {
         onPick={photo.pickFrom}
         visible={photo.sheetOpen}
       />
+      {photoUri ? (
+        <ProfilePhotoPreviewModal
+          imageUri={photoUri}
+          onClose={() => setIsPhotoPreviewOpen(false)}
+          visible={isPhotoPreviewOpen}
+        />
+      ) : null}
     </View>
   );
 }

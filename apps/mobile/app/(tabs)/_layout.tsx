@@ -1,13 +1,18 @@
 import Feather from '@expo/vector-icons/Feather';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, fontSize, fontWeight, spacing } from '@product/brand';
 import { Redirect, Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLoader } from '@/components/feedback';
+import { ProfileAvatar, avatarNameFor } from '@/components/profile/ProfileAvatar';
 import { useSession } from '@/lib/auth-client';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
+import {
+  clearCachedTabsGate,
+  getCachedTabsGate,
+  setCachedTabsGate,
+} from '@/lib/tabs-gate-cache';
 import { useRequestReminderOnLaunch } from '@/lib/use-request-reminder-on-launch';
 
 /**
@@ -19,37 +24,54 @@ import { useRequestReminderOnLaunch } from '@/lib/use-request-reminder-on-launch
 const TAB_BAR_BASE_HEIGHT = 60;
 const TAB_BAR_MIN_BOTTOM_PADDING = spacing.sm;
 
+function seedGateHref(sessionUserId: string | undefined): PostAuthHref | null {
+  if (!sessionUserId) {
+    return null;
+  }
+
+  return getCachedTabsGate(sessionUserId);
+}
+
 export default function TabsLayout() {
   const { data: session, isPending, isRefetching } = useSession();
-  const [gateHref, setGateHref] = useState<PostAuthHref | null>(null);
-  const [isResolving, setIsResolving] = useState(false);
+  const sessionUserId = session?.user.id;
+  const [gateHref, setGateHref] = useState<PostAuthHref | null>(() =>
+    seedGateHref(sessionUserId),
+  );
 
   useEffect(() => {
-    if (!session) {
-      setGateHref(null);
-      return;
-    }
+    if (sessionUserId) {
+      const cached = getCachedTabsGate(sessionUserId);
+      if (cached) {
+        setGateHref(cached);
+      }
 
-    let cancelled = false;
-    setIsResolving(true);
-    void resolvePostAuthHref()
-      .then((href) => {
-        if (!cancelled) {
-          setGateHref(href);
+      let cancelled = false;
+      void resolvePostAuthHref().then((href) => {
+        if (cancelled || !href) {
+          return;
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsResolving(false);
-        }
+
+        setCachedTabsGate(sessionUserId, href);
+        setGateHref(href);
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [session]);
+      return () => {
+        cancelled = true;
+      };
+    }
 
-  if (isPending || (!session && isRefetching) || (session && (isResolving || !gateHref))) {
+    // Only clear when the session is definitively gone — not during refetch flicker.
+    if (!session && !isPending && !isRefetching) {
+      clearCachedTabsGate();
+      setGateHref(null);
+    }
+
+    return undefined;
+  }, [sessionUserId, session, isPending, isRefetching]);
+
+  // Cold bootstrap only — never tear down Tabs once we have a gate for this user.
+  if (((isPending || isRefetching) && !session) || (session && !gateHref)) {
     return <ScreenLoader />;
   }
 
@@ -62,6 +84,23 @@ export default function TabsLayout() {
   }
 
   return <TabsShell />;
+}
+
+function ProfileTabIcon({ size }: { size: number }) {
+  const { data: session } = useSession();
+  const name = avatarNameFor({
+    displayName: session?.user.name,
+    name: session?.user.name,
+  });
+
+  return (
+    <ProfileAvatar
+      imageUri={session?.user.image}
+      name={name}
+      size={size}
+      testID="profile-tab-avatar"
+    />
+  );
 }
 
 function TabsShell() {
@@ -130,9 +169,7 @@ function TabsShell() {
         options={{
           title: 'Profile',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons color={color} name="person-circle" size={size} />
-          ),
+          tabBarIcon: ({ size }) => <ProfileTabIcon size={size} />,
         }}
       />
     </Tabs>

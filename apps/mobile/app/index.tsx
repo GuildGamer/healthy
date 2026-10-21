@@ -10,51 +10,45 @@ const SPLASH_DURATION_MS = 2300;
 
 export default function Index() {
   const { data: session, isPending } = useSession();
+  const sessionUserId = session?.user.id;
   const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [postAuthHref, setPostAuthHref] = useState<PostAuthHref | null>(null);
-  const [isResolvingPostAuth, setIsResolvingPostAuth] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsSplashComplete(true), SPLASH_DURATION_MS);
     return () => clearTimeout(timer);
   }, []);
 
-  // Claim clipboard / SecureStore invite on every cold open — including the
+  // Claim SecureStore / one-shot clipboard invite on cold open — including the
   // unauthenticated onboarding path — without blocking splash.
   useEffect(() => {
     void claimDeferredInviteToken();
   }, []);
 
   useEffect(() => {
-    if (!isSplashComplete || isPending) {
+    if (!isSplashComplete) {
       return;
     }
 
-    if (!session) {
+    if (!sessionUserId) {
       setPostAuthHref(null);
       return;
     }
 
     let cancelled = false;
-    setIsResolvingPostAuth(true);
-    void resolvePostAuthHref()
-      .then((href) => {
-        if (!cancelled) {
-          setPostAuthHref(href);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsResolvingPostAuth(false);
-        }
-      });
+    void resolvePostAuthHref().then((href) => {
+      if (!cancelled) {
+        setPostAuthHref(href);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [isSplashComplete, isPending, session]);
+  }, [isSplashComplete, sessionUserId]);
 
-  if (!isSplashComplete || isPending || (session && (isResolvingPostAuth || !postAuthHref))) {
+  // Keep prior redirect while a known session re-resolves after background refresh.
+  if (!isSplashComplete || (isPending && !session) || (session && !postAuthHref)) {
     return <SplashScreen animate />;
   }
 

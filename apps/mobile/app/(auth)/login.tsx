@@ -10,35 +10,29 @@ import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 export default function Login() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  const sessionUserId = session?.user.id;
   const [sessionHref, setSessionHref] = useState<PostAuthHref | null>(null);
-  const [isResolving, setIsResolving] = useState(false);
 
   useEffect(() => {
-    if (!session) {
+    if (!sessionUserId) {
       setSessionHref(null);
       return;
     }
 
     let cancelled = false;
-    setIsResolving(true);
-    void resolvePostAuthHref()
-      .then((href) => {
-        if (!cancelled) {
-          setSessionHref(href);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsResolving(false);
-        }
-      });
+    void resolvePostAuthHref().then((href) => {
+      if (!cancelled) {
+        setSessionHref(href);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [sessionUserId]);
 
-  if (isPending || (session && (isResolving || !sessionHref))) {
+  // First signed-in resolve only — keep Login / prior redirect during refetch.
+  if ((isPending && !session) || (session && !sessionHref)) {
     return <ScreenLoader />;
   }
 

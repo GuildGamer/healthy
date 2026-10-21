@@ -46,6 +46,10 @@ import {
   MATCH_LIVE_HINT,
   matchLiveCountLabel,
 } from '@/components/matches/match-copy';
+import {
+  ProfileAvatar,
+  avatarNameFor,
+} from '@/components/profile/ProfileAvatar';
 import { weeklyRankLabel } from './home-rank';
 
 /** Figma uses 12px gaps (`space-y-3`) between home sections. */
@@ -293,7 +297,15 @@ export function HomeScreen() {
               style={styles.avatarWrap}
               testID="open-profile"
             >
-              <Ionicons color={colors.accent} name="person-circle" size={36} />
+              <ProfileAvatar
+                imageUri={session?.user.image}
+                name={avatarNameFor({
+                  displayName: meQuery.data?.displayName,
+                  name: meQuery.data?.name ?? session?.user.name,
+                })}
+                size={32}
+                testID="home-profile-avatar"
+              />
             </Pressable>
           </View>
         </View>

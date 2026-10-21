@@ -25,6 +25,7 @@ import { requestEmailChange, updateUser, useSession } from '@/lib/auth-client';
 import { goBackOrHome } from '@/lib/go-back';
 import { ChangePhotoSheet } from './ChangePhotoSheet';
 import { ProfileAvatar, avatarNameFor } from './ProfileAvatar';
+import { ProfilePhotoPreviewModal } from './ProfilePhotoPreviewModal';
 import { useUpdateProfilePhoto } from './useUpdateProfilePhoto';
 
 const SAVE_FAILED_MESSAGE = 'We could not save your details. Try again.';
@@ -66,7 +67,9 @@ export function EditProfileScreen() {
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [didSave, setDidSave] = useState(false);
+  const [isPhotoPreviewOpen, setIsPhotoPreviewOpen] = useState(false);
   const photo = useUpdateProfilePhoto();
+  const photoUri = session?.user.image;
 
   const nameValue = draftName ?? savedName;
   const emailValue = draftEmail ?? savedEmail;
@@ -167,12 +170,15 @@ export function EditProfileScreen() {
       >
         <View style={styles.avatarBlock}>
           <ProfileAvatar
-            imageUri={session?.user.image}
+            imageUri={photoUri}
             name={avatarNameFor({
               displayName: meQuery.data?.displayName,
               name: savedName,
             })}
             onEditPress={photo.openSheet}
+            onPreviewPress={
+              photoUri ? () => setIsPhotoPreviewOpen(true) : undefined
+            }
             testID="edit-profile-avatar"
           />
         </View>
@@ -233,6 +239,13 @@ export function EditProfileScreen() {
         onPick={photo.pickFrom}
         visible={photo.sheetOpen}
       />
+      {photoUri ? (
+        <ProfilePhotoPreviewModal
+          imageUri={photoUri}
+          onClose={() => setIsPhotoPreviewOpen(false)}
+          visible={isPhotoPreviewOpen}
+        />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
