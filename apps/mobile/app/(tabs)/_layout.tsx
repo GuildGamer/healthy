@@ -9,9 +9,9 @@ import { useSession } from '@/lib/auth-client';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 import {
+  applyTabsGateResolve,
   clearCachedTabsGate,
-  getCachedTabsGate,
-  setCachedTabsGate,
+  isTabsGateAllowed,
 } from '@/lib/tabs-gate-cache';
 import { useRequestReminderOnLaunch } from '@/lib/use-request-reminder-on-launch';
 
@@ -25,11 +25,12 @@ const TAB_BAR_BASE_HEIGHT = 60;
 const TAB_BAR_MIN_BOTTOM_PADDING = spacing.sm;
 
 function seedGateHref(sessionUserId: string | undefined): PostAuthHref | null {
-  if (!sessionUserId) {
+  if (!sessionUserId || !isTabsGateAllowed(sessionUserId)) {
     return null;
   }
 
-  return getCachedTabsGate(sessionUserId);
+  // Allowed means tabs — never re-seed a one-shot /match or onboarding href.
+  return '/(tabs)';
 }
 
 export default function TabsLayout() {
@@ -41,9 +42,8 @@ export default function TabsLayout() {
 
   useEffect(() => {
     if (sessionUserId) {
-      const cached = getCachedTabsGate(sessionUserId);
-      if (cached) {
-        setGateHref(cached);
+      if (isTabsGateAllowed(sessionUserId)) {
+        setGateHref('/(tabs)');
       }
 
       let cancelled = false;
@@ -52,7 +52,8 @@ export default function TabsLayout() {
           return;
         }
 
-        setCachedTabsGate(sessionUserId, href);
+        // Invite / onboarding: Redirect once for this mount only — do not cache.
+        applyTabsGateResolve(sessionUserId, href);
         setGateHref(href);
       });
 

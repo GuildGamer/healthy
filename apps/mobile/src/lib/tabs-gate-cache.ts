@@ -1,30 +1,41 @@
-import type { PostAuthHref } from './post-auth-route';
+/**
+ * In-memory “this user may enter tabs” flag.
+ *
+ * Survives layout remounts within the same JS process. Never stores one-shot
+ * routes (`/match/…`, onboarding) — those must not bounce the user back after
+ * they leave a group board.
+ */
+let allowedUserId: string | null = null;
 
-type CachedTabsGate = {
-  userId: string;
-  href: PostAuthHref;
-};
-
-/** In-memory only — survives layout remounts within the same JS process. */
-let cachedGate: CachedTabsGate | null = null;
-
-export function getCachedTabsGate(userId: string): PostAuthHref | null {
-  if (!cachedGate || cachedGate.userId !== userId) {
-    return null;
-  }
-
-  return cachedGate.href;
+export function isTabsGateAllowed(userId: string): boolean {
+  return allowedUserId === userId;
 }
 
-export function setCachedTabsGate(userId: string, href: PostAuthHref): void {
-  cachedGate = { userId, href };
+export function markTabsGateAllowed(userId: string): void {
+  allowedUserId = userId;
 }
 
 export function clearCachedTabsGate(): void {
-  cachedGate = null;
+  allowedUserId = null;
 }
 
 /** Test helper — resets process-local cache between cases. */
 export function resetTabsGateCacheForTests(): void {
-  cachedGate = null;
+  allowedUserId = null;
+}
+
+/**
+ * Apply a post-auth resolve result to the tabs gate.
+ * Only `/(tabs)` marks the process-local allowed flag.
+ */
+export function applyTabsGateResolve(
+  userId: string,
+  href: string,
+): { markAllowed: boolean } {
+  if (href === '/(tabs)') {
+    markTabsGateAllowed(userId);
+    return { markAllowed: true };
+  }
+
+  return { markAllowed: false };
 }

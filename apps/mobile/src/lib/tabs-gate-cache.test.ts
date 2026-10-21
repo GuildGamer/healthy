@@ -1,8 +1,9 @@
 import {
+  applyTabsGateResolve,
   clearCachedTabsGate,
-  getCachedTabsGate,
+  isTabsGateAllowed,
+  markTabsGateAllowed,
   resetTabsGateCacheForTests,
-  setCachedTabsGate,
 } from './tabs-gate-cache';
 
 describe('tabs-gate-cache', () => {
@@ -10,20 +11,38 @@ describe('tabs-gate-cache', () => {
     resetTabsGateCacheForTests();
   });
 
-  it('returns null when empty or for another user', () => {
-    expect(getCachedTabsGate('user-a')).toBeNull();
-    setCachedTabsGate('user-a', '/(tabs)');
-    expect(getCachedTabsGate('user-b')).toBeNull();
+  it('is false when empty or for another user', () => {
+    expect(isTabsGateAllowed('user-a')).toBe(false);
+    markTabsGateAllowed('user-a');
+    expect(isTabsGateAllowed('user-b')).toBe(false);
+    expect(isTabsGateAllowed('user-a')).toBe(true);
   });
 
-  it('seeds the same href after a simulated remount', () => {
-    setCachedTabsGate('user-a', '/(tabs)');
-    expect(getCachedTabsGate('user-a')).toBe('/(tabs)');
+  it('survives a simulated remount for the same user', () => {
+    markTabsGateAllowed('user-a');
+    expect(isTabsGateAllowed('user-a')).toBe(true);
   });
 
   it('clears on sign-out', () => {
-    setCachedTabsGate('user-a', '/(tabs)');
+    markTabsGateAllowed('user-a');
     clearCachedTabsGate();
-    expect(getCachedTabsGate('user-a')).toBeNull();
+    expect(isTabsGateAllowed('user-a')).toBe(false);
+  });
+
+  it('marks allowed only for /(tabs), not invite or onboarding', () => {
+    expect(applyTabsGateResolve('user-a', '/match/invite_tok1')).toEqual({
+      markAllowed: false,
+    });
+    expect(isTabsGateAllowed('user-a')).toBe(false);
+
+    expect(applyTabsGateResolve('user-a', '/complete-country')).toEqual({
+      markAllowed: false,
+    });
+    expect(isTabsGateAllowed('user-a')).toBe(false);
+
+    expect(applyTabsGateResolve('user-a', '/(tabs)')).toEqual({
+      markAllowed: true,
+    });
+    expect(isTabsGateAllowed('user-a')).toBe(true);
   });
 });
