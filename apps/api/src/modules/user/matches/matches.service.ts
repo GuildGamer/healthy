@@ -14,21 +14,15 @@ import {
   type MatchScoringMode,
   type SubmitMatchAttemptInput,
 } from '@product/contract';
-import type {
-  DeviceActivitySource,
-  DeviceMetric,
-  PrismaClient,
-} from '@product/db';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
+import type { DeviceActivitySource, DeviceMetric, PrismaClient } from '@product/db';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { AnalyticsService } from '../analytics/index.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
+import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
 import type {
   CreateMatchDto,
   CreateMatchInputDto,
@@ -48,11 +42,7 @@ import {
   MATCH_NOT_PARTICIPANT,
   MATCH_WRONG_ACTIVITY,
 } from './errors/match.errors.js';
-import {
-  computeStandings,
-  type MatchScoringRules,
-  type StandingEvent,
-} from './match-standings.js';
+import { computeStandings, type MatchScoringRules, type StandingEvent } from './match-standings.js';
 import { createInviteToken } from './match-token.js';
 import { matchLengthBounds } from './match-window.js';
 import type { LoadedMatch } from './types/loaded-match.js';
@@ -98,6 +88,7 @@ export class MatchesService {
     private readonly crewsService: CrewsService,
     private readonly crewSeatNotifier: CrewSeatNotifierService,
     private readonly analyticsService: AnalyticsService,
+    private readonly inviteAcceptedNotifier: InviteAcceptedNotifierService,
   ) {}
 
   private async trackMatchEvent(
@@ -109,11 +100,7 @@ export class MatchesService {
       | 'challenge_completed_by_recipient',
     match: Pick<
       LoadedMatch,
-      | 'id'
-      | 'inviteToken'
-      | 'experimentId'
-      | 'experimentVariantKey'
-      | 'parentMatchId'
+      'id' | 'inviteToken' | 'experimentId' | 'experimentVariantKey' | 'parentMatchId'
     >,
   ): Promise<void> {
     try {
@@ -128,10 +115,7 @@ export class MatchesService {
         },
       });
     } catch (error) {
-      this.logger.error(
-        `Could not track ${name} for match ${match.id}`,
-        error,
-      );
+      this.logger.error(`Could not track ${name} for match ${match.id}`, error);
     }
   }
 
@@ -143,22 +127,14 @@ export class MatchesService {
    * Who a saved roster seats, host excluded. The cap counts the host, so a
    * crew can only fill the remaining seats.
    */
-  private async crewSeats(
-    hostUserId: string,
-    crewId: string | undefined,
-  ): Promise<string[]> {
+  private async crewSeats(hostUserId: string, crewId: string | undefined): Promise<string[]> {
     if (!crewId) {
       return [];
     }
 
-    const memberIds = await this.crewsService.activeMemberIdsForOwner(
-      hostUserId,
-      crewId,
-    );
+    const memberIds = await this.crewsService.activeMemberIdsForOwner(hostUserId, crewId);
 
-    return memberIds
-      .filter((userId) => userId !== hostUserId)
-      .slice(0, MATCH_PARTICIPANT_CAP - 1);
+    return memberIds.filter((userId) => userId !== hostUserId).slice(0, MATCH_PARTICIPANT_CAP - 1);
   }
 
   async create(
@@ -250,17 +226,34 @@ export class MatchesService {
     };
   }
 
-  private async notifySeated(
-    matchId: string,
-    seatedUserIds: readonly string[],
-  ): Promise<void> {
+  private async notifySeated(matchId: string, seatedUserIds: readonly string[]): Promise<void> {
     try {
       await this.crewSeatNotifier.notifySeated(matchId, seatedUserIds);
     } catch (error) {
-      this.logger.error(
-        `Could not notify crew seats for match ${matchId}`,
-        error,
-      );
+      this.logger.error(`Could not notify crew seats for match ${matchId}`, error);
+    }
+  }
+
+  /**
+   * The person who shared the invite hears that it was accepted. A failed
+   * push must not undo the accept.
+   */
+  private async notifyHostOfAcceptance(match: LoadedMatch, acceptedUserId: string): Promise<void> {
+    if (acceptedUserId === match.hostUserId) {
+      return;
+    }
+
+    const participant = match.participants.find((row) => row.userId === acceptedUserId);
+
+    try {
+      await this.inviteAcceptedNotifier.notifyHost({
+        matchId: match.id,
+        hostUserId: match.hostUserId,
+        acceptedUserId,
+        acceptedDisplayName: publicNameFor(acceptedUserId, participant?.user.profile?.displayName),
+      });
+    } catch (error) {
+      this.logger.error(`Could not notify host of an accepted invite for match ${match.id}`, error);
     }
   }
 
@@ -275,10 +268,7 @@ export class MatchesService {
     return {
       token: live.inviteToken,
       matchId: live.id,
-      hostDisplayName: publicNameFor(
-        live.hostUserId,
-        live.hostUser.profile?.displayName,
-      ),
+      hostDisplayName: publicNameFor(live.hostUserId, live.hostUser.profile?.displayName),
       metric: live.metric,
       scoringMode: live.scoringMode,
       dailyScope: live.dailyScope,
@@ -320,18 +310,12 @@ export class MatchesService {
         },
       });
     } catch (error) {
-      this.logger.error(
-        `Could not track challenge_link_opened for match ${match.id}`,
-        error,
-      );
+      this.logger.error(`Could not track challenge_link_opened for match ${match.id}`, error);
     }
 
     return {
       token: match.inviteToken,
-      hostDisplayName: publicNameFor(
-        match.hostUserId,
-        match.hostUser.profile?.displayName,
-      ),
+      hostDisplayName: publicNameFor(match.hostUserId, match.hostUser.profile?.displayName),
       metric: match.metric,
       scoringMode: match.scoringMode,
       hostScore: this.hostScoreFor(match),
@@ -350,10 +334,7 @@ export class MatchesService {
     // Opening an invite for a seat you already hold is how a crew-seated
     // member accepts.
     if (this.isParticipant(match, user.id)) {
-      return await this.buildBoard(
-        await this.acceptSeat(match, user.id),
-        user.id,
-      );
+      return await this.buildBoard(await this.acceptSeat(match, user.id), user.id);
     }
 
     this.assertJoinable(match);
@@ -388,6 +369,7 @@ export class MatchesService {
     const joined = await this.loadByToken(token);
     await this.trackMatchEvent(user, 'challenge_accepted', joined);
     await this.trackMatchEvent(user, 'challenge_recipient_signed_up', joined);
+    await this.notifyHostOfAcceptance(joined, user.id);
     return await this.buildBoard(joined, user.id);
   }
 
@@ -403,9 +385,7 @@ export class MatchesService {
     return await this.buildBoard(await this.acceptSeat(match, user.id), user.id);
   }
 
-  async listMine(
-    currentUser: AuthenticatedUser | null | undefined,
-  ): Promise<ListMyMatchesDto> {
+  async listMine(currentUser: AuthenticatedUser | null | undefined): Promise<ListMyMatchesDto> {
     const user = requireUser(currentUser);
     const rows = await this.prisma.matchParticipant.findMany({
       where: { userId: user.id },
@@ -480,16 +460,8 @@ export class MatchesService {
     });
 
     if (isRecipient && priorRecipientAttempts === 0) {
-      await this.trackMatchEvent(
-        user,
-        'challenge_started_by_recipient',
-        match,
-      );
-      await this.trackMatchEvent(
-        user,
-        'challenge_completed_by_recipient',
-        match,
-      );
+      await this.trackMatchEvent(user, 'challenge_started_by_recipient', match);
+      await this.trackMatchEvent(user, 'challenge_completed_by_recipient', match);
     }
 
     const fresh = await this.loadById(match.id);
@@ -582,10 +554,7 @@ export class MatchesService {
    * capture has to match the metric and stay inside that metric's ceiling.
    * Derived from the stored match rather than from anything the client sent.
    */
-  private assertAttemptFitsMetric(
-    metric: MatchMetric,
-    input: SubmitMatchAttemptInput,
-  ): void {
+  private assertAttemptFitsMetric(metric: MatchMetric, input: SubmitMatchAttemptInput): void {
     if (input.source !== MATCH_ATTEMPT_SOURCE_BY_METRIC[metric]) {
       throw new ORPCError('BAD_REQUEST', { message: MATCH_WRONG_ACTIVITY });
     }
@@ -609,22 +578,24 @@ export class MatchesService {
    * Marks a pending seat accepted. Idempotent, and a no-op reload-free path
    * for the common case where the viewer accepted long ago.
    */
-  private async acceptSeat(
-    match: LoadedMatch,
-    userId: string,
-  ): Promise<LoadedMatch> {
+  private async acceptSeat(match: LoadedMatch, userId: string): Promise<LoadedMatch> {
     const seat = match.participants.find((row) => row.userId === userId);
 
     if (!seat || seat.acceptedAt !== null) {
       return match;
     }
 
-    await this.prisma.matchParticipant.updateMany({
+    const updated = await this.prisma.matchParticipant.updateMany({
       where: { matchId: match.id, userId, acceptedAt: null },
       data: { acceptedAt: new Date() },
     });
+    const accepted = await this.loadById(match.id);
 
-    return this.loadById(match.id);
+    if (updated.count > 0) {
+      await this.notifyHostOfAcceptance(accepted, userId);
+    }
+
+    return accepted;
   }
 
   private assertParticipant(match: LoadedMatch, userId: string): void {
@@ -638,23 +609,15 @@ export class MatchesService {
   }
 
   private hostScoreFor(match: LoadedMatch): number | null {
-    const hostAttempts = match.attempts.filter(
-      (attempt) => attempt.userId === match.hostUserId,
-    );
+    const hostAttempts = match.attempts.filter((attempt) => attempt.userId === match.hostUserId);
     if (hostAttempts.length === 0) {
       return null;
     }
 
-    return hostAttempts.reduce(
-      (best, attempt) => Math.max(best, attempt.count),
-      0,
-    );
+    return hostAttempts.reduce((best, attempt) => Math.max(best, attempt.count), 0);
   }
 
-  private async assertParentMatchParticipant(
-    userId: string,
-    parentMatchId: string,
-  ): Promise<void> {
+  private async assertParentMatchParticipant(userId: string, parentMatchId: string): Promise<void> {
     const parent = await this.prisma.match.findUnique({
       where: { id: parentMatchId },
       include: { participants: true },
@@ -664,9 +627,7 @@ export class MatchesService {
       throw new ORPCError('BAD_REQUEST', { message: MATCH_INVALID_PARENT });
     }
 
-    const isParticipant = parent.participants.some(
-      (row) => row.userId === userId,
-    );
+    const isParticipant = parent.participants.some((row) => row.userId === userId);
     if (!isParticipant) {
       throw new ORPCError('FORBIDDEN', { message: MATCH_INVALID_PARENT });
     }
@@ -708,10 +669,7 @@ export class MatchesService {
       });
     }
 
-    if (
-      occurrence.status !== 'completed' &&
-      occurrence.status !== 'awaiting_evidence'
-    ) {
+    if (occurrence.status !== 'completed' && occurrence.status !== 'awaiting_evidence') {
       throw new ORPCError('BAD_REQUEST', {
         message: MATCH_INVALID_SOURCE_CHALLENGE,
       });
@@ -740,10 +698,7 @@ export class MatchesService {
 
     if (input.metric === 'walk') {
       const minutes =
-        log.count ??
-        (log.durationSeconds != null
-          ? Math.floor(log.durationSeconds / 60)
-          : null);
+        log.count ?? (log.durationSeconds != null ? Math.floor(log.durationSeconds / 60) : null);
       if (log.metric !== 'walk' || minutes == null || minutes <= 0) {
         throw new ORPCError('BAD_REQUEST', {
           message: MATCH_INVALID_SOURCE_CHALLENGE,
@@ -770,9 +725,7 @@ export class MatchesService {
   }
 
   private acceptedUserIds(match: LoadedMatch): string[] {
-    return match.participants
-      .filter((row) => row.acceptedAt !== null)
-      .map((row) => row.userId);
+    return match.participants.filter((row) => row.acceptedAt !== null).map((row) => row.userId);
   }
 
   /**
@@ -781,9 +734,7 @@ export class MatchesService {
    * the app; `days_completed` reads the daily occurrences the member already
    * finished. No mode asks for a second log of work already done.
    */
-  private async loadScoringEvents(
-    match: LoadedMatch,
-  ): Promise<StandingEvent[]> {
+  private async loadScoringEvents(match: LoadedMatch): Promise<StandingEvent[]> {
     if (match.scoringMode === 'days_completed') {
       return this.loadDailyCompletionEvents(match);
     }
@@ -866,9 +817,7 @@ export class MatchesService {
    * `chosen_activity` narrows it to the contest's activity for a group racing
    * one habit. Either way the day comes from work already logged.
    */
-  private async loadDailyCompletionEvents(
-    match: LoadedMatch,
-  ): Promise<StandingEvent[]> {
+  private async loadDailyCompletionEvents(match: LoadedMatch): Promise<StandingEvent[]> {
     const completions = await this.prisma.userChallenge.findMany({
       where: {
         // Pending members are not read at all, rather than read and discarded.
@@ -917,17 +866,13 @@ export class MatchesService {
     return match.hostUser.profile?.timeZone ?? DEFAULT_TIME_ZONE;
   }
 
-  private async buildBoard(
-    match: LoadedMatch,
-    viewerId: string,
-  ): Promise<MatchBoard> {
+  private async buildBoard(match: LoadedMatch, viewerId: string): Promise<MatchBoard> {
     const { standings } = computeStandings(
       this.standingParticipants(match),
       await this.loadScoringEvents(match),
       scoringRulesFor(match),
     );
-    const yourScore =
-      standings.find((row) => row.userId === viewerId)?.score ?? 0;
+    const yourScore = standings.find((row) => row.userId === viewerId)?.score ?? 0;
 
     return {
       id: match.id,
@@ -958,10 +903,6 @@ export class MatchesService {
    * saved already.
    */
   private canSaveCrew(match: LoadedMatch): boolean {
-    return (
-      match.status !== 'open' &&
-      match.crewId === null &&
-      match.participants.length > 1
-    );
+    return match.status !== 'open' && match.crewId === null && match.participants.length > 1;
   }
 }

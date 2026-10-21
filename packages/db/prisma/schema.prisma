@@ -390,8 +390,8 @@ enum NotificationKind {
   success
   evidence
   penalty
-  /// Someone did something involving you — today, only being seated in a
-  /// group challenge from a crew.
+  /// Someone did something involving you: seated you in a group challenge,
+  /// or accepted an invite you shared.
   social
 }
 

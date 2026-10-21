@@ -30,8 +30,27 @@ describe('readEnvironment', () => {
     });
 
     expect(production.isProd).toBe(true);
-    expect(readEnvironment({ NODE_ENV: 'staging' }).isProd).toBe(false);
+    expect(production.isLocal).toBe(false);
+    expect(readEnvironment({ NODE_ENV: 'development' }).isLocal).toBe(true);
     expect(readEnvironment({ NODE_ENV: 'test' }).isLocal).toBe(true);
+  });
+
+  it('requires a real mailbox on staging and does not pin it as local', () => {
+    expect(() => readEnvironment({ NODE_ENV: 'staging' })).toThrow(/outside local development/);
+
+    const staging = readEnvironment({
+      NODE_ENV: 'staging',
+      EMAIL_PROVIDER: 'sendbyte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+    });
+
+    expect(staging.isProd).toBe(false);
+    expect(staging.isLocal).toBe(false);
+    expect(staging.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'hello@gethealthyapp.com',
+    });
   });
 
   it('accepts external scheduling when a dispatch secret is present', () => {

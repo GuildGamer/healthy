@@ -141,38 +141,32 @@ function createPrismaMock(match = loadedMatch()) {
       findUnique: vi.fn().mockResolvedValue(null),
     },
     matchParticipant: {
-      createMany: vi.fn().mockImplementation(
-        async ({ data }: { data: { userId: string }[] }) => {
-          current.match = {
-            ...current.match,
-            participants: [
-              ...current.match.participants,
-              ...data.map((row, index) => ({
-                id: `p-crew-${index}`,
-                matchId: current.match.id,
-                userId: row.userId,
-                joinedAt: new Date(),
-                acceptedAt: null,
-                user: userWithProfile(row.userId, 'Cam'),
-              })),
-            ],
-          };
-          return { count: data.length };
-        },
-      ),
-      updateMany: vi.fn().mockImplementation(
-        async ({ where }: { where: { userId: string } }) => {
-          current.match = {
-            ...current.match,
-            participants: current.match.participants.map((row) =>
-              row.userId === where.userId
-                ? { ...row, acceptedAt: new Date() }
-                : row,
-            ),
-          };
-          return { count: 1 };
-        },
-      ),
+      createMany: vi.fn().mockImplementation(async ({ data }: { data: { userId: string }[] }) => {
+        current.match = {
+          ...current.match,
+          participants: [
+            ...current.match.participants,
+            ...data.map((row, index) => ({
+              id: `p-crew-${index}`,
+              matchId: current.match.id,
+              userId: row.userId,
+              joinedAt: new Date(),
+              acceptedAt: null,
+              user: userWithProfile(row.userId, 'Cam'),
+            })),
+          ],
+        };
+        return { count: data.length };
+      }),
+      updateMany: vi.fn().mockImplementation(async ({ where }: { where: { userId: string } }) => {
+        current.match = {
+          ...current.match,
+          participants: current.match.participants.map((row) =>
+            row.userId === where.userId ? { ...row, acceptedAt: new Date() } : row,
+          ),
+        };
+        return { count: 1 };
+      }),
       count: vi.fn().mockImplementation(async () => current.match.participants.length),
       create: vi.fn().mockImplementation(async ({ data }: { data: { userId: string } }) => {
         current.match = {
@@ -191,11 +185,13 @@ function createPrismaMock(match = loadedMatch()) {
         };
         return { id: 'p-new' };
       }),
-      findMany: vi.fn().mockImplementation(async ({ where }: { where: { userId: string } }) =>
-        current.match.participants
-          .filter((row) => row.userId === where.userId)
-          .map((row) => ({ ...row, match: current.match })),
-      ),
+      findMany: vi
+        .fn()
+        .mockImplementation(async ({ where }: { where: { userId: string } }) =>
+          current.match.participants
+            .filter((row) => row.userId === where.userId)
+            .map((row) => ({ ...row, match: current.match })),
+        ),
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     matchAttempt: {
@@ -239,9 +235,7 @@ function createPrismaMock(match = loadedMatch()) {
     analyticsEvent: {
       create: vi.fn().mockResolvedValue({ id: 'evt1' }),
     },
-    $transaction: vi.fn(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
-      fn(prisma),
-    ),
+    $transaction: vi.fn(async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma)),
   };
   return prisma;
 }
@@ -252,6 +246,10 @@ function createNotifierSpy() {
   return { notifySeated: vi.fn().mockResolvedValue(undefined) };
 }
 
+function createInviteAcceptedSpy() {
+  return { notifyHost: vi.fn().mockResolvedValue(undefined) };
+}
+
 function createAnalyticsSpy() {
   return { track: vi.fn().mockResolvedValue({ ok: true as const }) };
 }
@@ -260,6 +258,7 @@ function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   notifier: ReturnType<typeof createNotifierSpy> = createNotifierSpy(),
   analytics: ReturnType<typeof createAnalyticsSpy> = createAnalyticsSpy(),
+  inviteAccepted: ReturnType<typeof createInviteAcceptedSpy> = createInviteAcceptedSpy(),
 ): MatchesService {
   return new MatchesService(
     prisma as never,
@@ -267,6 +266,7 @@ function createService(
     new CrewsService(prisma as never),
     notifier as never,
     analytics as never,
+    inviteAccepted as never,
   );
 }
 
@@ -274,11 +274,7 @@ function completion(userId: string, periodKey: string, completedAt: string) {
   return { userId, periodKey, completedAt: new Date(completedAt) };
 }
 
-function walkLog(
-  userId: string,
-  durationSeconds: number,
-  endedAt = '2026-09-04T11:00:00.000Z',
-) {
+function walkLog(userId: string, durationSeconds: number, endedAt = '2026-09-04T11:00:00.000Z') {
   return {
     userId,
     durationSeconds,
@@ -290,8 +286,7 @@ function walkLog(
 /** The `where` a walk contest built to read logged activity. */
 function walkQueryWhere(prisma: ReturnType<typeof createPrismaMock>) {
   const [call] = prisma.deviceActivityLog.findMany.mock.calls;
-  return (call?.[0] as { where: { userId: { in: string[] }; source: { in: string[] } } })
-    .where;
+  return (call?.[0] as { where: { userId: { in: string[] }; source: { in: string[] } } }).where;
 }
 
 function twoPersonMatch(overrides: Partial<MockMatch> = {}) {
@@ -391,7 +386,8 @@ describe('MatchesService', () => {
   it('lets a guest join an open match under the cap', async () => {
     const prisma = createPrismaMock();
     const analytics = createAnalyticsSpy();
-    const service = createService(prisma, createNotifierSpy(), analytics);
+    const inviteAccepted = createInviteAcceptedSpy();
+    const service = createService(prisma, createNotifierSpy(), analytics, inviteAccepted);
 
     const board = await service.join(guest, 'invite_token_1');
 
@@ -401,6 +397,28 @@ describe('MatchesService', () => {
       guest,
       expect.objectContaining({ name: 'challenge_accepted' }),
     );
+    expect(inviteAccepted.notifyHost).toHaveBeenCalledWith({
+      matchId: 'm1',
+      hostUserId: host.id,
+      acceptedUserId: guest.id,
+      acceptedDisplayName: 'Bee',
+    });
+  });
+
+  it('still joins when the acceptance push fails', async () => {
+    const prisma = createPrismaMock();
+    const inviteAccepted = createInviteAcceptedSpy();
+    inviteAccepted.notifyHost.mockRejectedValue(new Error('expo down'));
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      inviteAccepted,
+    );
+
+    const board = await service.join(guest, 'invite_token_1');
+
+    expect(board.participantCount).toBe(2);
   });
 
   it('returns the board when the guest is already in', async () => {
@@ -425,13 +443,20 @@ describe('MatchesService', () => {
       ],
     });
     const prisma = createPrismaMock(match);
-    const service = createService(prisma);
+    const inviteAccepted = createInviteAcceptedSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      inviteAccepted,
+    );
 
     await expect(service.join(guest, 'invite_token_1')).resolves.toMatchObject({
       id: 'm1',
       participantCount: 2,
     });
     expect(prisma.matchParticipant.create).not.toHaveBeenCalled();
+    expect(inviteAccepted.notifyHost).not.toHaveBeenCalled();
   });
 
   it('rejects a join once eight people are in', async () => {
@@ -775,9 +800,9 @@ describe('MatchesService', () => {
 
     const cam = created.match.standings.find((row) => row.userId === 'cam');
     expect(cam).toMatchObject({ isPending: true, score: 0 });
-    expect(
-      created.match.standings.find((row) => row.userId === host.id),
-    ).toMatchObject({ isPending: false });
+    expect(created.match.standings.find((row) => row.userId === host.id)).toMatchObject({
+      isPending: false,
+    });
   });
 
   it('tells the people it seated, and nobody else', async () => {
@@ -851,29 +876,37 @@ describe('MatchesService', () => {
         ],
       }),
     );
-    const service = createService(prisma);
+    const inviteAccepted = createInviteAcceptedSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      inviteAccepted,
+    );
 
     const board = await service.get(guest, 'm1');
 
-    expect(
-      board.standings.find((row) => row.userId === guest.id),
-    ).toMatchObject({ isPending: false });
+    expect(board.standings.find((row) => row.userId === guest.id)).toMatchObject({
+      isPending: false,
+    });
+    expect(inviteAccepted.notifyHost).toHaveBeenCalledWith({
+      matchId: 'm1',
+      hostUserId: host.id,
+      acceptedUserId: guest.id,
+      acceptedDisplayName: 'Bee',
+    });
   });
 
   it('offers the crew only once a contest with other people has ended', async () => {
     const live = createService(createPrismaMock(twoPersonMatch()));
     expect((await live.get(host, 'm1')).canSaveCrew).toBe(false);
 
-    const ended = createService(
-      createPrismaMock(twoPersonMatch({ status: 'completed' })),
-    );
+    const ended = createService(createPrismaMock(twoPersonMatch({ status: 'completed' })));
     expect((await ended.get(host, 'm1')).canSaveCrew).toBe(true);
 
     // A contest seated from a crew already has that roster saved.
     const fromCrew = createService(
-      createPrismaMock(
-        twoPersonMatch({ status: 'completed', crewId: 'crew-1' }),
-      ),
+      createPrismaMock(twoPersonMatch({ status: 'completed', crewId: 'crew-1' })),
     );
     expect((await fromCrew.get(host, 'm1')).canSaveCrew).toBe(false);
   });
@@ -896,9 +929,7 @@ describe('MatchesService', () => {
   // The open scope is what a streak meant before a host could narrow one, so
   // it must keep reading every daily challenge.
   it('reads any daily challenge for an open streak', async () => {
-    const prisma = createPrismaMock(
-      twoPersonMatch({ scoringMode: 'days_completed' }),
-    );
+    const prisma = createPrismaMock(twoPersonMatch({ scoringMode: 'days_completed' }));
     const service = createService(prisma);
 
     await service.get(host, 'm1');
@@ -1055,9 +1086,7 @@ describe('MatchesService', () => {
   });
 
   it('leaves a push-up contest scored by its own sets alone', async () => {
-    const prisma = createPrismaMock(
-      twoPersonMatch({ scoringMode: 'cumulative_total' }),
-    );
+    const prisma = createPrismaMock(twoPersonMatch({ scoringMode: 'cumulative_total' }));
     const service = createService(prisma);
 
     await service.get(host, 'm1');

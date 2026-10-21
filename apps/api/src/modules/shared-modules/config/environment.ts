@@ -141,11 +141,17 @@ function isMailProvider(value: string): value is MailProvider {
   return (mailProviders as readonly string[]).includes(value);
 }
 
-function readSendByteMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfig {
+type MailPolicy = {
+  isProd: boolean;
+  /** Staging and production must email a real code. Local may log it. */
+  requiresMailbox: boolean;
+};
+
+function readSendByteMail(source: NodeJS.ProcessEnv, policy: MailPolicy): MailConfig {
   const apiKey = readConfigured(source.SEND_BYTE_LIVE_KEY);
 
   if (!apiKey) {
-    if (isProd) {
+    if (policy.requiresMailbox) {
       throw new Error('SEND_BYTE_LIVE_KEY is required when email is sent with SendByte');
     }
 
@@ -159,7 +165,11 @@ function readSendByteMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfi
   };
 }
 
-function readSmtpMail(source: NodeJS.ProcessEnv, isProd: boolean, required: boolean): MailConfig {
+function readSmtpMail(
+  source: NodeJS.ProcessEnv,
+  policy: MailPolicy,
+  required: boolean,
+): MailConfig {
   const host = readConfigured(source.SMTP_HOST);
   const port = readSmtpPort(source.SMTP_PORT);
   const user = readConfigured(source.SMTP_USER);
@@ -184,35 +194,37 @@ function readSmtpMail(source: NodeJS.ProcessEnv, isProd: boolean, required: bool
     );
   }
 
-  if (isProd) {
+  if (policy.requiresMailbox) {
+    const where = policy.isProd ? 'in production' : 'outside local development';
     throw new Error(
-      'SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM are required in production',
+      `SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM are required ${where}`,
     );
   }
 
   return { mode: 'log' };
 }
 
-function readMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfig {
+function readMail(source: NodeJS.ProcessEnv, policy: MailPolicy): MailConfig {
   const provider = readMailProvider(source.EMAIL_PROVIDER);
 
   if (provider === 'log') {
-    if (isProd) {
-      throw new Error('EMAIL_PROVIDER=log is not allowed in production');
+    if (policy.requiresMailbox) {
+      const where = policy.isProd ? 'in production' : 'outside local development';
+      throw new Error(`EMAIL_PROVIDER=log is not allowed ${where}`);
     }
 
     return { mode: 'log' };
   }
 
   if (provider === 'smtp') {
-    return readSmtpMail(source, isProd, true);
+    return readSmtpMail(source, policy, true);
   }
 
   if (provider === 'sendbyte' || readConfigured(source.SEND_BYTE_LIVE_KEY)) {
-    return readSendByteMail(source, isProd);
+    return readSendByteMail(source, policy);
   }
 
-  return readSmtpMail(source, isProd, false);
+  return readSmtpMail(source, policy, false);
 }
 
 const DEFAULT_VISION_MODEL = 'gpt-4o-mini';
@@ -275,8 +287,19 @@ function readSchedulerMode(value: string | undefined): SchedulerMode {
   throw new Error(`REMINDER_SCHEDULER_MODE must be 'in_process' or 'external', got '${mode}'`);
 }
 
+/**
+ * A developer machine. Staging is deployed: it must email a random code,
+ * not the local `000000` shortcut.
+ */
+function isLocalNodeEnv(nodeEnv: string | null): boolean {
+  return nodeEnv === null || nodeEnv === 'development' || nodeEnv === 'test';
+}
+
 export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Environment {
-  const isProd = readOptional(source.NODE_ENV) === 'production';
+  const nodeEnv = readOptional(source.NODE_ENV);
+  const isProd = nodeEnv === 'production';
+  const isLocal = isLocalNodeEnv(nodeEnv);
+  const mailPolicy: MailPolicy = { isProd, requiresMailbox: !isLocal };
   const schedulerMode = readSchedulerMode(source.REMINDER_SCHEDULER_MODE);
   const reminderDispatchSecret = readOptional(source.REMINDER_DISPATCH_SECRET);
 
@@ -290,11 +313,11 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
 
   return {
     isProd,
-    isLocal: !isProd,
+    isLocal,
     schedulerMode,
     reminderDispatchSecret,
     expoAccessToken: readOptional(source.EXPO_ACCESS_TOKEN),
-    mail: readMail(source, isProd),
+    mail: readMail(source, mailPolicy),
     evidenceVision: readEvidenceVision(source, isProd),
     appleIap: readAppleIap(source),
     adminAppUrl: readOptional(source.ADMIN_APP_URL) ?? 'http://localhost:3001',

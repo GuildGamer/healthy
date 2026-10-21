@@ -227,7 +227,9 @@ Consent is enforced in `computeStandings` itself: a pending member gets no
 progress entry, so they cannot be scored even if a caller passes their events
 in. For `days_completed` the service also never queries a pending member's
 challenge rows, so no health data is read before they accept. Opening the
-contest, or logging a set, is the accept — there is no extra tap.
+contest, or logging a set, is the accept — there is no extra tap. The person
+who shared the invite gets one push that names who accepted. A retried open
+does not send it again, and a failed push does not undo the accept.
 
 ## Usernames
 
