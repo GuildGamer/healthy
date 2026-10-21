@@ -20,6 +20,7 @@ import {
   TextField,
 } from '@/components/forms';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import {
   parseVitalsForm,
   type VitalsFieldErrors,
@@ -171,7 +172,10 @@ export function LogVitalsScreen({ challengeId }: { challengeId: string }) {
       <View style={styles.centred} testID="log-vitals-done">
         <Text style={styles.title}>{occurrence.title}</Text>
         <Text style={styles.missing}>This reading is already logged.</Text>
-        <FormButton label="Done" onPress={() => router.back()} />
+        <FormButton
+          label="Done"
+          onPress={() => goBackOrHome('/(tabs)/challenges')}
+        />
       </View>
     );
   }

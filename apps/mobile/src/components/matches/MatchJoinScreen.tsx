@@ -10,6 +10,7 @@ import { displayFontFamily } from '@/lib/fonts';
 import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { stashDeferredInviteToken } from '@/lib/deferred-invite';
+import { goBackOrHome } from '@/lib/go-back';
 import { formatMatchTimeLeft } from './format-match-time';
 import { MatchActivityMark, MatchCard, MatchKicker } from './match-chrome';
 import {
@@ -102,12 +103,7 @@ export function MatchJoinScreen({ token }: { token: string }) {
         : null;
 
   function leave() {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-
-    router.replace('/(tabs)/challenges');
+    goBackOrHome('/(tabs)/challenges');
   }
 
   function openBoard() {

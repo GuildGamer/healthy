@@ -22,6 +22,7 @@ import {
 } from '@/components/forms';
 import { apiClient } from '@/lib/api';
 import { requestEmailChange, updateUser, useSession } from '@/lib/auth-client';
+import { goBackOrHome } from '@/lib/go-back';
 import { ChangePhotoSheet } from './ChangePhotoSheet';
 import { ProfileAvatar, avatarNameFor } from './ProfileAvatar';
 import { useUpdateProfilePhoto } from './useUpdateProfilePhoto';
@@ -87,11 +88,11 @@ export function EditProfileScreen() {
     }
 
     const timer = setTimeout(() => {
-      router.back();
+      goBackOrHome('/(tabs)/profile');
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [didSave, router]);
+  }, [didSave]);
 
   const save = useMutation({
     mutationFn: async () => {

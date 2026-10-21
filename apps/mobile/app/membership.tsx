@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PricingScreen } from '@/components/membership';
+import { goBackOrHome } from '@/lib/go-back';
 
 export default function Membership() {
   const router = useRouter();
@@ -19,12 +20,7 @@ export default function Membership() {
           return;
         }
 
-        if (router.canGoBack()) {
-          router.back();
-          return;
-        }
-
-        router.replace('/(tabs)');
+        goBackOrHome();
       }}
       source={source}
     />

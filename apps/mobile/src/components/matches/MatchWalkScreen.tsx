@@ -1,7 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +12,7 @@ import {
 } from '@/components/challenges/useWalkRecorder';
 import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
+import { goBackOrHome } from '@/lib/go-back';
 import {
   formatDistance,
   formatDuration,
@@ -35,7 +35,6 @@ import {
  * type in is not a score the rest of the group can trust.
  */
 export function MatchWalkScreen({ matchId }: { matchId: string }) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const recorder = useWalkRecorder();
@@ -57,13 +56,7 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
 
   function exit() {
     recorder.abandon();
-
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-
-    router.replace(`/matches/${matchId}`);
+    goBackOrHome(`/matches/${matchId}`);
   }
 
   /**

@@ -28,16 +28,17 @@ import {
 } from '@/components/challenges/walk-session-progress';
 import { useWalkRecorder } from '@/components/challenges/useWalkRecorder';
 import { apiClient } from '@/lib/api';
-import { displayFontFamily } from '@/lib/fonts';
 import {
   listTodayDeviceSamples,
   type DeviceSample,
 } from '@/lib/device-health';
+import { displayFontFamily } from '@/lib/fonts';
 import {
   formatDistance,
   formatDuration,
   pathDistanceMeters,
 } from '@/lib/geo-session';
+import { goBackOrHome } from '@/lib/go-back';
 
 const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
 
@@ -176,13 +177,7 @@ export function ChallengeSessionScreen({
 
   function leaveSession() {
     recorder.abandon();
-
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-
-    router.replace('/(tabs)/challenges');
+    goBackOrHome('/(tabs)/challenges');
   }
 
   if (todayQuery.isLoading || !occurrence) {

@@ -28,7 +28,19 @@ jest.mock('@/lib/pick-profile-photo', () => ({
 const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: jest.fn(), push: mockPush }),
+  useRouter: () => ({
+    back: jest.fn(),
+    canDismiss: () => true,
+    dismiss: jest.fn(),
+    push: mockPush,
+    replace: jest.fn(),
+  }),
+  router: {
+    back: jest.fn(),
+    canDismiss: () => true,
+    dismiss: jest.fn(),
+    replace: jest.fn(),
+  },
 }));
 
 const mockedApi = apiClient as unknown as { me: jest.Mock };

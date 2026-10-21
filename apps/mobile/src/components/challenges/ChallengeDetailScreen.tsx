@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { healthCategories } from '@/constants/health-categories';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import { formatReminderMinute } from '@/lib/notifications';
 import { ScreenLoader } from '@/components/feedback';
 import { FormButton } from '@/components/forms';
@@ -238,7 +239,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
         queryClient.invalidateQueries({ queryKey: ['challenges', 'catalog'] }),
         queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
       ]);
-      router.back();
+      goBackOrHome('/(tabs)/challenges');
     },
   });
 

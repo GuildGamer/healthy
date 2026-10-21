@@ -1,5 +1,6 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ForgotPasswordOtpScreen } from '@/components/auth';
+import { goBackOrHome } from '@/lib/go-back';
 
 function readParam(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
@@ -20,7 +21,7 @@ export default function ForgotPasswordOtp() {
   return (
     <ForgotPasswordOtpScreen
       email={email}
-      onBackPress={() => router.back()}
+      onBackPress={() => goBackOrHome('/login')}
       onVerified={(otp) =>
         router.push({
           pathname: '/reset-password',

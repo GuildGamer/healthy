@@ -9,6 +9,7 @@ import { ScreenLoader } from '@/components/feedback';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { apiClient } from '@/lib/api';
 import { consumeCaptureResult } from '@/lib/capture-session';
+import { goBackOrHome } from '@/lib/go-back';
 import { setPendingShareCard } from '@/lib/share-card-session';
 
 const SUBMIT_FAILED_MESSAGE =
@@ -182,7 +183,10 @@ export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) 
     return (
       <View style={styles.centred} testID="evidence-request-closed">
         <Text style={styles.missing}>This photo check is no longer open.</Text>
-        <FormButton label="Done" onPress={() => router.back()} />
+        <FormButton
+          label="Done"
+          onPress={() => goBackOrHome('/(tabs)/challenges')}
+        />
       </View>
     );
   }

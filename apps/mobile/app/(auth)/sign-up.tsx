@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { SignUpScreen } from '@/components/auth';
+import { goBackOrHome } from '@/lib/go-back';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 
 export default function SignUp() {
@@ -7,7 +8,7 @@ export default function SignUp() {
 
   return (
     <SignUpScreen
-      onBackPress={() => router.back()}
+      onBackPress={() => goBackOrHome('/onboarding')}
       onLoginPress={() => router.push('/login')}
       onSignedUp={() => router.replace('/category-selection')}
       onSocialSignedIn={async () => {

@@ -14,15 +14,17 @@ jest.mock('@/lib/api', () => ({
 }));
 
 const mockBack = jest.fn();
+const mockDismiss = jest.fn();
 const mockReplace = jest.fn();
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => callback(),
-  useRouter: () => ({
-    canGoBack: () => true,
-    back: mockBack,
-    replace: mockReplace,
-  }),
+  router: {
+    canDismiss: () => true,
+    back: () => mockBack(),
+    dismiss: () => mockDismiss(),
+    replace: (href: string) => mockReplace(href),
+  },
 }));
 
 const mockedApi = apiClient as unknown as {
@@ -65,6 +67,7 @@ function renderInbox() {
 beforeEach(() => {
   jest.clearAllMocks();
   mockBack.mockClear();
+  mockDismiss.mockClear();
   mockReplace.mockClear();
   mockedApi.markNotificationsRead.mockResolvedValue({ unreadCount: 0 });
 });
@@ -113,7 +116,8 @@ describe('NotificationsScreen', () => {
     const { cleanup } = renderInbox();
 
     fireEvent.press(await screen.findByTestId('notifications-back'));
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockDismiss).toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
 
     await cleanup();
   });

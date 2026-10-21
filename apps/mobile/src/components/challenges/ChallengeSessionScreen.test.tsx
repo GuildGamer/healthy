@@ -38,10 +38,17 @@ jest.mock('@/lib/api', () => ({
 jest.mock('expo-router', () => ({
   useRouter: () => ({
     back: jest.fn(),
-    canGoBack: () => true,
+    canDismiss: () => true,
+    dismiss: jest.fn(),
     push: jest.fn(),
     replace: jest.fn(),
   }),
+  router: {
+    back: jest.fn(),
+    canDismiss: () => true,
+    dismiss: jest.fn(),
+    replace: jest.fn(),
+  },
 }));
 
 // Jest cannot run the `import(...)` calls inside the real loaders, so the

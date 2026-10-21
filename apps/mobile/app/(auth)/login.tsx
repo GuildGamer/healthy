@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { LoginScreen } from '@/components/auth';
 import { ScreenLoader } from '@/components/feedback';
 import { useSession } from '@/lib/auth-client';
+import { goBackOrHome } from '@/lib/go-back';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 
@@ -51,7 +52,7 @@ export default function Login() {
         const href = await resolvePostAuthHref();
         router.replace(href ?? '/complete-country');
       }}
-      onBackPress={() => router.back()}
+      onBackPress={() => goBackOrHome('/onboarding')}
       onForgotPasswordPress={() => router.push('/forgot-password')}
       onSignUpPress={() => router.push('/sign-up')}
     />

@@ -17,7 +17,19 @@ jest.mock('expo-router', () => {
   const { useEffect } = require('react');
   const mockPush = jest.fn();
   return {
-    useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+    useRouter: () => ({
+      push: mockPush,
+      replace: jest.fn(),
+      back: jest.fn(),
+      canDismiss: () => true,
+      dismiss: jest.fn(),
+    }),
+    router: {
+      replace: jest.fn(),
+      back: jest.fn(),
+      canDismiss: () => true,
+      dismiss: jest.fn(),
+    },
     useFocusEffect: (effect: () => void | (() => void)) => {
       useEffect(() => {
         const cleanup = effect();

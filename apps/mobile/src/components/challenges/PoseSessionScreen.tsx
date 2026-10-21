@@ -35,6 +35,7 @@ import {
   usePoseSessionCounter,
 } from '@/components/challenges/usePoseSessionCounter';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import { trackEvent } from '@/lib/track-event';
 
 const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
@@ -340,12 +341,9 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
 
   function leaveSession() {
     stop();
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-
-    router.replace(isMatch && matchId ? `/matches/${matchId}` : '/(tabs)/challenges');
+    goBackOrHome(
+      isMatch && matchId ? `/matches/${matchId}` : '/(tabs)/challenges',
+    );
   }
 
   const calibrated =

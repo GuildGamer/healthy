@@ -20,8 +20,22 @@ jest.mock('@/lib/api', () => ({
 jest.mock('expo-router', () => {
   const push = jest.fn();
   const back = jest.fn();
+  const dismiss = jest.fn();
+  const replace = jest.fn();
   return {
-    useRouter: () => ({ push, back }),
+    useRouter: () => ({
+      push,
+      back,
+      canDismiss: () => true,
+      dismiss,
+      replace,
+    }),
+    router: {
+      back,
+      canDismiss: () => true,
+      dismiss,
+      replace,
+    },
   };
 });
 

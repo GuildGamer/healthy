@@ -1,4 +1,5 @@
 import { colors } from '@product/brand';
+import { HeaderBackButton } from '@react-navigation/elements';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import {
@@ -11,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { SplashScreen } from '@/components/auth';
 import { ToastProvider } from '@/components/forms';
 import { useDisplayFont } from '@/lib/fonts';
+import { goBackOrHome } from '@/lib/go-back';
 
 /**
  * Cross-fade out of the native splash, covering the handoff frame. iOS only —
@@ -67,6 +69,20 @@ export default function RootLayout() {
             // screen has none of its own — so every push off a tab offered
             // "Healthy", which names the app rather than the destination.
             headerBackTitle: 'Back',
+            // A native pop is a no-op after a deep link or a redirect, and the
+            // system button hides when it thinks there is nowhere to go. This
+            // control is the left side of every visible root header (tab roots
+            // and auth keep headerShown off and draw their own).
+            headerBackVisible: false,
+            headerLeft: ({ tintColor }) => (
+              <HeaderBackButton
+                label="Back"
+                onPress={() => {
+                  goBackOrHome();
+                }}
+                tintColor={tintColor}
+              />
+            ),
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />

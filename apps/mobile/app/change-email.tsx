@@ -2,6 +2,7 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenLoader } from '@/components/feedback';
 import { ChangeEmailOtpScreen } from '@/components/profile/ChangeEmailOtpScreen';
 import { useSession } from '@/lib/auth-client';
+import { goBackOrHome } from '@/lib/go-back';
 
 function readParam(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
@@ -31,7 +32,7 @@ export default function ChangeEmailRoute() {
   return (
     <ChangeEmailOtpScreen
       newEmail={newEmail}
-      onBackPress={() => router.back()}
+      onBackPress={() => goBackOrHome('/(tabs)/profile')}
       onChanged={() => router.replace('/(tabs)/profile')}
     />
   );

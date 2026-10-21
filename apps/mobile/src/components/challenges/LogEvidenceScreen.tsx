@@ -11,6 +11,7 @@ import { apiClient } from '@/lib/api';
 import { consumeCaptureResult } from '@/lib/capture-session';
 import type { CapturedSelfie } from '@/lib/capture-selfie';
 import { displayFontFamily } from '@/lib/fonts';
+import { goBackOrHome } from '@/lib/go-back';
 import { setPendingShareCard } from '@/lib/share-card-session';
 import { EvidencePhotoFrame } from './EvidencePhotoFrame';
 
@@ -126,7 +127,10 @@ export function LogEvidenceScreen({ challengeId }: { challengeId: string }) {
       <View style={styles.centred} testID="log-evidence-done">
         <Text style={styles.title}>{occurrence.title}</Text>
         <Text style={styles.missing}>This session is already logged.</Text>
-        <FormButton label="Done" onPress={() => router.back()} />
+        <FormButton
+          label="Done"
+          onPress={() => goBackOrHome('/(tabs)/challenges')}
+        />
       </View>
     );
   }

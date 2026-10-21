@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { useRouter } from 'expo-router';
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { consumeCaptureResult } from '@/lib/capture-session';
 import { CaptureCameraScreen } from './CaptureCameraScreen';
@@ -9,12 +8,18 @@ const testSafeAreaMetrics: Metrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-jest.mock('expo-router', () => {
-  const mockBack = jest.fn();
-  return {
-    useRouter: () => ({ back: mockBack, push: jest.fn(), replace: jest.fn() }),
-  };
-});
+const mockBack = jest.fn();
+const mockDismiss = jest.fn();
+const mockReplace = jest.fn();
+
+jest.mock('expo-router', () => ({
+  router: {
+    back: () => mockBack(),
+    canDismiss: () => true,
+    dismiss: () => mockDismiss(),
+    replace: (href: string) => mockReplace(href),
+  },
+}));
 
 jest.mock('@/lib/is-physical-device', () => ({
   isPhysicalDevice: () => true,
@@ -79,7 +84,9 @@ describe('CaptureCameraScreen', () => {
         width: 3024,
         height: 4032,
       });
-      expect(useRouter().back).toHaveBeenCalled();
+      expect(mockDismiss).toHaveBeenCalled();
+      expect(mockBack).not.toHaveBeenCalled();
+      expect(mockReplace).not.toHaveBeenCalled();
     });
   });
 });

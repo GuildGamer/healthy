@@ -1,13 +1,14 @@
 import Feather from '@expo/vector-icons/Feather';
 import type { InboxNotification, NotificationKind } from '@product/client';
 import { colors, fontSize, fontWeight, spacing } from '@product/brand';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RefreshableScroll, ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import { formatRelativeTime } from './relative-time';
 
 const kindIcon: Record<
@@ -21,17 +22,7 @@ const kindIcon: Record<
   social: 'users',
 };
 
-function closeInbox(router: ReturnType<typeof useRouter>) {
-  if (router.canGoBack()) {
-    router.back();
-    return;
-  }
-
-  router.replace('/(tabs)');
-}
-
 export function NotificationsScreen() {
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const inboxQuery = useQuery({
@@ -62,7 +53,7 @@ export function NotificationsScreen() {
           accessibilityLabel="Go back"
           accessibilityRole="button"
           hitSlop={12}
-          onPress={() => closeInbox(router)}
+          onPress={() => goBackOrHome()}
           style={styles.backButton}
           testID="notifications-back"
         >

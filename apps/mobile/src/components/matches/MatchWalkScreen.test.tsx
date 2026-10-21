@@ -31,14 +31,16 @@ jest.mock('@/lib/api', () => ({
 }));
 
 const mockBack = jest.fn();
+const mockDismiss = jest.fn();
+const mockReplace = jest.fn();
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    back: mockBack,
-    canGoBack: () => true,
-    push: jest.fn(),
-    replace: jest.fn(),
-  }),
+  router: {
+    back: () => mockBack(),
+    canDismiss: () => true,
+    dismiss: () => mockDismiss(),
+    replace: (href: string) => mockReplace(href),
+  },
 }));
 
 // Jest cannot run the `import(...)` calls inside the real loaders, so the
@@ -191,7 +193,9 @@ describe('MatchWalkScreen', () => {
         source: 'in_app_walk',
       });
     });
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockDismiss).toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
 
     await cleanup();
   });

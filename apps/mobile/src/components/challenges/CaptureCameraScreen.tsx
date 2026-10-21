@@ -5,7 +5,6 @@ import {
   type CameraType,
   useCameraPermissions,
 } from 'expo-camera';
-import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { EvidencePhotoFrame } from './EvidencePhotoFrame';
@@ -24,6 +23,7 @@ import {
   setCaptureResult,
   type CameraIntent,
 } from '@/lib/capture-session';
+import { goBackOrHome } from '@/lib/go-back';
 import { isPhysicalDevice } from '@/lib/is-physical-device';
 
 const HINT: Record<CameraIntent, string> = {
@@ -38,7 +38,6 @@ export function CaptureCameraScreen({
   challengeId: string;
   intent: CameraIntent;
 }) {
-  const router = useRouter();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>(defaultFacingFor(intent));
@@ -46,8 +45,12 @@ export function CaptureCameraScreen({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
-  function close() {
-    router.back();
+  function leave() {
+    goBackOrHome(
+      intent === 'proof'
+        ? `/challenge/${challengeId}/verify`
+        : `/challenge/${challengeId}/evidence`,
+    );
   }
 
   async function takePhoto() {
@@ -90,14 +93,14 @@ export function CaptureCameraScreen({
     }
   }
 
-  function usePhoto(photo: CapturedSelfie) {
+  function acceptPhoto(photo: CapturedSelfie) {
     setCaptureResult(challengeId, photo);
-    router.back();
+    leave();
   }
 
   if (!isPhysicalDevice()) {
     return (
-      <BlockedState message={SIMULATOR_CAMERA_MESSAGE} onClose={close} />
+      <BlockedState message={SIMULATOR_CAMERA_MESSAGE} onClose={leave} />
     );
   }
 
@@ -113,7 +116,7 @@ export function CaptureCameraScreen({
         onAction={() => {
           void requestPermission();
         }}
-        onClose={close}
+        onClose={leave}
       />
     );
   }
@@ -123,7 +126,7 @@ export function CaptureCameraScreen({
       <PreviewState
         errorMessage={errorMessage}
         onRetake={() => setPreview(null)}
-        onUse={() => usePhoto(preview)}
+        onUse={() => acceptPhoto(preview)}
         photo={preview}
       />
     );
@@ -141,7 +144,7 @@ export function CaptureCameraScreen({
           <IconButton
             label="Close camera"
             name="x"
-            onPress={close}
+            onPress={leave}
             testID="camera-close"
           />
           <View style={styles.hintBlock}>
