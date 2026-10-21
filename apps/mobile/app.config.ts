@@ -21,6 +21,8 @@ const IOS_BUNDLE_IDENTIFIER =
   process.env.IOS_BUNDLE_IDENTIFIER?.trim() || 'com.healthyapp.app';
 const ANDROID_PACKAGE =
   process.env.ANDROID_PACKAGE?.trim() || 'com.healthyapp.app';
+/** CFBundleVersion. Codemagic sets this before prebuild; local builds stay on 1. */
+const IOS_BUILD_NUMBER = process.env.IOS_BUILD_NUMBER?.trim() || '1';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -35,6 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: IOS_BUNDLE_IDENTIFIER,
+    buildNumber: IOS_BUILD_NUMBER,
     associatedDomains: [`applinks:${LINK_HOST}`],
     // Set once the App Store listing exists (numeric id from App Store Connect).
     // appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',

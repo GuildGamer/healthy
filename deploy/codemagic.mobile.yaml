@@ -21,9 +21,9 @@ workflows:
       vars:
         XCODE_WORKSPACE: Healthy.xcworkspace
         XCODE_SCHEME: Healthy
-        # Numeric App Store Connect app id (App Information). Set in Codemagic
-        # env group "testflight" as APP_STORE_APPLE_ID if you prefer not to commit it.
-        APP_STORE_APPLE_ID: $APP_STORE_APPLE_ID
+        # Numeric App Store Connect app id comes from the Codemagic env group
+        # "testflight" (APP_STORE_APPLE_ID). Do not set it here — a self-reference
+        # blanks the group value before the lookup runs.
         IOS_BUNDLE_IDENTIFIER: com.healthyapp.tfpreview
         ANDROID_PACKAGE: com.healthyapp.tfpreview
       groups:
@@ -41,11 +41,36 @@ workflows:
           pnpm --filter @product/contract build
           pnpm --filter @product/brand build
           pnpm --filter @product/client build
+      - name: Choose iOS build number
+        script: |
+          set -euo pipefail
+          lookup_status=0
+          latest_output=$(app-store-connect get-latest-testflight-build-number "${APP_STORE_APPLE_ID:-}") || lookup_status=$?
+          latest_build_number=$(printf '%s' "$latest_output" | tr -d '[:space:]')
+          IOS_BUILD_NUMBER=""
+          if [ "$lookup_status" -eq 0 ] && [[ "$latest_build_number" =~ ^[0-9]+$ ]] && [ "$((10#$latest_build_number))" -ge 1 ]; then
+            IOS_BUILD_NUMBER=$((10#$latest_build_number + 1))
+            echo "Latest TestFlight build is ${latest_build_number}; next is ${IOS_BUILD_NUMBER}."
+          fi
+          if [ -z "$IOS_BUILD_NUMBER" ]; then
+            echo "TestFlight build lookup was unusable (exit ${lookup_status}, value '${latest_build_number}'). Refusing to publish CFBundleVersion 1 again."
+            codemagic_build_number="${BUILD_NUMBER:-}"
+            if [[ "$codemagic_build_number" =~ ^[0-9]+$ ]] && [ "$((10#$codemagic_build_number))" -gt 1 ]; then
+              IOS_BUILD_NUMBER=$((10#$codemagic_build_number))
+              echo "Using Codemagic BUILD_NUMBER=${IOS_BUILD_NUMBER}."
+            else
+              IOS_BUILD_NUMBER=$(date -u +%Y%m%d%H%M)
+              echo "Using UTC timestamp build number ${IOS_BUILD_NUMBER}."
+            fi
+          fi
+          echo "Chosen IOS_BUILD_NUMBER=${IOS_BUILD_NUMBER}"
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> "$CM_ENV"
       - name: Expo prebuild (ios)
         script: |
           cd apps/mobile
           export IOS_BUNDLE_IDENTIFIER
           export ANDROID_PACKAGE
+          export IOS_BUILD_NUMBER
           npx expo prebuild --platform ios --clean
       - name: Install CocoaPods
         script: |
@@ -55,11 +80,6 @@ workflows:
           # Fail here if cert/profile do not match — do not soft-warn into a vague archive 65.
           xcode-project use-profiles \
             --project "$CM_BUILD_DIR/apps/mobile/ios/Healthy.xcodeproj"
-      - name: Increment build number
-        script: |
-          cd apps/mobile/ios
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
-          agvtool new-version -all $((LATEST_BUILD_NUMBER + 1))
       - name: Build IPA
         script: |
           set -o pipefail

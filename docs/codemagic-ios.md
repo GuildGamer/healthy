@@ -75,6 +75,7 @@ Testers install via the TestFlight app.
 ## Common blockers
 
 - **“No configuration file found”** — `codemagic.yaml` missing on `main`; run sync + refresh.
+- **Duplicate build 1** — a repeat of build 1 means the next archive must use a higher CFBundleVersion, which this workflow now sets before prebuild.
 - **Bundle ID mismatch** — profile / App ID / `IOS_BUNDLE_IDENTIFIER` must be identical.
 - **Missing .p12** — ask friend for the distribution certificate export, or use API-key-based signing fetch.
 - Using `com.healthyapp.app` on the friend’s team will burn that ID — keep the throwaway `com.healthyapp.tfpreview` for this TestFlight.
