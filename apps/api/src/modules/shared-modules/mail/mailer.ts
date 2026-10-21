@@ -1,5 +1,6 @@
 import type { MailConfig } from '../config/environment.js';
 import { createLogMailer } from './log-mailer.js';
+import { createSendByteMailer } from './sendbyte-mailer.js';
 import { createSmtpMailer } from './smtp-mailer.js';
 
 export type OtpMailMessage = {
@@ -16,9 +17,16 @@ export type Mailer = {
 };
 
 export function createMailer(mail: MailConfig): Mailer {
-  if (mail.mode === 'log') {
-    return createLogMailer();
+  switch (mail.mode) {
+    case 'log':
+      return createLogMailer();
+    case 'smtp':
+      return createSmtpMailer(mail);
+    case 'sendbyte':
+      return createSendByteMailer(mail);
+    default: {
+      const unexpected: never = mail;
+      throw new Error(`Unsupported mail provider: ${String(unexpected)}`);
+    }
   }
-
-  return createSmtpMailer(mail);
 }

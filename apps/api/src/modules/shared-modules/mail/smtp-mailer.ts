@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import type { MailConfig } from '../config/environment.js';
 import type { Mailer, OtpMailMessage } from './mailer.js';
+import { otpMailContent, type OtpMailKind } from './otp-mail-content.js';
 
 type SmtpMailConfig = Extract<MailConfig, { mode: 'smtp' }>;
 
@@ -14,43 +15,26 @@ export function createSmtpMailer(mail: SmtpMailConfig): Mailer {
     },
   });
 
-  async function sendOtp(
-    message: OtpMailMessage,
-    subject: string,
-    intro: string,
-  ): Promise<void> {
+  async function sendOtp(message: OtpMailMessage, kind: OtpMailKind): Promise<void> {
+    const content = otpMailContent(kind, message.otp);
+
     await transport.sendMail({
       from: mail.from,
       to: message.to,
-      subject,
-      text: [
-        intro,
-        'It expires in 5 minutes. If you did not ask for this, you can ignore this email.',
-      ].join('\n'),
+      subject: content.subject,
+      text: content.text,
     });
   }
 
   return {
     async sendPasswordResetOtp(message: OtpMailMessage) {
-      await sendOtp(
-        message,
-        'Your Healthy password reset code',
-        `Your password reset code is ${message.otp}.`,
-      );
+      await sendOtp(message, 'password-reset');
     },
     async sendEmailVerificationOtp(message: OtpMailMessage) {
-      await sendOtp(
-        message,
-        'Your Healthy verification code',
-        `Your email verification code is ${message.otp}.`,
-      );
+      await sendOtp(message, 'email-verification');
     },
     async sendChangeEmailOtp(message: OtpMailMessage) {
-      await sendOtp(
-        message,
-        'Confirm your new Healthy email',
-        `Your email change code is ${message.otp}.`,
-      );
+      await sendOtp(message, 'change-email');
     },
   };
 }

@@ -10,8 +10,19 @@
 export type SchedulerMode = 'in_process' | 'external';
 
 /**
+ * Which mailbox sends OTP mail. `EMAIL_PROVIDER` selects one.
+ * Leave it unset to use SendByte when `SEND_BYTE_LIVE_KEY` is set, otherwise
+ * SMTP when that transport is complete, otherwise the local log mailer.
+ * Add a provider (Zepto Mail, for example) by extending this union, reading
+ * its env below, and branching in `createMailer`.
+ */
+export const mailProviders = ['log', 'smtp', 'sendbyte'] as const;
+export type MailProvider = (typeof mailProviders)[number];
+
+/**
  * Local and development use `0` (or blank) so the process boots without a
- * real mailbox. Production refuses to start until every SMTP field is set.
+ * real mailbox. Production refuses to start until the selected provider
+ * has its credentials.
  */
 export type MailConfig =
   | { mode: 'log' }
@@ -22,15 +33,21 @@ export type MailConfig =
       user: string;
       pass: string;
       from: string;
+    }
+  | {
+      mode: 'sendbyte';
+      apiKey: string;
+      from: string;
     };
+
+const DEFAULT_SEND_BYTE_FROM = 'hello@gethealthyapp.com';
 
 /**
  * Local and development use `0` (or blank) so gym photos are accepted
  * without a model key. Production refuses to start until a key is set.
  */
 export type EvidenceVisionConfig =
-  | { mode: 'accept' }
-  | { mode: 'openai'; apiKey: string; model: string };
+  { mode: 'accept' } | { mode: 'openai'; apiKey: string; model: string };
 
 export type AppleIapEnvironmentName = 'Sandbox' | 'Production';
 
@@ -95,7 +112,46 @@ function readSmtpPort(value: string | undefined): number | null {
   return port;
 }
 
-function readMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfig {
+function readMailProvider(value: string | undefined): MailProvider | null {
+  const configured = readConfigured(value);
+
+  if (!configured) {
+    return null;
+  }
+
+  const provider = configured.toLowerCase();
+
+  if (isMailProvider(provider)) {
+    return provider;
+  }
+
+  const allowed = mailProviders.map((name) => `'${name}'`).join(', ');
+  throw new Error(`EMAIL_PROVIDER must be ${allowed}, got '${configured}'`);
+}
+
+function isMailProvider(value: string): value is MailProvider {
+  return (mailProviders as readonly string[]).includes(value);
+}
+
+function readSendByteMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfig {
+  const apiKey = readConfigured(source.SEND_BYTE_LIVE_KEY);
+
+  if (!apiKey) {
+    if (isProd) {
+      throw new Error('SEND_BYTE_LIVE_KEY is required when email is sent with SendByte');
+    }
+
+    return { mode: 'log' };
+  }
+
+  return {
+    mode: 'sendbyte',
+    apiKey,
+    from: readConfigured(source.MAIL_FROM) ?? DEFAULT_SEND_BYTE_FROM,
+  };
+}
+
+function readSmtpMail(source: NodeJS.ProcessEnv, isProd: boolean, required: boolean): MailConfig {
   const host = readConfigured(source.SMTP_HOST);
   const port = readSmtpPort(source.SMTP_PORT);
   const user = readConfigured(source.SMTP_USER);
@@ -108,30 +164,54 @@ function readMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfig {
     return { mode: 'smtp', host, port, user, pass, from };
   }
 
+  if (hasAny) {
+    throw new Error(
+      'SMTP settings must all be real values, or all 0 / blank for the local log mailer',
+    );
+  }
+
+  if (required) {
+    throw new Error(
+      'SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM are required when EMAIL_PROVIDER is smtp',
+    );
+  }
+
   if (isProd) {
     throw new Error(
       'SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM are required in production',
     );
   }
 
-  if (hasAny && !hasAll) {
-    throw new Error(
-      'SMTP settings must all be real values, or all 0 / blank for the local log mailer',
-    );
+  return { mode: 'log' };
+}
+
+function readMail(source: NodeJS.ProcessEnv, isProd: boolean): MailConfig {
+  const provider = readMailProvider(source.EMAIL_PROVIDER);
+
+  if (provider === 'log') {
+    if (isProd) {
+      throw new Error('EMAIL_PROVIDER=log is not allowed in production');
+    }
+
+    return { mode: 'log' };
   }
 
-  return { mode: 'log' };
+  if (provider === 'smtp') {
+    return readSmtpMail(source, isProd, true);
+  }
+
+  if (provider === 'sendbyte' || readConfigured(source.SEND_BYTE_LIVE_KEY)) {
+    return readSendByteMail(source, isProd);
+  }
+
+  return readSmtpMail(source, isProd, false);
 }
 
 const DEFAULT_VISION_MODEL = 'gpt-4o-mini';
 
-function readEvidenceVision(
-  source: NodeJS.ProcessEnv,
-  isProd: boolean,
-): EvidenceVisionConfig {
+function readEvidenceVision(source: NodeJS.ProcessEnv, isProd: boolean): EvidenceVisionConfig {
   const apiKey = readConfigured(source.EVIDENCE_VISION_API_KEY);
-  const model =
-    readConfigured(source.EVIDENCE_VISION_MODEL) ?? DEFAULT_VISION_MODEL;
+  const model = readConfigured(source.EVIDENCE_VISION_MODEL) ?? DEFAULT_VISION_MODEL;
 
   if (apiKey) {
     return { mode: 'openai', apiKey, model };
@@ -151,13 +231,10 @@ function readAppleIap(source: NodeJS.ProcessEnv): AppleIapConfig {
   }
 
   if (configured !== 'sandbox' && configured !== 'production') {
-    throw new Error(
-      `APPLE_ENVIRONMENT must be 'sandbox' or 'production', got '${configured}'`,
-    );
+    throw new Error(`APPLE_ENVIRONMENT must be 'sandbox' or 'production', got '${configured}'`);
   }
 
-  const bundleId =
-    readConfigured(source.APPLE_BUNDLE_ID) ?? 'com.healthyapp.app';
+  const bundleId = readConfigured(source.APPLE_BUNDLE_ID) ?? 'com.healthyapp.app';
   const appAppleIdValue = readConfigured(source.APPLE_APP_APPLE_ID);
   const appAppleId = appAppleIdValue ? Number(appAppleIdValue) : null;
 
@@ -169,9 +246,7 @@ function readAppleIap(source: NodeJS.ProcessEnv): AppleIapConfig {
   }
 
   if (configured === 'production' && appAppleId === null) {
-    throw new Error(
-      'APPLE_APP_APPLE_ID is required when APPLE_ENVIRONMENT is production',
-    );
+    throw new Error('APPLE_APP_APPLE_ID is required when APPLE_ENVIRONMENT is production');
   }
 
   return {
@@ -189,14 +264,10 @@ function readSchedulerMode(value: string | undefined): SchedulerMode {
     return mode;
   }
 
-  throw new Error(
-    `REMINDER_SCHEDULER_MODE must be 'in_process' or 'external', got '${mode}'`,
-  );
+  throw new Error(`REMINDER_SCHEDULER_MODE must be 'in_process' or 'external', got '${mode}'`);
 }
 
-export function readEnvironment(
-  source: NodeJS.ProcessEnv = process.env,
-): Environment {
+export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Environment {
   const isProd = readOptional(source.NODE_ENV) === 'production';
   const schedulerMode = readSchedulerMode(source.REMINDER_SCHEDULER_MODE);
   const reminderDispatchSecret = readOptional(source.REMINDER_DISPATCH_SECRET);

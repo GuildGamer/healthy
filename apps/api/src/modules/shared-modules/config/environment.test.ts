@@ -44,15 +44,15 @@ describe('readEnvironment', () => {
   });
 
   it('refuses external scheduling without a dispatch secret', () => {
-    expect(() =>
-      readEnvironment({ REMINDER_SCHEDULER_MODE: 'external' }),
-    ).toThrow(/REMINDER_DISPATCH_SECRET is required/);
+    expect(() => readEnvironment({ REMINDER_SCHEDULER_MODE: 'external' })).toThrow(
+      /REMINDER_DISPATCH_SECRET is required/,
+    );
   });
 
   it('rejects an unrecognised scheduler mode', () => {
-    expect(() =>
-      readEnvironment({ REMINDER_SCHEDULER_MODE: 'cron-ish' }),
-    ).toThrow(/must be 'in_process' or 'external'/);
+    expect(() => readEnvironment({ REMINDER_SCHEDULER_MODE: 'cron-ish' })).toThrow(
+      /must be 'in_process' or 'external'/,
+    );
   });
 
   it('treats blank values as absent', () => {
@@ -97,9 +97,9 @@ describe('readEnvironment', () => {
   });
 
   it('refuses a partial SMTP config in any environment', () => {
-    expect(() =>
-      readEnvironment({ SMTP_HOST: 'smtp.example.com', SMTP_PORT: '0' }),
-    ).toThrow(/all be real values/);
+    expect(() => readEnvironment({ SMTP_HOST: 'smtp.example.com', SMTP_PORT: '0' })).toThrow(
+      /all be real values/,
+    );
   });
 
   it('refuses production without a complete SMTP transport', () => {
@@ -158,9 +158,9 @@ describe('readEnvironment', () => {
   });
 
   it('requires APPLE_APP_APPLE_ID in the production Apple environment', () => {
-    expect(() =>
-      readEnvironment({ APPLE_ENVIRONMENT: 'production' }),
-    ).toThrow(/APPLE_APP_APPLE_ID is required/);
+    expect(() => readEnvironment({ APPLE_ENVIRONMENT: 'production' })).toThrow(
+      /APPLE_APP_APPLE_ID is required/,
+    );
   });
 
   it('enables production Apple IAP when an App Apple ID is set', () => {
@@ -180,6 +180,103 @@ describe('readEnvironment', () => {
   it('rejects an unknown APPLE_ENVIRONMENT', () => {
     expect(() => readEnvironment({ APPLE_ENVIRONMENT: 'staging' })).toThrow(
       /APPLE_ENVIRONMENT must be 'sandbox' or 'production'/,
+    );
+  });
+
+  it('uses SendByte when the live key is set and no provider is chosen', () => {
+    const environment = readEnvironment({
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+    });
+
+    expect(environment.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'hello@gethealthyapp.com',
+    });
+  });
+
+  it('reads an explicit SendByte mailbox and from address', () => {
+    const environment = readEnvironment({
+      EMAIL_PROVIDER: 'SendByte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      MAIL_FROM: 'Healthy <hello@gethealthyapp.com>',
+    });
+
+    expect(environment.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'Healthy <hello@gethealthyapp.com>',
+    });
+  });
+
+  it('keeps SMTP when that provider is selected beside a SendByte key', () => {
+    const environment = readEnvironment({
+      EMAIL_PROVIDER: 'smtp',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_PORT: '587',
+      SMTP_USER: 'mailer',
+      SMTP_PASS: 'secret',
+      SMTP_FROM: 'noreply@example.com',
+    });
+
+    expect(environment.mail).toEqual({
+      mode: 'smtp',
+      host: 'smtp.example.com',
+      port: 587,
+      user: 'mailer',
+      pass: 'secret',
+      from: 'noreply@example.com',
+    });
+  });
+
+  it('treats a blank SendByte key as the local log mailer', () => {
+    const environment = readEnvironment({
+      EMAIL_PROVIDER: 'sendbyte',
+      SEND_BYTE_LIVE_KEY: '0',
+    });
+
+    expect(environment.mail).toEqual({ mode: 'log' });
+  });
+
+  it('boots production on SendByte without SMTP', () => {
+    const environment = readEnvironment({
+      NODE_ENV: 'production',
+      EMAIL_PROVIDER: 'sendbyte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      EVIDENCE_VISION_API_KEY: 'sk-test',
+    });
+
+    expect(environment.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'hello@gethealthyapp.com',
+    });
+  });
+
+  it('refuses production SendByte without a key', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'sendbyte',
+        EVIDENCE_VISION_API_KEY: 'sk-test',
+      }),
+    ).toThrow(/SEND_BYTE_LIVE_KEY is required/);
+  });
+
+  it('refuses the log mailer in production', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'log',
+        EVIDENCE_VISION_API_KEY: 'sk-test',
+      }),
+    ).toThrow(/EMAIL_PROVIDER=log is not allowed/);
+  });
+
+  it('rejects an unknown email provider', () => {
+    expect(() => readEnvironment({ EMAIL_PROVIDER: 'zeptomail' })).toThrow(
+      /EMAIL_PROVIDER must be 'log', 'smtp', 'sendbyte'/,
     );
   });
 });

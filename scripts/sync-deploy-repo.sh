@@ -154,7 +154,13 @@ services:
         sync: false
       - key: WEBSITE_URL
         value: https://gethealthyapp.com
-      # Required in production (API refuses to boot without them)
+      # Required in production: SendByte (SEND_BYTE_LIVE_KEY) or a complete SMTP transport.
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: SEND_BYTE_LIVE_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
