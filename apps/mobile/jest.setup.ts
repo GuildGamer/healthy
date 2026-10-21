@@ -17,6 +17,13 @@ jest.mock('expo-notifications', () => ({
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
+jest.mock('expo-image-manipulator', () => ({
+  SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
+  ImageManipulator: {
+    manipulate: jest.fn(),
+  },
+}));
+
 jest.mock('expo-image-picker', () => ({
   CameraType: { front: 'front', back: 'back' },
   requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
