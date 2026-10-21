@@ -6,6 +6,7 @@ import {
   requireUser,
 } from '../../../shared/types/authenticated-user.js';
 import { challengeAccessFilter } from '../../../shared/membership/entitlements.js';
+import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { PRACTICE_TALLY_LOOKBACK_MS } from './constants/practice.js';
@@ -164,7 +165,7 @@ export class PracticeService {
       select: { membershipActive: true },
     });
 
-    return profile?.membershipActive ?? false;
+    return effectiveMembershipActive(profile?.membershipActive);
   }
 
   private async timeZoneFor(userId: string): Promise<string> {

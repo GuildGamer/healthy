@@ -141,6 +141,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Testing grant. Set to 0 before launch.
+      - key: MEMBERSHIP_BYPASS
+        value: "1"
       - key: PORT
         value: "10000"
       - key: DATABASE_URL

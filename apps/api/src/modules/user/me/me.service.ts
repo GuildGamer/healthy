@@ -4,10 +4,8 @@ import { normalizeCountryCode } from '@product/contract';
 import type { HealthCategory, PrismaClient } from '@product/db';
 import { MINUTES_PER_DAY } from '../../../shared/constants/reminder-defaults.js';
 import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
+import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import {
   DEFAULT_TIME_ZONE,
   dayKeyFor,
@@ -26,9 +24,7 @@ export class MeService {
     private readonly enrollments: EnrollmentsService,
   ) {}
 
-  async getMe(
-    currentUser: AuthenticatedUser | null | undefined,
-  ): Promise<MeDto> {
+  async getMe(currentUser: AuthenticatedUser | null | undefined): Promise<MeDto> {
     const user = requireUser(currentUser);
 
     const profile = await this.prisma.userProfile.findUnique({
@@ -53,7 +49,7 @@ export class MeService {
     });
 
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
-    const membershipActive = profile?.membershipActive ?? false;
+    const membershipActive = effectiveMembershipActive(profile?.membershipActive);
 
     return {
       id: user.id,
@@ -61,13 +57,9 @@ export class MeService {
       name: user.name ?? null,
       categories: profile?.healthCategories ?? [],
       pointsBalance: profile?.pointsBalance ?? 0,
-      currentStreakDays: await this.liveStreak(
-        user.id,
-        profile?.currentStreakDays ?? 0,
-        timeZone,
-      ),
+      currentStreakDays: await this.liveStreak(user.id, profile?.currentStreakDays ?? 0, timeZone),
       timeZone,
-      countryCode: normalizeCountryCode(profile?.countryCode ?? '') ,
+      countryCode: normalizeCountryCode(profile?.countryCode ?? ''),
       displayName: publicNameFor(user.id, profile?.displayName),
       reminderEnabled: profile?.reminderEnabled ?? false,
       reminderMinute: profile?.reminderMinute ?? 1140,
@@ -75,8 +67,7 @@ export class MeService {
       promotionalMessagesEnabled: profile?.promotionalMessagesEnabled ?? false,
       showOnLeaderboard: profile?.showOnLeaderboard ?? true,
       inProgressNudgeEnabled: profile?.inProgressNudgeEnabled ?? true,
-      inProgressNudgeDelayMinutes:
-        profile?.inProgressNudgeDelayMinutes ?? 30,
+      inProgressNudgeDelayMinutes: profile?.inProgressNudgeDelayMinutes ?? 30,
       healthLinkStatus: profile?.healthLinkStatus ?? 'unknown',
       hasMembership: membershipActive,
       maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
@@ -203,9 +194,7 @@ export class MeService {
     const user = requireUser(currentUser);
 
     const isWholeMinuteOfDay =
-      Number.isInteger(reminderMinute) &&
-      reminderMinute >= 0 &&
-      reminderMinute < MINUTES_PER_DAY;
+      Number.isInteger(reminderMinute) && reminderMinute >= 0 && reminderMinute < MINUTES_PER_DAY;
 
     if (!isWholeMinuteOfDay) {
       throw new ORPCError('BAD_REQUEST', {
@@ -241,7 +230,7 @@ export class MeService {
         select: { membershipActive: true },
       });
 
-      if (!(profile?.membershipActive ?? false)) {
+      if (!effectiveMembershipActive(profile?.membershipActive)) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Membership is required for finish-what-you-started nudges',
           data: { reason: 'membership_required' },
@@ -303,8 +292,7 @@ export class MeService {
 
     const today = dayKeyFor(timeZone);
     const isLive =
-      latestCompletion.periodKey === today ||
-      latestCompletion.periodKey === previousDayKey(today);
+      latestCompletion.periodKey === today || latestCompletion.periodKey === previousDayKey(today);
 
     return isLive ? storedStreakDays : 0;
   }

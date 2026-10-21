@@ -7,6 +7,7 @@ import type { PushMessage, PushSender } from '../push/push-sender.js';
 import { PUSH_SENDER } from '../push/push-sender.js';
 import { PushDevicesService } from '../push/push-devices.service.js';
 import { DISPATCH_CATCH_UP_MINUTES } from '../../../shared/constants/reminder-defaults.js';
+import { isTestingMembershipEnabled } from '../../../shared/membership/testing-membership.js';
 import type { DispatchSummaryDto } from './dto/dispatch-summary.dto.js';
 
 /** A reminder whose minute has arrived, resolved against its period. */
@@ -86,10 +87,7 @@ export class ReminderDispatcherService {
     return zones.map((zone) => zone.timeZone);
   }
 
-  private async findDueInZone(
-    timeZone: string,
-    now: Date,
-  ): Promise<DueReminder[]> {
+  private async findDueInZone(timeZone: string, now: Date): Promise<DueReminder[]> {
     const localMinute = localMinuteOfDay(timeZone, now);
     const windowStart = localMinute - DISPATCH_CATCH_UP_MINUTES;
 
@@ -117,20 +115,14 @@ export class ReminderDispatcherService {
       },
     });
 
-    return reminders.flatMap((reminder) =>
-      this.toDueReminder(reminder, timeZone, now),
-    );
+    return reminders.flatMap((reminder) => this.toDueReminder(reminder, timeZone, now));
   }
 
   /**
    * A weekly challenge is nudged on the first day of its period, not every day
    * of it, so a reminder only counts when today opens the period.
    */
-  private toDueReminder(
-    reminder: ReminderRow,
-    timeZone: string,
-    now: Date,
-  ): DueReminder[] {
+  private toDueReminder(reminder: ReminderRow, timeZone: string, now: Date): DueReminder[] {
     const { enrollment } = reminder;
     const periodKey = periodKeyFor(enrollment.frequency, timeZone, now);
     const todayKey = periodKeyFor('daily', timeZone, now);
@@ -151,27 +143,19 @@ export class ReminderDispatcherService {
     ];
   }
 
-  private async excludeAlreadyDelivered(
-    due: readonly DueReminder[],
-  ): Promise<DueReminder[]> {
+  private async excludeAlreadyDelivered(due: readonly DueReminder[]): Promise<DueReminder[]> {
     const delivered = await this.prisma.reminderDelivery.findMany({
       where: { reminderId: { in: due.map((item) => item.reminderId) } },
       select: { reminderId: true, periodKey: true },
     });
 
-    const sentKeys = new Set(
-      delivered.map((item) => `${item.reminderId}:${item.periodKey}`),
-    );
+    const sentKeys = new Set(delivered.map((item) => `${item.reminderId}:${item.periodKey}`));
 
-    return due.filter(
-      (item) => !sentKeys.has(`${item.reminderId}:${item.periodKey}`),
-    );
+    return due.filter((item) => !sentKeys.has(`${item.reminderId}:${item.periodKey}`));
   }
 
   /** Nobody wants to be nudged about something they have already finished. */
-  private async excludeCompleted(
-    due: readonly DueReminder[],
-  ): Promise<DueReminder[]> {
+  private async excludeCompleted(due: readonly DueReminder[]): Promise<DueReminder[]> {
     if (due.length === 0) {
       return [];
     }
@@ -189,23 +173,16 @@ export class ReminderDispatcherService {
     });
 
     const completedKeys = new Set(
-      completed.map(
-        (item) => `${item.userId}:${item.challengeId}:${item.periodKey}`,
-      ),
+      completed.map((item) => `${item.userId}:${item.challengeId}:${item.periodKey}`),
     );
 
     return due.filter(
-      (item) =>
-        !completedKeys.has(
-          `${item.userId}:${item.challengeId}:${item.periodKey}`,
-        ),
+      (item) => !completedKeys.has(`${item.userId}:${item.challengeId}:${item.periodKey}`),
     );
   }
 
   private async send(due: readonly DueReminder[]): Promise<number> {
-    const tokensByUserId = await this.activeTokensByUserId(
-      due.map((item) => item.userId),
-    );
+    const tokensByUserId = await this.activeTokensByUserId(due.map((item) => item.userId));
 
     const messages: PushMessage[] = [];
     const deliverable: DueReminder[] = [];
@@ -243,16 +220,12 @@ export class ReminderDispatcherService {
 
     await this.pushDevices.deactivateTokens(result.rejectedTokens);
 
-    this.logger.log(
-      `Reminder dispatch sent ${result.sentCount} of ${messages.length} messages`,
-    );
+    this.logger.log(`Reminder dispatch sent ${result.sentCount} of ${messages.length} messages`);
 
     return result.sentCount;
   }
 
-  private async activeTokensByUserId(
-    userIds: readonly string[],
-  ): Promise<Map<string, string[]>> {
+  private async activeTokensByUserId(userIds: readonly string[]): Promise<Map<string, string[]>> {
     const devices = await this.prisma.pushDevice.findMany({
       where: { userId: { in: [...new Set(userIds)] }, isActive: true },
       select: { userId: true, expoPushToken: true },
@@ -298,9 +271,7 @@ export class ReminderDispatcherService {
    * One finish nudge per started occurrence, after the member's delay.
    * Reuses the same Expo pipeline as clock reminders.
    */
-  async dispatchInProgressNudges(
-    now: Date = new Date(),
-  ): Promise<DispatchSummaryDto> {
+  async dispatchInProgressNudges(now: Date = new Date()): Promise<DispatchSummaryDto> {
     const candidates = await this.prisma.userChallenge.findMany({
       where: {
         status: { in: ['in_progress', 'awaiting_evidence'] },
@@ -309,7 +280,7 @@ export class ReminderDispatcherService {
         user: {
           profile: {
             inProgressNudgeEnabled: true,
-            membershipActive: true,
+            ...(isTestingMembershipEnabled() ? {} : { membershipActive: true as const }),
           },
         },
       },
@@ -342,9 +313,7 @@ export class ReminderDispatcherService {
       return { dueCount: 0, sentCount: 0, suppressedCount: 0 };
     }
 
-    const tokensByUserId = await this.activeTokensByUserId(
-      due.map((item) => item.userId),
-    );
+    const tokensByUserId = await this.activeTokensByUserId(due.map((item) => item.userId));
     const messages: PushMessage[] = [];
     const deliverable: typeof due = [];
 

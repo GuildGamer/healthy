@@ -34,6 +34,7 @@ import {
   canAccessChallenge,
   challengeAccessFilter,
 } from '../../../shared/membership/entitlements.js';
+import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
   createAcceptEvidenceValidator,
@@ -968,7 +969,7 @@ export class ChallengesService {
       select: { membershipActive: true },
     });
 
-    return profile?.membershipActive ?? false;
+    return effectiveMembershipActive(profile?.membershipActive);
   }
 
   private async ensureProfile(userId: string) {

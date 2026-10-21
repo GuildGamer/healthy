@@ -8,14 +8,12 @@ import {
   type MembershipOfferedPlan,
 } from '@product/contract';
 import type { PrismaClient, Subscription as DbSubscription } from '@product/db';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import {
   paymentMethodsForOffer,
   pickPlanPrice,
 } from '../../../shared/membership/membership-pricing.js';
+import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EntitlementService } from '../../shared-modules/subscriptions/entitlement.service.js';
 
@@ -26,9 +24,7 @@ export class MembershipOfferService {
     private readonly entitlements: EntitlementService,
   ) {}
 
-  async getOffer(
-    currentUser: AuthenticatedUser | null | undefined,
-  ): Promise<MembershipOffer> {
+  async getOffer(currentUser: AuthenticatedUser | null | undefined): Promise<MembershipOffer> {
     const user = requireUser(currentUser);
 
     const profile = await this.prisma.userProfile.findUnique({
@@ -86,9 +82,8 @@ export class MembershipOfferService {
       await this.entitlements.findCurrentSubscription(user.id),
     );
     const hasMembership =
-      (profile?.membershipActive ?? false) || currentSubscription !== null;
-    const methodSource =
-      plans.find((plan) => plan.prices.length > 0)?.paymentMethodIds ?? [];
+      effectiveMembershipActive(profile?.membershipActive) || currentSubscription !== null;
+    const methodSource = plans.find((plan) => plan.prices.length > 0)?.paymentMethodIds ?? [];
     const { marketKey, ...defaultOffer } = defaultPlan;
 
     return {
@@ -103,9 +98,7 @@ export class MembershipOfferService {
     };
   }
 
-  private toCurrentSubscription(
-    row: DbSubscription | null,
-  ): MembershipCurrentSubscription | null {
+  private toCurrentSubscription(row: DbSubscription | null): MembershipCurrentSubscription | null {
     if (!row) {
       return null;
     }
@@ -127,9 +120,7 @@ export class MembershipOfferService {
   }
 }
 
-function toOfferedPlan(
-  plan: MembershipOfferedPlan & { marketKey: string },
-): MembershipOfferedPlan {
+function toOfferedPlan(plan: MembershipOfferedPlan & { marketKey: string }): MembershipOfferedPlan {
   return {
     planId: plan.planId,
     slug: plan.slug,

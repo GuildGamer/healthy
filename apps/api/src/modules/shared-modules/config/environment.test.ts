@@ -15,6 +15,7 @@ describe('readEnvironment', () => {
     expect(environment.adminAppUrl).toBe('http://localhost:3001');
     expect(environment.websiteUrl).toBe('https://gethealthyapp.com');
     expect(environment.adminBootstrapEmail).toBeNull();
+    expect(environment.testingMembership).toBe(true);
   });
 
   it('treats only production as production', () => {
@@ -272,6 +273,18 @@ describe('readEnvironment', () => {
         EVIDENCE_VISION_API_KEY: 'sk-test',
       }),
     ).toThrow(/EMAIL_PROVIDER=log is not allowed/);
+  });
+
+  it('turns the testing membership grant off only when asked', () => {
+    expect(readEnvironment({ MEMBERSHIP_BYPASS: '0' }).testingMembership).toBe(false);
+    expect(readEnvironment({ MEMBERSHIP_BYPASS: 'off' }).testingMembership).toBe(false);
+    expect(readEnvironment({ MEMBERSHIP_BYPASS: '1' }).testingMembership).toBe(true);
+  });
+
+  it('rejects an unknown membership bypass flag', () => {
+    expect(() => readEnvironment({ MEMBERSHIP_BYPASS: 'later' })).toThrow(
+      /MEMBERSHIP_BYPASS must be 0 or 1/,
+    );
   });
 
   it('rejects an unknown email provider', () => {

@@ -20,6 +20,7 @@ import {
   isCatalogChallengeLocked,
   maxRemindersForMembership,
 } from '../../../shared/membership/entitlements.js';
+import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { RemindersService } from '../reminders/reminders.service.js';
 import type {
@@ -281,7 +282,7 @@ export class EnrollmentsService {
       select: { membershipActive: true },
     });
 
-    return profile?.membershipActive ?? false;
+    return effectiveMembershipActive(profile?.membershipActive);
   }
 
   private async categoriesFor(userId: string): Promise<HealthCategory[]> {

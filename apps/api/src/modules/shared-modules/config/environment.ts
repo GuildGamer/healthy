@@ -3,6 +3,8 @@
  * `environment.isProd`, never `process.env.NODE_ENV === 'production'`.
  */
 
+import { readTestingMembership } from '../../../shared/membership/testing-membership.js';
+
 /**
  * Which trigger drives reminder dispatch. The work itself is identical either
  * way, so moving to a platform scheduler is a config change, not a rewrite.
@@ -80,6 +82,12 @@ export type Environment = {
   websiteUrl: string;
   adminBootstrapEmail: string | null;
   adminBootstrapPassword: string | null;
+  /**
+   * Testing-phase grant. Every account is a member until this is turned off.
+   * Set MEMBERSHIP_BYPASS=0 before launch, then delete the testing-membership
+   * call sites.
+   */
+  testingMembership: boolean;
 };
 
 function readOptional(value: string | undefined): string | null {
@@ -296,5 +304,6 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     websiteUrl: readOptional(source.WEBSITE_URL) ?? 'https://gethealthyapp.com',
     adminBootstrapEmail: readOptional(source.ADMIN_BOOTSTRAP_EMAIL),
     adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
+    testingMembership: readTestingMembership(source),
   };
 }
