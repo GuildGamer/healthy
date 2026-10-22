@@ -1,40 +1,29 @@
-import Feather from '@expo/vector-icons/Feather';
-import type { InboxNotification, NotificationKind } from '@product/client';
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
-import { useFocusEffect, useRouter } from 'expo-router';
+import type { ListNotificationsOutput, TodayChallenge } from '@product/client';
+import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { RefreshableScroll, ScreenLoader } from '@/components/feedback';
+import { StyleSheet, Text, View } from 'react-native';
+import {
+  DeckNoteCard,
+  DeckPushedPage,
+  DeckSectionTitle,
+  type DeckCardKind,
+  deckCardKindFor,
+} from '@/components/deck';
+import { Loader } from '@/components/feedback';
+import { Glyph } from '@/components/icons';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
-import {
-  hrefForPushData,
-  isNavigablePushData,
-} from '@/lib/open-push-destination';
-import { formatRelativeTime } from './relative-time';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
+import { INBOX_COPY } from './constants/inbox';
+import { inboxSections, openPhotoChecks } from './inbox-sections';
+import { NotificationRow } from './NotificationRow';
+import { PhotoCheckCard } from './PhotoCheckCard';
 
-const kindIcon: Record<
-  NotificationKind,
-  'check-circle' | 'bell' | 'camera' | 'alert-circle' | 'users'
-> = {
-  success: 'check-circle',
-  reminder: 'bell',
-  evidence: 'camera',
-  penalty: 'alert-circle',
-  social: 'users',
-};
-
-export function NotificationsScreen() {
+/** Opening the inbox reads it: anything unread is marked read once it is on screen. */
+function useMarkReadOnFocus(unreadCount: number) {
   const queryClient = useQueryClient();
-
-  const inboxQuery = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => apiClient.listNotifications(),
-  });
-
-  const unreadCount = inboxQuery.data?.unreadCount ?? 0;
 
   useFocusEffect(
     useCallback(() => {
@@ -47,214 +36,139 @@ export function NotificationsScreen() {
       });
     }, [queryClient, unreadCount]),
   );
-
-  const notifications = inboxQuery.data?.notifications ?? [];
-
-  return (
-    <SafeAreaView style={styles.container} testID="notifications-screen">
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-          hitSlop={12}
-          onPress={() => goBackOrHome()}
-          style={styles.backButton}
-          testID="notifications-back"
-        >
-          <Feather color={colors.muted} name="arrow-left" size={22} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Notifications</Text>
-      </View>
-
-      {inboxQuery.isPending ? (
-        <ScreenLoader testID="notifications-loading" />
-      ) : (
-        <RefreshableScroll
-          contentContainerStyle={
-            notifications.length === 0 ? styles.emptyContent : undefined
-          }
-          onPullRefresh={() => inboxQuery.refetch()}
-          style={styles.list}
-        >
-          {notifications.length === 0 ? (
-            <View style={styles.empty} testID="notifications-empty">
-              <Feather color={colors.disabledText} name="bell" size={40} />
-              <Text style={styles.emptyTitle}>No notifications</Text>
-            </View>
-          ) : (
-            notifications.map((item, index) => (
-              <NotificationRow
-                isLast={index === notifications.length - 1}
-                key={item.id}
-                notification={item}
-              />
-            ))
-          )}
-        </RefreshableScroll>
-      )}
-    </SafeAreaView>
-  );
 }
 
-function NotificationRow({
-  notification,
-  isLast,
-}: {
-  notification: InboxNotification;
-  isLast: boolean;
-}) {
-  const router = useRouter();
-  const canOpen = isNavigablePushData(notification.payload);
-  const row = (
-    <View
-      style={[styles.row, notification.isRead ? null : styles.rowUnread]}
+/** What needs you on top, then the record grouped by Today and Earlier. */
+export function NotificationsScreen() {
+  const inboxQuery = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => apiClient.listNotifications(),
+  });
+  const challengesQuery = useQuery({
+    queryKey: ['challenges', 'today'],
+    queryFn: () => apiClient.listTodayChallenges(),
+  });
+
+  useMarkReadOnFocus(inboxQuery.data?.unreadCount ?? 0);
+
+  return (
+    <DeckPushedPage
+      onBack={() => goBackOrHome()}
+      onPullRefresh={() => Promise.all([inboxQuery.refetch(), challengesQuery.refetch()])}
+      testID="notifications-screen"
+      title={INBOX_COPY.title}
     >
-      <Feather
-        color={notification.isRead ? colors.muted : colors.accent}
-        name={kindIcon[notification.kind]}
-        size={16}
-        style={styles.rowIcon}
+      <InboxBody
+        challenges={challengesQuery.data?.challenges ?? []}
+        inbox={inboxQuery.data}
+        isPending={inboxQuery.isPending}
+        onRetry={() => void inboxQuery.refetch()}
       />
-      <View style={styles.rowBody}>
-        <View style={styles.rowTitleLine}>
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.rowTitle,
-              notification.isRead ? null : styles.rowTitleUnread,
-            ]}
-          >
-            {notification.title}
-          </Text>
-          <Text style={styles.rowTime}>
-            {formatRelativeTime(notification.createdAt)}
-          </Text>
-        </View>
-        <Text style={styles.rowText}>{notification.body}</Text>
+    </DeckPushedPage>
+  );
+}
+
+interface InboxBodyProps {
+  inbox: ListNotificationsOutput | undefined;
+  challenges: readonly TodayChallenge[];
+  isPending: boolean;
+  onRetry: () => void;
+}
+
+function InboxBody({ inbox, challenges, isPending, onRetry }: InboxBodyProps) {
+  const styles = useThemedStyles(createStyles);
+
+  if (isPending) {
+    return (
+      <View style={styles.loader} testID="notifications-loading">
+        <Loader />
       </View>
-      {canOpen ? (
-        <Feather color={colors.muted} name="chevron-right" size={18} />
-      ) : null}
-      {notification.isRead ? null : <View style={styles.unreadDot} />}
-    </View>
+    );
+  }
+
+  if (!inbox) {
+    return (
+      <DeckNoteCard
+        action={{ label: INBOX_COPY.tryAgain, onPress: onRetry, testID: 'notifications-retry' }}
+        body={INBOX_COPY.failedBody}
+        glyph="offline"
+        testID="notifications-error"
+        title={INBOX_COPY.failedTitle}
+      />
+    );
+  }
+
+  const now = new Date();
+  const photoChecks = openPhotoChecks(challenges, now);
+  if (inbox.notifications.length === 0 && photoChecks.length === 0) {
+    return <InboxEmpty />;
+  }
+
+  const kindByChallengeId = new Map<string, DeckCardKind>(
+    challenges.map((challenge) => [challenge.challengeId, deckCardKindFor(challenge)]),
   );
 
   return (
-    <View testID={`notification-${notification.id}`}>
-      {canOpen ? (
-        <Pressable
-          accessibilityLabel={notification.title}
-          accessibilityRole="button"
-          onPress={() => {
-            router.push(hrefForPushData(notification.payload));
-          }}
-          testID={`notification-open-${notification.id}`}
-        >
-          {row}
-        </Pressable>
-      ) : (
-        row
-      )}
-      {isLast ? null : <View style={styles.divider} />}
+    <View>
+      {photoChecks.map((challenge) => (
+        <PhotoCheckCard challenge={challenge} key={challenge.id} />
+      ))}
+      {inboxSections(inbox.notifications, now).map((section) => (
+        <View key={section.title}>
+          <DeckSectionTitle label={section.title} />
+          {section.notifications.map((notification, index) => (
+            <NotificationRow
+              isFirst={index === 0}
+              key={notification.id}
+              kind={kindByChallengeId.get(notification.payload?.challengeId ?? '') ?? null}
+              notification={notification}
+              now={now}
+            />
+          ))}
+        </View>
+      ))}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -spacing.sm,
-  },
-  headerTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-  },
-  list: {
-    flex: 1,
-  },
-  emptyContent: {
-    flexGrow: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  rowUnread: {
-    backgroundColor: colors.accentSurface,
-  },
-  rowIcon: {
-    marginTop: 2,
-  },
-  rowBody: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  rowTitleLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  rowTitle: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.sm,
-  },
-  rowTitleUnread: {
-    fontWeight: fontWeight.medium,
-  },
-  rowText: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    lineHeight: 18,
-  },
-  rowTime: {
-    color: colors.disabledText,
-    fontSize: fontSize.xs,
-    flexShrink: 0,
-  },
-  unreadDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
-    marginTop: 6,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.lg,
-  },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  emptyTitle: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-  },
-});
+function InboxEmpty() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={styles.empty} testID="notifications-empty">
+      <Glyph color={colors.muted} name="inbox" size={30} strokeWidth={1.8} />
+      <Text style={styles.emptyTitle}>{INBOX_COPY.emptyTitle}</Text>
+      <Text style={styles.emptyBody}>{INBOX_COPY.emptyBody}</Text>
+    </View>
+  );
+}
+
+const EMPTY_TEXT_WIDTH = 260;
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    loader: {
+      marginTop: spacing.xl,
+    },
+    empty: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xl * 3,
+    },
+    emptyTitle: {
+      color: theme.colors.text,
+      fontSize: 15,
+      fontWeight: fontWeight.medium,
+      marginTop: 14,
+    },
+    emptyBody: {
+      maxWidth: EMPTY_TEXT_WIDTH,
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      lineHeight: 21,
+      textAlign: 'center',
+      marginTop: 6,
+    },
+  });

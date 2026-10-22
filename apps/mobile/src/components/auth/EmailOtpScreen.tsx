@@ -1,4 +1,4 @@
-import { colors, fontSize, spacing } from '@product/brand';
+import { fontSize, spacing } from '@product/brand';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -10,12 +10,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  FormButton,
-  FormErrorBanner,
-  OtpInput,
-} from '@/components/forms';
+import { FormButton, FormErrorBanner, OtpInput } from '@/components/forms';
 import type { AuthActionResult } from '@/lib/auth-client';
+import { type Theme, useThemedStyles } from '@/theme';
 import { AuthScreenHeader } from './AuthScreenHeader';
 
 const OTP_LENGTH = 6;
@@ -43,6 +40,7 @@ export function EmailOtpScreen({
   testIDPrefix: string;
   title: string;
 }) {
+  const styles = useThemedStyles(createStyles);
   const [otp, setOtp] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -137,10 +135,7 @@ export function EmailOtpScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <AuthScreenHeader
             onBackPress={onBackPress}
             subtitle={`We sent a 6-digit code to ${email}`}
@@ -174,9 +169,7 @@ export function EmailOtpScreen({
                 }}
                 testID={`${testIDPrefix}-resend`}
               >
-                <Text style={styles.resendAction}>
-                  {isResending ? 'Sending…' : 'Resend Code'}
-                </Text>
+                <Text style={styles.resendAction}>{isResending ? 'Sending…' : 'Resend Code'}</Text>
               </Pressable>
             )}
           </View>
@@ -211,38 +204,39 @@ export function EmailOtpScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  resendRow: {
-    alignItems: 'center',
-    minHeight: 24,
-  },
-  resendWait: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-  },
-  resendAccent: {
-    color: colors.accent,
-  },
-  resendAction: {
-    color: colors.accent,
-    fontSize: fontSize.sm,
-  },
-  alternateAccount: {
-    alignItems: 'center',
-  },
-  alternateAccountLabel: {
-    color: colors.accent,
-    fontSize: fontSize.sm,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      padding: spacing.lg,
+      gap: spacing.md,
+    },
+    resendRow: {
+      alignItems: 'center',
+      minHeight: 24,
+    },
+    resendWait: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+    },
+    resendAccent: {
+      color: theme.colors.accent,
+    },
+    resendAction: {
+      color: theme.colors.accent,
+      fontSize: fontSize.sm,
+    },
+    alternateAccount: {
+      alignItems: 'center',
+    },
+    alternateAccountLabel: {
+      color: theme.colors.accent,
+      fontSize: fontSize.sm,
+    },
+  });

@@ -1,10 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import type { DeviceMetric, PrismaClient } from '@product/db';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { challengeAccessFilter } from '../../../shared/membership/entitlements.js';
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
@@ -17,6 +14,7 @@ import type {
   RecordPracticeSessionDto,
   RecordPracticeSessionInputDto,
 } from './dto/index.js';
+import type { MeasuredFields } from './types/practice-session.js';
 
 /** Nullable columns are shared with challenge logs; practice always has both. */
 function toSessionDto(session: {
@@ -35,10 +33,25 @@ function toSessionDto(session: {
   };
 }
 
+/** A late retry of an earlier save must not shorten a session already saved longer. */
+function longerOf(existing: MeasuredFields | null, incoming: MeasuredFields): MeasuredFields {
+  if (!existing || (existing.durationSeconds ?? 0) <= (incoming.durationSeconds ?? 0)) {
+    return incoming;
+  }
+
+  return {
+    count: existing.count,
+    durationSeconds: existing.durationSeconds,
+    distanceMeters: existing.distanceMeters,
+    endedAt: existing.endedAt,
+  };
+}
+
 /**
- * Sets the user did outside their daily challenge. Persisted as a
- * `DeviceActivityLog` with no occurrence attached, so practice shares one
- * history with challenge sessions while staying out of the points ledger.
+ * Measured sessions that are not a challenge's completion: extra sets, and
+ * sets or walks that fell short. Persisted as a `DeviceActivityLog` with no
+ * occurrence attached, so they share one history with challenge sessions and
+ * count as Today's progress while staying out of the points ledger.
  */
 @Injectable()
 export class PracticeService {
@@ -50,31 +63,47 @@ export class PracticeService {
   ): Promise<RecordPracticeSessionDto> {
     const user = requireUser(currentUser);
     await this.assertMetricUnlocked(user.id, input.metric);
-
-    // The client-supplied externalId makes a retried submit land on the same
-    // row, so a flaky network cannot inflate the user's rep count.
-    const session = await this.prisma.deviceActivityLog.upsert({
-      where: {
-        userId_externalId: { userId: user.id, externalId: input.externalId },
-      },
-      create: {
-        userId: user.id,
-        userChallengeId: null,
-        source: input.source,
-        metric: input.metric,
-        count: input.count,
-        durationSeconds: input.durationSeconds,
-        startedAt: new Date(input.startedAt),
-        endedAt: new Date(input.endedAt),
-        externalId: input.externalId,
-      },
-      update: {},
-    });
+    const session = await this.saveSession(user.id, input);
 
     return {
       session: toSessionDto(session),
       totals: await this.totalsFor(user.id, input.metric),
     };
+  }
+
+  /**
+   * The client-supplied externalId makes a retried submit land on the same
+   * row, so a flaky network cannot inflate the user's totals. A walk saved
+   * again after walking on carries the longer measurement. Once a challenge
+   * completion has claimed the row it is that completion's, and stays put.
+   */
+  private async saveSession(userId: string, input: RecordPracticeSessionInputDto) {
+    const key = { userId_externalId: { userId, externalId: input.externalId } };
+    const existing = await this.prisma.deviceActivityLog.findUnique({ where: key });
+    if (existing?.userChallengeId) {
+      return existing;
+    }
+
+    const measured = longerOf(existing, {
+      count: input.count ?? null,
+      durationSeconds: input.durationSeconds,
+      distanceMeters: input.distanceMeters ?? null,
+      endedAt: new Date(input.endedAt),
+    });
+
+    return this.prisma.deviceActivityLog.upsert({
+      where: key,
+      create: {
+        userId,
+        userChallengeId: null,
+        source: input.source,
+        metric: input.metric,
+        startedAt: new Date(input.startedAt),
+        externalId: input.externalId,
+        ...measured,
+      },
+      update: measured,
+    });
   }
 
   async totals(
@@ -120,9 +149,7 @@ export class PracticeService {
     ]);
 
     const todayKey = dayKeyFor(timeZone, now);
-    const today = sessions.filter(
-      (session) => dayKeyFor(timeZone, session.createdAt) === todayKey,
-    );
+    const today = sessions.filter((session) => dayKeyFor(timeZone, session.createdAt) === todayKey);
 
     return {
       todayCount: today.reduce((total, session) => total + (session.count ?? 0), 0),
@@ -134,10 +161,7 @@ export class PracticeService {
    * Practice rides on the same membership rule as the challenge it mirrors: if
    * no accessible challenge tracks this metric, there is nothing to practise.
    */
-  private async assertMetricUnlocked(
-    userId: string,
-    metric: DeviceMetric,
-  ): Promise<void> {
+  private async assertMetricUnlocked(userId: string, metric: DeviceMetric): Promise<void> {
     const membershipActive = await this.membershipActiveFor(userId);
 
     const unlocked = await this.prisma.challenge.findFirst({

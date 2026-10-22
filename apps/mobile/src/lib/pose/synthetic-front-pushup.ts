@@ -54,10 +54,7 @@ export function syntheticFrontPushupFrame(
   };
 }
 
-export function syntheticFrontPushupDepth(
-  timestampMs: number,
-  cycleMs = 1_200,
-): number {
+export function syntheticFrontPushupDepth(timestampMs: number, cycleMs = 1_200): number {
   const phase = (timestampMs % cycleMs) / cycleMs;
   if (phase < 0.5) {
     return phase * 2;

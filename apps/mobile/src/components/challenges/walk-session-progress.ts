@@ -10,8 +10,6 @@ export type WalkProgress = {
 export type WalkRequirement = {
   /** How far along this requirement is, clamped to 0..1. */
   ratio: number;
-  /** HUD readout, e.g. `02:14 / 10:00`. */
-  readout: string;
   /** What is still missing, e.g. `7:46 more`. Null once met. */
   remaining: string | null;
 };
@@ -27,9 +25,7 @@ export function walkRequirements(
     const remainingSeconds = targetSeconds - progress.elapsedSeconds;
     requirements.push({
       ratio: clampRatio(progress.elapsedSeconds / targetSeconds),
-      readout: `${formatDuration(progress.elapsedSeconds)} / ${formatDuration(targetSeconds)}`,
-      remaining:
-        remainingSeconds > 0 ? `${formatDuration(remainingSeconds)} more` : null,
+      remaining: remainingSeconds > 0 ? `${formatDuration(remainingSeconds)} more` : null,
     });
   }
 
@@ -37,9 +33,7 @@ export function walkRequirements(
     const remainingMeters = target.distanceMeters - progress.distanceMeters;
     requirements.push({
       ratio: clampRatio(progress.distanceMeters / target.distanceMeters),
-      readout: `${formatDistance(progress.distanceMeters)} / ${formatDistance(target.distanceMeters)}`,
-      remaining:
-        remainingMeters > 0 ? `${formatDistance(remainingMeters)} more` : null,
+      remaining: remainingMeters > 0 ? `${formatDistance(remainingMeters)} more` : null,
     });
   }
 
@@ -47,55 +41,14 @@ export function walkRequirements(
 }
 
 /** The worst-off requirement drives the bar, since every target must be met. */
-export function walkProgressRatio(
-  progress: WalkProgress,
-  target: ChallengeTarget,
-): number | null {
-  const ratios = walkRequirements(progress, target).map(
-    (requirement) => requirement.ratio,
-  );
+export function walkProgressRatio(progress: WalkProgress, target: ChallengeTarget): number | null {
+  const ratios = walkRequirements(progress, target).map((requirement) => requirement.ratio);
 
   return ratios.length === 0 ? null : Math.min(...ratios);
 }
 
-/** Large HUD line: the targeted metrics, or bare elapsed time when untargeted. */
-export function walkReadout(
-  progress: WalkProgress,
-  target: ChallengeTarget,
-): string {
-  const readouts = walkRequirements(progress, target).map(
-    (requirement) => requirement.readout,
-  );
-
-  return readouts.length === 0
-    ? formatDuration(progress.elapsedSeconds)
-    : readouts.join('  ·  ');
-}
-
-/**
- * The measurement the goal readout leaves out, so a walker always sees both
- * time and distance. Null when the goal already covers the two of them.
- */
-export function walkSecondaryStat(
-  progress: WalkProgress,
-  target: ChallengeTarget,
-): string | null {
-  if (target.distanceMeters === null) {
-    return formatDistance(progress.distanceMeters);
-  }
-
-  if (target.durationMinutes === null) {
-    return formatDuration(progress.elapsedSeconds);
-  }
-
-  return null;
-}
-
 /** Tells the walker exactly what is left. Null once the walk would count. */
-export function walkShortfall(
-  progress: WalkProgress,
-  target: ChallengeTarget,
-): string | null {
+export function walkShortfall(progress: WalkProgress, target: ChallengeTarget): string | null {
   const remaining = walkRequirements(progress, target)
     .map((requirement) => requirement.remaining)
     .filter((value): value is string => value !== null);
@@ -105,6 +58,48 @@ export function walkShortfall(
   }
 
   return `${remaining.join(' and ')} to finish`;
+}
+
+/** "4:12": a walk's clock as a watch shows it, without a leading zero. */
+export function walkClock(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/** The big number on a walk and what it is out of: time first, or distance when only that counts. */
+export function walkHero(
+  progress: WalkProgress,
+  target: ChallengeTarget,
+): { value: string; of: string | null } {
+  if (target.durationMinutes !== null) {
+    return {
+      value: walkClock(progress.elapsedSeconds),
+      of: `of ${walkClock(target.durationMinutes * 60)}`,
+    };
+  }
+
+  if (target.distanceMeters !== null) {
+    return {
+      value: (progress.distanceMeters / 1_000).toFixed(2),
+      of: `of ${formatDistance(target.distanceMeters)}`,
+    };
+  }
+
+  return { value: walkClock(progress.elapsedSeconds), of: null };
+}
+
+/** "Goal 10 min", in the corner before a walk starts. */
+export function walkGoalLabel(target: ChallengeTarget): string | null {
+  if (target.durationMinutes !== null) {
+    return `Goal ${target.durationMinutes} min`;
+  }
+
+  if (target.distanceMeters !== null) {
+    return `Goal ${formatDistance(target.distanceMeters)}`;
+  }
+
+  return null;
 }
 
 function clampRatio(value: number): number {

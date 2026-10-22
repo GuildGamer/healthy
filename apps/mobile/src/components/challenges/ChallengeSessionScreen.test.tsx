@@ -1,12 +1,6 @@
 import type { TodayChallenge } from '@product/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
 import {
@@ -31,6 +25,7 @@ jest.mock('@/lib/api', () => ({
     me: jest.fn(),
     startChallenge: jest.fn(),
     completeChallenge: jest.fn(),
+    recordPracticeSession: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -65,6 +60,7 @@ const mockedApi = apiClient as unknown as {
   me: jest.Mock;
   startChallenge: jest.Mock;
   completeChallenge: jest.Mock;
+  recordPracticeSession: jest.Mock;
 };
 
 const mockedLoadLocationModule = loadLocationModule as jest.Mock;
@@ -260,9 +256,14 @@ beforeEach(() => {
   });
   mockedApi.me.mockResolvedValue({ healthLinkStatus: 'connected' });
   mockedApi.startChallenge.mockResolvedValue({ id: 'uc-walk' });
+  mockedApi.recordPracticeSession.mockResolvedValue({});
   mockedApi.completeChallenge.mockResolvedValue({
+    challenge: walkChallenge({ status: 'completed' }),
+    pointsBalance: 20,
     pointsAwarded: 20,
     currentStreakDays: 3,
+    evidenceRequest: null,
+    penaltyApplied: 0,
   });
   mockedLoadLocationModule.mockResolvedValue(locationModule);
   requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
@@ -270,20 +271,16 @@ beforeEach(() => {
 
   // Readings are fed in per test; a walk stays live until the phone goes quiet.
   mockedLoadAccelerometerModule.mockResolvedValue(accelerometerModule());
-  addMotionListener.mockImplementation(
-    (callback: (sample: AccelerometerSample) => void) => {
-      emitSample = callback;
-      return { remove: jest.fn() };
-    },
-  );
+  addMotionListener.mockImplementation((callback: (sample: AccelerometerSample) => void) => {
+    emitSample = callback;
+    return { remove: jest.fn() };
+  });
 
   mockedLoadPedometerModule.mockResolvedValue(pedometerModule());
-  watchStepCount.mockImplementation(
-    (callback: (result: { steps: number }) => void) => {
-      emitSteps = (steps) => callback({ steps });
-      return { remove: jest.fn() };
-    },
-  );
+  watchStepCount.mockImplementation((callback: (result: { steps: number }) => void) => {
+    emitSteps = (steps) => callback({ steps });
+    return { remove: jest.fn() };
+  });
 });
 
 afterEach(() => {
@@ -291,14 +288,13 @@ afterEach(() => {
 });
 
 describe('ChallengeSessionScreen walk goal', () => {
-  it('shows the goal over the map before the walk starts', async () => {
+  it('shows the goal and one way to start before the walk begins', async () => {
     const { cleanup } = renderSession();
 
-    expect(await screen.findByTestId('session-stats')).toHaveTextContent(
-      '00:00 / 10:00',
-    );
-    expect(screen.getByText('Ready')).toBeOnTheScreen();
-    expect(screen.getByTestId('session-map')).toBeOnTheScreen();
+    expect(await screen.findByTestId('session-stats')).toHaveTextContent('0:00');
+    expect(screen.getByText('Goal 10 min')).toBeOnTheScreen();
+    expect(screen.getByText('of 10:00')).toBeOnTheScreen();
+    expect(screen.getByTestId('confirm-challenge')).toHaveTextContent('Log it by hand');
 
     await cleanup();
   });
@@ -309,13 +305,10 @@ describe('ChallengeSessionScreen walk goal', () => {
     await startWalk();
     await walkFor(134);
 
-    expect(screen.getByTestId('session-stats')).toHaveTextContent(
-      '02:14 / 10:00',
-    );
-    expect(screen.getByTestId('session-review')).toHaveTextContent(
-      '07:46 more to finish',
-    );
+    expect(screen.getByTestId('session-stats')).toHaveTextContent('2:14');
     expect(screen.getByText('Recording')).toBeOnTheScreen();
+    expect(screen.getByTestId('session-map')).toBeOnTheScreen();
+    expect(screen.getByTestId('stop-session')).toHaveTextContent('Finish');
 
     await cleanup();
   });
@@ -329,9 +322,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     await walkFor(134);
 
     // ~180 m east along the same latitude.
-    expect(screen.getByTestId('session-secondary-stat')).toHaveTextContent(
-      '0.18 km',
-    );
+    expect(screen.getByTestId('session-secondary-stat')).toHaveTextContent('0.18 km');
 
     await cleanup();
   });
@@ -344,9 +335,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     await standStillFor(120);
 
     expect(screen.getByText('Paused')).toBeOnTheScreen();
-    expect(screen.getByTestId('session-stats')).toHaveTextContent(
-      '01:00 / 10:00',
-    );
+    expect(screen.getByTestId('session-stats')).toHaveTextContent('1:00');
 
     await cleanup();
   });
@@ -360,9 +349,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     // Two minutes of shaking earns only the opening grace that covers the step
     // counter warming up. Nothing after it counts.
     expect(screen.getByText('Paused')).toBeOnTheScreen();
-    expect(screen.getByTestId('session-stats')).toHaveTextContent(
-      '00:22 / 10:00',
-    );
+    expect(screen.getByTestId('session-stats')).toHaveTextContent('0:22');
 
     await cleanup();
   });
@@ -379,9 +366,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     // the step counter confirming it is a person walking. That costs the two
     // simulated strides carrying them, and a second or two on a real phone.
     expect(screen.queryByText('Paused')).toBeNull();
-    expect(screen.getByTestId('session-stats')).toHaveTextContent(
-      '01:56 / 10:00',
-    );
+    expect(screen.getByTestId('session-stats')).toHaveTextContent('1:56');
 
     await cleanup();
   });
@@ -395,9 +380,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     // A couple of metres of jitter, which is what a parked phone produces.
     emitFix({ latitude: 51.5074, longitude: -0.127765 });
 
-    expect(screen.getByTestId('session-secondary-stat')).toHaveTextContent(
-      '0.00 km',
-    );
+    expect(screen.getByTestId('session-secondary-stat')).toHaveTextContent('0.00 km');
 
     await cleanup();
   });
@@ -417,9 +400,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     await standStillFor(4);
 
     expect(screen.queryByText('Paused')).toBeNull();
-    expect(screen.getByTestId('session-stats')).toHaveTextContent(
-      '00:04 / 10:00',
-    );
+    expect(screen.getByTestId('session-stats')).toHaveTextContent('0:04');
 
     await cleanup();
   });
@@ -431,12 +412,18 @@ describe('ChallengeSessionScreen walk goal', () => {
     await walkFor(134);
     fireEvent.press(screen.getByTestId('stop-session'));
 
-    expect(await screen.findByTestId('session-review')).toHaveTextContent(
-      '07:46 more to finish',
-    );
+    expect(await screen.findByTestId('session-review')).toHaveTextContent('07:46 more to finish');
     expect(screen.getByText('Short of the goal')).toBeOnTheScreen();
-    expect(screen.getByTestId('resume-session')).toBeOnTheScreen();
-    expect(screen.queryByTestId('use-session')).toBeNull();
+    expect(screen.getByTestId('resume-session')).toHaveTextContent('Keep walking');
+    expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
+    // The walk so far is kept as progress, without completing the challenge.
+    expect(mockedApi.recordPracticeSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metric: 'walk',
+        durationSeconds: 134,
+        externalId: expect.stringMatching(/^in-app-gps:uc-walk:/),
+      }),
+    );
 
     await cleanup();
   });
@@ -454,14 +441,16 @@ describe('ChallengeSessionScreen walk goal', () => {
     });
     await walkFor(300);
 
-    expect(screen.getByTestId('session-stats')).toHaveTextContent(
-      '10:00 / 10:00',
-    );
+    expect(screen.getByTestId('session-stats')).toHaveTextContent('10:00');
 
     fireEvent.press(screen.getByTestId('stop-session'));
 
-    expect(await screen.findByTestId('use-session')).toBeOnTheScreen();
-    expect(screen.queryByTestId('resume-session')).toBeNull();
+    await waitFor(() => {
+      expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
+        userChallengeId: 'uc-walk',
+        deviceActivity: expect.objectContaining({ durationSeconds: 600 }),
+      });
+    });
 
     await cleanup();
   });
@@ -472,8 +461,6 @@ describe('ChallengeSessionScreen walk goal', () => {
     await startWalk();
     await walkFor(600);
     fireEvent.press(screen.getByTestId('stop-session'));
-
-    fireEvent.press(await screen.findByTestId('use-session'));
 
     await waitFor(() => {
       expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
@@ -496,11 +483,46 @@ describe('ChallengeSessionScreen walk goal', () => {
 
     fireEvent.press(await screen.findByTestId('start-session'));
 
-    await waitFor(() => {
-      expect(screen.getByText(/Location is needed/)).toBeOnTheScreen();
-    });
+    expect(await screen.findByText('Location is off for Healthy.')).toBeOnTheScreen();
     expect(watchPositionAsync).not.toHaveBeenCalled();
+    expect(screen.getByTestId('session-open-settings')).toBeOnTheScreen();
     expect(screen.getByTestId('confirm-challenge')).toBeOnTheScreen();
+
+    await cleanup();
+  });
+
+  it('banks the walk on pause and picks it back up', async () => {
+    const { cleanup } = renderSession();
+
+    await startWalk();
+    await walkFor(60);
+    fireEvent.press(screen.getByTestId('pause-session'));
+
+    expect(await screen.findByText('Paused')).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(mockedApi.recordPracticeSession).toHaveBeenCalledWith(
+        expect.objectContaining({ metric: 'walk', source: 'in_app_gps', durationSeconds: 60 }),
+      );
+    });
+    fireEvent.press(screen.getByTestId('resume-session'));
+    await waitFor(() => {
+      expect(screen.getByTestId('pause-session')).toBeOnTheScreen();
+    });
+    expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
+
+    await cleanup();
+  });
+
+  it('ticks the goal and makes Finish the main button once it is met', async () => {
+    const { cleanup } = renderSession();
+
+    await startWalk();
+    await walkFor(600);
+
+    expect(screen.getByText('Goal reached')).toBeOnTheScreen();
+    expect(screen.getByTestId('session-goal-tick')).toBeOnTheScreen();
+    expect(screen.getByText('Keep going, or finish when you like.')).toBeOnTheScreen();
+    expect(screen.getByTestId('stop-session')).toHaveTextContent('Finish walk');
 
     await cleanup();
   });

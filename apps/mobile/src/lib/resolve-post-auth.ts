@@ -1,11 +1,9 @@
 import { apiClient } from './api';
 import { getSessionData, isEmailVerified, waitForSession } from './auth-client';
-import {
-  claimDeferredInviteToken,
-  isMatchInviteToken,
-} from './deferred-invite';
+import { claimDeferredInviteToken, isMatchInviteToken } from './deferred-invite';
 import { peekPendingMatchToken, takePendingMatchToken } from './pending-match-token';
 import { postAuthRoute, type PostAuthHref } from './post-auth-route';
+import { hasAnsweredRemindersIntro } from './reminders-intro';
 
 /**
  * Load session + `/me` and pick the next onboarding / app route.
@@ -26,6 +24,7 @@ export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
   const me = await apiClient.me();
   const pendingToken = await peekPendingMatchToken();
   const hasPendingInvite = isMatchInviteToken(pendingToken);
+  const remindersAsked = await hasAnsweredRemindersIntro(me.reminderEnabled);
 
   const route = postAuthRoute({
     emailVerified: isEmailVerified(session),
@@ -33,6 +32,7 @@ export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
     countryCode: me.countryCode,
     categoryCount: me.categories.length,
     hasPendingInvite,
+    remindersAsked,
   });
 
   if (route !== '/(tabs)') {

@@ -24,10 +24,7 @@ export function boardMoveUrgency(
   recipientScore: number,
   actorScoreBefore = 0,
 ): BoardMoveUrgency {
-  if (
-    actorScoreAfter > recipientScore &&
-    actorScoreBefore <= recipientScore
-  ) {
+  if (actorScoreAfter > recipientScore && actorScoreBefore <= recipientScore) {
     return 'ahead';
   }
 
@@ -53,10 +50,7 @@ export function boardMovePushTitle(urgency: BoardMoveUrgency): string {
   return urgency === 'routine' ? BOARD_MOVE_ROUTINE_TITLE : BOARD_MOVE_URGENT_TITLE;
 }
 
-export function boardMovePushBody(
-  actorDisplayName: string,
-  urgency: BoardMoveUrgency,
-): string {
+export function boardMovePushBody(actorDisplayName: string, urgency: BoardMoveUrgency): string {
   switch (urgency) {
     case 'ahead':
       return `${actorDisplayName} just passed you.`;

@@ -81,10 +81,7 @@ export class CrewSeatNotifierService {
     matchId: string,
     userIds: readonly string[],
   ): Promise<void> {
-    const devices = await this.prisma.pushDevice.findMany({
-      where: { userId: { in: [...userIds] }, isActive: true },
-      select: { expoPushToken: true },
-    });
+    const devices = await this.pushDevices.groupPushDevicesFor(userIds);
 
     if (devices.length === 0) {
       return;

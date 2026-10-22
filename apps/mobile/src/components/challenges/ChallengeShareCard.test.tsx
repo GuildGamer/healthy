@@ -55,9 +55,7 @@ describe('formatShareContext', () => {
     expect(formatShareContext('Walk 20 minutes', 'points', capturedAt)).toBe(
       `Walk 20 minutes · ${date}`,
     );
-    expect(formatShareContext('Do 20 push-ups', 'push-ups', capturedAt)).toBe(
-      date,
-    );
+    expect(formatShareContext('Do 20 push-ups', 'push-ups', capturedAt)).toBe(date);
   });
 });
 
@@ -83,9 +81,7 @@ describe('ChallengeShareCard', () => {
 
     expect(screen.getByTestId('challenge-share-card')).toBeOnTheScreen();
     expect(screen.getByText('Challenge complete.')).toBeOnTheScreen();
-    expect(
-      screen.getByText(`Walk 20 minutes · ${formatShareDate(capturedAt)}`),
-    ).toBeOnTheScreen();
+    expect(screen.getByText(`Walk 20 minutes · ${formatShareDate(capturedAt)}`)).toBeOnTheScreen();
     expect(screen.getByText('+40')).toBeOnTheScreen();
     expect(screen.getByText('points')).toBeOnTheScreen();
     expect(screen.getByText('Streak')).toBeOnTheScreen();
@@ -135,9 +131,7 @@ describe('ChallengeShareCard', () => {
     expect(screen.getByText('Match set.')).toBeOnTheScreen();
     expect(screen.getByText('25')).toBeOnTheScreen();
     expect(screen.getByText('push-ups')).toBeOnTheScreen();
-    expect(
-      screen.getByText(`Best single set · ${formatShareDate(capturedAt)}`),
-    ).toBeOnTheScreen();
+    expect(screen.getByText(`Best single set · ${formatShareDate(capturedAt)}`)).toBeOnTheScreen();
     expect(screen.queryByText('+0')).toBeNull();
   });
 
@@ -158,9 +152,7 @@ describe('ChallengeShareCard', () => {
     expect(screen.getByText('Extra set')).toBeOnTheScreen();
     expect(screen.getByText('25')).toBeOnTheScreen();
     expect(screen.getByText('push-ups')).toBeOnTheScreen();
-    expect(
-      screen.getByText(`12 day streak · ${formatShareStamp(capturedAt)}`),
-    ).toBeOnTheScreen();
+    expect(screen.getByText(`12 day streak · ${formatShareStamp(capturedAt)}`)).toBeOnTheScreen();
     expect(screen.getByText('Counted by camera')).toBeOnTheScreen();
     expect(screen.getByText(SHARE_CARD_URL)).toBeOnTheScreen();
   });
@@ -186,16 +178,10 @@ describe('ChallengeShareCard', () => {
 
   it('keeps the capture square with mint behind the rounded field', () => {
     render(
-      <ChallengeShareCard
-        currentStreakDays={12}
-        pointsAwarded={40}
-        title="Walk 20 minutes"
-      />,
+      <ChallengeShareCard currentStreakDays={12} pointsAwarded={40} title="Walk 20 minutes" />,
     );
 
-    const shotStyle = StyleSheet.flatten(
-      screen.getByTestId('challenge-share-card').props.style,
-    );
+    const shotStyle = StyleSheet.flatten(screen.getByTestId('challenge-share-card').props.style);
     expect(shotStyle.borderRadius).toBeUndefined();
     expect(shotStyle.backgroundColor).toBe('#3DDC97');
   });
@@ -217,9 +203,8 @@ describe('ChallengeShareCard', () => {
       nativeEvent: { layout: { x: 0, y: 0, width: 720, height: 960 } },
     });
 
-    const scaledFontSize = StyleSheet.flatten(
-      screen.getByText('25').props.style,
-    ).fontSize as number;
+    const scaledFontSize = StyleSheet.flatten(screen.getByText('25').props.style)
+      .fontSize as number;
     expect(scaledFontSize).toBe(designFontSize * 2);
   });
 });

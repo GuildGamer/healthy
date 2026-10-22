@@ -36,11 +36,9 @@ export class MatchesController {
 
   @Implement(appContract.publicPreviewMatch)
   publicPreviewMatch() {
-    return implement(appContract.publicPreviewMatch).handler(
-      async ({ input }) => {
-        return this.matchesService.publicPreview(input.token);
-      },
-    );
+    return implement(appContract.publicPreviewMatch).handler(async ({ input }) => {
+      return this.matchesService.publicPreview(input.token);
+    });
   }
 
   @Implement(appContract.joinMatch)
@@ -72,6 +70,22 @@ export class MatchesController {
     const user = request.user ?? null;
     return implement(appContract.cancelMatch).handler(async ({ input }) => {
       return this.matchesService.cancel(user, input.matchId);
+    });
+  }
+
+  @Implement(appContract.reactToMatchMember)
+  reactToMatchMember(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.reactToMatchMember).handler(async ({ input }) => {
+      return this.matchesService.react(user, input);
+    });
+  }
+
+  @Implement(appContract.leaveMatch)
+  leaveMatch(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.leaveMatch).handler(async ({ input }) => {
+      return this.matchesService.leave(user, input.matchId);
     });
   }
 }

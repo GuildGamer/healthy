@@ -11,10 +11,7 @@ export type StandingProgress = {
   note: string | null;
 };
 
-export function standingProgress(input: {
-  score: number;
-  leadScore: number;
-}): StandingProgress {
+export function standingProgress(input: { score: number; leadScore: number }): StandingProgress {
   const { score, leadScore } = input;
 
   if (score <= 0) {

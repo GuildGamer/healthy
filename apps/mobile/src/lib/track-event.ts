@@ -10,10 +10,7 @@ export function normalizeAnalyticsProperties(
 ): Record<string, unknown> {
   const normalized: Record<string, unknown> = { ...properties };
 
-  if (
-    typeof normalized.experiment_id === 'string' &&
-    normalized.experimentId == null
-  ) {
+  if (typeof normalized.experiment_id === 'string' && normalized.experimentId == null) {
     normalized.experimentId = normalized.experiment_id;
   }
 

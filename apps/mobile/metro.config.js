@@ -14,10 +14,12 @@ config.resolver.assetExts.push('tflite');
 const contractSubpathSources = Object.fromEntries(
   [
     'country-code',
+    'display-name',
     'challenge-title',
     'challenge-sort',
     'challenge-capture',
     'match-board',
+    'account-deletion',
   ].map((subpath) => [
     `@product/contract/${subpath}`,
     path.resolve(__dirname, `../../packages/contract/src/${subpath}.ts`),

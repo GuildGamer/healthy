@@ -40,15 +40,25 @@ type UpsertArgs = {
   update: Record<string, unknown>;
 };
 
-function createPrismaMock(options: {
-  unlockedChallenge?: { id: string } | null;
-  membershipActive?: boolean;
-  existing?: PracticeRow[];
-} = {}) {
+type StoredSession = {
+  userChallengeId: string | null;
+  count: number | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+  endedAt: Date | null;
+};
+
+function createPrismaMock(
+  options: {
+    unlockedChallenge?: { id: string } | null;
+    membershipActive?: boolean;
+    existing?: PracticeRow[];
+    stored?: StoredSession | null;
+  } = {},
+) {
   const rows = options.existing ?? [];
   // `??` would swallow an explicit null, which is the locked-out case.
-  const unlocked =
-    'unlockedChallenge' in options ? options.unlockedChallenge : { id: 'c-push' };
+  const unlocked = 'unlockedChallenge' in options ? options.unlockedChallenge : { id: 'c-push' };
 
   return {
     challenge: {
@@ -61,6 +71,11 @@ function createPrismaMock(options: {
       })),
     },
     deviceActivityLog: {
+      findUnique: vi.fn(async () =>
+        options.stored
+          ? { id: 'log-1', metric: 'walk', createdAt: todayAt(12), ...options.stored }
+          : null,
+      ),
       upsert: vi.fn(async ({ create }: UpsertArgs) => ({
         id: 'log-1',
         metric: create.metric,
@@ -81,6 +96,16 @@ const input = {
   startedAt: '2026-09-22T09:00:00.000Z',
   endedAt: '2026-09-22T09:01:05.000Z',
   externalId: 'session-abc',
+} as const;
+
+const walk = {
+  metric: 'walk',
+  source: 'in_app_gps',
+  durationSeconds: 252,
+  distanceMeters: 380,
+  startedAt: '2026-09-22T09:00:00.000Z',
+  endedAt: '2026-09-22T09:04:12.000Z',
+  externalId: 'in-app-gps:uc-walk:2026-09-22T09:00:00.000Z',
 } as const;
 
 describe('PracticeService.record', () => {
@@ -128,8 +153,8 @@ describe('PracticeService.record', () => {
     expect(call?.where).toEqual({
       userId_externalId: { userId: 'u1', externalId: 'session-abc' },
     });
-    // An empty update is what makes the retry a read rather than a second set.
-    expect(call?.update).toEqual({});
+    // A retry writes the same measurement onto the same row, never a second set.
+    expect(call?.update).toMatchObject({ count: 12, durationSeconds: 65 });
     expect(call?.create).toMatchObject({
       userId: 'u1',
       userChallengeId: null,
@@ -137,6 +162,70 @@ describe('PracticeService.record', () => {
       metric: 'pushups',
     });
     expect(result.session.count).toBe(12);
+  });
+
+  it('records a walk that fell short in time and distance, with no reps', async () => {
+    const prisma = createPrismaMock();
+    await new PracticeService(prisma as never).record(user, walk);
+
+    expect(prisma.deviceActivityLog.upsert.mock.calls[0]?.[0]?.create).toMatchObject({
+      userChallengeId: null,
+      metric: 'walk',
+      source: 'in_app_gps',
+      count: null,
+      durationSeconds: 252,
+      distanceMeters: 380,
+    });
+  });
+
+  it('carries a longer walk onto the same row when saved again', async () => {
+    const prisma = createPrismaMock({
+      stored: {
+        userChallengeId: null,
+        count: null,
+        durationSeconds: 120,
+        distanceMeters: 150,
+        endedAt: null,
+      },
+    });
+    await new PracticeService(prisma as never).record(user, walk);
+
+    expect(prisma.deviceActivityLog.upsert.mock.calls[0]?.[0]?.update).toMatchObject({
+      durationSeconds: 252,
+      distanceMeters: 380,
+    });
+  });
+
+  it('keeps the longer walk when an earlier save is retried late', async () => {
+    const stored = {
+      userChallengeId: null,
+      count: null,
+      durationSeconds: 600,
+      distanceMeters: 900,
+      endedAt: null,
+    };
+    const prisma = createPrismaMock({ stored });
+    await new PracticeService(prisma as never).record(user, walk);
+
+    expect(prisma.deviceActivityLog.upsert.mock.calls[0]?.[0]?.update).toMatchObject({
+      durationSeconds: 600,
+      distanceMeters: 900,
+    });
+  });
+
+  it('leaves a session alone once a completion has claimed it', async () => {
+    const prisma = createPrismaMock({
+      stored: {
+        userChallengeId: 'uc-walk',
+        count: null,
+        durationSeconds: 600,
+        distanceMeters: 900,
+        endedAt: null,
+      },
+    });
+    await new PracticeService(prisma as never).record(user, walk);
+
+    expect(prisma.deviceActivityLog.upsert).not.toHaveBeenCalled();
   });
 
   it('awards no points and touches no ledger or streak', async () => {
@@ -178,8 +267,9 @@ describe('PracticeService.totals', () => {
   it('reports an empty day as zero rather than failing', async () => {
     const prisma = createPrismaMock({ existing: [] });
 
-    await expect(
-      new PracticeService(prisma as never).totals(user, 'pushups'),
-    ).resolves.toEqual({ todayCount: 0, todaySessions: 0 });
+    await expect(new PracticeService(prisma as never).totals(user, 'pushups')).resolves.toEqual({
+      todayCount: 0,
+      todaySessions: 0,
+    });
   });
 });

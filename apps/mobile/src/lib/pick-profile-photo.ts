@@ -1,24 +1,15 @@
 import * as ImagePicker from 'expo-image-picker';
 import { isPhysicalDevice } from './is-physical-device';
-import {
-  PROFILE_PHOTO_EDGE_PX,
-  renderProfilePhoto,
-} from './render-profile-photo';
+import { PROFILE_PHOTO_EDGE_PX, renderProfilePhoto } from './render-profile-photo';
 
-export const PHOTO_PERMISSION_MESSAGE =
-  'Allow photos so you can set a profile picture.';
-export const CAMERA_PERMISSION_MESSAGE =
-  'Allow the camera so you can take a profile picture.';
-export const SIMULATOR_CAMERA_MESSAGE =
-  'The camera only works on a physical phone.';
-export const PHOTO_MISSING_MESSAGE =
-  'We could not keep that photo. Choose another and try again.';
-export const PHOTO_TOO_LARGE_MESSAGE =
-  'That photo is too large to save. Try a different one.';
+export const PHOTO_PERMISSION_MESSAGE = 'Allow photos so you can set a profile picture.';
+export const CAMERA_PERMISSION_MESSAGE = 'Allow the camera so you can take a profile picture.';
+export const SIMULATOR_CAMERA_MESSAGE = 'The camera only works on a physical phone.';
+export const PHOTO_MISSING_MESSAGE = 'We could not keep that photo. Choose another and try again.';
+export const PHOTO_TOO_LARGE_MESSAGE = 'That photo is too large to save. Try a different one.';
 export const PHOTO_PICK_FAILED_MESSAGE =
   'We could not open your photos. Check permissions and try again.';
-export const PHOTO_SAVE_FAILED_MESSAGE =
-  'We could not save that photo. Try again.';
+export const PHOTO_SAVE_FAILED_MESSAGE = 'We could not save that photo. Try again.';
 
 /**
  * Backstop after the avatar resize. The saved JPEG is a data URL on the user
@@ -125,9 +116,7 @@ export async function profilePhotoFromCapture(
   return last;
 }
 
-export async function pickProfilePhoto(
-  source: ProfilePhotoSource,
-): Promise<ProfilePhotoPick> {
+export async function pickProfilePhoto(source: ProfilePhotoSource): Promise<ProfilePhotoPick> {
   try {
     if (source === 'camera') {
       if (!isPhysicalDevice()) {
@@ -155,9 +144,7 @@ export async function pickProfilePhoto(
   }
 }
 
-async function resultFromPicker(
-  result: ImagePicker.ImagePickerResult,
-): Promise<ProfilePhotoPick> {
+async function resultFromPicker(result: ImagePicker.ImagePickerResult): Promise<ProfilePhotoPick> {
   if (result.canceled) {
     return { status: 'canceled' };
   }

@@ -30,10 +30,7 @@ export type PedometerModule = {
   isAvailableAsync: () => Promise<boolean>;
   getPermissionsAsync: () => Promise<{ granted: boolean }>;
   requestPermissionsAsync: () => Promise<{ granted: boolean }>;
-  getStepCountAsync: (
-    start: Date,
-    end: Date,
-  ) => Promise<{ steps: number }>;
+  getStepCountAsync: (start: Date, end: Date) => Promise<{ steps: number }>;
   /** Live running total since the subscription started. */
   watchStepCount: (callback: (result: { steps: number }) => void) => {
     remove: () => void;
@@ -93,13 +90,10 @@ export async function requestMovementAccess(): Promise<
     throw new Error(NATIVE_MOVEMENT_UNAVAILABLE);
   }
 
-  const locationResult = location
-    ? await location.requestForegroundPermissionsAsync()
-    : null;
+  const locationResult = location ? await location.requestForegroundPermissionsAsync() : null;
   const motion = pedometer ? await pedometer.requestPermissionsAsync() : null;
   const granted =
-    locationResult?.status === location?.PermissionStatus.GRANTED ||
-    Boolean(motion?.granted);
+    locationResult?.status === location?.PermissionStatus.GRANTED || Boolean(motion?.granted);
 
   return granted ? 'connected' : 'denied';
 }
@@ -120,10 +114,7 @@ export async function readTodaySteps(): Promise<number | null> {
     return null;
   }
 
-  const result = await pedometer.getStepCountAsync(
-    startOfLocalDay(),
-    new Date(),
-  );
+  const result = await pedometer.getStepCountAsync(startOfLocalDay(), new Date());
   return result.steps;
 }
 
@@ -132,9 +123,7 @@ export async function readTodaySteps(): Promise<number | null> {
  * The API already accepts those sources; this returns [] until the native
  * Health module is added. Phone GPS and the pedometer cover v1.
  */
-export async function listTodayDeviceSamples(
-  metric: DeviceMetric,
-): Promise<DeviceSample[]> {
+export async function listTodayDeviceSamples(metric: DeviceMetric): Promise<DeviceSample[]> {
   if (metric !== 'steps') {
     return [];
   }

@@ -1,17 +1,10 @@
-import type {
-  MatchDailyScope,
-  MatchMetric,
-  MatchScoringMode,
-} from '@product/client';
+import type { MatchDailyScope, MatchMetric, MatchScoringMode } from '@product/client';
 import {
   MATCH_MODES_BY_METRIC,
   isScoringModeAllowedForMetric,
 } from '@product/contract/match-board';
 import type { ChallengeIconName } from '@/components/challenges/challenge-icon';
-import {
-  PUSHUP_ICON_NAME,
-  WALK_ICON_NAME,
-} from '@/components/challenges/challenge-icon';
+import { PUSHUP_ICON_NAME, WALK_ICON_NAME } from '@/components/challenges/challenge-icon';
 
 /**
  * Everything a screen needs to name, draw, and run the activity a group is

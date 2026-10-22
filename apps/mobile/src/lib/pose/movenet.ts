@@ -44,9 +44,7 @@ export type MapMoveNetOptions = {
 export function mapMoveNetOutput(
   output: ArrayLike<number>,
   timestampMs: number,
-  orientationOrOptions:
-    | Orientation
-    | MapMoveNetOptions = 'portrait',
+  orientationOrOptions: Orientation | MapMoveNetOptions = 'portrait',
 ): import('./landmarks').PoseFrame {
   const options: MapMoveNetOptions =
     typeof orientationOrOptions === 'string'
@@ -57,10 +55,7 @@ export function mapMoveNetOutput(
   const preRotated = options.preRotated === true;
   const points: import('./landmarks').PoseFrame['points'] = {};
 
-  for (const [name, index] of Object.entries(MOVENET_KEYPOINT) as [
-    MoveNetKeypointName,
-    number,
-  ][]) {
+  for (const [name, index] of Object.entries(MOVENET_KEYPOINT) as [MoveNetKeypointName, number][]) {
     const base = index * 3;
     const y = output[base];
     const x = output[base + 1];
@@ -70,9 +65,7 @@ export function mapMoveNetOutput(
       continue;
     }
 
-    const upright = preRotated
-      ? { x, y }
-      : uprightNormalizedPoint(x, y, orientation);
+    const upright = preRotated ? { x, y } : uprightNormalizedPoint(x, y, orientation);
 
     points[name] = {
       x: upright.x,

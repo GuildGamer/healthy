@@ -13,7 +13,7 @@ describe('readEnvironment', () => {
     expect(environment.evidenceVision).toEqual({ mode: 'accept' });
     expect(environment.appleIap).toEqual({ mode: 'disabled' });
     expect(environment.adminAppUrl).toBe('http://localhost:3001');
-    expect(environment.websiteUrl).toBe('https://gethealthyapp.com');
+    expect(environment.websiteUrl).toBe('https://www.gethealthyapp.com');
     expect(environment.adminBootstrapEmail).toBeNull();
     expect(environment.testingMembership).toBe(true);
   });

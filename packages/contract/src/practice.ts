@@ -2,21 +2,63 @@ import { oc } from '@orpc/contract';
 import { z } from 'zod';
 import { deviceMetricSchema } from './challenge-capture.js';
 
+/** Which in-app sensor measured each kind of practice session. */
+const PRACTICE_SOURCE_BY_METRIC = {
+  pushups: 'in_app_pose',
+  walk: 'in_app_gps',
+} as const;
+
 /**
- * A push-up set the user did outside their daily challenge — after finishing
- * it, or instead of it. Recorded as activity and shareable, but deliberately
- * worth no points and no streak, so repeat sets cannot farm the economy.
+ * A sensor-measured session that is not a challenge's completion: an extra
+ * push-up set after the daily one, or a set or walk that fell short of the
+ * goal. Recorded as activity, and as progress on Today's card, but worth no
+ * points and no streak, so repeat sessions cannot farm the economy.
  */
-export const recordPracticeSessionInputSchema = z.object({
-  metric: z.literal('pushups'),
-  source: z.literal('in_app_pose'),
-  count: z.number().int().positive().max(200_000),
-  durationSeconds: z.number().int().nonnegative().max(86_400),
-  startedAt: z.string().datetime(),
-  endedAt: z.string().datetime(),
-  /** Client-generated, so a retried submit records one session, not two. */
-  externalId: z.string().min(1).max(128),
-});
+export const recordPracticeSessionInputSchema = z
+  .object({
+    metric: z.enum(['pushups', 'walk']),
+    source: z.enum(['in_app_pose', 'in_app_gps']),
+    /** Reps; required for push-ups, absent for a walk. */
+    count: z.number().int().positive().max(200_000).optional(),
+    durationSeconds: z.number().int().nonnegative().max(86_400),
+    /** A walk's route length, when GPS measured one. */
+    distanceMeters: z.number().int().nonnegative().max(200_000).optional(),
+    startedAt: z.string().datetime(),
+    endedAt: z.string().datetime(),
+    /**
+     * Client-generated, so a retried submit records one session, not two. A
+     * walk saved again under the same id, after walking on, updates it.
+     */
+    externalId: z.string().min(1).max(128),
+  })
+  .superRefine((session, context) => {
+    if (session.source !== PRACTICE_SOURCE_BY_METRIC[session.metric]) {
+      context.addIssue({
+        code: 'custom',
+        path: ['source'],
+        message: 'Source does not measure this metric',
+      });
+    }
+
+    if (session.metric === 'pushups' && session.count === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['count'],
+        message: 'A push-up set needs its reps',
+      });
+    }
+
+    if (
+      session.metric === 'walk' &&
+      (session.count !== undefined || session.durationSeconds === 0)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['durationSeconds'],
+        message: 'A walk is measured in time',
+      });
+    }
+  });
 
 export const practiceSessionSchema = z.object({
   id: z.string().min(1),
@@ -52,17 +94,15 @@ export const getPracticeTotalsContract = oc
   .output(practiceTotalsSchema);
 
 /** Row label for a practice session wherever activity is listed. */
-export function practiceActivityReason(
-  metric: z.infer<typeof deviceMetricSchema>,
-): string {
-  return metric === 'pushups' ? 'Push-up practice' : 'Practice session';
+export function practiceActivityReason(metric: z.infer<typeof deviceMetricSchema>): string {
+  if (metric === 'pushups') {
+    return 'Push-up practice';
+  }
+
+  return metric === 'walk' ? 'Walk' : 'Practice session';
 }
 
-export type RecordPracticeSessionInput = z.infer<
-  typeof recordPracticeSessionInputSchema
->;
-export type RecordPracticeSessionOutput = z.infer<
-  typeof recordPracticeSessionOutputSchema
->;
+export type RecordPracticeSessionInput = z.infer<typeof recordPracticeSessionInputSchema>;
+export type RecordPracticeSessionOutput = z.infer<typeof recordPracticeSessionOutputSchema>;
 export type PracticeSession = z.infer<typeof practiceSessionSchema>;
 export type PracticeTotals = z.infer<typeof practiceTotalsSchema>;

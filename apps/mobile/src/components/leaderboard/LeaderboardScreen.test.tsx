@@ -1,7 +1,6 @@
 import type { ListLeaderboardOutput, MeOutput } from '@product/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { useRouter } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
@@ -14,20 +13,19 @@ const testSafeAreaMetrics: Metrics = {
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
-  apiClient: { listLeaderboard: jest.fn(), me: jest.fn() },
+  apiClient: { listLeaderboard: jest.fn(), me: jest.fn(), updateNotificationSettings: jest.fn() },
   apiQuery: {},
 }));
 
-jest.mock('expo-router', () => {
-  const push = jest.fn();
-  return {
-    useRouter: () => ({ push }),
-  };
-});
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  router: { canDismiss: () => true, dismiss: jest.fn(), replace: jest.fn() },
+}));
 
 const mockedApi = apiClient as unknown as {
   listLeaderboard: jest.Mock;
   me: jest.Mock;
+  updateNotificationSettings: jest.Mock;
 };
 
 function me(overrides: Partial<MeOutput> = {}): MeOutput {
@@ -38,9 +36,11 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
     categories: ['hypertension'],
     pointsBalance: 60,
     currentStreakDays: 3,
+    streakLapsedYesterday: false,
+    bestStreakDays: 3,
     timeZone: 'UTC',
     countryCode: 'US',
-    displayName: 'Ada',
+    displayName: 'Kind Finch',
     reminderEnabled: false,
     reminderMinute: 1140,
     evidenceRemindersEnabled: true,
@@ -48,6 +48,7 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
     showOnLeaderboard: true,
     inProgressNudgeEnabled: true,
     inProgressNudgeDelayMinutes: 30,
+    groupNotificationsEnabled: true,
     healthLinkStatus: 'unknown',
     hasMembership: false,
     maxRemindersPerChallenge: 1,
@@ -55,27 +56,38 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
   };
 }
 
+const TOP = [
+  { rank: 1, displayName: 'Amber Fox', points: 6450, isCurrentUser: false },
+  { rank: 2, displayName: 'Quiet Otter', points: 6100, isCurrentUser: false },
+  { rank: 3, displayName: 'Teal Heron', points: 5980, isCurrentUser: false },
+  { rank: 4, displayName: 'Brisk Lark', points: 5700, isCurrentUser: false },
+  { rank: 5, displayName: 'Calm Pike', points: 5650, isCurrentUser: false },
+  { rank: 6, displayName: 'Bright Wren', points: 5400, isCurrentUser: false },
+];
+
 function board(overrides: Partial<ListLeaderboardOutput> = {}): ListLeaderboardOutput {
   return {
-    weekStart: '2026-08-24',
+    weekStart: '2026-10-19',
     period: 'week',
-    periodStart: '2026-08-24',
-    entries: [
-      { rank: 1, displayName: 'Bright Falcon', points: 90, isCurrentUser: false },
-      { rank: 2, displayName: 'Ada', points: 60, isCurrentUser: true },
-      { rank: 3, displayName: 'Calm Otter', points: 20, isCurrentUser: false },
-    ],
-    currentUserRank: 2,
-    currentUserPoints: 60,
+    periodStart: '2026-10-19',
+    entries: TOP,
+    currentUserRank: 38,
+    currentUserRankAtDayStart: 38,
+    currentUserPoints: 1750,
     currentUserVisible: true,
+    aroundCurrentUser: [
+      { rank: 36, displayName: 'Brave Ibis', points: 1820, isCurrentUser: false },
+      { rank: 37, displayName: 'Gentle Moth', points: 1790, isCurrentUser: false },
+      { rank: 38, displayName: 'Kind Finch', points: 1750, isCurrentUser: true },
+      { rank: 39, displayName: 'Steady Crane', points: 1700, isCurrentUser: false },
+      { rank: 40, displayName: 'Bold Newt', points: 1680, isCurrentUser: false },
+    ],
     ...overrides,
   };
 }
 
 function renderLeaderboard() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
   const view = render(
     <QueryClientProvider client={client}>
@@ -87,9 +99,7 @@ function renderLeaderboard() {
 
   return {
     cleanup: async () => {
-      await waitFor(() => {
-        expect(client.isFetching()).toBe(0);
-      });
+      await waitFor(() => expect(client.isFetching()).toBe(0));
       view.unmount();
       client.clear();
     },
@@ -99,166 +109,77 @@ function renderLeaderboard() {
 beforeEach(() => {
   jest.clearAllMocks();
   mockedApi.me.mockResolvedValue(me());
-  mockedApi.listLeaderboard.mockResolvedValue(board());
 });
 
 describe('LeaderboardScreen', () => {
-  it('lists everyone in rank order', async () => {
+  it('leads with your place and the next person to pass, then the top and your neighbours', async () => {
+    mockedApi.listLeaderboard.mockResolvedValue(board());
     const { cleanup } = renderLeaderboard();
 
-    expect(await screen.findByText('Bright Falcon')).toBeOnTheScreen();
-    expect(screen.getByText('Calm Otter')).toBeOnTheScreen();
-    expect(screen.getByTestId('leaderboard-row-1')).toBeOnTheScreen();
+    expect(await screen.findByText('38th')).toBeOnTheScreen();
+    expect(screen.getByText('41 points to pass Gentle Moth. Resets Monday.')).toBeOnTheScreen();
+    expect(screen.getByTestId('leaderboard-row-3')).toBeOnTheScreen();
+    expect(screen.queryByTestId('leaderboard-row-4')).toBeNull();
+    expect(
+      screen.getByTestId('leaderboard-gap', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('leaderboard-row-38')).toHaveTextContent(/You/);
+    expect(screen.queryByText('Kind Finch')).toBeNull();
     expect(mockedApi.listLeaderboard).toHaveBeenCalledWith({ period: 'week' });
 
     await cleanup();
   });
 
-  it('marks which row is yours', async () => {
-    const { cleanup } = renderLeaderboard();
-
-    expect(await screen.findByText(/Ada\s+\(you\)/)).toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('tells you your rank when you are off the page', async () => {
+  it('asks for a first challenge before you have a place', async () => {
     mockedApi.listLeaderboard.mockResolvedValue(
-      board({
-        entries: [
-          {
-            rank: 1,
-            displayName: 'Bright Falcon',
-            points: 90,
-            isCurrentUser: false,
-          },
-        ],
-        currentUserRank: 61,
-        currentUserPoints: 5,
-      }),
+      board({ currentUserRank: null, currentUserPoints: 0, aroundCurrentUser: [] }),
     );
-
     const { cleanup } = renderLeaderboard();
 
-    expect(await screen.findByTestId('leaderboard-own-rank')).toHaveTextContent(
-      'You are ranked 61 with 5 points this week.',
-    );
+    expect(await screen.findByText('Not yet')).toBeOnTheScreen();
+    expect(screen.getByText('Finish one challenge to join this week’s board.')).toBeOnTheScreen();
 
     await cleanup();
   });
 
-  it('stays quiet about your rank when you are already listed', async () => {
-    const { cleanup } = renderLeaderboard();
-
-    await screen.findByText('Bright Falcon');
-    expect(screen.queryByTestId('leaderboard-own-rank')).not.toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('explains when you opted out of the leaderboard', async () => {
+  it('says you are hidden and turns the board back on in one tap', async () => {
     mockedApi.me.mockResolvedValue(me({ showOnLeaderboard: false }));
     mockedApi.listLeaderboard.mockResolvedValue(
-      board({
-        entries: [
-          {
-            rank: 1,
-            displayName: 'Bright Falcon',
-            points: 90,
-            isCurrentUser: false,
-          },
-        ],
-        currentUserRank: null,
-        currentUserPoints: 60,
-        currentUserVisible: false,
-      }),
+      board({ currentUserVisible: false, currentUserRank: null, aroundCurrentUser: [] }),
+    );
+    mockedApi.updateNotificationSettings.mockResolvedValue(me({ showOnLeaderboard: true }));
+    const { cleanup } = renderLeaderboard();
+
+    expect(await screen.findByText('Hidden')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('leaderboard-show-me'));
+
+    await waitFor(() =>
+      expect(mockedApi.updateNotificationSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ showOnLeaderboard: true, evidenceRemindersEnabled: true }),
+      ),
     );
 
-    const { cleanup } = renderLeaderboard();
-
-    expect(
-      await screen.findByTestId('leaderboard-hidden-notice'),
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByText(/You turned off “Show me this week”/),
-    ).toBeOnTheScreen();
-    expect(screen.queryByTestId('leaderboard-own-rank')).not.toBeOnTheScreen();
-
-    fireEvent.press(screen.getByTestId('leaderboard-enable-in-profile'));
-    expect(useRouter().push).toHaveBeenCalledWith('/(tabs)/profile');
-
     await cleanup();
   });
 
-  it('uses Profile setting even if the board payload still says visible', async () => {
-    mockedApi.me.mockResolvedValue(me({ showOnLeaderboard: false }));
-    mockedApi.listLeaderboard.mockResolvedValue(
-      board({
-        entries: [
-          {
-            rank: 1,
-            displayName: 'Bright Falcon',
-            points: 90,
-            isCurrentUser: false,
-          },
-        ],
-        currentUserRank: 2,
-        currentUserVisible: true,
-      }),
-    );
-
+  it('explains the board, naming you as others see you', async () => {
+    mockedApi.listLeaderboard.mockResolvedValue(board());
     const { cleanup } = renderLeaderboard();
+
+    fireEvent.press(await screen.findByTestId('leaderboard-help'));
 
     expect(
-      await screen.findByTestId('leaderboard-hidden-notice'),
-    ).toBeOnTheScreen();
-    expect(screen.queryByTestId('leaderboard-own-rank')).not.toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('invites the first scorer when nobody has points yet', async () => {
-    mockedApi.listLeaderboard.mockResolvedValue(
-      board({ entries: [], currentUserRank: null, currentUserPoints: 0 }),
-    );
-
-    const { cleanup } = renderLeaderboard();
-
-    expect(await screen.findByTestId('leaderboard-empty')).toBeOnTheScreen();
-    expect(screen.getByText('Nobody has scored yet')).toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('asks the API for the month when that tab is selected', async () => {
-    const { cleanup } = renderLeaderboard();
-
-    await screen.findByText('Bright Falcon');
-    fireEvent.press(screen.getByTestId('leaderboard-period-month'));
-
-    await waitFor(() => {
-      expect(mockedApi.listLeaderboard).toHaveBeenCalledWith({ period: 'month' });
-    });
-    expect(
-      screen.getByText('Points earned this month. Everyone starts level again on the 1st.'),
+      await screen.findByText('Others see you as “Kind Finch” and your points.'),
     ).toBeOnTheScreen();
 
     await cleanup();
   });
 
-  it('asks the API for a condition when that category is selected', async () => {
+  it('offers a retry when the board does not load', async () => {
+    mockedApi.listLeaderboard.mockRejectedValue(new Error('offline'));
     const { cleanup } = renderLeaderboard();
 
-    await screen.findByText('Bright Falcon');
-    fireEvent.press(screen.getByTestId('leaderboard-category-menu'));
-    fireEvent.press(screen.getByTestId('leaderboard-category-option-hypertension'));
-
-    await waitFor(() => {
-      expect(mockedApi.listLeaderboard).toHaveBeenCalledWith({
-        period: 'week',
-        category: 'hypertension',
-      });
-    });
+    expect(await screen.findByTestId('leaderboard-error')).toBeOnTheScreen();
 
     await cleanup();
   });

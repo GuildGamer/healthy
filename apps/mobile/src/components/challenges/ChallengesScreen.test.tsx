@@ -1,245 +1,117 @@
-import type { TodayChallenge } from '@product/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native';
+import { fireEvent, screen, within } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
-import type { ReactElement } from 'react';
+import { todayChallenge, todayDetails } from '@/components/home/testing/today-fixtures';
 import { apiClient } from '@/lib/api';
 import { ChallengesScreen } from './ChallengesScreen';
+import { catalogChallenge, catalogOutput } from './testing/catalog-fixtures';
+import { renderScreen } from './testing/render-screen';
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
   apiClient: {
+    listChallengeCatalog: jest.fn(),
     listTodayChallenges: jest.fn(),
-    listMyMatches: jest.fn(),
-    me: jest.fn(),
-    startChallenge: jest.fn(),
-    completeChallenge: jest.fn(),
+    getTodayDetails: jest.fn(),
+    setChallengeEnrollment: jest.fn(),
   },
   apiQuery: {},
 }));
 
 jest.mock('expo-router', () => {
   const push = jest.fn();
-  const navigate = jest.fn();
-  return {
-    useRouter: () => ({ push, navigate }),
-    useNavigation: () => ({ setOptions: jest.fn() }),
-  };
+  return { useRouter: () => ({ push }) };
 });
 
-const mockedApi = apiClient as unknown as {
-  listTodayChallenges: jest.Mock;
-  listMyMatches: jest.Mock;
-  me: jest.Mock;
-  startChallenge: jest.Mock;
-  completeChallenge: jest.Mock;
-};
+const mockedApi = apiClient as unknown as Record<
+  'listChallengeCatalog' | 'listTodayChallenges' | 'getTodayDetails' | 'setChallengeEnrollment',
+  jest.Mock
+>;
 
-function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
-  return {
-    id: 'uc1',
-    challengeId: 'c1',
-    title: 'Walk 20 minutes',
-    description: 'A brisk walk after lunch.',
-    category: 'general',
-    rewardPoints: 20,
-    sortOrder: 100,
-    status: 'pending',
-    frequency: 'daily',
-    completionKind: 'check_in',
-    instruction: 'A brisk walk after lunch.',
-    icon: 'walk',
-    periodKey: '2026-08-28',
-    evidenceRequest: null,
-    draft: null,
-    progress: { filled: 0, required: 1 },
-    capture: {
-      kind: 'self_report',
-      metric: null,
-      target: { durationMinutes: null, distanceMeters: null, count: null },
-    },
-    ...overrides,
-  };
-}
-
-function renderChallenges() {
-  const client = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: 0 },
-      mutations: { retry: false, gcTime: 0 },
-    },
-  });
-
-  function wrap(ui: ReactElement) {
-    return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
-  }
-
-  const view = render(wrap(<ChallengesScreen />));
-
-  return {
-    cleanup: async () => {
-      await waitFor(() => {
-        expect(client.isFetching()).toBe(0);
-      });
-      view.unmount();
-      client.clear();
-    },
-  };
+function today(challenges = [todayChallenge({ id: 'uc-walk', challengeId: 'walk' })]) {
+  return { dayKey: '2026-08-28', challenges, completedCount: 0, totalCount: challenges.length };
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockedApi.listTodayChallenges.mockResolvedValue({
-    dayKey: '2026-08-28',
-    challenges: [challenge()],
-    completedCount: 0,
-    totalCount: 1,
-  });
-  mockedApi.listMyMatches.mockResolvedValue({ live: [], ended: [] });
-  mockedApi.me.mockResolvedValue({ hasMembership: false });
+  mockedApi.listTodayChallenges.mockResolvedValue(today());
+  mockedApi.getTodayDetails.mockResolvedValue(todayDetails([]));
 });
 
 describe('ChallengesScreen', () => {
-  it('opens challenge details from the card, not only Start', async () => {
-    const { cleanup } = renderChallenges();
-
-    fireEvent.press(await screen.findByTestId('open-challenge-c1'));
-
-    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c1');
-    expect(mockedApi.startChallenge).not.toHaveBeenCalled();
-
-    await cleanup();
-  });
-
-  it('opens the log screen when Finish is a blood-pressure reading', async () => {
-    mockedApi.listTodayChallenges.mockResolvedValue({
-      dayKey: '2026-08-28',
-      challenges: [
-        challenge({
-          id: 'uc-bp',
-          challengeId: 'c-bp',
-          status: 'in_progress',
-          completionKind: 'vitals_bp',
-          title: 'Check blood pressure',
-        }),
-      ],
-      completedCount: 0,
-      totalCount: 1,
-    });
-
-    const { cleanup } = renderChallenges();
-
-    fireEvent.press(await screen.findByTestId('advance-challenge-uc-bp'));
-
-    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c-bp/log');
-    expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
-
-    await cleanup();
-  });
-
-  it('opens the confirm screen for a check-in instead of completing on the card', async () => {
-    const { cleanup } = renderChallenges();
-
-    fireEvent.press(await screen.findByTestId('advance-challenge-uc1'));
-
-    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c1/confirm');
-    expect(mockedApi.startChallenge).not.toHaveBeenCalled();
-
-    await cleanup();
-  });
-
-  it('keeps finished challenges tucked away until they ask', async () => {
-    mockedApi.listTodayChallenges.mockResolvedValue({
-      dayKey: '2026-08-28',
-      challenges: [
-        challenge({ id: 'uc-open', title: 'Walk 20 minutes' }),
-        challenge({
-          id: 'uc-done',
-          challengeId: 'c-done',
-          title: 'Drink water',
-          status: 'completed',
-        }),
-      ],
-      completedCount: 1,
-      totalCount: 2,
-    });
-
-    const { cleanup } = renderChallenges();
-
-    expect(await screen.findByText("Today's win · 1 of 2")).toBeOnTheScreen();
-    expect(screen.getByText('Do next')).toBeOnTheScreen();
-    expect(screen.getByText('Walk 20 minutes')).toBeOnTheScreen();
-    expect(screen.queryByText('Drink water')).toBeNull();
-
-    fireEvent.press(screen.getByTestId('show-done-challenges'));
-
-    expect(screen.getByText('Drink water')).toBeOnTheScreen();
-    expect(screen.getByTestId('section-done')).toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('shows one focus, up next, and collapsed cadence groups', async () => {
-    mockedApi.listTodayChallenges.mockResolvedValue({
-      dayKey: '2026-08-28',
-      challenges: [
-        challenge({
-          id: 'uc-week',
-          challengeId: 'c-week',
+  it('lists your routine by rhythm, with each row opening its settings', async () => {
+    mockedApi.listChallengeCatalog.mockResolvedValue(
+      catalogOutput([
+        catalogChallenge({ challengeId: 'walk', title: 'Ten-minute walk', isEnrolled: true }),
+        catalogChallenge({
+          challengeId: 'weigh',
           title: 'Weekly weigh-in',
+          isEnrolled: true,
           frequency: 'weekly',
-          status: 'pending',
         }),
-        challenge({
-          id: 'uc-pending',
-          title: 'Drink water',
-          status: 'pending',
-        }),
-        challenge({
-          id: 'uc-progress',
-          challengeId: 'c-progress',
-          title: 'Check blood pressure',
-          status: 'in_progress',
-          completionKind: 'vitals_bp',
-        }),
-        challenge({
-          id: 'uc-extra',
-          challengeId: 'c-extra',
-          title: 'Stretch',
-          status: 'pending',
-        }),
-        challenge({
-          id: 'uc-parked',
-          challengeId: 'c-parked',
-          title: 'Yoga',
-          status: 'pending',
-        }),
-      ],
-      completedCount: 0,
-      totalCount: 5,
-    });
+        catalogChallenge({ challengeId: 'gym', title: 'Go to the gym' }),
+      ]),
+    );
+    const view = renderScreen(<ChallengesScreen />);
 
-    const { cleanup } = renderChallenges();
+    const daily = await screen.findByTestId('routine-daily');
+    expect(within(daily).getByText('EVERY DAY')).toBeOnTheScreen();
+    expect(within(daily).getByText('0 of 1 done')).toBeOnTheScreen();
+    expect(screen.getByTestId('routine-weekly')).toBeOnTheScreen();
+    expect(screen.queryByText('Go to the gym')).toBeNull();
 
-    expect(await screen.findByText("Today's win · 0 of 2")).toBeOnTheScreen();
-    expect(screen.getByTestId('section-focus')).toBeOnTheScreen();
-    expect(screen.getByText('Check blood pressure')).toBeOnTheScreen();
-    expect(screen.getByTestId('section-up-next')).toBeOnTheScreen();
-    expect(screen.queryByText('Yoga')).toBeNull();
-    expect(screen.queryByText('Weekly weigh-in')).toBeNull();
-
-    fireEvent.press(screen.getByTestId('section-also-toggle'));
-    expect(screen.getByText('Yoga')).toBeOnTheScreen();
-
-    fireEvent.press(screen.getByTestId('section-weekly-toggle'));
-    expect(screen.getByText('Weekly weigh-in')).toBeOnTheScreen();
-
-    await cleanup();
+    fireEvent.press(screen.getByTestId('open-challenge-walk'));
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/walk');
+    await view.settle();
   });
 
+  it('offers the catalogue from one card when nothing is signed up', async () => {
+    mockedApi.listChallengeCatalog.mockResolvedValue(
+      catalogOutput([catalogChallenge({ challengeId: 'walk' })]),
+    );
+    const view = renderScreen(<ChallengesScreen />);
+
+    expect(await screen.findByText('Your routine is empty.')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('routine-add'));
+    expect(useRouter().push).toHaveBeenCalledWith('/manage-challenges');
+    await view.settle();
+  });
+
+  it('says so when the list did not load, and tries again', async () => {
+    mockedApi.listChallengeCatalog.mockRejectedValueOnce(new Error('offline'));
+    const view = renderScreen(<ChallengesScreen />);
+
+    expect(await screen.findByText('Your challenges didn’t load.')).toBeOnTheScreen();
+    mockedApi.listChallengeCatalog.mockResolvedValue(catalogOutput([]));
+    fireEvent.press(screen.getByTestId('routine-retry'));
+    expect(await screen.findByText('Your routine is empty.')).toBeOnTheScreen();
+    await view.settle();
+  });
+
+  it('keeps challenges paused by an ended membership, and explains them', async () => {
+    mockedApi.listChallengeCatalog.mockResolvedValue(
+      catalogOutput([
+        catalogChallenge({ challengeId: 'walk', isEnrolled: true }),
+        catalogChallenge({
+          challengeId: 'gym',
+          title: 'Go to the gym',
+          isEnrolled: true,
+          isLocked: true,
+          requiresMembership: true,
+        }),
+      ]),
+    );
+    const view = renderScreen(<ChallengesScreen />);
+
+    expect(await screen.findByText('Paused with membership')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('paused-challenge-gym'));
+    expect(await screen.findByText('Paused with your membership.')).toBeOnTheScreen();
+
+    mockedApi.setChallengeEnrollment.mockResolvedValue(catalogOutput([]));
+    fireEvent.press(screen.getByTestId('paused-remove'));
+    await view.settle();
+    expect(mockedApi.setChallengeEnrollment).toHaveBeenCalledWith({
+      challengeId: 'gym',
+      isEnrolled: false,
+    });
+  });
 });

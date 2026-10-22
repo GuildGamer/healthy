@@ -11,9 +11,7 @@ export function usePushResponse(): void {
   const handledResponseId = useRef<string | null>(null);
 
   useEffect(() => {
-    function openFromResponse(
-      response: Notifications.NotificationResponse | null,
-    ) {
+    function openFromResponse(response: Notifications.NotificationResponse | null) {
       if (!response) {
         return;
       }
@@ -29,8 +27,7 @@ export function usePushResponse(): void {
 
     void Notifications.getLastNotificationResponseAsync().then(openFromResponse);
 
-    const subscription =
-      Notifications.addNotificationResponseReceivedListener(openFromResponse);
+    const subscription = Notifications.addNotificationResponseReceivedListener(openFromResponse);
 
     return () => {
       subscription.remove();

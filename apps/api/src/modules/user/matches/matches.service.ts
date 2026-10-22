@@ -9,9 +9,12 @@ import {
   resolveMatchLength,
   type ListMyMatchesOutput,
   type MatchBoard,
+  type MatchListItem,
   type MatchMetric,
   type MatchPreview,
+  type MatchReactionSent,
   type MatchScoringMode,
+  type ReactToMatchMemberInput,
   type SubmitMatchAttemptInput,
 } from '@product/contract';
 import type { DeviceActivitySource, DeviceMetric, PrismaClient } from '@product/db';
@@ -35,18 +38,27 @@ import {
   MATCH_COUNT_TOO_LARGE,
   MATCH_ENDED,
   MATCH_FULL,
+  MATCH_HOST_CANNOT_LEAVE,
   MATCH_INVALID_PARENT,
   MATCH_INVALID_SOURCE_CHALLENGE,
   MATCH_NOT_FOUND,
   MATCH_NOT_HOST,
   MATCH_NOT_OPEN,
   MATCH_NOT_PARTICIPANT,
+  MATCH_REACTION_NOT_ALLOWED,
   MATCH_WRONG_ACTIVITY,
 } from './errors/match.errors.js';
+import { MATCH_LIST_ROSTER_SIZE } from './constants/match.js';
+import { lastMoveFor, rosterFor } from './match-list-item.js';
+import { MatchReactionNotifierService } from './match-reaction-notifier.service.js';
+import { MatchReactionsService } from './match-reactions.service.js';
 import { computeStandings, type MatchScoringRules, type StandingEvent } from './match-standings.js';
+import { dayStripFor, movedDayKeysByUser } from './match-days.js';
+import { doneTodayUserIds } from './match-today.js';
 import { createInviteToken } from './match-token.js';
 import { matchLengthBounds } from './match-window.js';
 import type { LoadedMatch } from './types/loaded-match.js';
+import type { ScoredMatch } from './types/scored-match.js';
 
 function scoringRulesFor(match: LoadedMatch): MatchScoringRules {
   return { scoringMode: match.scoringMode, metric: match.metric };
@@ -91,6 +103,8 @@ export class MatchesService {
     private readonly analyticsService: AnalyticsService,
     private readonly inviteAcceptedNotifier: InviteAcceptedNotifierService,
     private readonly boardMoveNotifier: BoardMoveNotifierService,
+    private readonly matchReactions: MatchReactionsService,
+    private readonly matchReactionNotifier: MatchReactionNotifierService,
   ) {}
 
   private async trackMatchEvent(
@@ -271,6 +285,7 @@ export class MatchesService {
       token: live.inviteToken,
       matchId: live.id,
       hostDisplayName: publicNameFor(live.hostUserId, live.hostUser.profile?.displayName),
+      hostImage: live.hostUser.image?.trim() ? live.hostUser.image : null,
       metric: live.metric,
       scoringMode: live.scoringMode,
       dailyScope: live.dailyScope,
@@ -399,27 +414,9 @@ export class MatchesService {
     const ended: ListMyMatchesOutput['ended'] = [];
 
     for (const row of rows) {
-      const match = await this.settleIfDue(row.match);
-      const board = await this.buildBoard(match, user.id);
-      const item = {
-        id: board.id,
-        title: matchContestTitle(
-          board.standings
-            .filter((standing) => !standing.isYou)
-            .map((standing) => standing.displayName),
-        ),
-        metric: board.metric,
-        scoringMode: board.scoringMode,
-        dailyScope: board.dailyScope,
-        endsAt: board.endsAt,
-        status: board.status,
-        participantCount: board.participantCount,
-        yourScore: board.yourScore,
-        yourBestCount: board.yourScore,
-        yourRank: board.standings.find((standing) => standing.isYou)?.rank ?? null,
-      };
+      const item = await this.buildListItem(await this.settleIfDue(row.match), user.id);
 
-      if (board.status === 'open') {
+      if (item.status === 'open') {
         live.push(item);
       } else {
         ended.push(item);
@@ -427,6 +424,38 @@ export class MatchesService {
     }
 
     return { live, ended };
+  }
+
+  private async buildListItem(match: LoadedMatch, viewerId: string): Promise<MatchListItem> {
+    const scored = await this.scoreMatch(match);
+    // The list lights faces but takes no taps, so it never reads reactions.
+    const board = this.boardFrom(match, viewerId, scored, new Map());
+
+    return {
+      id: board.id,
+      title: matchContestTitle(
+        board.standings
+          .filter((standing) => !standing.isYou)
+          .map((standing) => standing.displayName),
+      ),
+      metric: board.metric,
+      scoringMode: board.scoringMode,
+      dailyScope: board.dailyScope,
+      endsAt: board.endsAt,
+      status: board.status,
+      participantCount: board.participantCount,
+      yourScore: board.yourScore,
+      yourBestCount: board.yourScore,
+      yourRank: board.standings.find((standing) => standing.isYou)?.rank ?? null,
+      roster: rosterFor(board.standings, MATCH_LIST_ROSTER_SIZE),
+      lastMove: lastMoveFor({
+        standings: board.standings,
+        scoredAtByUser: scored.result.scoredAtByUser,
+        timeZone: this.contestTimeZone(match),
+        now: new Date(),
+      }),
+      standings: board.standings,
+    };
   }
 
   async submitAttempt(
@@ -504,6 +533,111 @@ export class MatchesService {
     }
 
     return await this.buildBoard(await this.loadById(match.id), user.id);
+  }
+
+  /**
+   * A cheer or a nudge. Which one a tap may be is decided here from the
+   * board, never from the client: a cheer for someone done today, a nudge
+   * for someone who is not, and nothing for a seat that has not accepted.
+   */
+  async react(
+    currentUser: AuthenticatedUser | null | undefined,
+    input: ReactToMatchMemberInput,
+  ): Promise<MatchBoardDto> {
+    const user = requireUser(currentUser);
+    const match = await this.settleIfDue(await this.loadById(input.matchId));
+    this.assertParticipant(match, user.id);
+
+    if (match.status !== 'open') {
+      throw new ORPCError('BAD_REQUEST', { message: MATCH_NOT_OPEN });
+    }
+
+    const scored = await this.scoreMatch(match);
+    this.assertReactionAllowed(match, user.id, input, scored.doneTodayUserIds);
+
+    const reaction = { ...input, fromUserId: user.id, dayKey: this.todayKeyFor(match) };
+    const isFirstTapToday = await this.matchReactions.record(reaction);
+
+    if (isFirstTapToday) {
+      await this.notifyReaction(match, reaction);
+    }
+
+    return await this.buildBoard(match, user.id);
+  }
+
+  private assertReactionAllowed(
+    match: LoadedMatch,
+    fromUserId: string,
+    input: ReactToMatchMemberInput,
+    doneToday: ReadonlySet<string>,
+  ): void {
+    const accepted = new Set(this.acceptedUserIds(match));
+    const isTargetDone = doneToday.has(input.toUserId);
+    const fitsTarget = input.kind === 'cheer' ? isTargetDone : !isTargetDone;
+    const isAllowed =
+      input.toUserId !== fromUserId &&
+      accepted.has(fromUserId) &&
+      accepted.has(input.toUserId) &&
+      fitsTarget;
+
+    if (!isAllowed) {
+      throw new ORPCError('BAD_REQUEST', { message: MATCH_REACTION_NOT_ALLOWED });
+    }
+  }
+
+  /** After the write, and never fatal: the tap stands even if the push does not land. */
+  private async notifyReaction(
+    match: LoadedMatch,
+    reaction: ReactToMatchMemberInput & { fromUserId: string; dayKey: string },
+  ): Promise<void> {
+    const sender = match.participants.find((row) => row.userId === reaction.fromUserId);
+
+    try {
+      await this.matchReactionNotifier.notify({
+        ...reaction,
+        senderName: publicNameFor(reaction.fromUserId, sender?.user.profile?.displayName),
+        group: {
+          scoringMode: match.scoringMode,
+          metric: match.metric,
+          dailyScope: match.dailyScope,
+          endsAt: match.endsAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Could not notify a reaction in match ${match.id}`, error);
+    }
+  }
+
+  /**
+   * Steps a member out of a live group. Their sets and taps go with them, so
+   * the board reads as if they had never joined. The host cancels instead,
+   * because a group without its host has nobody to share the link.
+   */
+  async leave(
+    currentUser: AuthenticatedUser | null | undefined,
+    matchId: string,
+  ): Promise<ListMyMatchesDto> {
+    const user = requireUser(currentUser);
+    const match = await this.settleIfDue(await this.loadById(matchId));
+    this.assertParticipant(match, user.id);
+
+    if (match.hostUserId === user.id) {
+      throw new ORPCError('FORBIDDEN', { message: MATCH_HOST_CANNOT_LEAVE });
+    }
+
+    if (match.status !== 'open') {
+      throw new ORPCError('BAD_REQUEST', { message: MATCH_NOT_OPEN });
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.matchReaction.deleteMany({
+        where: { matchId, OR: [{ fromUserId: user.id }, { toUserId: user.id }] },
+      }),
+      this.prisma.matchAttempt.deleteMany({ where: { matchId, userId: user.id } }),
+      this.prisma.matchParticipant.deleteMany({ where: { matchId, userId: user.id } }),
+    ]);
+
+    return await this.listMine(user);
   }
 
   private async loadByToken(token: string): Promise<LoadedMatch> {
@@ -923,12 +1057,44 @@ export class MatchesService {
     return match.hostUser.profile?.timeZone ?? DEFAULT_TIME_ZONE;
   }
 
+  /** The contest's current day, in the zone its daily cap already uses. */
+  private todayKeyFor(match: LoadedMatch): string {
+    return dayKeyFor(this.contestTimeZone(match), new Date());
+  }
+
+  private async scoreMatch(match: LoadedMatch): Promise<ScoredMatch> {
+    const events = await this.loadScoringEvents(match);
+    const accepted = new Set(this.acceptedUserIds(match));
+    const dayStrip = dayStripFor({
+      scoringMode: match.scoringMode,
+      startsAt: match.startsAt,
+      endsAt: match.endsAt,
+      timeZone: this.contestTimeZone(match),
+      now: new Date(),
+    });
+
+    return {
+      result: computeStandings(this.standingParticipants(match), events, scoringRulesFor(match)),
+      doneTodayUserIds: doneTodayUserIds(events, accepted, this.todayKeyFor(match)),
+      dayStrip,
+      movedDayKeysByUser: dayStrip ? movedDayKeysByUser(events, accepted, dayStrip) : new Map(),
+    };
+  }
+
   private async buildBoard(match: LoadedMatch, viewerId: string): Promise<MatchBoard> {
-    const { standings } = computeStandings(
-      this.standingParticipants(match),
-      await this.loadScoringEvents(match),
-      scoringRulesFor(match),
-    );
+    const scored = await this.scoreMatch(match);
+    const reactions = await this.matchReactions.sentBy(match.id, viewerId, this.todayKeyFor(match));
+    return this.boardFrom(match, viewerId, scored, reactions);
+  }
+
+  private boardFrom(
+    match: LoadedMatch,
+    viewerId: string,
+    scored: ScoredMatch,
+    reactionsByRecipient: ReadonlyMap<string, MatchReactionSent[]>,
+  ): MatchBoard {
+    const { result, doneTodayUserIds: doneToday, dayStrip } = scored;
+    const { standings } = result;
     const yourScore = standings.find((row) => row.userId === viewerId)?.score ?? 0;
 
     return {
@@ -949,8 +1115,12 @@ export class MatchesService {
       standings: standings.map((row) => ({
         ...row,
         isYou: row.userId === viewerId,
+        doneToday: doneToday.has(row.userId),
+        yourReactionsToday: reactionsByRecipient.get(row.userId) ?? [],
+        ...(dayStrip ? { movedDayKeys: scored.movedDayKeysByUser.get(row.userId) ?? [] } : {}),
       })),
       canSaveCrew: this.canSaveCrew(match),
+      dayStrip,
     };
   }
 

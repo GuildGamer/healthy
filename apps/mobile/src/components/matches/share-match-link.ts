@@ -7,15 +7,9 @@ type ShareMatchLinkOptions = {
   metricLabel?: string;
 };
 
-export async function shareMatchLink(
-  urlOrOptions: string | ShareMatchLinkOptions,
-): Promise<void> {
-  const inviteUrl =
-    typeof urlOrOptions === 'string' ? urlOrOptions : urlOrOptions.url;
-  const message =
-    typeof urlOrOptions === 'string'
-      ? inviteUrl
-      : shareMessage(urlOrOptions);
+export async function shareMatchLink(urlOrOptions: string | ShareMatchLinkOptions): Promise<void> {
+  const inviteUrl = typeof urlOrOptions === 'string' ? urlOrOptions : urlOrOptions.url;
+  const message = typeof urlOrOptions === 'string' ? inviteUrl : shareMessage(urlOrOptions);
 
   await Share.share(inviteShareContent(message, inviteUrl));
 }

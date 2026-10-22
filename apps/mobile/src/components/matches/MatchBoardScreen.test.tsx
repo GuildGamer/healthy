@@ -1,399 +1,202 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react-native';
-import type { ReactElement } from 'react';
-import { Share } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import type { Metrics } from 'react-native-safe-area-context';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
+import { Alert, Share } from 'react-native';
 import { apiClient } from '@/lib/api';
+import { hasSeenMatchResult } from '@/lib/seen-match-results';
 import { MatchBoardScreen } from './MatchBoardScreen';
-
-const testSafeAreaMetrics: Metrics = {
-  frame: { x: 0, y: 0, width: 390, height: 844 },
-  insets: { top: 47, left: 0, right: 0, bottom: 34 },
-};
+import { liveBoard, renderWithClient, standing } from './testing/match-fixtures';
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
   apiClient: {
     getMatch: jest.fn(),
     cancelMatch: jest.fn(),
-    saveCrew: jest.fn(),
+    leaveMatch: jest.fn(),
+    reactToMatchMember: jest.fn(),
   },
   apiQuery: {},
 }));
 
-jest.mock('expo-router', () => {
-  const navigate = jest.fn();
-  return { useRouter: () => ({ navigate }) };
-});
+jest.mock('@/lib/seen-match-results', () => ({
+  hasSeenMatchResult: jest.fn(async () => true),
+}));
 
-const mockedApi = apiClient as unknown as {
-  getMatch: jest.Mock;
-  cancelMatch: jest.Mock;
-  saveCrew: jest.Mock;
-};
+const mockNavigate = jest.fn();
+const mockReplace = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ navigate: mockNavigate, replace: mockReplace, push: jest.fn() }),
+  router: { replace: jest.fn(), canDismiss: () => false, dismiss: jest.fn() },
+  Redirect: ({ href }: { href: string }) => {
+    const { Text: MockText } = jest.requireActual('react-native');
+    return <MockText testID="redirect">{href}</MockText>;
+  },
+}));
 
-type Standing = {
-  userId: string;
-  displayName: string;
-  image: string | null;
-  score: number;
-  rank: number;
-  isYou: boolean;
-  isHost: boolean;
-  isPending: boolean;
-};
-
-function standing(overrides: Partial<Standing> & { userId: string }): Standing {
-  return {
-    displayName: 'Bee',
-    image: null,
-    score: 0,
-    rank: 1,
-    isYou: false,
-    isHost: false,
-    isPending: false,
-    ...overrides,
-  };
-}
-
-function liveMatch(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'm1',
-    token: 'tok-1',
-    inviteUrl: 'https://gethealthyapp.com/match/tok-1',
-    metric: 'pushups',
-    scoringMode: 'best_single',
-    status: 'open',
-    endsAt: '2099-01-01T00:00:00.000Z',
-    participantCount: 2,
-    participantCap: 6,
-    winnerUserId: null,
-    yourScore: 30,
-    canSaveCrew: false,
-    standings: [
-      standing({ userId: 'u1', displayName: 'Bee', score: 40, rank: 1 }),
-      standing({
-        userId: 'u2',
-        displayName: 'Nurul',
-        score: 30,
-        rank: 2,
-        isYou: true,
-        isHost: true,
-      }),
-    ],
-    ...overrides,
-  };
-}
-
-function renderBoard() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
-
-  function wrap(ui: ReactElement) {
-    return (
-      <SafeAreaProvider initialMetrics={testSafeAreaMetrics}>
-        <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-      </SafeAreaProvider>
-    );
-  }
-
-  const view = render(wrap(<MatchBoardScreen matchId="m1" />));
-  return {
-    cleanup: async () => {
-      await waitFor(() => {
-        expect(client.isFetching()).toBe(0);
-      });
-      view.unmount();
-      client.clear();
-    },
-  };
-}
+const mockedApi = apiClient as unknown as Record<
+  'getMatch' | 'cancelMatch' | 'leaveMatch' | 'reactToMatchMember',
+  jest.Mock
+>;
 
 describe('MatchBoardScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedApi.reactToMatchMember.mockImplementation(async () => liveBoard());
   });
 
-  it('names your own row rather than repeating your display name', async () => {
-    mockedApi.getMatch.mockResolvedValue(liveMatch());
-    const { cleanup } = renderBoard();
+  it('leads with your score and place, then today, then standings', async () => {
+    mockedApi.getMatch.mockResolvedValue(liveBoard());
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
 
-    const yourRow = within(await screen.findByTestId('match-standing-u2'));
-    expect(yourRow.getByText('You')).toBeOnTheScreen();
-    expect(yourRow.getByText('Host')).toBeOnTheScreen();
-    expect(screen.queryByText('Nurul')).toBeNull();
-
-    await cleanup();
+    const hero = await screen.findByTestId('match-board-hero');
+    expect(within(hero).getByText('Walking total')).toBeOnTheScreen();
+    expect(within(hero).getByText('Ada, Tunde')).toBeOnTheScreen();
+    expect(within(hero).getByText('86')).toBeOnTheScreen();
+    expect(within(hero).getByText('2nd')).toBeOnTheScreen();
+    expect(screen.getByText('2 of 3 walked')).toBeOnTheScreen();
+    expect(screen.getByTestId('match-standing-tunde')).toBeOnTheScreen();
+    expect(screen.getByText('Start a walk')).toBeOnTheScreen();
+    await view.cleanup();
   });
 
-  it('shows a profile avatar next to each standing name', async () => {
-    mockedApi.getMatch.mockResolvedValue(
-      liveMatch({
-        standings: [
-          standing({
-            userId: 'u1',
-            displayName: 'Bee',
-            image: 'data:image/jpeg;base64,bee',
-            score: 40,
-            rank: 1,
-          }),
-          standing({
-            userId: 'u2',
-            displayName: 'Nurul',
-            image: null,
-            score: 30,
-            rank: 2,
-            isYou: true,
-            isHost: true,
-          }),
-        ],
+  it('cheers a lit face with one tap', async () => {
+    mockedApi.getMatch.mockResolvedValue(liveBoard());
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
+
+    fireEvent.press(await screen.findByLabelText('Ada'));
+
+    await waitFor(() =>
+      expect(mockedApi.reactToMatchMember).toHaveBeenCalledWith({
+        matchId: 'm1',
+        toUserId: 'ada',
+        kind: 'cheer',
       }),
     );
-    const { cleanup } = renderBoard();
-
-    expect(
-      await screen.findByTestId('match-standing-avatar-u1'),
-    ).toBeOnTheScreen();
-    expect(screen.getByTestId('match-standing-avatar-u2')).toBeOnTheScreen();
-    // Initials fallback when there is no photo.
-    expect(within(screen.getByTestId('match-standing-avatar-u2')).getByText('N')).toBeOnTheScreen();
-
-    await cleanup();
+    expect(await screen.findByText('You cheered Ada')).toBeOnTheScreen();
+    await view.cleanup();
   });
 
-  it('measures every row against the leader', async () => {
-    mockedApi.getMatch.mockResolvedValue(liveMatch());
-    const { cleanup } = renderBoard();
+  it('shows the exact push before a nudge is sent', async () => {
+    mockedApi.getMatch.mockResolvedValue(liveBoard());
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
 
-    // The leader carries the count alone; everyone else says how far off it is.
-    const leader = within(await screen.findByTestId('match-standing-u1'));
-    expect(leader.getByText('40')).toBeOnTheScreen();
-    expect(leader.queryByText(/behind/)).toBeNull();
+    fireEvent.press(await screen.findByLabelText('Tunde'));
 
-    const yourRow = within(screen.getByTestId('match-standing-u2'));
-    expect(yourRow.getByText('30')).toBeOnTheScreen();
-    expect(yourRow.getByText('10 behind')).toBeOnTheScreen();
+    const sheet = await screen.findByTestId('match-nudge-sheet');
+    expect(within(sheet).getByText('Nudge Tunde?')).toBeOnTheScreen();
+    expect(within(sheet).getByText('No walk from Tunde yet today.')).toBeOnTheScreen();
+    expect(within(sheet).getByText('Nurul nudged you')).toBeOnTheScreen();
+    expect(within(sheet).getByText('4 days left in your walking group.')).toBeOnTheScreen();
+    expect(mockedApi.reactToMatchMember).not.toHaveBeenCalled();
 
-    await cleanup();
-  });
-
-  it('marks a player with no set instead of scoring them zero', async () => {
-    mockedApi.getMatch.mockResolvedValue(
-      liveMatch({
-        standings: [
-          standing({ userId: 'u1', score: 40, rank: 1 }),
-          standing({
-            userId: 'u2',
-            displayName: 'Nurul',
-            score: 0,
-            rank: 2,
-            isYou: true,
-          }),
-        ],
+    fireEvent.press(within(sheet).getByTestId('match-nudge-send'));
+    await waitFor(() =>
+      expect(mockedApi.reactToMatchMember).toHaveBeenCalledWith({
+        matchId: 'm1',
+        toUserId: 'tunde',
+        kind: 'nudge',
       }),
     );
-    const { cleanup } = renderBoard();
-
-    const yourRow = within(await screen.findByTestId('match-standing-u2'));
-    expect(yourRow.getByText('Nothing yet')).toBeOnTheScreen();
-    expect(yourRow.queryByText('0')).toBeNull();
-
-    await cleanup();
+    await view.cleanup();
   });
 
-  it('keeps doing a set as the only button while the match is live', async () => {
-    mockedApi.getMatch.mockResolvedValue(liveMatch());
-    const { cleanup } = renderBoard();
-
-    fireEvent.press(await screen.findByTestId('match-do-set'));
-    const { useRouter } = jest.requireMock('expo-router') as {
-      useRouter: () => { navigate: jest.Mock };
-    };
-    expect(useRouter().navigate).toHaveBeenCalledWith('/matches/m1/pose');
-
-    // Sharing and cancelling stay out of the primary lane.
-    expect(screen.getByTestId('match-share-link')).toBeOnTheScreen();
-    expect(screen.getByTestId('match-cancel')).toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('shares the https link the server minted, not a custom scheme', async () => {
-    const share = jest
-      .spyOn(Share, 'share')
-      .mockResolvedValue({ action: 'sharedAction' } as never);
-    mockedApi.getMatch.mockResolvedValue(liveMatch());
-    const { cleanup } = renderBoard();
-
-    fireEvent.press(await screen.findByTestId('match-share-link'));
-
-    await waitFor(() => {
-      expect(share).toHaveBeenCalledTimes(1);
+  it('says when a nudge went out instead of sending another', async () => {
+    const nudged = standing({
+      userId: 'tunde',
+      displayName: 'Tunde',
+      rank: 3,
+      score: 30,
+      yourReactionsToday: [{ kind: 'nudge', sentAt: '2026-10-22T10:40:00.000Z' }],
     });
-    expect(share).toHaveBeenCalledWith({
-      url: 'https://gethealthyapp.com/match/tok-1',
+    const board = liveBoard();
+    mockedApi.getMatch.mockResolvedValue({
+      ...board,
+      standings: [...board.standings.slice(0, 2), nudged],
     });
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
 
-    share.mockRestore();
-    await cleanup();
+    fireEvent.press(await screen.findByLabelText('Tunde'));
+
+    expect(await screen.findByText(/^Nudged at .+\. Again tomorrow\.$/)).toBeOnTheScreen();
+    expect(mockedApi.reactToMatchMember).not.toHaveBeenCalled();
+    await view.cleanup();
   });
 
-  it('drops the action bar once the match is over', async () => {
+  it('sells the invite while nobody else has joined', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
     mockedApi.getMatch.mockResolvedValue(
-      liveMatch({ status: 'ended', winnerUserId: 'u1' }),
-    );
-    const { cleanup } = renderBoard();
-
-    expect(await screen.findByTestId('match-winner')).toBeOnTheScreen();
-    expect(screen.queryByTestId('match-do-set')).toBeNull();
-    expect(screen.queryByTestId('match-share-link')).toBeNull();
-    expect(screen.queryByTestId('match-cancel')).toBeNull();
-
-    await cleanup();
-  });
-
-  it('shows a crew-seated member as invited rather than beaten', async () => {
-    mockedApi.getMatch.mockResolvedValue(
-      liveMatch({
-        standings: [
-          standing({ userId: 'u1', score: 40, rank: 1 }),
-          standing({
-            userId: 'u2',
-            displayName: 'Cam',
-            score: 0,
-            rank: 2,
-            isPending: true,
-          }),
-        ],
-      }),
-    );
-    const { cleanup } = renderBoard();
-
-    const pendingRow = within(await screen.findByTestId('match-standing-u2'));
-    // "Invited", not "40 behind": they have not agreed to play yet.
-    expect(pendingRow.getAllByText('Invited').length).toBeGreaterThan(0);
-    expect(pendingRow.queryByText(/behind/)).toBeNull();
-
-    await cleanup();
-  });
-
-  it('offers to keep the crew once the contest is over', async () => {
-    mockedApi.getMatch.mockResolvedValue(
-      liveMatch({ status: 'ended', winnerUserId: 'u1', canSaveCrew: true }),
-    );
-    mockedApi.saveCrew.mockResolvedValue({
-      crew: {
-        id: 'crew-1',
-        name: 'Bee',
-        memberCount: 1,
-        memberNames: ['Bee'],
-        isOwner: true,
-      },
-      alreadyExisted: false,
-    });
-    const { cleanup } = renderBoard();
-
-    fireEvent.press(await screen.findByTestId('match-save-crew'));
-
-    await waitFor(() => {
-      expect(mockedApi.saveCrew).toHaveBeenCalledWith({ matchId: 'm1' });
-    });
-    expect(await screen.findByText('Saved')).toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('does not offer a crew while the contest is still running', async () => {
-    mockedApi.getMatch.mockResolvedValue(liveMatch());
-    const { cleanup } = renderBoard();
-
-    expect(await screen.findByTestId('match-do-set')).toBeOnTheScreen();
-    expect(screen.queryByTestId('match-save-crew')).toBeNull();
-
-    await cleanup();
-  });
-
-  it('sells the invite instead of ranking a host against themselves', async () => {
-    mockedApi.getMatch.mockResolvedValue(
-      liveMatch({
+      liveBoard({
         participantCount: 1,
         yourScore: 0,
-        standings: [
-          standing({
-            userId: 'u2',
-            displayName: 'Nurul',
-            score: 0,
-            rank: 1,
-            isYou: true,
-            isHost: true,
-          }),
-        ],
+        standings: [standing({ userId: 'me', displayName: 'Nurul', isYou: true, isHost: true })],
       }),
     );
-    const { cleanup } = renderBoard();
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
 
     expect(await screen.findByTestId('match-waiting')).toBeOnTheScreen();
-    // A board of one has nothing to rank, so no standings and no place.
-    expect(screen.queryByText('Standings')).toBeNull();
-    expect(screen.queryByTestId('match-standing-u2')).toBeNull();
-    expect(screen.getByTestId('match-solo-score')).toBeOnTheScreen();
+    expect(screen.getByText('Your walking group')).toBeOnTheScreen();
+    expect(screen.queryByTestId('match-today-strip')).toBeNull();
 
-    // Sharing takes the primary lane; doing a set stays available beneath it.
-    expect(screen.getByTestId('match-share-link')).toBeOnTheScreen();
-    expect(screen.getByTestId('match-do-set')).toBeOnTheScreen();
-
-    await cleanup();
+    fireEvent.press(screen.getByTestId('match-share-link'));
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    share.mockRestore();
+    await view.cleanup();
   });
 
-  it('shows a logged score as the hero even while nobody else has joined', async () => {
-    mockedApi.getMatch.mockResolvedValue(
-      liveMatch({
-        participantCount: 1,
-        scoringMode: 'cumulative_total',
-        metric: 'walk',
-        yourScore: 7,
-        standings: [
-          standing({
-            userId: 'u2',
-            displayName: 'Nurul',
-            score: 7,
-            rank: 1,
-            isYou: true,
-            isHost: true,
-          }),
-        ],
-      }),
-    );
-    const { cleanup } = renderBoard();
+  it('lets a member who is not the host leave, after confirming', async () => {
+    const alert = jest.spyOn(Alert, 'alert');
+    const board = liveBoard();
+    mockedApi.getMatch.mockResolvedValue({
+      ...board,
+      standings: board.standings.map((row) => ({ ...row, isHost: row.userId === 'ada' })),
+    });
+    mockedApi.leaveMatch.mockResolvedValue({ live: [], ended: [] });
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
 
-    // The walk counted, so the number leads and the invite becomes a note.
-    expect(await screen.findByText('7')).toBeOnTheScreen();
-    expect(screen.getByText('Your total')).toBeOnTheScreen();
-    expect(screen.getByTestId('match-waiting-note')).toBeOnTheScreen();
-    expect(screen.queryByTestId('match-waiting')).toBeNull();
-    // Still nobody to be ahead of, so no place is claimed.
-    expect(screen.queryByText(/#1/)).toBeNull();
+    fireEvent.press(await screen.findByTestId('match-nav-more'));
+    fireEvent.press(await screen.findByTestId('match-leave'));
+    const buttons = alert.mock.calls[0]?.[2] ?? [];
+    buttons.find((button) => button.style === 'destructive')?.onPress?.();
 
-    await cleanup();
+    await waitFor(() => expect(mockedApi.leaveMatch).toHaveBeenCalledWith({ matchId: 'm1' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)/challenges'));
+    alert.mockRestore();
+    await view.cleanup();
   });
 
-  it('hides the invite once the match is full', async () => {
-    mockedApi.getMatch.mockResolvedValue(
-      liveMatch({ participantCount: 6, participantCap: 6 }),
-    );
-    const { cleanup } = renderBoard();
+  it('draws your days as squares on a short streak', async () => {
+    const board = liveBoard({ scoringMode: 'days_completed', yourScore: 2 });
+    mockedApi.getMatch.mockResolvedValue({
+      ...board,
+      dayStrip: { dayKeys: ['2026-10-20', '2026-10-21', '2026-10-22'], todayKey: '2026-10-22' },
+      standings: board.standings.map((row) =>
+        row.isYou ? { ...row, movedDayKeys: ['2026-10-20', '2026-10-22'] } : row,
+      ),
+    });
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
 
-    expect(await screen.findByTestId('match-do-set')).toBeOnTheScreen();
-    expect(screen.queryByTestId('match-share-link')).toBeNull();
+    expect(await screen.findByTestId('match-day-squares')).toBeOnTheScreen();
+    expect(screen.getByText('of 3 days')).toBeOnTheScreen();
+    expect(screen.getByTestId('match-day-2026-10-20-hit')).toBeOnTheScreen();
+    expect(screen.getByTestId('match-day-2026-10-21')).toBeOnTheScreen();
+    expect(screen.getByText('Streak')).toBeOnTheScreen();
+    await view.cleanup();
+  });
 
-    await cleanup();
+  it('opens a member’s photo from the standings', async () => {
+    mockedApi.getMatch.mockResolvedValue(liveBoard());
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
+
+    fireEvent.press(await screen.findByLabelText('Ada’s photo'));
+
+    expect(await screen.findByTestId('profile-photo-preview-image')).toBeOnTheScreen();
+    await view.cleanup();
+  });
+
+  it('opens the result the first time a finished group is opened', async () => {
+    (hasSeenMatchResult as jest.Mock).mockResolvedValueOnce(false);
+    mockedApi.getMatch.mockResolvedValue(liveBoard({ status: 'completed', winnerUserId: 'ada' }));
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
+
+    expect(await screen.findByTestId('redirect')).toHaveTextContent('/matches/m1/result');
+    await view.cleanup();
   });
 });

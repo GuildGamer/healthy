@@ -1,12 +1,6 @@
-import { colors } from '@product/brand';
 import { type ReactNode } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-  type ScrollViewProps,
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
+import { useTheme } from '@/theme';
 import { Loader } from './Loader';
 import { usePullRefresh } from './use-pull-refresh';
 
@@ -16,15 +10,16 @@ interface RefreshableScrollProps extends Omit<ScrollViewProps, 'refreshControl'>
 }
 
 /**
- * iOS Fabric makes RefreshControl tint unreliable on navy screens. Drive the
- * visible spinner ourselves and paint the native control in the background so
- * the pull gesture still works without a second spinner.
+ * Fabric makes the RefreshControl tint unreliable. Drive the visible spinner
+ * ourselves and paint the native control in the page colour so the pull
+ * gesture still works without a second spinner.
  */
 export function RefreshableScroll({
   onPullRefresh,
   children,
   ...scrollProps
 }: RefreshableScrollProps) {
+  const { colors } = useTheme();
   const { isRefreshing, onRefresh } = usePullRefresh(onPullRefresh);
   const hiddenTint = colors.background;
 

@@ -1,20 +1,16 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
+import { fontSize, fontWeight, spacing } from '@product/brand';
 import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { type Theme, useThemedStyles, useTheme } from '@/theme';
 
 /**
  * Full-bleed select band — hairlines edge to edge so a dropdown sits in its
  * own strip. Use for any menu trigger that should not look like a text field.
  */
-export function SelectBand({
-  children,
-  testID,
-}: {
-  children: ReactNode;
-  testID?: string;
-}) {
+export function SelectBand({ children, testID }: { children: ReactNode; testID?: string }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.band} testID={testID}>
       {children}
@@ -39,6 +35,8 @@ export function SelectTrigger({
   testID?: string;
   value: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   return (
     <Pressable
       accessibilityHint={accessibilityHint}
@@ -75,6 +73,7 @@ export function SelectSheet({
   visible: boolean;
   testID?: string;
 }) {
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
 
   return (
@@ -126,6 +125,8 @@ export function SelectOptionRow({
   testID?: string;
   title: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -146,97 +147,98 @@ export function SelectOptionRow({
   );
 }
 
-const styles = StyleSheet.create({
-  band: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  trigger: {
-    gap: 2,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    minHeight: 52,
-    justifyContent: 'center',
-  },
-  triggerPressed: {
-    backgroundColor: colors.surface,
-  },
-  eyebrow: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-  },
-  valueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  value: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  sheet: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  sheetTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  closeButton: {
-    minHeight: 44,
-    minWidth: 44,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-  },
-  closeButtonPressed: {
-    opacity: 0.7,
-  },
-  close: {
-    color: colors.accent,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  option: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  optionTitle: {
-    flex: 1,
-    flexShrink: 1,
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-  },
-  optionMeta: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    minWidth: 20,
-    textAlign: 'right',
-  },
-  checkSpacer: {
-    width: 18,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    band: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.background,
+    },
+    trigger: {
+      gap: 2,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      minHeight: 52,
+      justifyContent: 'center',
+    },
+    triggerPressed: {
+      backgroundColor: theme.colors.surface,
+    },
+    eyebrow: {
+      color: theme.colors.muted,
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.medium,
+    },
+    valueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    value: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+    },
+    sheet: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    sheetTitle: {
+      color: theme.colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+    },
+    closeButton: {
+      minHeight: 44,
+      minWidth: 44,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.sm,
+    },
+    closeButtonPressed: {
+      opacity: 0.7,
+    },
+    close: {
+      color: theme.colors.accent,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.semibold,
+    },
+    option: {
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    optionTitle: {
+      flex: 1,
+      flexShrink: 1,
+      color: theme.colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.medium,
+    },
+    optionMeta: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      minWidth: 20,
+      textAlign: 'right',
+    },
+    checkSpacer: {
+      width: 18,
+    },
+  });

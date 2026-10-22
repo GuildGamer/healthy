@@ -1,14 +1,27 @@
-import type { CatalogChallenge, TodayChallenge } from '@product/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
+import { useRouter } from 'expo-router';
+import { ActionSheetIOS } from 'react-native';
+import {
+  occurrenceDetail,
+  todayChallenge,
+  todayDetails,
+} from '@/components/home/testing/today-fixtures';
 import { apiClient } from '@/lib/api';
 import { ChallengeDetailScreen } from './ChallengeDetailScreen';
+import {
+  catalogChallenge,
+  catalogOutput,
+  PUSHUPS_TWENTY,
+  WALK_TEN,
+} from './testing/catalog-fixtures';
+import { renderScreen } from './testing/render-screen';
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
   apiClient: {
     listChallengeCatalog: jest.fn(),
     listTodayChallenges: jest.fn(),
+    getTodayDetails: jest.fn(),
     listChallengeHistory: jest.fn(),
     setChallengeEnrollment: jest.fn(),
     addChallengeReminder: jest.fn(),
@@ -19,283 +32,167 @@ jest.mock('@/lib/api', () => ({
 
 jest.mock('expo-router', () => {
   const push = jest.fn();
-  const back = jest.fn();
-  const dismiss = jest.fn();
   const replace = jest.fn();
-  return {
-    useRouter: () => ({
-      push,
-      back,
-      canDismiss: () => true,
-      dismiss,
-      replace,
-    }),
-    router: {
-      back,
-      canDismiss: () => true,
-      dismiss,
-      replace,
-    },
-  };
+  const back = jest.fn();
+  return { useRouter: () => ({ push, replace, back, canGoBack: () => true }) };
 });
 
-const mockedApi = apiClient as unknown as {
-  listChallengeCatalog: jest.Mock;
-  listTodayChallenges: jest.Mock;
-  listChallengeHistory: jest.Mock;
-  setChallengeEnrollment: jest.Mock;
-};
+jest.mock('@/lib/go-back', () => ({ goBackOrHome: jest.fn() }));
 
-function catalogChallenge(
-  overrides: Partial<CatalogChallenge> = {},
-): CatalogChallenge {
-  return {
-    challengeId: 'c1',
-    slug: 'walk',
-    title: 'Walk 20 minutes',
-    description: 'A brisk walk after lunch.',
-    category: 'general',
-    rewardPoints: 20,
-    sortOrder: 100,
-    frequency: 'daily',
-    completionKind: 'check_in',
-    instruction: 'A brisk walk after lunch.',
-    icon: 'walk',
-    isEnrolled: true,
-    requiresMembership: false,
-    isLocked: false,
-    reminders: [],
-    capture: {
-      kind: 'self_report',
-      metric: null,
-      target: { durationMinutes: null, distanceMeters: null, count: null },
-    },
-    ...overrides,
-  };
-}
+const mockedApi = apiClient as unknown as Record<keyof typeof apiClient, jest.Mock>;
 
-function todayChallenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
-  return {
-    id: 'uc1',
-    challengeId: 'c1',
-    title: 'Walk 20 minutes',
-    description: 'A brisk walk after lunch.',
-    category: 'general',
-    rewardPoints: 20,
-    sortOrder: 100,
-    status: 'completed',
-    frequency: 'daily',
-    completionKind: 'check_in',
-    instruction: 'A brisk walk after lunch.',
-    icon: 'walk',
-    periodKey: '2026-08-30',
-    evidenceRequest: null,
-    draft: null,
-    progress: { filled: 1, required: 1 },
-    capture: {
-      kind: 'self_report',
-      metric: null,
-      target: { durationMinutes: null, distanceMeters: null, count: null },
-    },
-    ...overrides,
-  };
-}
-
-function renderDetail() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
-
-  const view = render(
-    <QueryClientProvider client={client}>
-      <ChallengeDetailScreen challengeId="c1" />
-    </QueryClientProvider>,
-  );
-
-  return {
-    cleanup: async () => {
-      await waitFor(() => {
-        expect(client.isFetching()).toBe(0);
-      });
-      view.unmount();
-      client.clear();
-    },
-  };
-}
+const pushups = catalogChallenge({
+  challengeId: 'push',
+  title: 'Do 20 push-ups',
+  isEnrolled: true,
+  capture: PUSHUPS_TWENTY,
+  reminders: [{ id: 'r1', minuteOfDay: 1080 }],
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockedApi.listChallengeCatalog.mockResolvedValue({
-    challenges: [catalogChallenge()],
-    enrolledCount: 1,
-    hasMembership: false,
-    maxRemindersPerChallenge: 1,
-  });
+  mockedApi.listChallengeCatalog.mockResolvedValue(catalogOutput([pushups]));
   mockedApi.listTodayChallenges.mockResolvedValue({
-    dayKey: '2026-08-30',
-    challenges: [todayChallenge()],
-    completedCount: 1,
+    dayKey: '2026-08-28',
+    challenges: [todayChallenge({ id: 'uc-push', challengeId: 'push', capture: PUSHUPS_TWENTY })],
+    completedCount: 0,
     totalCount: 1,
   });
-  mockedApi.listChallengeHistory.mockResolvedValue({
-    challengeId: 'c1',
-    entries: [],
-  });
+  mockedApi.getTodayDetails.mockResolvedValue(
+    todayDetails([occurrenceDetail({ userChallengeId: 'uc-push', activeDayKeys: ['2026-08-25'] })]),
+  );
+  mockedApi.listChallengeHistory.mockResolvedValue({ challengeId: 'push', entries: [] });
+  mockedApi.setChallengeEnrollment.mockResolvedValue(catalogOutput([pushups]));
 });
 
-async function openHistoryTab() {
-  await screen.findByTestId('challenge-detail-tabs');
-  fireEvent.press(screen.getByTestId('challenge-detail-tab-history'));
-}
+describe('ChallengeDetailScreen', () => {
+  it('shows the challenge with its week, settings and reminders', async () => {
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
 
-describe('ChallengeDetailScreen history', () => {
-  it('shows today’s completed challenge on the history tab', async () => {
-    const { cleanup } = renderDetail();
-
-    await openHistoryTab();
-
-    expect(await screen.findByTestId('challenge-history-list')).toBeOnTheScreen();
-    expect(screen.getByTestId('challenge-history-uc1')).toBeOnTheScreen();
-    expect(screen.getByText('Checked in')).toBeOnTheScreen();
-    expect(screen.getByText('+20')).toBeOnTheScreen();
-
-    await cleanup();
+    const hero = await screen.findByTestId('challenge-detail-hero');
+    expect(within(hero).getByText('+150 a day')).toBeOnTheScreen();
+    expect(await screen.findByTestId('deck-week-hit-2026-08-25')).toBeOnTheScreen();
+    expect(screen.getByText('20 push-ups')).toBeOnTheScreen();
+    expect(screen.getByText('Your camera')).toBeOnTheScreen();
+    expect(screen.getByText('Evening, 18:00')).toBeOnTheScreen();
+    expect(await screen.findByText('0 times')).toBeOnTheScreen();
+    await view.settle();
   });
 
-  it('keeps history off the details tab', async () => {
-    const { cleanup } = renderDetail();
+  it('saves how often as soon as it changes, and puts it back if that fails', async () => {
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
+    await screen.findByTestId('challenge-settings');
 
-    expect(await screen.findByTestId('challenge-detail-tabs')).toBeOnTheScreen();
-    expect(screen.getByText('How often')).toBeOnTheScreen();
-    expect(screen.queryByTestId('challenge-history-empty')).toBeNull();
+    mockedApi.setChallengeEnrollment.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.press(screen.getByTestId('detail-frequency-weekly'));
 
-    await cleanup();
+    expect(await screen.findByText(/That didn’t save/)).toBeOnTheScreen();
+    expect(mockedApi.setChallengeEnrollment).toHaveBeenCalledWith({
+      challengeId: 'push',
+      frequency: 'weekly',
+      isEnrolled: true,
+    });
+    expect(screen.getByTestId('detail-frequency-daily')).toBeSelected();
+    await view.settle();
   });
 
-  it('invites the first completion when the list is empty', async () => {
-    mockedApi.listTodayChallenges.mockResolvedValue({
-      dayKey: '2026-08-30',
-      challenges: [todayChallenge({ status: 'pending' })],
-      completedCount: 0,
-      totalCount: 1,
-    });
+  it('changes the goal from its sheet', async () => {
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
 
-    const { cleanup } = renderDetail();
+    fireEvent.press(await screen.findByTestId('detail-goal'));
+    fireEvent.press(await screen.findByTestId('goal-pick-30'));
+    fireEvent.press(screen.getByTestId('goal-done'));
 
-    await openHistoryTab();
-
-    expect(await screen.findByTestId('challenge-history-empty')).toBeOnTheScreen();
-    expect(screen.queryByText('How often')).toBeNull();
-    expect(mockedApi.listChallengeHistory).toHaveBeenCalledWith({
-      challengeId: 'c1',
-    });
-
-    await cleanup();
-  });
-
-  it('lists a past completion with what was logged and the points', async () => {
-    mockedApi.listChallengeHistory.mockResolvedValue({
-      challengeId: 'c1',
-      entries: [
-        {
-          id: 'uc1',
-          periodKey: '2026-08-30',
-          completedAt: '2026-08-30T12:00:00.000Z',
-          outcome: 'rewarded',
-          pointsDelta: 20,
-          log: { kind: 'check_in' },
-          evidence: null,
-        },
-      ],
-    });
-
-    const { cleanup } = renderDetail();
-
-    await openHistoryTab();
-
-    expect(await screen.findByTestId('challenge-history-list')).toBeOnTheScreen();
-    expect(screen.getByTestId('challenge-history-uc1')).toBeOnTheScreen();
-    expect(screen.getByText('Checked in')).toBeOnTheScreen();
-    expect(screen.getByText('30 Aug')).toBeOnTheScreen();
-    expect(screen.getByText('+20')).toBeOnTheScreen();
-
-    await cleanup();
-  });
-
-  it('names a skipped photo check on a penalty row', async () => {
-    mockedApi.listChallengeHistory.mockResolvedValue({
-      challengeId: 'c1',
-      entries: [
-        {
-          id: 'h2',
-          periodKey: '2026-08-29',
-          completedAt: '2026-08-29T12:00:00.000Z',
-          outcome: 'penalized',
-          pointsDelta: -25,
-          log: { kind: 'check_in' },
-          evidence: 'skipped',
-        },
-      ],
-    });
-
-    const { cleanup } = renderDetail();
-
-    await openHistoryTab();
-
-    expect(await screen.findByText(/Photo skipped/)).toBeOnTheScreen();
-    expect(screen.getByText('-25')).toBeOnTheScreen();
-
-    await cleanup();
-  });
-});
-
-describe('ChallengeDetailScreen push-up target', () => {
-  it('lets the member change the count and save it', async () => {
-    mockedApi.listChallengeCatalog.mockResolvedValue({
-      challenges: [
-        catalogChallenge({
-          title: 'Do 20 push-ups',
-          capture: {
-            kind: 'device_session',
-            metric: 'pushups',
-            target: { durationMinutes: null, distanceMeters: null, count: 20 },
-          },
-        }),
-      ],
-      enrolledCount: 1,
-      hasMembership: false,
-      maxRemindersPerChallenge: 1,
-    });
-    mockedApi.setChallengeEnrollment.mockResolvedValue({
-      challenges: [],
-      enrolledCount: 1,
-      hasMembership: false,
-      maxRemindersPerChallenge: 1,
-    });
-
-    const { cleanup } = renderDetail();
-
-    expect(await screen.findByTestId('detail-pushup-target-value')).toHaveTextContent(
-      '20',
-    );
-
-    expect(await screen.findByText('Do 20 push-ups')).toBeOnTheScreen();
-
-    fireEvent.press(screen.getByTestId('detail-pushup-target-dec'));
-    expect(screen.getByTestId('detail-pushup-target-value')).toHaveTextContent('19');
-    expect(screen.getByText('Do 19 push-ups')).toBeOnTheScreen();
-
-    fireEvent.press(screen.getByTestId('challenge-detail-save'));
-
-    await waitFor(() => {
+    await waitFor(() =>
       expect(mockedApi.setChallengeEnrollment).toHaveBeenCalledWith({
-        challengeId: 'c1',
+        challengeId: 'push',
+        targetCount: 30,
         isEnrolled: true,
-        frequency: 'daily',
-        targetCount: 19,
-      });
-    });
+      }),
+    );
+    await view.settle();
+  });
 
-    await cleanup();
+  it('lets a walker change their minutes', async () => {
+    const walk = catalogChallenge({
+      challengeId: 'walk',
+      title: 'Take a ten-minute walk',
+      isEnrolled: true,
+      capture: WALK_TEN,
+    });
+    mockedApi.listChallengeCatalog.mockResolvedValue(catalogOutput([walk]));
+    const view = renderScreen(<ChallengeDetailScreen challengeId="walk" />);
+
+    fireEvent.press(await screen.findByTestId('detail-goal'));
+    expect(await screen.findByText('Your walk goal')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('goal-pick-20'));
+    fireEvent.press(screen.getByTestId('goal-done'));
+
+    await waitFor(() =>
+      expect(mockedApi.setChallengeEnrollment).toHaveBeenCalledWith({
+        challengeId: 'walk',
+        targetDurationMinutes: 20,
+        isEnrolled: true,
+      }),
+    );
+    await view.settle();
+  });
+
+  it('names the one-reminder limit plainly when a free member asks for more', async () => {
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
+
+    const unlock = await screen.findByTestId('detail-unlock-reminders');
+    expect(within(unlock).getByText('MEMBERS')).toBeOnTheScreen();
+    fireEvent.press(unlock);
+
+    expect(await screen.findByText('One reminder per challenge, for now.')).toBeOnTheScreen();
+    await view.settle();
+  });
+
+  it('removes a reminder with its ×', async () => {
+    mockedApi.removeChallengeReminder.mockResolvedValue({ challengeId: 'push', reminders: [] });
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
+
+    fireEvent.press(await screen.findByTestId('detail-remove-reminder-1080'));
+
+    await waitFor(() =>
+      expect(mockedApi.removeChallengeReminder).toHaveBeenCalledWith({ reminderId: 'r1' }),
+    );
+    await view.settle();
+  });
+
+  it('asks before removing, saying what you keep', async () => {
+    const actionSheet = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, callback) => callback(0));
+    mockedApi.setChallengeEnrollment.mockResolvedValue(catalogOutput([]));
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
+
+    fireEvent.press(await screen.findByTestId('challenge-detail-stop'));
+
+    expect(actionSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Remove Do 20 push-ups?',
+        message: 'Your history and points stay. You can add it back any time.',
+      }),
+      expect.any(Function),
+    );
+    await waitFor(() =>
+      expect(mockedApi.setChallengeEnrollment).toHaveBeenCalledWith({
+        challengeId: 'push',
+        isEnrolled: false,
+      }),
+    );
+    await view.settle();
+    actionSheet.mockRestore();
+  });
+
+  it('opens its history', async () => {
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
+
+    fireEvent.press(await screen.findByTestId('detail-history'));
+
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/push/history');
+    await view.settle();
   });
 });

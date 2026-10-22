@@ -1,8 +1,17 @@
 import type { Href } from 'expo-router';
+import { TODAY_FOCUS_PARAM } from './today-focus';
+
+const SUCCESS_PARAM_KEYS = ['title', 'points', 'streak', 'count', 'target', 'metric'] as const;
+
+function readTrimmedString(payload: Record<string, unknown>, key: string): string {
+  const value = payload[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
 
 /**
- * Where a push should land. Habit slots open Today; challenge reminders open
- * that challenge. Unknown payloads stay on the tabs home.
+ * Where a push should land. Habit slots open Today; a challenge reminder opens
+ * Today on that challenge's card, where it can be done; completion success rows
+ * reopen the share screen. Unknown payloads stay on the tabs home.
  */
 export function hrefForPushData(data: unknown): Href {
   if (!data || typeof data !== 'object') {
@@ -10,28 +19,36 @@ export function hrefForPushData(data: unknown): Href {
   }
 
   const payload = data as Record<string, unknown>;
-  const challengeId =
-    typeof payload.challengeId === 'string' ? payload.challengeId.trim() : '';
-  const matchId =
-    typeof payload.matchId === 'string' ? payload.matchId.trim() : '';
-  const destination =
-    typeof payload.destination === 'string' ? payload.destination : '';
+  const challengeId = readTrimmedString(payload, 'challengeId');
+  const matchId = readTrimmedString(payload, 'matchId');
+  const userChallengeId = readTrimmedString(payload, 'userChallengeId');
+  const destination = typeof payload.destination === 'string' ? payload.destination : '';
 
   if (matchId.length > 0) {
     // Board lives under `/matches/[matchId]`. `/match/[token]` is the invite.
     return `/matches/${matchId}`;
   }
 
-  if (destination === 'challenge' && challengeId.length > 0) {
-    return `/challenge/${challengeId}`;
+  if (userChallengeId.length > 0) {
+    const params: Record<string, string> = { userChallengeId };
+    for (const key of SUCCESS_PARAM_KEYS) {
+      const value = readTrimmedString(payload, key);
+      if (value.length > 0) {
+        params[key] = value;
+      }
+    }
+    return {
+      pathname: '/challenge/success',
+      params,
+    };
   }
 
   if (destination === 'challenges') {
     return '/(tabs)/challenges';
   }
 
-  if (challengeId.length > 0 && destination !== 'today') {
-    return `/challenge/${challengeId}`;
+  if (challengeId.length > 0) {
+    return { pathname: '/(tabs)', params: { [TODAY_FOCUS_PARAM]: challengeId } };
   }
 
   return '/(tabs)';
@@ -47,14 +64,16 @@ export function isNavigablePushData(data: unknown): boolean {
   }
 
   const payload = data as Record<string, unknown>;
-  const challengeId =
-    typeof payload.challengeId === 'string' ? payload.challengeId.trim() : '';
-  const matchId =
-    typeof payload.matchId === 'string' ? payload.matchId.trim() : '';
-  const destination =
-    typeof payload.destination === 'string' ? payload.destination : '';
+  const challengeId = readTrimmedString(payload, 'challengeId');
+  const matchId = readTrimmedString(payload, 'matchId');
+  const userChallengeId = readTrimmedString(payload, 'userChallengeId');
+  const destination = typeof payload.destination === 'string' ? payload.destination : '';
 
   if (matchId.length > 0) {
+    return true;
+  }
+
+  if (userChallengeId.length > 0) {
     return true;
   }
 

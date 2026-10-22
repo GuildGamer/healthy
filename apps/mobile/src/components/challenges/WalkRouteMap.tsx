@@ -1,10 +1,11 @@
-import { colors, fontSize, spacing } from '@product/brand';
+import { fontSize, spacing } from '@product/brand';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type MapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { DARK_MAP_STYLE } from '@/components/challenges/constants/dark-map-style';
 import type { GeoPoint } from '@/lib/geo-session';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
 /** Roughly 700 m across: close enough to read every turn of a neighbourhood loop. */
 const ROUTE_SPAN_DEGREES = 0.006;
@@ -29,6 +30,8 @@ export function WalkRouteMap({
   isRecording: boolean;
   points: GeoPoint[];
 }) {
+  const { colors, scheme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const maps = useMapsModule();
   const mapRef = useRef<MapView | null>(null);
   const lastPoint = points[points.length - 1];
@@ -56,9 +59,7 @@ export function WalkRouteMap({
   if (!maps) {
     return (
       <View style={styles.fallback}>
-        <Text style={styles.fallbackText}>
-          {isRecording ? MAP_RECORDING : MAP_UNAVAILABLE}
-        </Text>
+        <Text style={styles.fallbackText}>{isRecording ? MAP_RECORDING : MAP_UNAVAILABLE}</Text>
       </View>
     );
   }
@@ -69,7 +70,7 @@ export function WalkRouteMap({
 
   return (
     <Map
-      customMapStyle={DARK_MAP_STYLE}
+      customMapStyle={scheme === 'dark' ? DARK_MAP_STYLE : undefined}
       initialRegion={initialRegion(points)}
       ref={mapRef}
       showsCompass={false}
@@ -78,14 +79,10 @@ export function WalkRouteMap({
       showsUserLocation
       style={StyleSheet.absoluteFill}
       toolbarEnabled={false}
-      userInterfaceStyle="dark"
+      userInterfaceStyle={scheme}
     >
       {start && hasRoute ? (
-        <Marker
-          anchor={{ x: 0.5, y: 0.5 }}
-          coordinate={start}
-          tracksViewChanges={false}
-        >
+        <Marker anchor={{ x: 0.5, y: 0.5 }} coordinate={start} tracksViewChanges={false}>
           <View style={styles.startDot} />
         </Marker>
       ) : null}
@@ -152,25 +149,26 @@ function initialRegion(points: GeoPoint[]): Region {
   };
 }
 
-const styles = StyleSheet.create({
-  fallback: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  fallbackText: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  startDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 3,
-    borderColor: colors.background,
-    backgroundColor: colors.accent,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    fallback: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.md,
+      backgroundColor: theme.colors.surface,
+    },
+    fallbackText: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
+    },
+    startDot: {
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      borderWidth: 3,
+      borderColor: theme.colors.background,
+      backgroundColor: theme.colors.accent,
+    },
+  });

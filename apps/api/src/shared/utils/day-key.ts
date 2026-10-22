@@ -53,7 +53,12 @@ export function localMinuteOfDay(
 }
 
 export function previousDayKey(dayKey: string): string {
+  return shiftDayKey(dayKey, -1);
+}
+
+/** `dayKey` moved by whole calendar days, read at UTC midnight so no offset applies. */
+export function shiftDayKey(dayKey: string, days: number): string {
   const date = new Date(`${dayKey}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }

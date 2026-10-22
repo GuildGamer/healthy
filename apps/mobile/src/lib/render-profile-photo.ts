@@ -12,12 +12,7 @@ export function avatarResize(
   height: number | undefined,
   edge: number,
 ): { width: number } | { height: number } {
-  if (
-    typeof width === 'number' &&
-    typeof height === 'number' &&
-    width > 0 &&
-    height > width
-  ) {
+  if (typeof width === 'number' && typeof height === 'number' && width > 0 && height > width) {
     return { height: edge };
   }
 

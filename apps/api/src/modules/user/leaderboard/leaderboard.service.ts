@@ -1,78 +1,116 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { HealthCategory } from '@product/contract';
 import type { Prisma, PrismaClient } from '@product/db';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
-import {
-  rankingWindow,
-  weekStartKey,
-} from '../../../shared/utils/week.js';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
+import { rankingWindow, startOfUtcDay, weekStartKey } from '../../../shared/utils/week.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
-import { LEADERBOARD_SIZE } from './constants/leaderboard.js';
-import type {
-  LeaderboardEntryDto,
-  ListLeaderboardDto,
-  ListLeaderboardQuery,
-} from './dto/index.js';
+import { LEADERBOARD_SIZE, NEIGHBOURS_EACH_SIDE, NO_STANDING } from './constants/leaderboard.js';
+import type { LeaderboardEntryDto, ListLeaderboardDto, ListLeaderboardQuery } from './dto/index.js';
+import type { CurrentUserStanding, UserTotal } from './types/standing.js';
+import type { LedgerWindow } from './types/ledger-window.js';
 import { publicNameFor } from './pseudonym.js';
-
-type UserTotal = {
-  userId: string;
-  points: number;
-};
 
 @Injectable()
 export class LeaderboardService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  async listWeekly(
-    currentUser: AuthenticatedUser | null | undefined,
-  ): Promise<ListLeaderboardDto> {
+  async listWeekly(currentUser: AuthenticatedUser | null | undefined): Promise<ListLeaderboardDto> {
     return this.list(currentUser, { period: 'week' });
   }
 
   async list(
     currentUser: AuthenticatedUser | null | undefined,
     query: ListLeaderboardQuery = {},
+    now: Date = new Date(),
   ): Promise<ListLeaderboardDto> {
     const user = requireUser(currentUser);
     const period = query.period ?? 'week';
-    const { start, periodStart } = rankingWindow(period);
-    const where = this.ledgerWhere(start, query.category);
+    const { start, periodStart } = rankingWindow(period, now);
+    const window: LedgerWindow = { start, end: null, category: query.category };
+    const where = this.ledgerWhere(window);
 
     const topTotals = await this.totals(where, LEADERBOARD_SIZE);
-    const displayNames = await this.displayNamesFor(
-      topTotals.map((total) => total.userId),
-    );
+    const entries = await this.toEntries(topTotals, 0, user.id);
 
-    const entries = topTotals.map((total, index) => ({
-      rank: index + 1,
-      displayName: publicNameFor(total.userId, displayNames.get(total.userId)),
-      points: total.points,
-      isCurrentUser: total.userId === user.id,
-    }));
-
-    const currentUserPoints = await this.pointsFor(
-      user.id,
-      start,
-      query.category,
-    );
+    const currentUserPoints = await this.pointsFor(user.id, window);
     const currentUserVisible = await this.isVisibleOnLeaderboard(user.id);
-    const currentUserRank = currentUserVisible
-      ? await this.rankFor(user.id, currentUserPoints, where, entries)
-      : null;
+    const standing = currentUserVisible
+      ? await this.standingFor(user.id, currentUserPoints, where)
+      : NO_STANDING;
+    const currentUserRankAtDayStart =
+      standing.rank === null ? null : await this.rankAtDayStart(user.id, window, now);
 
     return {
-      weekStart: weekStartKey(),
+      weekStart: weekStartKey(now),
       period,
       periodStart,
       entries,
-      currentUserRank,
+      currentUserRank: standing.rank,
+      currentUserRankAtDayStart,
       currentUserPoints,
       currentUserVisible,
+      aroundCurrentUser: standing.around,
     };
+  }
+
+  /**
+   * The caller's place and the people either side of it, read from one
+   * ordered pass so both agree with `entries`, ties included. The pass walks
+   * every scoring user — acceptable at this size, and the point to revisit
+   * with a materialised ranking before the user base grows.
+   */
+  private async standingFor(
+    userId: string,
+    points: number,
+    where: Prisma.PointLedgerEntryWhereInput,
+  ): Promise<CurrentUserStanding> {
+    if (points === 0) {
+      return NO_STANDING;
+    }
+
+    const ordered = await this.totals(where);
+    const index = ordered.findIndex((total) => total.userId === userId);
+    if (index === -1) {
+      return NO_STANDING;
+    }
+
+    const firstIndex = Math.max(0, index - NEIGHBOURS_EACH_SIDE);
+    const neighbours = ordered.slice(firstIndex, index + NEIGHBOURS_EACH_SIDE + 1);
+    return { rank: index + 1, around: await this.toEntries(neighbours, firstIndex, userId) };
+  }
+
+  private async toEntries(
+    totals: readonly UserTotal[],
+    firstIndex: number,
+    currentUserId: string,
+  ): Promise<LeaderboardEntryDto[]> {
+    const displayNames = await this.displayNamesFor(totals.map((total) => total.userId));
+
+    return totals.map((total, offset) => ({
+      rank: firstIndex + offset + 1,
+      displayName: publicNameFor(total.userId, displayNames.get(total.userId)),
+      points: total.points,
+      isCurrentUser: total.userId === currentUserId,
+    }));
+  }
+
+  /**
+   * The same ranking with today's points left out. The day is the UTC one
+   * the windows are cut on, so on the day a window opens there is nothing
+   * earlier to compare against.
+   */
+  private async rankAtDayStart(
+    userId: string,
+    window: LedgerWindow,
+    now: Date,
+  ): Promise<number | null> {
+    const dayStart = startOfUtcDay(now);
+    if (window.start && dayStart.getTime() <= window.start.getTime()) {
+      return null;
+    }
+
+    const earlierWindow: LedgerWindow = { ...window, end: dayStart };
+    const pointsThen = await this.pointsFor(userId, earlierWindow);
+    return this.rankFor(userId, pointsThen, this.ledgerWhere(earlierWindow));
   }
 
   private async isVisibleOnLeaderboard(userId: string): Promise<boolean> {
@@ -87,35 +125,41 @@ export class LeaderboardService {
 
   private visibleOnLeaderboard(): Prisma.PointLedgerEntryWhereInput {
     return {
-      OR: [
-        { user: { profile: { is: null } } },
-        { user: { profile: { showOnLeaderboard: true } } },
-      ],
+      OR: [{ user: { profile: { is: null } } }, { user: { profile: { showOnLeaderboard: true } } }],
     };
   }
 
-  private ledgerWhere(
-    start: Date | null,
-    category?: HealthCategory,
-  ): Prisma.PointLedgerEntryWhereInput {
+  private ledgerWhere(window: LedgerWindow): Prisma.PointLedgerEntryWhereInput {
     return {
-      ...(start ? { createdAt: { gte: start } } : {}),
-      ...(category
-        ? {
-            userChallenge: {
-              is: {
-                challenge: { category },
-              },
-            },
-          }
-        : {}),
+      ...this.windowFilter(window),
       ...this.visibleOnLeaderboard(),
     };
   }
 
+  private windowFilter(window: LedgerWindow): Prisma.PointLedgerEntryWhereInput {
+    const createdAt: Prisma.DateTimeFilter = {
+      ...(window.start ? { gte: window.start } : {}),
+      ...(window.end ? { lt: window.end } : {}),
+    };
+
+    return {
+      ...(window.start || window.end ? { createdAt } : {}),
+      ...(window.category
+        ? {
+            userChallenge: {
+              is: {
+                challenge: { category: window.category },
+              },
+            },
+          }
+        : {}),
+    };
+  }
+
+  /** Every scoring user, best first, unless `take` caps it. */
   private async totals(
     where: Prisma.PointLedgerEntryWhereInput,
-    take: number,
+    take?: number,
   ): Promise<UserTotal[]> {
     const grouped = await this.prisma.pointLedgerEntry.groupBy({
       by: ['userId'],
@@ -132,9 +176,7 @@ export class LeaderboardService {
     }));
   }
 
-  private async displayNamesFor(
-    userIds: string[],
-  ): Promise<Map<string, string | null>> {
+  private async displayNamesFor(userIds: string[]): Promise<Map<string, string | null>> {
     if (userIds.length === 0) {
       return new Map();
     }
@@ -144,54 +186,26 @@ export class LeaderboardService {
       select: { userId: true, displayName: true },
     });
 
-    return new Map(
-      profiles.map((profile) => [profile.userId, profile.displayName]),
-    );
+    return new Map(profiles.map((profile) => [profile.userId, profile.displayName]));
   }
 
-  private async pointsFor(
-    userId: string,
-    start: Date | null,
-    category?: HealthCategory,
-  ): Promise<number> {
+  private async pointsFor(userId: string, window: LedgerWindow): Promise<number> {
     const total = await this.prisma.pointLedgerEntry.aggregate({
-      where: {
-        userId,
-        ...(start ? { createdAt: { gte: start } } : {}),
-        ...(category
-          ? {
-              userChallenge: {
-                is: {
-                  challenge: { category },
-                },
-              },
-            }
-          : {}),
-      },
+      where: { userId, ...this.windowFilter(window) },
       _sum: { delta: true },
     });
 
     return total._sum.delta ?? 0;
   }
 
-  /**
-   * Reuses the page when the user is on it. Otherwise it counts who is ahead,
-   * which walks every scoring user — acceptable at this size, and the point to
-   * revisit with a materialised ranking before the user base grows.
-   */
+  /** Counts who is ahead, which walks every scoring user, as `standingFor` does. */
   private async rankFor(
     userId: string,
     points: number,
     where: Prisma.PointLedgerEntryWhereInput,
-    entries: LeaderboardEntryDto[],
   ): Promise<number | null> {
     if (points === 0) {
       return null;
-    }
-
-    const onPage = entries.find((entry) => entry.isCurrentUser);
-    if (onPage) {
-      return onPage.rank;
     }
 
     const ahead = await this.prisma.pointLedgerEntry.groupBy({

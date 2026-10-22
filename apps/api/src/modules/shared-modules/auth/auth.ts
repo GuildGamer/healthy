@@ -2,10 +2,12 @@ import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { emailOTP } from 'better-auth/plugins';
-import { prisma } from '@product/db';
+import { getPrisma } from '@product/db';
 import { readEnvironment } from '../config/environment.js';
 import { createMailer } from '../mail/index.js';
 import { localDevOtp } from './password-reset-otp.js';
+
+const prisma = getPrisma();
 
 const baseURL = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
 const secret = process.env.BETTER_AUTH_SECRET ?? 'dev-only-change-me-before-production';

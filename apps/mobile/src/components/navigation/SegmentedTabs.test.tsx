@@ -17,12 +17,12 @@ describe('SegmentedTabs', () => {
       />,
     );
 
-    expect(
-      screen.getByTestId('challenges-segment-mine').props.accessibilityState,
-    ).toMatchObject({ selected: true });
-    expect(
-      screen.getByTestId('challenges-segment-groups').props.accessibilityState,
-    ).toMatchObject({ selected: false });
+    expect(screen.getByTestId('challenges-segment-mine').props.accessibilityState).toMatchObject({
+      selected: true,
+    });
+    expect(screen.getByTestId('challenges-segment-groups').props.accessibilityState).toMatchObject({
+      selected: false,
+    });
   });
 
   it('reports the tab the user picked', () => {

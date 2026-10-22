@@ -1,4 +1,4 @@
-import { colors, fontSize, spacing } from '@product/brand';
+import { fontSize, spacing } from '@product/brand';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
@@ -13,17 +13,11 @@ import type { TfliteModel } from 'react-native-fast-tflite';
 import { Worklets } from 'react-native-worklets-core';
 import { useResizePlugin } from 'vision-camera-resize-plugin';
 import type { PoseFrame } from '@/lib/pose/landmarks';
-import {
-  MOVENET_RGB_BYTE_LENGTH,
-  packMoveNetInputForBridge,
-} from '@/lib/pose/copy-rgb-tensor';
-import {
-  mapMoveNetOutput,
-  MOVENET_INPUT_SIZE,
-  MOVENET_MODEL,
-} from '@/lib/pose/pose-model';
+import { MOVENET_RGB_BYTE_LENGTH, packMoveNetInputForBridge } from '@/lib/pose/copy-rgb-tensor';
+import { mapMoveNetOutput, MOVENET_INPUT_SIZE, MOVENET_MODEL } from '@/lib/pose/pose-model';
 import { isFrameOrientation } from '@/lib/pose/frame-orientation';
 import { userFacingPoseError } from '@/lib/pose/user-facing-pose-error';
+import { type Theme, useThemedStyles } from '@/theme';
 
 type PoseVisionCameraProps = {
   /** When false the frame processor still runs but skips pose callbacks. */
@@ -34,10 +28,7 @@ type PoseVisionCameraProps = {
   onModelStateChange?: (ready: boolean, detail: string) => void;
 };
 
-function runMoveNetOnJs(
-  model: TfliteModel,
-  packedInput: number[],
-): number[] | null {
+function runMoveNetOnJs(model: TfliteModel, packedInput: number[]): number[] | null {
   if (packedInput.length !== MOVENET_RGB_BYTE_LENGTH) {
     throw new Error(
       `MoveNet input must be ${MOVENET_RGB_BYTE_LENGTH} bytes, got ${packedInput.length}`,
@@ -71,6 +62,7 @@ export function PoseVisionCamera({
   onPoseFrame,
   onModelStateChange,
 }: PoseVisionCameraProps) {
+  const styles = useThemedStyles(createStyles);
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
   const plugin = useTensorflowModel(MOVENET_MODEL, []);
@@ -116,20 +108,13 @@ export function PoseVisionCamera({
   }, [plugin.state, onModelStateChange]);
 
   const onKeypoints = useCallback(
-    (
-      keypoints: number[],
-      orientation: string,
-      bufferWidth: number,
-      bufferHeight: number,
-    ) => {
+    (keypoints: number[], orientation: string, bufferWidth: number, bufferHeight: number) => {
       if (!processingRef.current) {
         return;
       }
 
       const timestampMs = Date.now() - sessionOriginMs.current;
-      const frameOrientation = isFrameOrientation(orientation)
-        ? orientation
-        : 'portrait';
+      const frameOrientation = isFrameOrientation(orientation) ? orientation : 'portrait';
       onPoseFrame(
         mapMoveNetOutput(keypoints, timestampMs, {
           orientation: frameOrientation,
@@ -168,12 +153,7 @@ export function PoseVisionCamera({
   const runInferenceOnJs = useMemo(
     () =>
       Worklets.createRunOnJS(
-        (
-          packedInput: number[],
-          orientation: string,
-          bufferWidth: number,
-          bufferHeight: number,
-        ) => {
+        (packedInput: number[], orientation: string, bufferWidth: number, bufferHeight: number) => {
           const model = modelRef.current;
           if (model == null) {
             return;
@@ -186,12 +166,7 @@ export function PoseVisionCamera({
             }
 
             clearTrackingErrorRef.current();
-            onKeypointsRef.current(
-              keypoints,
-              orientation,
-              bufferWidth,
-              bufferHeight,
-            );
+            onKeypointsRef.current(keypoints, orientation, bufferWidth, bufferHeight);
           } catch (error) {
             const message =
               error instanceof Error && error.message.length > 0
@@ -263,9 +238,7 @@ export function PoseVisionCamera({
   if (!hasPermission) {
     return (
       <View style={styles.fallback}>
-        <Text style={styles.fallbackText}>
-          Camera access is needed to count push-ups.
-        </Text>
+        <Text style={styles.fallbackText}>Camera access is needed to count push-ups.</Text>
       </View>
     );
   }
@@ -303,9 +276,7 @@ export function PoseVisionCamera({
         frameProcessor={frameProcessor}
         isActive
         isMirrored
-        onError={(error) =>
-          setCameraError(userFacingPoseError(error.message))
-        }
+        onError={(error) => setCameraError(userFacingPoseError(error.message))}
         pixelFormat="yuv"
         // Widest FOV available (ultra-wide front when the device has one).
         resizeMode="cover"
@@ -321,33 +292,35 @@ export function PoseVisionCamera({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  fallback: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-  },
-  fallbackText: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    left: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    position: 'absolute',
-    right: spacing.sm,
-    top: spacing.sm,
-  },
-  errorBannerText: {
-    color: colors.danger,
-    fontSize: fontSize.xs,
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    wrap: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    fallback: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.md,
+      backgroundColor: theme.colors.background,
+    },
+    fallbackText: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
+    },
+    errorBanner: {
+      backgroundColor: theme.camera.fade,
+      left: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      position: 'absolute',
+      right: spacing.sm,
+      top: spacing.sm,
+    },
+    errorBannerText: {
+      color: theme.colors.danger,
+      fontSize: fontSize.xs,
+      textAlign: 'center',
+    },
+  });

@@ -1,5 +1,6 @@
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
+import { fontSize, fontWeight, spacing } from '@product/brand';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { type Theme, useThemedStyles } from '@/theme';
 
 export type SegmentedTabOption<Id extends string> = {
   id: Id;
@@ -22,6 +23,8 @@ export function SegmentedTabs<Id extends string>({
   selected: Id;
   testID?: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.row} testID={testID}>
       {options.map((option) => {
@@ -36,14 +39,10 @@ export function SegmentedTabs<Id extends string>({
             style={styles.tab}
             testID={testID ? `${testID}-${option.id}` : undefined}
           >
-            <Text
-              style={[styles.label, isSelected ? styles.labelSelected : null]}
-            >
+            <Text style={[styles.label, isSelected ? styles.labelSelected : null]}>
               {option.label}
             </Text>
-            <View
-              style={[styles.rule, isSelected ? styles.ruleSelected : null]}
-            />
+            <View style={[styles.rule, isSelected ? styles.ruleSelected : null]} />
           </Pressable>
         );
       })}
@@ -51,30 +50,31 @@ export function SegmentedTabs<Id extends string>({
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  tab: {
-    paddingBottom: 4,
-  },
-  label: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  labelSelected: {
-    color: colors.accent,
-  },
-  rule: {
-    height: 2,
-    marginTop: 4,
-    backgroundColor: 'transparent',
-  },
-  ruleSelected: {
-    backgroundColor: colors.accent,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    tab: {
+      paddingBottom: 4,
+    },
+    label: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+    },
+    labelSelected: {
+      color: theme.colors.accent,
+    },
+    rule: {
+      height: 2,
+      marginTop: 4,
+      backgroundColor: 'transparent',
+    },
+    ruleSelected: {
+      backgroundColor: theme.colors.accent,
+    },
+  });

@@ -1,9 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import {
-  confirmEmailChange,
-  requestEmailChange,
-} from '@/lib/auth-client';
+import { confirmEmailChange, requestEmailChange } from '@/lib/auth-client';
 import { ChangeEmailOtpScreen } from './ChangeEmailOtpScreen';
 
 jest.mock('@/lib/auth-client', () => ({
@@ -62,9 +59,7 @@ describe('ChangeEmailOtpScreen', () => {
     fireEvent.changeText(screen.getByTestId('change-email-otp'), '123456');
 
     await waitFor(() => {
-      expect(
-        screen.getByText('That code is not valid. Try again.'),
-      ).toBeOnTheScreen();
+      expect(screen.getByText('That code is not valid. Try again.')).toBeOnTheScreen();
     });
     expect(screen.queryByTestId('change-email-saved')).toBeNull();
   });

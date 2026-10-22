@@ -1,5 +1,6 @@
 import { oc } from '@orpc/contract';
 import { z } from 'zod';
+import { deleteAccountOutputSchema } from './account-deletion.js';
 import { listTipsContract } from './admin.js';
 import {
   challengeCompletionKindSchema,
@@ -27,36 +28,73 @@ import {
   waterUnitSchema,
 } from './challenge-logging.js';
 import { countryCodeSchema } from './country-code.js';
+import { displayNameSchema } from './display-name.js';
 import {
   leaveCrewContract,
   listCrewsContract,
   renameCrewContract,
   saveCrewContract,
 } from './crews.js';
-import {
-  trackAnalyticsEventContract,
-} from './analytics-events.js';
-import {
-  getExperimentAssignmentContract,
-} from './experiments.js';
+import { trackAnalyticsEventContract } from './analytics-events.js';
+import { getExperimentAssignmentContract } from './experiments.js';
 import {
   cancelMatchContract,
   createMatchContract,
   getMatchContract,
   joinMatchContract,
+  leaveMatchContract,
   listMyMatchesContract,
   previewMatchContract,
   publicPreviewMatchContract,
+  reactToMatchMemberContract,
   submitMatchAttemptContract,
 } from './matches.js';
-import {
-  getMembershipOfferContract,
-  syncApplePurchaseContract,
-} from './membership.js';
-import {
-  getPracticeTotalsContract,
-  recordPracticeSessionContract,
-} from './practice.js';
+import { getMembershipOfferContract, syncApplePurchaseContract } from './membership.js';
+import { getPracticeTotalsContract, recordPracticeSessionContract } from './practice.js';
+import { getProgressDayContract, listProgressDaysContract } from './progress.js';
+import { getTodayDetailsContract } from './today.js';
+
+export {
+  getTodayDetailsContract,
+  todayDetailsSchema,
+  todayOccurrenceDetailSchema,
+} from './today.js';
+export type { TodayDetails, TodayOccurrenceDetail } from './today.js';
+export {
+  ACCOUNT_DELETION_SUBSCRIPTION_RENEWING,
+  accountDeletionBillingStoreSchema,
+  accountDeletionRefusalSchema,
+  deleteAccountOutputSchema,
+  readAccountDeletionRefusal,
+} from './account-deletion.js';
+export type {
+  AccountDeletionBillingStore,
+  AccountDeletionRefusal,
+  DeleteAccountOutput,
+} from './account-deletion.js';
+
+export {
+  getProgressDayContract,
+  getProgressDayInputSchema,
+  listProgressDaysContract,
+  photoCheckResolutionSchema,
+  progressDayDetailSchema,
+  progressDaySchema,
+  progressDaysSchema,
+} from './progress.js';
+export type {
+  GetProgressDayInput,
+  PhotoCheckResolution,
+  ProgressAdjustment,
+  ProgressDay,
+  ProgressDayChallenge,
+  ProgressDayDetail,
+  ProgressDays,
+  ProgressDoneItem,
+  ProgressMissedPhotoCheck,
+  ProgressPracticeItem,
+  ProgressShareResult,
+} from './progress.js';
 
 export { challengeSpecIssue } from './challenge-spec.js';
 export {
@@ -81,6 +119,11 @@ export {
   type CountryCode,
 } from './country-code.js';
 export {
+  DISPLAY_NAME_MAX_LENGTH,
+  DISPLAY_NAME_MIN_LENGTH,
+  displayNameSchema,
+} from './display-name.js';
+export {
   activityMeetsTarget,
   challengeCaptureKindSchema,
   challengeCaptureSchema,
@@ -92,15 +135,18 @@ export {
   emptyChallengeTarget,
   healthLinkStatusSchema,
   isDeviceCapture,
+  DURATION_GOAL_MAX_MINUTES,
+  DURATION_GOAL_MIN_MINUTES,
+  durationGoalBounds,
   resolveEnrollmentTargetCount,
+  resolveEnrollmentTargetDuration,
   selfReportCapture,
   toChallengeCapture,
   updateHealthLinkInputSchema,
+  DEFAULT_WATER_GLASS_GOAL,
+  waterGlassGoalFor,
 } from './challenge-capture.js';
-export {
-  displayChallengeTitle,
-  formatPushupChallengeTitle,
-} from './challenge-title.js';
+export { displayChallengeTitle, formatPushupChallengeTitle } from './challenge-title.js';
 export {
   compareChallengeCatalogOrder,
   compareChallengeSortOrder,
@@ -166,17 +212,10 @@ export type {
   UserChallengeStatus,
 } from './catalog-fields.js';
 
-export {
-  adminCanManageAdmins,
-  adminHasPermission,
-  adminRoleSchema,
-} from './admin-roles.js';
+export { adminCanManageAdmins, adminHasPermission, adminRoleSchema } from './admin-roles.js';
 export type { AdminRoleName } from './admin-roles.js';
 
-export {
-  adminContract,
-  listTipsContract,
-} from './admin.js';
+export { adminContract, listTipsContract } from './admin.js';
 export type {
   AdminChallenge,
   AdminContract,
@@ -255,6 +294,16 @@ export const meOutputSchema = z.object({
   categories: z.array(healthCategorySchema),
   pointsBalance: z.number().int().nonnegative(),
   currentStreakDays: z.number().int().nonnegative(),
+  /**
+   * A run lasted until the day before yesterday and yesterday had no daily
+   * completion. False again once today has one, or the next day starts.
+   */
+  streakLapsedYesterday: z.boolean(),
+  /**
+   * Longest unbroken run of days with a rewarded daily completion, ever.
+   * Never below `currentStreakDays`, so a reset run still has its record.
+   */
+  bestStreakDays: z.number().int().nonnegative(),
   /** IANA zone deciding when this user's challenge day rolls over. */
   timeZone: z.string(),
   /** ISO 3166-1 alpha-2. Null until chosen at sign-up or in profile. */
@@ -267,6 +316,8 @@ export const meOutputSchema = z.object({
   evidenceRemindersEnabled: z.boolean(),
   promotionalMessagesEnabled: z.boolean(),
   showOnLeaderboard: z.boolean(),
+  /** Pushes from groups: cheers, nudges, board moves, seats and joins. */
+  groupNotificationsEnabled: z.boolean(),
   inProgressNudgeEnabled: z.boolean(),
   inProgressNudgeDelayMinutes: z.number().int().min(5).max(1_440),
   /** Whether this installation may read Health / Health Connect samples. */
@@ -316,24 +367,28 @@ export const listLeaderboardOutputSchema = z.object({
   entries: z.array(leaderboardEntrySchema),
   /** Null until the caller has earned a point in this window. */
   currentUserRank: z.number().int().positive().nullable(),
+  /**
+   * The caller's rank in this window counting only points earned before the
+   * current UTC day began — the same clock the windows are cut on — so the
+   * difference from `currentUserRank` is how far today moved them. Null when
+   * they had no rank then, are hidden, or today opened the window.
+   */
+  currentUserRankAtDayStart: z.number().int().positive().nullable(),
   currentUserPoints: z.number().int(),
   /**
    * False when the caller turned off “Show me on the leaderboard”.
    * Rank is then null and they never appear in `entries`.
    */
   currentUserVisible: z.boolean(),
+  /**
+   * The caller's own row with up to two people either side of it, ranked the
+   * same way as `entries`. Empty while the caller has no rank.
+   */
+  aroundCurrentUser: z.array(leaderboardEntrySchema),
 });
 
 export const updateDisplayNameInputSchema = z.object({
-  displayName: z
-    .string()
-    .trim()
-    .min(2)
-    .max(24)
-    .regex(
-      /^[\p{L}\p{N} ._-]+$/u,
-      'Use letters, numbers, spaces, dots, hyphens or underscores',
-    ),
+  displayName: displayNameSchema,
 });
 
 export const updateReminderInputSchema = z.object({
@@ -347,6 +402,8 @@ export const updateNotificationSettingsInputSchema = z.object({
   evidenceRemindersEnabled: z.boolean(),
   promotionalMessagesEnabled: z.boolean(),
   showOnLeaderboard: z.boolean(),
+  /** Optional so app versions from before the switch keep saving; absent leaves it as stored. */
+  groupNotificationsEnabled: z.boolean().optional(),
   inProgressNudgeEnabled: z.boolean(),
   inProgressNudgeDelayMinutes: z.number().int().min(5).max(1_440),
 });
@@ -367,12 +424,26 @@ export const surpriseEvidenceRequestSchema = z.object({
   penaltyPoints: z.number().int().nonnegative(),
 });
 
-/** Same keys as Expo push `data` — inbox taps reuse `hrefForPushData`. */
+/**
+ * Same keys as Expo push `data` — inbox taps reuse `hrefForPushData`.
+ * Completion success rows also carry string fields that reopen
+ * `/challenge/success` (title, points, streak, count, target, metric).
+ */
 export const notificationPayloadSchema = z
   .object({
     matchId: z.string().min(1),
     challengeId: z.string().min(1),
     destination: z.enum(['today', 'challenges', 'challenge']),
+    /** Occurrence id — opens the completion / share screen when present. */
+    userChallengeId: z.string().min(1),
+    /** Challenge display name for the share card (not the inbox title). */
+    title: z.string().min(1),
+    points: z.string().min(1),
+    streak: z.string().min(1),
+    count: z.string().min(1),
+    target: z.string().min(1),
+    /** `pushups`, `walk`, or `other` — all strings for Expo push `data`. */
+    metric: z.enum(['pushups', 'walk', 'other']),
   })
   .partial();
 
@@ -504,6 +575,26 @@ export const challengeCatalogOutputSchema = z.object({
   maxRemindersPerChallenge: z.number().int().positive(),
 });
 
+/**
+ * A challenge someone is enrolled in when they pick its condition. Public and
+ * the same for everyone, so the first screen can preview a day before there is
+ * an account.
+ */
+export const starterChallengeSchema = z.object({
+  challengeId: z.string(),
+  title: z.string(),
+  description: z.string(),
+  category: healthCategorySchema,
+  /** True for challenges everyone gets, whichever conditions they pick. */
+  isUniversal: z.boolean(),
+  completionKind: challengeCompletionKindSchema,
+  capture: challengeCaptureSchema,
+});
+
+export const listStarterChallengesOutputSchema = z.object({
+  challenges: z.array(starterChallengeSchema),
+});
+
 export const setChallengeEnrollmentInputSchema = z.object({
   challengeId: z.string().min(1),
   isEnrolled: z.boolean(),
@@ -511,6 +602,11 @@ export const setChallengeEnrollmentInputSchema = z.object({
   frequency: challengeFrequencySchema.optional(),
   /** Omit to keep the catalog default, or the count already chosen. */
   targetCount: z.number().int().positive().max(200_000).optional(),
+  /**
+   * Omit to keep the catalog default, or the minutes already chosen. Only a
+   * timed challenge takes one; the server checks it against `durationGoalBounds`.
+   */
+  targetDurationMinutes: z.number().int().positive().max(1_440).optional(),
 });
 
 export const startChallengeInputSchema = z.object({
@@ -572,11 +668,7 @@ export const listActivityOutputSchema = z.object({
 
 export const challengeHistoryOutcomeSchema = z.enum(['rewarded', 'penalized']);
 
-export const challengeHistoryEvidenceSchema = z.enum([
-  'submitted',
-  'skipped',
-  'expired',
-]);
+export const challengeHistoryEvidenceSchema = z.enum(['submitted', 'skipped', 'expired']);
 
 export const challengeHistoryLogSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('check_in') }),
@@ -676,6 +768,11 @@ export const updateNotificationSettingsContract = oc
   .input(updateNotificationSettingsInputSchema)
   .output(meOutputSchema);
 
+/** Signed-in only. Refused with `accountDeletionRefusalSchema` data while a store plan renews. */
+export const deleteAccountContract = oc
+  .route({ method: 'POST', path: '/me/delete' })
+  .output(deleteAccountOutputSchema);
+
 export const updateHealthLinkContract = oc
   .route({ method: 'PUT', path: '/me/health-link' })
   .input(updateHealthLinkInputSchema)
@@ -716,6 +813,11 @@ export const saveChallengeDraftContract = oc
 export const listChallengeCatalogContract = oc
   .route({ method: 'GET', path: '/challenges/catalog' })
   .output(challengeCatalogOutputSchema);
+
+/** Public: no account needed, and nothing personal in the response. */
+export const listStarterChallengesContract = oc
+  .route({ method: 'GET', path: '/challenges/starter' })
+  .output(listStarterChallengesOutputSchema);
 
 export const setChallengeEnrollmentContract = oc
   .route({ method: 'PUT', path: '/challenges/enrollment' })
@@ -775,12 +877,14 @@ export const appContract = {
   updateReminder: updateReminderContract,
   updateNotificationSettings: updateNotificationSettingsContract,
   updateHealthLink: updateHealthLinkContract,
+  deleteAccount: deleteAccountContract,
   updateDisplayName: updateDisplayNameContract,
   listNotifications: listNotificationsContract,
   markNotificationsRead: markNotificationsReadContract,
   listLeaderboard: listLeaderboardContract,
   listTodayChallenges: listTodayChallengesContract,
   listChallengeCatalog: listChallengeCatalogContract,
+  listStarterChallenges: listStarterChallengesContract,
   setChallengeEnrollment: setChallengeEnrollmentContract,
   addChallengeReminder: addChallengeReminderContract,
   removeChallengeReminder: removeChallengeReminderContract,
@@ -804,6 +908,8 @@ export const appContract = {
   getMatch: getMatchContract,
   submitMatchAttempt: submitMatchAttemptContract,
   cancelMatch: cancelMatchContract,
+  reactToMatchMember: reactToMatchMemberContract,
+  leaveMatch: leaveMatchContract,
   getExperimentAssignment: getExperimentAssignmentContract,
   trackAnalyticsEvent: trackAnalyticsEventContract,
   listCrews: listCrewsContract,
@@ -812,6 +918,9 @@ export const appContract = {
   leaveCrew: leaveCrewContract,
   recordPracticeSession: recordPracticeSessionContract,
   getPracticeTotals: getPracticeTotalsContract,
+  getTodayDetails: getTodayDetailsContract,
+  listProgressDays: listProgressDaysContract,
+  getProgressDay: getProgressDayContract,
 };
 
 export type AppContract = typeof appContract;
@@ -821,86 +930,55 @@ export type UpdateCategoriesInput = z.infer<typeof updateCategoriesInputSchema>;
 export type UpdateTimeZoneInput = z.infer<typeof updateTimeZoneInputSchema>;
 export type UpdateCountryInput = z.infer<typeof updateCountryInputSchema>;
 export type UpdateReminderInput = z.infer<typeof updateReminderInputSchema>;
-export type UpdateNotificationSettingsInput = z.infer<
-  typeof updateNotificationSettingsInputSchema
->;
+export type UpdateNotificationSettingsInput = z.infer<typeof updateNotificationSettingsInputSchema>;
 export type NotificationKind = z.infer<typeof notificationKindSchema>;
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 export type InboxNotification = z.infer<typeof inboxNotificationSchema>;
-export type ListNotificationsOutput = z.infer<
-  typeof listNotificationsOutputSchema
->;
-export type MarkNotificationsReadOutput = z.infer<
-  typeof markNotificationsReadOutputSchema
->;
-export type UpdateDisplayNameInput = z.infer<
-  typeof updateDisplayNameInputSchema
->;
+export type ListNotificationsOutput = z.infer<typeof listNotificationsOutputSchema>;
+export type MarkNotificationsReadOutput = z.infer<typeof markNotificationsReadOutputSchema>;
+export type UpdateDisplayNameInput = z.infer<typeof updateDisplayNameInputSchema>;
 export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>;
 export type LeaderboardPeriod = z.infer<typeof leaderboardPeriodSchema>;
 export type ListLeaderboardInput = z.input<typeof listLeaderboardInputSchema>;
 export type ListLeaderboardOutput = z.infer<typeof listLeaderboardOutputSchema>;
 export type ChallengeVitals = z.infer<typeof challengeVitalsSchema>;
 export type ChallengeEvidence = z.infer<typeof challengeEvidenceSchema>;
-export type SaveChallengeDraftInput = z.infer<
-  typeof saveChallengeDraftInputSchema
->;
+export type SaveChallengeDraftInput = z.infer<typeof saveChallengeDraftInputSchema>;
 export type TodayChallenge = z.infer<typeof todayChallengeSchema>;
 export type CatalogChallenge = z.infer<typeof catalogChallengeSchema>;
-export type ChallengeCatalogOutput = z.infer<
-  typeof challengeCatalogOutputSchema
->;
-export type SetChallengeEnrollmentInput = z.infer<
-  typeof setChallengeEnrollmentInputSchema
->;
+export type StarterChallenge = z.infer<typeof starterChallengeSchema>;
+export type ListStarterChallengesOutput = z.infer<typeof listStarterChallengesOutputSchema>;
+export type ChallengeCatalogOutput = z.infer<typeof challengeCatalogOutputSchema>;
+export type SetChallengeEnrollmentInput = z.infer<typeof setChallengeEnrollmentInputSchema>;
 export type ListTodayChallengesOutput = z.infer<typeof listTodayChallengesOutputSchema>;
 export type StartChallengeInput = z.infer<typeof startChallengeInputSchema>;
 export type StartChallengeOutput = z.infer<typeof startChallengeOutputSchema>;
 export type CompleteChallengeInput = z.infer<typeof completeChallengeInputSchema>;
 export type CompleteChallengeOutput = z.infer<typeof completeChallengeOutputSchema>;
-export type SurpriseEvidenceRequest = z.infer<
-  typeof surpriseEvidenceRequestSchema
->;
-export type SkipChallengeEvidenceInput = z.infer<
-  typeof skipChallengeEvidenceInputSchema
->;
+export type SurpriseEvidenceRequest = z.infer<typeof surpriseEvidenceRequestSchema>;
+export type SkipChallengeEvidenceInput = z.infer<typeof skipChallengeEvidenceInputSchema>;
 export type ActivityItem = z.infer<typeof activityItemSchema>;
 export type ListActivityOutput = z.infer<typeof listActivityOutputSchema>;
-export type ChallengeHistoryOutcome = z.infer<
-  typeof challengeHistoryOutcomeSchema
->;
-export type ChallengeHistoryEvidence = z.infer<
-  typeof challengeHistoryEvidenceSchema
->;
+export type ChallengeHistoryOutcome = z.infer<typeof challengeHistoryOutcomeSchema>;
+export type ChallengeHistoryEvidence = z.infer<typeof challengeHistoryEvidenceSchema>;
 export type ChallengeHistoryLog = z.infer<typeof challengeHistoryLogSchema>;
 export type ChallengeHistoryEntry = z.infer<typeof challengeHistoryEntrySchema>;
-export type ListChallengeHistoryInput = z.input<
-  typeof listChallengeHistoryInputSchema
->;
-export type ListChallengeHistoryOutput = z.infer<
-  typeof listChallengeHistoryOutputSchema
->;
+export type ListChallengeHistoryInput = z.input<typeof listChallengeHistoryInputSchema>;
+export type ListChallengeHistoryOutput = z.infer<typeof listChallengeHistoryOutputSchema>;
 export type WaitlistInput = z.infer<typeof waitlistInputSchema>;
 export type WaitlistOutput = z.infer<typeof waitlistOutputSchema>;
 export type ChallengeReminder = z.infer<typeof challengeReminderSchema>;
-export type ChallengeRemindersOutput = z.infer<
-  typeof challengeRemindersOutputSchema
->;
-export type AddChallengeReminderInput = z.infer<
-  typeof addChallengeReminderInputSchema
->;
-export type RemoveChallengeReminderInput = z.infer<
-  typeof removeChallengeReminderInputSchema
->;
-export type RegisterPushDeviceInput = z.infer<
-  typeof registerPushDeviceInputSchema
->;
+export type ChallengeRemindersOutput = z.infer<typeof challengeRemindersOutputSchema>;
+export type AddChallengeReminderInput = z.infer<typeof addChallengeReminderInputSchema>;
+export type RemoveChallengeReminderInput = z.infer<typeof removeChallengeReminderInputSchema>;
+export type RegisterPushDeviceInput = z.infer<typeof registerPushDeviceInputSchema>;
 
 export {
   MATCH_ATTEMPT_MAX_BY_METRIC,
   MATCH_ATTEMPT_SOURCE_BY_METRIC,
   MATCH_CUMULATIVE_DAILY_CAP,
   MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC,
+  MATCH_DAY_STRIP_MAX_DAYS,
   MATCH_LENGTH_MAX_DAYS,
   MATCH_LENGTH_MIN_DAYS,
   MATCH_MIN_DAYS_BY_SCORING_MODE,
@@ -912,9 +990,12 @@ export {
   isScoringModeAllowedForMetric,
   isWindowAllowedForScoringMode,
   matchContestTitle,
+  matchGroupPhrase,
   matchInviteUrl,
   matchLengthDays,
+  matchNudgePush,
   matchScoreUnit,
+  matchTimeLeft,
   matchWindowLength,
   resolveMatchLength,
 } from './matches.js';
@@ -925,17 +1006,23 @@ export type {
   MatchAttemptSource,
   MatchBoard,
   MatchDailyScope,
+  MatchDayStrip,
   MatchDurationDays,
   MatchInviteLink,
   MatchLength,
   MatchListItem,
   MatchMetric,
+  MatchMove,
   MatchPreview,
+  MatchPushCopy,
+  MatchReactionKind,
+  MatchReactionSent,
   MatchScoringMode,
   MatchStanding,
   MatchStatus,
   MatchWindow,
   PublicMatchInvitePreview,
+  ReactToMatchMemberInput,
   ResolvedCreateMatchInput,
   SubmitMatchAttemptInput,
 } from './matches.js';
@@ -945,10 +1032,7 @@ export {
   analyticsEventNameSchema,
   trackAnalyticsEventContract,
 } from './analytics-events.js';
-export type {
-  AnalyticsEventName,
-  TrackAnalyticsEventInput,
-} from './analytics-events.js';
+export type { AnalyticsEventName, TrackAnalyticsEventInput } from './analytics-events.js';
 
 export {
   EXPERIMENT_KEYS,
@@ -957,11 +1041,7 @@ export {
   experimentStatusSchema,
   getExperimentAssignmentContract,
 } from './experiments.js';
-export type {
-  ExperimentAssignment,
-  ExperimentKey,
-  ExperimentStatus,
-} from './experiments.js';
+export type { ExperimentAssignment, ExperimentKey, ExperimentStatus } from './experiments.js';
 
 export { CREW_NAME_MAX, crewLabel, crewNameSchema, crewSchema } from './crews.js';
 export type {

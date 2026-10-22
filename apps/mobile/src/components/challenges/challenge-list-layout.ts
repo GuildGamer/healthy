@@ -1,14 +1,10 @@
 import type { TodayChallenge } from '@product/client';
 import { compareChallengeSortOrder } from '@product/contract/challenge-sort';
-import { canPracticeAgain } from './practice-entry';
 
 /** Free-tier cap for “today’s win” — members may finish every enrollment. */
 export const DAILY_WIN_TARGET = 2;
 
-function resolveDailyWinTarget(
-  totalCount: number,
-  hasMembership: boolean,
-): number {
+function resolveDailyWinTarget(totalCount: number, hasMembership: boolean): number {
   if (totalCount === 0) {
     return 0;
   }
@@ -19,9 +15,6 @@ function resolveDailyWinTarget(
 
   return Math.min(DAILY_WIN_TARGET, totalCount);
 }
-
-/** Peers shown under the focus card before “also available”. */
-export const UP_NEXT_LIMIT = 2;
 
 const FOCUS_STATUS_RANK: Record<string, number> = {
   awaiting_evidence: 0,
@@ -57,9 +50,7 @@ function easeRank(challenge: TodayChallenge): number {
 }
 
 /** Resume / evidence first, then daily over week/month, then easier captures. */
-export function sortOpenChallengesByFocus(
-  challenges: readonly TodayChallenge[],
-): TodayChallenge[] {
+export function sortOpenChallengesByFocus(challenges: readonly TodayChallenge[]): TodayChallenge[] {
   return [...challenges].sort((left, right) => {
     const leftStatus = FOCUS_STATUS_RANK[left.status] ?? 9;
     const rightStatus = FOCUS_STATUS_RANK[right.status] ?? 9;
@@ -132,102 +123,5 @@ export function buildTodayWin(
     locked: false,
     label: `Today's win · ${filled} of ${target}`,
     heroMetaSuffix: `${filled}/${target} today's win`,
-  };
-}
-
-export type ChallengeFocusLayout = {
-  focus: TodayChallenge | null;
-  upNext: TodayChallenge[];
-  /** Remaining daily opens beyond focus + up next. */
-  alsoAvailable: TodayChallenge[];
-  weekly: TodayChallenge[];
-  monthly: TodayChallenge[];
-  /** Finished for points, still open for free sets. Never collapsed away. */
-  repeatable: TodayChallenge[];
-  /** Finished with nothing left to give. Safe to archive. */
-  done: TodayChallenge[];
-  /** Challenges that can still be won today. */
-  openCount: number;
-  /**
-   * Everything finished today. Unlike `win.filled` this is not capped at the
-   * free-tier target, so callers asking "how much did they actually do" get a
-   * number that can exceed two.
-   */
-  completedCount: number;
-  win: TodayWin;
-  /** True when Challenges has more than Home’s focus + up next. */
-  hasMoreBeyondPreview: boolean;
-};
-
-/** Heading above the focus slot: the scored day, or the free set after it. */
-export function focusSectionLabel(focus: TodayChallenge | null): string {
-  return focus?.status === 'completed' ? 'Go again' : 'Do next';
-}
-
-/**
- * One decision on first paint: focus + short up-next, with week/month and
- * extras parked for progressive disclosure.
- */
-export function buildChallengeFocusLayout(
-  challenges: readonly TodayChallenge[],
-  hasMembership = false,
-): ChallengeFocusLayout {
-  const completed = challenges.filter((item) => item.status === 'completed');
-  const open = challenges.filter((item) => item.status !== 'completed');
-  // The win is measured against everything finished, repeatable or not.
-  const win = buildTodayWin(completed.length, challenges.length, hasMembership);
-
-  // A finished push-up challenge still takes free sets, so it is never filed
-  // away beside the challenges that have nothing left to offer.
-  const stillRepeatable = completed.filter((item) => canPracticeAgain(item));
-  const done = completed.filter((item) => !canPracticeAgain(item));
-
-  // Once the scored day is over, a repeatable challenge is the only thing left
-  // to do, so it takes the focus slot rather than leaving the screen empty.
-  const focus =
-    open.length > 0
-      ? sortOpenChallengesByFocus(open)[0]!
-      : (stillRepeatable[0] ?? null);
-
-  const remaining = open.filter((item) => item.id !== focus?.id);
-  const remainingSorted = sortOpenChallengesByFocus(remaining);
-  const upNext = remainingSorted.slice(0, UP_NEXT_LIMIT);
-  const upNextIds = new Set(upNext.map((item) => item.id));
-
-  const parked = remainingSorted.slice(UP_NEXT_LIMIT);
-  const alsoAvailable = parked.filter((item) => item.frequency === 'daily');
-  const weeklyCollapsed = open.filter(
-    (item) =>
-      item.frequency === 'weekly' &&
-      item.id !== focus?.id &&
-      !upNextIds.has(item.id),
-  );
-  const monthlyCollapsed = open.filter(
-    (item) =>
-      item.frequency === 'monthly' &&
-      item.id !== focus?.id &&
-      !upNextIds.has(item.id),
-  );
-
-  const repeatable = stillRepeatable.filter((item) => item.id !== focus?.id);
-
-  return {
-    focus,
-    upNext,
-    alsoAvailable,
-    weekly: sortOpenChallengesByFocus(weeklyCollapsed),
-    monthly: sortOpenChallengesByFocus(monthlyCollapsed),
-    repeatable,
-    done,
-    openCount: open.length,
-    completedCount: completed.length,
-    win,
-    hasMoreBeyondPreview:
-      alsoAvailable.length > 0 ||
-      weeklyCollapsed.length > 0 ||
-      monthlyCollapsed.length > 0 ||
-      repeatable.length > 0 ||
-      done.length > 0 ||
-      remainingSorted.length > UP_NEXT_LIMIT,
   };
 }

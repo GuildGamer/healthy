@@ -13,15 +13,12 @@ import {
 } from '@product/contract';
 
 export type ApiClient = JsonifiedClient<ContractRouterClient<AppContract>>;
-export type AdminApiClient = JsonifiedClient<
-  ContractRouterClient<AdminContract>
->;
+export type AdminApiClient = JsonifiedClient<ContractRouterClient<AdminContract>>;
 
 export type CreateApiClientOptions = {
   baseUrl: string;
   headers?:
-    | Record<string, string>
-    | (() => Record<string, string> | Promise<Record<string, string>>);
+    Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
   fetch?: typeof fetch;
 };
 
@@ -39,9 +36,7 @@ export function createApiQueryUtils(client: ApiClient) {
   return createTanstackQueryUtils(client);
 }
 
-export function createAdminApiClient(
-  options: CreateApiClientOptions,
-): AdminApiClient {
+export function createAdminApiClient(options: CreateApiClientOptions): AdminApiClient {
   const link = new OpenAPILink(adminContract, {
     url: options.baseUrl.replace(/\/$/, ''),
     headers: options.headers,
@@ -97,6 +92,7 @@ export type {
   AddChallengeReminderInput,
   AppContract,
   CatalogChallenge,
+  StarterChallenge,
   ChallengeReminder,
   ChallengeRemindersOutput,
   ChallengeCatalogOutput,
@@ -125,6 +121,7 @@ export type {
   CompleteChallengeOutput,
   SkipChallengeEvidenceInput,
   SurpriseEvidenceRequest,
+  RecordPracticeSessionInput,
   HealthCategory,
   HealthOutput,
   InboxNotification,
@@ -144,6 +141,19 @@ export type {
   StartChallengeInput,
   StartChallengeOutput,
   TodayChallenge,
+  TodayDetails,
+  TodayOccurrenceDetail,
+  GetProgressDayInput,
+  PhotoCheckResolution,
+  ProgressAdjustment,
+  ProgressDay,
+  ProgressDayChallenge,
+  ProgressDayDetail,
+  ProgressDays,
+  ProgressDoneItem,
+  ProgressMissedPhotoCheck,
+  ProgressPracticeItem,
+  ProgressShareResult,
   LeaderboardEntry,
   LeaderboardPeriod,
   ListLeaderboardInput,
@@ -163,16 +173,21 @@ export type {
   MatchAttemptSource,
   MatchBoard,
   MatchDailyScope,
+  MatchDayStrip,
   MatchDurationDays,
   MatchInviteLink,
   MatchLength,
   MatchListItem,
   MatchMetric,
+  MatchMove,
   MatchPreview,
+  MatchReactionKind,
+  MatchReactionSent,
   MatchScoringMode,
   MatchStanding,
   MatchStatus,
   MatchWindow,
+  ReactToMatchMemberInput,
   SubmitMatchAttemptInput,
   AdminChallenge,
   AdminContract,

@@ -1,6 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { type BrandColors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import type { FormButtonVariant, IconName } from './types';
 
 interface FormButtonProps {
@@ -9,6 +11,10 @@ interface FormButtonProps {
   variant?: FormButtonVariant;
   loading?: boolean;
   disabled?: boolean;
+  /** A mark before the label, such as a provider logo. */
+  leading?: ReactNode;
+  /** Something quiet after the label, such as a "Last used" tag. */
+  trailing?: ReactNode;
   trailingIcon?: IconName;
   testID?: string;
 }
@@ -19,13 +25,29 @@ interface VariantColors {
   label: string;
 }
 
-function resolveVariantColors(variant: FormButtonVariant, isInactive: boolean): VariantColors {
+function resolveVariantColors(
+  colors: BrandColors,
+  variant: FormButtonVariant,
+  isInactive: boolean,
+): VariantColors {
   if (variant === 'secondary') {
     return {
       surface: colors.surface,
       pressedSurface: colors.surfaceRaised,
       label: isInactive ? colors.disabledText : colors.accent,
     };
+  }
+
+  if (variant === 'outline') {
+    return {
+      surface: colors.surface,
+      pressedSurface: colors.surfaceRaised,
+      label: isInactive ? colors.disabledText : colors.text,
+    };
+  }
+
+  if (variant === 'danger' && !isInactive) {
+    return { surface: colors.danger, pressedSurface: colors.danger, label: colors.onPrimary };
   }
 
   if (isInactive) {
@@ -37,9 +59,9 @@ function resolveVariantColors(variant: FormButtonVariant, isInactive: boolean): 
   }
 
   return {
-    surface: colors.accent,
-    pressedSurface: colors.accentPressed,
-    label: colors.onAccent,
+    surface: colors.primary,
+    pressedSurface: colors.primaryPressed,
+    label: colors.onPrimary,
   };
 }
 
@@ -49,11 +71,15 @@ export function FormButton({
   variant = 'primary',
   loading = false,
   disabled = false,
+  leading,
+  trailing,
   trailingIcon,
   testID,
 }: FormButtonProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const isInactive = disabled || loading;
-  const variantColors = resolveVariantColors(variant, isInactive);
+  const variantColors = resolveVariantColors(colors, variant, isInactive);
 
   return (
     <Pressable
@@ -64,18 +90,19 @@ export function FormButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        variant === 'outline' ? styles.outline : null,
         {
-          backgroundColor: pressed
-            ? variantColors.pressedSurface
-            : variantColors.surface,
+          backgroundColor: pressed ? variantColors.pressedSurface : variantColors.surface,
         },
       ]}
       testID={testID}
     >
       <View style={styles.content}>
-        {loading ? <ActivityIndicator color={variantColors.label} size="small" /> : null}
+        {loading ? <ActivityIndicator color={variantColors.label} size="small" /> : leading}
 
         <Text style={[styles.label, { color: variantColors.label }]}>{label}</Text>
+
+        {trailing}
 
         {trailingIcon && !loading ? (
           <Feather color={variantColors.label} name={trailingIcon} size={18} />
@@ -85,21 +112,27 @@ export function FormButton({
   );
 }
 
-const styles = StyleSheet.create({
-  button: {
-    borderRadius: radii.xl,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  label: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    button: {
+      borderRadius: radii.xl,
+      minHeight: 52,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+    },
+    /** A hairline keeps a surface-coloured button visible on a white page. */
+    outline: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    content: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    label: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+    },
+  });

@@ -39,6 +39,8 @@ export type StandingParticipant = {
 export type StandingsResult = {
   standings: Omit<MatchStanding, 'isYou'>[];
   winnerUserId: string | null;
+  /** When each member's score last went up. Members who never scored are absent. */
+  scoredAtByUser: ReadonlyMap<string, Date>;
 };
 
 /**
@@ -77,9 +79,7 @@ function scoreAfter(
   }
 
   if (rules.scoringMode === 'days_completed') {
-    return progress.distinctDays.has(event.dayKey)
-      ? progress.score
-      : progress.score + 1;
+    return progress.distinctDays.has(event.dayKey) ? progress.score : progress.score + 1;
   }
 
   const dailyCap = MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC[rules.metric];
@@ -102,10 +102,7 @@ function emptyProgress(): MemberProgress {
  * scored has no arrival and sorts below everyone who did, however the contest
  * was won.
  */
-function compareProgress(
-  left: StandingRow,
-  right: StandingRow,
-): number {
+function compareProgress(left: StandingRow, right: StandingRow): number {
   if (right.score !== left.score) {
     return right.score - left.score;
   }
@@ -197,6 +194,7 @@ export function computeStandings(
   const winnerUserId = leader && leader.score > 0 ? leader.userId : null;
 
   const standings: Omit<MatchStanding, 'isYou'>[] = [];
+  const scoredAtByUser = new Map<string, Date>();
   let previousScore: number | null = null;
   let rank = 0;
 
@@ -217,7 +215,10 @@ export function computeStandings(
       isPending: row.isPending,
     });
     previousScore = row.score;
+    if (row.arrivedAt) {
+      scoredAtByUser.set(row.userId, row.arrivedAt);
+    }
   }
 
-  return { standings, winnerUserId };
+  return { standings, winnerUserId, scoredAtByUser };
 }

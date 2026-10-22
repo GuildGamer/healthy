@@ -1,4 +1,4 @@
-import { colors } from '@product/brand';
+import { darkColors } from '@product/brand';
 import type { MapStyleElement } from 'react-native-maps';
 
 /**
@@ -8,9 +8,9 @@ import type { MapStyleElement } from 'react-native-maps';
  * brightest object on screen.
  */
 export const DARK_MAP_STYLE: MapStyleElement[] = [
-  { elementType: 'geometry', stylers: [{ color: colors.background }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: colors.muted }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: colors.background }] },
+  { elementType: 'geometry', stylers: [{ color: darkColors.background }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: darkColors.muted }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: darkColors.background }] },
   {
     featureType: 'poi',
     elementType: 'labels',
@@ -19,22 +19,22 @@ export const DARK_MAP_STYLE: MapStyleElement[] = [
   {
     featureType: 'poi.park',
     elementType: 'geometry',
-    stylers: [{ color: colors.surface }],
+    stylers: [{ color: darkColors.surface }],
   },
   {
     featureType: 'road',
     elementType: 'geometry',
-    stylers: [{ color: colors.surfaceRaised }],
+    stylers: [{ color: darkColors.surfaceRaised }],
   },
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
-    stylers: [{ color: colors.muted }],
+    stylers: [{ color: darkColors.muted }],
   },
   {
     featureType: 'transit',
     elementType: 'geometry',
-    stylers: [{ color: colors.surface }],
+    stylers: [{ color: darkColors.surface }],
   },
   {
     featureType: 'water',

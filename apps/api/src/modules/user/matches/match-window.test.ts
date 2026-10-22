@@ -11,9 +11,7 @@ describe('startOfNextLocalDay', () => {
 
   it('falls through UTC when the zone is invalid', () => {
     const at = new Date('2026-09-04T20:00:00.000Z');
-    expect(startOfNextLocalDay('Not/AZone', at).toISOString()).toBe(
-      '2026-09-05T00:00:00.000Z',
-    );
+    expect(startOfNextLocalDay('Not/AZone', at).toISOString()).toBe('2026-09-05T00:00:00.000Z');
   });
 });
 

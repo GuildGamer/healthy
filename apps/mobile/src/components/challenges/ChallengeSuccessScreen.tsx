@@ -1,47 +1,30 @@
-import Feather from '@expo/vector-icons/Feather';
 import type { MatchMetric } from '@product/client';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
-import { FormButton, FormErrorBanner } from '@/components/forms';
-import { shareMatchLink } from '@/components/matches/share-match-link';
-import {
-  MATCH_DEFAULT_METRIC,
-  MATCH_LOGGED_KICKER,
-} from '@/components/matches/match-metric';
+import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck';
+import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
-import {
-  markMembershipCtaShownThisSession,
-  markSuccessWasPenalty,
-} from '@/lib/app-review-session';
+import { markMembershipCtaShownThisSession, markSuccessWasPenalty } from '@/lib/app-review-session';
 import { getSessionData, isEmailVerified } from '@/lib/auth-client';
-import { displayFontFamily } from '@/lib/fonts';
 import { hasDeferredOnboarding } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
-import {
-  clearPendingShareCard,
-  peekPendingShareCard,
-  type ShareCardPayload,
-} from '@/lib/share-card-session';
+import { clearPendingShareCard } from '@/lib/share-card-session';
 import { trackEvent } from '@/lib/track-event';
-import {
-  ChallengeShareCard,
-  SHARE_CARD_ASPECT_RATIO,
-  SHARE_CARD_EXPORT_HEIGHT,
-  SHARE_CARD_EXPORT_WIDTH,
-} from './ChallengeShareCard';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
+import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
+import { SUCCESS_COPY } from './constants/success-copy';
+import { friendChallengeSpec } from './friend-challenge';
+import { posterForSuccess, type SuccessFace } from './success-poster';
+import { posterRunLine } from './share-poster';
+import { SharePosterCard } from './SharePosterCard';
+import type { FriendChallengeSource } from './types/friend-challenge';
+import { useFriendChallenge } from './useFriendChallenge';
 
 type ChallengeSuccessScreenProps = {
   title: string;
@@ -57,233 +40,126 @@ type ChallengeSuccessScreenProps = {
   matchMetric?: MatchMetric;
   /** An extra set after the daily challenge: shareable, but worth nothing. */
   practice?: boolean;
+  /** What a friend would be challenged to; derived from the finish that opened this page. */
+  friendSource?: FriendChallengeSource;
+  /** Opened because the last challenge of the day was just finished. */
+  isDayFinished?: boolean;
+  /** Which result the share card heroes. Absent on older links, which fall back to the count. */
+  face?: SuccessFace;
+  minutes?: number;
+  glasses?: number;
 };
 
-function isTreatmentAssignment(assignment: {
-  variantKey: string;
-  configuration: Record<string, unknown> | null;
-} | null | undefined): boolean {
-  if (!assignment) {
+/**
+ * A daily finish or a counted set may invite a friend; a group set only when
+ * it was push-ups, as before. A penalised finish never asks.
+ */
+function canInviteFriend(props: ChallengeSuccessScreenProps, wasPenalized: boolean): boolean {
+  if (wasPenalized) {
     return false;
   }
 
-  if (assignment.variantKey === 'treatment') {
-    return true;
+  if (props.matchId) {
+    return props.matchMetric !== 'walk';
   }
 
-  return assignment.configuration?.completionCta === 'challenge_friend_primary';
+  return Boolean(props.userChallengeId) || (props.completedCount ?? 0) > 0;
 }
 
-export function ChallengeSuccessScreen({
-  title,
-  pointsAwarded,
-  currentStreakDays,
-  penaltyApplied = 0,
-  completedCount,
-  targetCount,
-  matchId,
-  userChallengeId,
-  matchMetric = MATCH_DEFAULT_METRIC,
-  practice = false,
-}: ChallengeSuccessScreenProps) {
-  const router = useRouter();
-  const meQuery = useQuery({
-    queryKey: ['me'],
-    queryFn: () => apiClient.me(),
-  });
-  const isMatch = Boolean(matchId);
-  const wasPenalized = penaltyApplied > 0;
-  /**
-   * Verified push-up sets enter the flywheel — daily challenge, group attempt,
-   * or practice/extra set. The social object is the score, not the points.
-   * seedCount alone is enough when `userChallengeId` is absent.
-   */
-  const canEnterFlywheel =
-    !wasPenalized &&
-    matchMetric === 'pushups' &&
-    (Boolean(userChallengeId) ||
-      Boolean(matchId) ||
-      (completedCount != null && completedCount > 0));
+/** Reps, minutes and glasses stay the hero. Everything else is a quiet word. */
+function successFace(input: {
+  face?: SuccessFace;
+  completedCount?: number;
+  matchMetric: MatchMetric;
+  minutes?: number;
+  glasses?: number;
+}): SuccessFace {
+  if (input.face) {
+    return input.face;
+  }
 
-  const assignmentQuery = useQuery({
-    queryKey: ['experiments', 'challenge_referral_v1'],
-    queryFn: () =>
-      apiClient.getExperimentAssignment({
-        experimentKey: 'challenge_referral_v1',
-      }),
-    enabled: canEnterFlywheel,
-  });
+  if ((input.completedCount ?? 0) > 0 && input.matchMetric !== 'walk') {
+    return 'reps';
+  }
 
-  const assignmentReady =
-    !canEnterFlywheel ||
-    assignmentQuery.isFetched ||
-    assignmentQuery.isError;
-  const isTreatment =
-    canEnterFlywheel &&
-    assignmentReady &&
-    isTreatmentAssignment(assignmentQuery.data);
-  const hasMembership = meQuery.data?.hasMembership ?? false;
-  const shareShotRef = useRef<View>(null);
-  const [pendingShare] = useState<ShareCardPayload | null>(() =>
-    peekPendingShareCard(),
-  );
-  const [shareBusy, setShareBusy] = useState(false);
-  const [challengeBusy, setChallengeBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const ctaTracked = useRef(false);
+  if ((input.minutes ?? 0) > 0) {
+    return 'minutes';
+  }
 
-  useEffect(() => {
-    markSuccessWasPenalty(penaltyApplied);
-  }, [penaltyApplied]);
+  if ((input.glasses ?? 0) > 0) {
+    return 'glasses';
+  }
 
-  useEffect(() => {
-    return () => {
-      clearPendingShareCard();
-    };
-  }, []);
+  return 'done';
+}
 
-  useEffect(() => {
-    if (!isTreatment || ctaTracked.current) {
-      return;
-    }
+function useShareCardImage(context: {
+  matchId?: string;
+  userChallengeId?: string;
+  practice: boolean;
+}) {
+  const shotRef = useRef<View>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    ctaTracked.current = true;
-    trackEvent('challenge_cta_viewed', {
-      experiment_id: assignmentQuery.data?.experimentId,
-      experiment_variant: assignmentQuery.data?.variantKey,
-      match_id: matchId,
-      user_challenge_id: userChallengeId,
-      challenge_goal: completedCount,
-      practice,
-    });
-  }, [
-    assignmentQuery.data?.experimentId,
-    assignmentQuery.data?.variantKey,
-    completedCount,
-    isTreatment,
-    matchId,
-    practice,
-    userChallengeId,
-  ]);
-
-  async function shareBrandedPhoto() {
-    setActionError(null);
-    setShareBusy(true);
-
+  async function share() {
+    setError(null);
+    setIsSharing(true);
     try {
-      if (!shareShotRef.current) {
-        setActionError('Could not prepare that image. Try again.');
+      if (!shotRef.current) {
+        setError(SUCCESS_COPY.prepareFailed);
         return;
       }
 
-      // Capture the square bitmap at export resolution. Do not round the
-      // capture target — JPEG has no alpha, so clipped corners fill white.
-      const uri = await captureRef(shareShotRef, {
-        format: 'jpg',
+      // The same card the history Share screen shows. PNG keeps its rounded corners.
+      const uri = await captureRef(shotRef, {
+        format: 'png',
         quality: 1,
-        width: SHARE_CARD_EXPORT_WIDTH,
-        height: SHARE_CARD_EXPORT_HEIGHT,
         result: 'tmpfile',
       });
 
       if (!(await Sharing.isAvailableAsync())) {
-        setActionError('Sharing is not available on this device.');
+        setError(SUCCESS_COPY.sharingUnavailable);
         return;
       }
 
       trackEvent('challenge_shared', {
         share_channel: 'image_card',
-        match_id: matchId,
-        user_challenge_id: userChallengeId,
-        practice,
+        match_id: context.matchId,
+        user_challenge_id: context.userChallengeId,
+        practice: context.practice,
       });
-
       await Sharing.shareAsync(uri, {
-        mimeType: 'image/jpeg',
-        dialogTitle: 'Share your Healthy win',
+        mimeType: 'image/png',
+        dialogTitle: SUCCESS_COPY.shareDialog,
       });
     } catch {
-      setActionError('Could not share that image. Try again.');
+      setError(SUCCESS_COPY.shareFailed);
     } finally {
-      setShareBusy(false);
+      setIsSharing(false);
     }
   }
 
-  const challengeFriend = useMutation({
-    mutationFn: async () => {
-      const assignment = assignmentQuery.data;
-      return apiClient.createMatch({
-        window: 'today',
-        metric: 'pushups',
-        scoringMode: 'best_single',
-        sourceUserChallengeId: userChallengeId,
-        parentMatchId: matchId,
-        experimentId: assignment?.experimentId,
-        experimentVariantKey: assignment?.variantKey,
-        seedCount:
-          completedCount != null && completedCount > 0
-            ? completedCount
-            : undefined,
-      });
-    },
-    onSuccess: async (result) => {
-      trackEvent('challenge_created', {
-        challenge_id: result.match.id,
-        experiment_id: assignmentQuery.data?.experimentId,
-        experiment_variant: assignmentQuery.data?.variantKey,
-        parent_challenge_id: matchId,
-        user_challenge_id: userChallengeId,
-        challenge_goal: completedCount,
-        practice,
-      });
-      trackEvent('challenge_share_sheet_opened', {
-        challenge_id: result.match.id,
-        practice,
-      });
+  return { shotRef, isSharing, error, share: () => void share() };
+}
 
-      await shareMatchLink({
-        url: result.invite.url,
-        hostScore: completedCount ?? result.match.yourScore,
-        metricLabel: 'push-ups',
-      });
+function useLeaveSuccess(matchId: string | undefined) {
+  const router = useRouter();
+  const meQuery = useQuery({ queryKey: ['me'], queryFn: () => apiClient.me() });
 
-      router.replace(`/matches/${result.match.id}`);
-    },
-    onError: () => {
-      setActionError('Could not create that challenge. Try again.');
-    },
-  });
-
-  async function handleChallengeFriend() {
-    setActionError(null);
-    setChallengeBusy(true);
-    trackEvent('challenge_friend_clicked', {
-      experiment_id: assignmentQuery.data?.experimentId,
-      experiment_variant: assignmentQuery.data?.variantKey,
-      match_id: matchId,
-      user_challenge_id: userChallengeId,
-      practice,
-    });
-
-    try {
-      await challengeFriend.mutateAsync();
-    } finally {
-      setChallengeBusy(false);
-    }
-  }
-
-  async function handleDone() {
+  async function leave() {
     const me = meQuery.data;
     const session = await getSessionData();
-    if (
+    const owesOnboarding =
       me &&
       hasDeferredOnboarding({
         emailVerified: isEmailVerified(session),
         name: me.name,
         countryCode: me.countryCode,
         categoryCount: me.categories.length,
-      })
-    ) {
+      });
+
+    if (owesOnboarding) {
       const href = await resolvePostAuthHref();
       if (href && href !== '/(tabs)' && !href.startsWith('/match/')) {
         router.replace(href);
@@ -291,43 +167,54 @@ export function ChallengeSuccessScreen({
       }
     }
 
-    if (isMatch && matchId) {
-      router.replace(`/matches/${matchId}`);
-      return;
-    }
-
-    router.replace('/(tabs)/challenges');
+    router.replace(matchId ? `/matches/${matchId}` : '/(tabs)');
   }
 
-  const cardKicker = isMatch
-    ? MATCH_LOGGED_KICKER[matchMetric]
-    : practice
-      ? 'Extra set'
-      : 'Challenge complete';
-  const streakDays =
-    isMatch || practice
-      ? (meQuery.data?.currentStreakDays ?? currentStreakDays)
-      : currentStreakDays;
-  const showMembershipLink =
-    assignmentReady && !hasMembership && !isMatch && !practice && !isTreatment;
-  const repsCountedByCamera =
-    matchMetric === 'pushups' && completedCount != null && completedCount > 0;
-  const actionPrompt = isTreatment
-    ? 'Think a friend can beat you?'
-    : 'Post it to your story or send it to a friend.';
-  const doneLabel = isTreatment || !assignmentReady
-    ? 'Not now'
-    : isMatch
-      ? 'Back to group'
-      : "See what's next";
+  return { me: meQuery.data, leave: () => void leave() };
+}
 
-  function openMembership() {
-    markMembershipCtaShownThisSession();
-    router.push({
-      pathname: '/membership',
-      params: { source: 'success' },
-    });
-  }
+/** The full Well done page: the day's share card, the friend challenge, and a quiet way on. */
+export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
+  const {
+    title,
+    currentStreakDays,
+    penaltyApplied = 0,
+    completedCount,
+    matchId,
+    userChallengeId,
+    matchMetric = MATCH_DEFAULT_METRIC,
+    practice = false,
+    isDayFinished = false,
+    face,
+    minutes,
+    glasses,
+  } = props;
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const isMatch = Boolean(matchId);
+  const wasPenalized = penaltyApplied > 0;
+  const friend = useFriendChallenge({
+    spec: friendChallengeSpec(props.friendSource ?? { kind: 'reps', count: completedCount ?? 0 }),
+    isEligible: canInviteFriend(props, wasPenalized),
+    userChallengeId,
+    parentMatchId: matchId,
+    practice,
+  });
+  const shareImage = useShareCardImage({ matchId, userChallengeId, practice });
+  const { me, leave } = useLeaveSuccess(matchId);
+
+  useEffect(() => {
+    markSuccessWasPenalty(penaltyApplied);
+  }, [penaltyApplied]);
+
+  useEffect(() => clearPendingShareCard, []);
+
+  const doneLabel =
+    friend.isOffered || !friend.isReady
+      ? SUCCESS_COPY.notNow
+      : isMatch
+        ? SUCCESS_COPY.backToGroup
+        : SUCCESS_COPY.seeNext;
 
   if (wasPenalized) {
     return (
@@ -338,110 +225,108 @@ export function ChallengeSuccessScreen({
           title={title}
         />
         <View style={styles.actions}>
-          <FormButton
-            label={doneLabel}
-            onPress={() => {
-              void handleDone();
-            }}
-            testID="challenge-success-done"
-          />
+          <DeckButton label={doneLabel} onPress={leave} testID="challenge-success-done" />
         </View>
       </SafeAreaView>
     );
   }
 
+  const streakDays =
+    isMatch || practice ? (me?.currentStreakDays ?? currentStreakDays) : currentStreakDays;
+  const poster = posterForSuccess({
+    title,
+    face: successFace({ face, completedCount, matchMetric, minutes, glasses }),
+    count: completedCount,
+    minutes,
+    glasses,
+  });
+  const showMembershipLink =
+    friend.isReady && !(me?.hasMembership ?? false) && !isMatch && !practice && !friend.isOffered;
+
   return (
     <SafeAreaView style={styles.container} testID="challenge-success-screen">
+      {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
       <View style={styles.body}>
-        <FittedShareCard>
-          <View style={styles.sharePreview}>
-            <View collapsable={false} ref={shareShotRef} style={styles.shareShot}>
-              <ChallengeShareCard
-                completedCount={completedCount}
-                currentStreakDays={streakDays}
-                kicker={cardKicker}
-                photoHeight={pendingShare?.photoHeight}
-                photoUri={pendingShare?.photoUri}
-                photoWidth={pendingShare?.photoWidth}
-                pointsAwarded={pointsAwarded}
-                targetCount={targetCount}
-                title={title}
-                verified={repsCountedByCamera}
-              />
-            </View>
-          </View>
-        </FittedShareCard>
+        <View collapsable={false} ref={shareImage.shotRef} style={styles.posterWrap}>
+          <SharePosterCard poster={poster} runLine={posterRunLine(streakDays)} />
+        </View>
       </View>
-
       <View style={styles.actions}>
-        {actionError ? <FormErrorBanner message={actionError} /> : null}
-
-        {assignmentReady ? (
-          <Text style={styles.actionPrompt}>{actionPrompt}</Text>
-        ) : null}
-
-        {!assignmentReady ? (
-          <View style={styles.assigningRow} testID="challenge-success-assigning">
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : null}
-
-        {assignmentReady && isTreatment ? (
-          <View style={styles.primaryRow}>
-            <View style={styles.primaryFill}>
-              <FormButton
-                label="Challenge a friend"
-                loading={challengeBusy}
-                onPress={() => {
-                  void handleChallengeFriend();
-                }}
-                testID="challenge-success-challenge-friend"
-              />
-            </View>
-            <ShareIconButton
-              busy={shareBusy}
-              onPress={() => {
-                void shareBrandedPhoto();
-              }}
-            />
-          </View>
-        ) : null}
-
-        {assignmentReady && !isTreatment ? (
-          <FormButton
-            label="Share"
-            loading={shareBusy}
-            onPress={() => {
-              void shareBrandedPhoto();
-            }}
-            testID="challenge-success-share"
-            trailingIcon="share"
-          />
-        ) : null}
-
-        <View
-          style={[
-            styles.quietRow,
-            showMembershipLink ? styles.quietRowSplit : null,
-          ]}
-        >
+        {shareImage.error ? <DeckSheetMessage message={shareImage.error} /> : null}
+        {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
+        <SuccessActions friend={friend} shareImage={shareImage} />
+        <View style={[styles.quietRow, showMembershipLink ? styles.quietRowSplit : null]}>
           {showMembershipLink ? (
             <QuietAction
-              label="Unlock membership"
-              onPress={openMembership}
+              label={SUCCESS_COPY.unlockMembership}
+              onPress={() => {
+                markMembershipCtaShownThisSession();
+                router.push({ pathname: '/membership', params: { source: 'success' } });
+              }}
               testID="challenge-success-membership"
             />
           ) : null}
-          <QuietAction
-            label={doneLabel}
-            onPress={() => {
-              void handleDone();
-            }}
-            testID="challenge-success-done"
-          />
+          <QuietAction label={doneLabel} onPress={leave} testID="challenge-success-done" />
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function SuccessActions({
+  friend,
+  shareImage,
+}: {
+  friend: ReturnType<typeof useFriendChallenge>;
+  shareImage: ReturnType<typeof useShareCardImage>;
+}) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
+  if (!friend.isReady) {
+    return (
+      <View style={styles.assigningRow} testID="challenge-success-assigning">
+        <ActivityIndicator color={colors.muted} />
+      </View>
+    );
+  }
+
+  if (!friend.isOffered) {
+    return (
+      <>
+        <Text style={styles.actionPrompt}>{SUCCESS_COPY.sharePrompt}</Text>
+        <DeckButton
+          glyph="share"
+          label={SUCCESS_COPY.share}
+          loading={shareImage.isSharing}
+          onPress={shareImage.share}
+          testID="challenge-success-share"
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Text style={styles.actionPrompt}>{FRIEND_CHALLENGE_COPY.prompt}</Text>
+      <View style={styles.primaryRow}>
+        <DeckButton
+          isFlexible
+          label={FRIEND_CHALLENGE_COPY.action}
+          loading={friend.isCreating}
+          onPress={friend.challengeFriend}
+          testID="challenge-success-challenge-friend"
+        />
+        <DeckRoundButton
+          accessibilityLabel={SUCCESS_COPY.shareResult}
+          disabled={shareImage.isSharing}
+          glyph="share"
+          onPress={shareImage.share}
+          onSurface
+          testID="challenge-success-share"
+        />
+      </View>
+    </>
   );
 }
 
@@ -454,17 +339,14 @@ function PenaltySummary({
   penaltyApplied: number;
   currentStreakDays: number;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={[styles.body, styles.penaltyBody]}>
-      <View style={styles.badgeOuter}>
-        <View style={styles.badgeInner}>
-          <Feather color={colors.onAccent} name="alert-circle" size={36} />
-        </View>
-      </View>
-      <Text style={styles.penaltyKicker}>Photo check missed</Text>
+      <Text style={styles.penaltyKicker}>{SUCCESS_COPY.photoCheckMissed}</Text>
       <Text style={styles.penaltyTitle}>{title}</Text>
       <Text style={styles.penaltySubtitle}>
-        {penaltyApplied} points were deducted. Tomorrow is a fresh start.
+        {penaltyApplied} {SUCCESS_COPY.penaltyLine}
       </Text>
       <View style={styles.stats}>
         <View style={styles.stat}>
@@ -481,41 +363,6 @@ function PenaltySummary({
   );
 }
 
-/** Secondary to the primary beside it: tonal, square to its height, icon only. */
-function ShareIconButton({
-  busy,
-  onPress,
-}: {
-  busy: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel="Share result"
-      accessibilityRole="button"
-      accessibilityState={{ disabled: busy, busy }}
-      disabled={busy}
-      hitSlop={spacing.xs}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.shareIconButton,
-        pressed ? styles.shareIconButtonPressed : null,
-      ]}
-      testID="challenge-success-share"
-    >
-      {busy ? (
-        <ActivityIndicator color={colors.accent} size="small" />
-      ) : (
-        <Feather
-          color={colors.accent}
-          name={Platform.OS === 'android' ? 'share-2' : 'share'}
-          size={20}
-        />
-      )}
-    </Pressable>
-  );
-}
-
 function QuietAction({
   label,
   onPress,
@@ -525,15 +372,14 @@ function QuietAction({
   onPress: () => void;
   testID: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityRole="button"
       hitSlop={spacing.sm}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.quietAction,
-        pressed ? styles.quietActionPressed : null,
-      ]}
+      style={({ pressed }) => [styles.quietAction, pressed ? styles.quietActionPressed : null]}
       testID={testID}
     >
       <Text style={styles.quietActionLabel}>{label}</Text>
@@ -541,194 +387,119 @@ function QuietAction({
   );
 }
 
-function FittedShareCard({ children }: { children: ReactNode }) {
-  const [box, setBox] = useState({ width: 0, height: 0 });
-  const fittedWidth =
-    box.width > 0 && box.height > 0
-      ? Math.min(box.width, box.height * SHARE_CARD_ASPECT_RATIO)
-      : 0;
-
-  return (
-    <View
-      onLayout={(event) => {
-        const { width, height } = event.nativeEvent.layout;
-        setBox({ width, height });
-      }}
-      style={styles.fitHost}
-    >
-      <View
-        style={
-          fittedWidth > 0
-            ? {
-                width: fittedWidth,
-                height: fittedWidth / SHARE_CARD_ASPECT_RATIO,
-              }
-            : styles.fitFallback
-        }
-      >
-        {children}
-      </View>
-    </View>
-  );
-}
-
-const SHARE_ICON_BUTTON_SIZE = 52;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  body: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    minHeight: 0,
-  },
-  actions: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    gap: spacing.md,
-  },
-  actionPrompt: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  assigningRow: {
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  primaryFill: {
-    flex: 1,
-  },
-  shareIconButton: {
-    width: SHARE_ICON_BUTTON_SIZE,
-    height: SHARE_ICON_BUTTON_SIZE,
-    borderRadius: radii.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accentContainer,
-  },
-  shareIconButtonPressed: {
-    backgroundColor: colors.accentContainerPressed,
-  },
-  quietRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quietRowSplit: {
-    justifyContent: 'space-between',
-  },
-  quietAction: {
-    paddingVertical: spacing.xs,
-  },
-  quietActionPressed: {
-    opacity: 0.65,
-  },
-  quietActionLabel: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  fitHost: {
-    flex: 1,
-    minHeight: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fitFallback: {
-    width: '100%',
-  },
-  /**
-   * Rounded and outlined only in-app so the card reads as an image to send.
-   * The capture ref sits inside, so exports stay square and borderless.
-   */
-  sharePreview: {
-    flex: 1,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  shareShot: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  penaltyBody: {
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  badgeOuter: {
-    alignSelf: 'center',
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    backgroundColor: colors.accentSurface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  penaltyKicker: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    textAlign: 'center',
-  },
-  penaltyTitle: {
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xl,
-    textAlign: 'center',
-  },
-  penaltySubtitle: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  stats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: {
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xl,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-  },
-  statDivider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: 'stretch',
-    backgroundColor: colors.border,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    headline: {
+      color: theme.colors.text,
+      fontSize: fontSize.headline,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: -0.8,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+    },
+    body: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      minHeight: 0,
+      alignItems: 'center',
+    },
+    posterWrap: {
+      marginTop: 18,
+    },
+    actions: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.sm,
+      gap: spacing.md,
+    },
+    actionPrompt: {
+      color: theme.colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+    },
+    assigningRow: {
+      minHeight: 54,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    primaryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    quietRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quietRowSplit: {
+      justifyContent: 'space-between',
+    },
+    quietAction: {
+      paddingVertical: spacing.xs,
+    },
+    quietActionPressed: {
+      opacity: 0.65,
+    },
+    quietActionLabel: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+    },
+    penaltyBody: {
+      justifyContent: 'center',
+      gap: spacing.sm,
+    },
+    penaltyKicker: {
+      color: theme.colors.muted,
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.semibold,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      textAlign: 'center',
+    },
+    penaltyTitle: {
+      color: theme.colors.text,
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.semibold,
+      textAlign: 'center',
+    },
+    penaltySubtitle: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      lineHeight: 20,
+      textAlign: 'center',
+    },
+    stats: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+      marginVertical: spacing.sm,
+    },
+    stat: {
+      flex: 1,
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    statValue: {
+      color: theme.colors.text,
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.semibold,
+    },
+    statLabel: {
+      color: theme.colors.muted,
+      fontSize: fontSize.xs,
+    },
+    statDivider: {
+      width: StyleSheet.hairlineWidth,
+      alignSelf: 'stretch',
+      backgroundColor: theme.colors.border,
+    },
+  });

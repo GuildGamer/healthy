@@ -16,9 +16,7 @@ describe('standingProgress', () => {
   });
 
   it('keeps the gap singular when one set apart', () => {
-    expect(standingProgress({ score: 41, leadScore: 42 }).note).toBe(
-      '1 behind',
-    );
+    expect(standingProgress({ score: 41, leadScore: 42 }).note).toBe('1 behind');
   });
 
   it('empties the bar for anyone yet to score', () => {

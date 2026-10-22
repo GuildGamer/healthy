@@ -8,15 +8,11 @@ import {
   profilePhotoFromCapture,
   type ProfilePhotoRenderer,
 } from './pick-profile-photo';
-import {
-  PROFILE_PHOTO_EDGE_PX,
-  renderProfilePhoto,
-} from './render-profile-photo';
+import { PROFILE_PHOTO_EDGE_PX, renderProfilePhoto } from './render-profile-photo';
 
 jest.mock('./render-profile-photo', () => {
-  const actual = jest.requireActual<typeof import('./render-profile-photo')>(
-    './render-profile-photo',
-  );
+  const actual =
+    jest.requireActual<typeof import('./render-profile-photo')>('./render-profile-photo');
   return {
     ...actual,
     renderProfilePhoto: jest.fn(),
@@ -157,9 +153,7 @@ describe('profilePhotoFromCapture', () => {
   it('fails closed when the picker kept no file', async () => {
     const render = jest.fn();
 
-    await expect(
-      profilePhotoFromCapture({ uri: '  ' }, render),
-    ).resolves.toEqual({
+    await expect(profilePhotoFromCapture({ uri: '  ' }, render)).resolves.toEqual({
       status: 'failed',
       message: PHOTO_MISSING_MESSAGE,
     });
@@ -168,8 +162,7 @@ describe('profilePhotoFromCapture', () => {
 });
 
 describe('pickProfilePhoto', () => {
-  const launchLibrary =
-    ImagePicker.launchImageLibraryAsync as unknown as jest.Mock;
+  const launchLibrary = ImagePicker.launchImageLibraryAsync as unknown as jest.Mock;
 
   beforeEach(() => {
     launchLibrary.mockReset();
@@ -180,18 +173,14 @@ describe('pickProfilePhoto', () => {
       canceled: false,
       assets: [{ uri: 'file://library/photo.jpg', width: 3024, height: 4032 }],
     });
-    const mockedRender = renderProfilePhoto as jest.MockedFunction<
-      typeof renderProfilePhoto
-    >;
+    const mockedRender = renderProfilePhoto as jest.MockedFunction<typeof renderProfilePhoto>;
     mockedRender.mockResolvedValue({ base64: 'avatar' });
 
     await expect(pickProfilePhoto('library')).resolves.toEqual({
       status: 'picked',
       image: 'data:image/jpeg;base64,avatar',
     });
-    expect(launchLibrary).toHaveBeenCalledWith(
-      expect.not.objectContaining({ base64: true }),
-    );
+    expect(launchLibrary).toHaveBeenCalledWith(expect.not.objectContaining({ base64: true }));
     expect(mockedRender).toHaveBeenCalledWith(
       expect.objectContaining({
         uri: 'file://library/photo.jpg',

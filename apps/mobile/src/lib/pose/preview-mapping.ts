@@ -9,10 +9,7 @@ export function uprightBufferSize(
   bufferHeight: number,
   orientation: Orientation,
 ): { width: number; height: number } {
-  if (
-    orientation === 'landscape-left' ||
-    orientation === 'landscape-right'
-  ) {
+  if (orientation === 'landscape-left' || orientation === 'landscape-right') {
     return { width: bufferHeight, height: bufferWidth };
   }
 
@@ -63,15 +60,9 @@ export function mapSquareModelPointToCoverView(
   modelY: number,
   args: CoverMapArgs,
 ): { x: number; y: number } {
-  const { viewWidth, viewHeight, bufferWidth, bufferHeight, orientation } =
-    args;
+  const { viewWidth, viewHeight, bufferWidth, bufferHeight, orientation } = args;
 
-  if (
-    viewWidth <= 0 ||
-    viewHeight <= 0 ||
-    bufferWidth <= 0 ||
-    bufferHeight <= 0
-  ) {
+  if (viewWidth <= 0 || viewHeight <= 0 || bufferWidth <= 0 || bufferHeight <= 0) {
     return { x: modelX, y: modelY };
   }
 
@@ -83,10 +74,7 @@ export function mapSquareModelPointToCoverView(
   const uprightX = squareOffsetX + modelX * squareSide;
   const uprightY = squareOffsetY + modelY * squareSide;
 
-  const coverScale = Math.max(
-    viewWidth / upright.width,
-    viewHeight / upright.height,
-  );
+  const coverScale = Math.max(viewWidth / upright.width, viewHeight / upright.height);
   const displayedWidth = upright.width * coverScale;
   const displayedHeight = upright.height * coverScale;
   const offsetX = (viewWidth - displayedWidth) / 2;

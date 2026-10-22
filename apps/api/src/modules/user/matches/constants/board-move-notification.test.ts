@@ -69,8 +69,6 @@ describe('boardMovePush copy', () => {
 
 describe('boardMoveIdempotencyKey', () => {
   it('keys one notice per match, attempt, and recipient', () => {
-    expect(boardMoveIdempotencyKey('m1', 'a1', 'u2')).toBe(
-      'match_board_move:m1:a1:u2',
-    );
+    expect(boardMoveIdempotencyKey('m1', 'a1', 'u2')).toBe('match_board_move:m1:a1:u2');
   });
 });

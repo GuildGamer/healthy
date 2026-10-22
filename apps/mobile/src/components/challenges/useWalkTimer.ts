@@ -47,9 +47,7 @@ export function useWalkTimer(): WalkTimer {
         return;
       }
 
-      setElapsedSeconds(
-        bankedSecondsRef.current + secondsBetween(segmentStartedAt, Date.now()),
-      );
+      setElapsedSeconds(bankedSecondsRef.current + secondsBetween(segmentStartedAt, Date.now()));
     }, TICK_MS);
   }, []);
 
@@ -59,10 +57,7 @@ export function useWalkTimer(): WalkTimer {
 
       const segmentStartedAt = segmentStartedAtRef.current;
       if (segmentStartedAt !== null) {
-        const endedAt = Math.min(
-          options?.effectiveAtMs ?? Date.now(),
-          Date.now(),
-        );
+        const endedAt = Math.min(options?.effectiveAtMs ?? Date.now(), Date.now());
         bankedSecondsRef.current += secondsBetween(segmentStartedAt, endedAt);
         segmentStartedAtRef.current = null;
       }

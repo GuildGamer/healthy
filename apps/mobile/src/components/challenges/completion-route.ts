@@ -28,9 +28,7 @@ export function completionRoute(challenge: {
   | `/challenge/${string}/practice`
   | null {
   if (challenge.status === 'completed') {
-    return canPracticeAgain(challenge)
-      ? practiceRoute(challenge.challengeId)
-      : null;
+    return canPracticeAgain(challenge) ? practiceRoute(challenge.challengeId) : null;
   }
 
   if (challenge.status === 'awaiting_evidence') {
@@ -41,10 +39,7 @@ export function completionRoute(challenge: {
     return `/challenge/${challenge.challengeId}/pose`;
   }
 
-  if (
-    challenge.capture?.kind === 'device_session' ||
-    challenge.capture?.kind === 'device_sample'
-  ) {
+  if (challenge.capture?.kind === 'device_session' || challenge.capture?.kind === 'device_sample') {
     return `/challenge/${challenge.challengeId}/session`;
   }
 

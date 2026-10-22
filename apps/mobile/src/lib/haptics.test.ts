@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { requireOptionalNativeModule } from 'expo-modules-core';
-import { isHapticsNativeAvailable, playGoalReachedHaptic } from './haptics';
+import { isHapticsNativeAvailable, playGoalReachedHaptic, playSentHaptic } from './haptics';
 
 jest.mock('expo-modules-core', () => {
   const actual = jest.requireActual('expo-modules-core') as object;
@@ -49,5 +49,13 @@ describe('haptics', () => {
     );
 
     await expect(playGoalReachedHaptic()).resolves.toBeUndefined();
+  });
+
+  it('plays a light tap when something small is sent', async () => {
+    mockedRequire.mockReturnValue({});
+
+    await playSentHaptic();
+
+    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
   });
 });

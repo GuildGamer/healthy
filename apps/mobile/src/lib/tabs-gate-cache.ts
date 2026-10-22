@@ -28,10 +28,7 @@ export function resetTabsGateCacheForTests(): void {
  * Apply a post-auth resolve result to the tabs gate.
  * Only `/(tabs)` marks the process-local allowed flag.
  */
-export function applyTabsGateResolve(
-  userId: string,
-  href: string,
-): { markAllowed: boolean } {
+export function applyTabsGateResolve(userId: string, href: string): { markAllowed: boolean } {
   if (href === '/(tabs)') {
     markTabsGateAllowed(userId);
     return { markAllowed: true };

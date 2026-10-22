@@ -6,9 +6,7 @@ jest.mock('@/lib/haptics', () => ({
   playGoalReachedHaptic: jest.fn(async () => undefined),
 }));
 
-const mockedHaptic = playGoalReachedHaptic as jest.MockedFunction<
-  typeof playGoalReachedHaptic
->;
+const mockedHaptic = playGoalReachedHaptic as jest.MockedFunction<typeof playGoalReachedHaptic>;
 
 describe('PoseCountHud', () => {
   afterEach(() => {
@@ -17,7 +15,8 @@ describe('PoseCountHud', () => {
   it('shows the live count against the target while short of it', () => {
     render(<PoseCountHud count={4} meta="Tracking" target={10} />);
 
-    expect(screen.getByTestId('pose-count')).toHaveTextContent('4 / 10');
+    expect(screen.getByTestId('pose-count')).toHaveTextContent('4');
+    expect(screen.getByTestId('pose-target')).toHaveTextContent('of 10');
     expect(screen.queryByTestId('pose-target-badge')).toBeNull();
     expect(mockedHaptic).not.toHaveBeenCalled();
   });
@@ -44,7 +43,7 @@ describe('PoseCountHud', () => {
   it('keeps the target credited while extra reps stack up', () => {
     render(<PoseCountHud count={14} meta="Tracking" target={10} />);
 
-    expect(screen.getByTestId('pose-count')).toHaveTextContent('14 / 10');
+    expect(screen.getByTestId('pose-count')).toHaveTextContent('14');
     expect(screen.getByText('Target hit · +4')).toBeOnTheScreen();
   });
 

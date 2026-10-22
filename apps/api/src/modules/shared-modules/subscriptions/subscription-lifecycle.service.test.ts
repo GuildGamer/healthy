@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntitlementService } from './entitlement.service.js';
 import { SubscriptionLifecycleService } from './subscription-lifecycle.service.js';
 import type { ApplyPurchaseInput } from './types/subscription-lifecycle.js';
@@ -167,9 +167,7 @@ function createHarness() {
         const key = where.provider_providerEventId;
         return (
           events.find(
-            (row) =>
-              row.provider === key.provider &&
-              row.providerEventId === key.providerEventId,
+            (row) => row.provider === key.provider && row.providerEventId === key.providerEventId,
           ) ?? null
         );
       },
@@ -182,22 +180,16 @@ function createHarness() {
 
   const db = {
     ...tables,
-    $transaction: async <T>(fn: (client: typeof tables) => Promise<T>) =>
-      fn(tables),
+    $transaction: async <T>(fn: (client: typeof tables) => Promise<T>) => fn(tables),
   };
 
   const entitlementsService = new EntitlementService(db as never);
-  const lifecycle = new SubscriptionLifecycleService(
-    db as never,
-    entitlementsService,
-  );
+  const lifecycle = new SubscriptionLifecycleService(db as never, entitlementsService);
 
   return { lifecycle, subscriptions, entitlements, events, profiles };
 }
 
-function purchaseInput(
-  overrides: Partial<ApplyPurchaseInput> = {},
-): ApplyPurchaseInput {
+function purchaseInput(overrides: Partial<ApplyPurchaseInput> = {}): ApplyPurchaseInput {
   return {
     userId: 'user-1',
     planId: 'plan-month',
@@ -220,6 +212,17 @@ function purchaseInput(
 }
 
 describe('SubscriptionLifecycleService', () => {
+  // The fixtures' period runs 16 Sep to 16 Oct 2026, with a revoke on 20 Sep.
+  // Pinning today inside that window keeps "active" true whatever the real date.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T00:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('creates a subscription, entitlement, and membership cache on purchase', async () => {
     const { lifecycle, subscriptions, entitlements, profiles } = createHarness();
 
@@ -228,9 +231,7 @@ describe('SubscriptionLifecycleService', () => {
     expect(result.success).toBe(true);
     expect(subscriptions).toHaveLength(1);
     expect(subscriptions[0]?.status).toBe('active');
-    expect(entitlements[0]?.endsAt?.toISOString()).toBe(
-      '2026-10-16T00:00:00.000Z',
-    );
+    expect(entitlements[0]?.endsAt?.toISOString()).toBe('2026-10-16T00:00:00.000Z');
     expect(profiles.get('user-1')?.membershipActive).toBe(true);
   });
 
@@ -290,12 +291,8 @@ describe('SubscriptionLifecycleService', () => {
     });
 
     expect(renewed.success).toBe(true);
-    expect(subscriptions[0]?.currentPeriodEndsAt.toISOString()).toBe(
-      '2026-11-16T00:00:00.000Z',
-    );
-    expect(entitlements[0]?.endsAt?.toISOString()).toBe(
-      '2026-11-16T00:00:00.000Z',
-    );
+    expect(subscriptions[0]?.currentPeriodEndsAt.toISOString()).toBe('2026-11-16T00:00:00.000Z');
+    expect(entitlements[0]?.endsAt?.toISOString()).toBe('2026-11-16T00:00:00.000Z');
   });
 
   it('does not extend twice when the same renewal event is replayed', async () => {
@@ -320,9 +317,7 @@ describe('SubscriptionLifecycleService', () => {
       event,
     });
 
-    expect(subscriptions[0]?.currentPeriodEndsAt.toISOString()).toBe(
-      '2026-11-16T00:00:00.000Z',
-    );
+    expect(subscriptions[0]?.currentPeriodEndsAt.toISOString()).toBe('2026-11-16T00:00:00.000Z');
   });
 
   it('re-enables auto-renew without extending the paid-through date', async () => {
@@ -354,9 +349,7 @@ describe('SubscriptionLifecycleService', () => {
     expect(resumed.success).toBe(true);
     expect(subscriptions[0]?.status).toBe('active');
     expect(subscriptions[0]?.autoRenewing).toBe(true);
-    expect(subscriptions[0]?.currentPeriodEndsAt.toISOString()).toBe(
-      '2026-10-16T00:00:00.000Z',
-    );
+    expect(subscriptions[0]?.currentPeriodEndsAt.toISOString()).toBe('2026-10-16T00:00:00.000Z');
   });
 
   it('keeps Premium until period end after cancel', async () => {
@@ -381,8 +374,7 @@ describe('SubscriptionLifecycleService', () => {
   });
 
   it('ends Premium immediately on revoke', async () => {
-    const { lifecycle, subscriptions, entitlements, profiles } =
-      createHarness();
+    const { lifecycle, subscriptions, entitlements, profiles } = createHarness();
     await lifecycle.applyPurchase(purchaseInput());
 
     const revokedAt = new Date('2026-09-20T00:00:00.000Z');

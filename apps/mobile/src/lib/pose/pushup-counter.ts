@@ -8,22 +8,13 @@ import {
   meanLandmarkShift,
   shoulderMidpoint,
 } from './pushup-form';
-import {
-  minSwingForBody,
-  PushupRepMachine,
-  type PushupRepPhase,
-} from './pushup-rep-machine';
+import { minSwingForBody, PushupRepMachine, type PushupRepPhase } from './pushup-rep-machine';
 import { hasTorsoTracking } from './pushup-signals';
 import { PosePointSmoother } from './smooth-keypoints';
 
 export type PushupCounterPhase = 'up' | 'down';
 
-export type PushupRejectReason =
-  | 'none'
-  | 'framing'
-  | 'standing'
-  | 'camera'
-  | 'warmup';
+export type PushupRejectReason = 'none' | 'framing' | 'standing' | 'camera' | 'warmup';
 
 export type PushupCounterSnapshot = {
   count: number;
@@ -133,9 +124,7 @@ export class PushupCounter {
       calibrationProgress: this.calibrationProgress(machine.typicalSwing),
       movementRange,
       movementTooSmall:
-        !calibrating &&
-        this.framesSeen > 30 &&
-        movementRange < (machine.typicalSwing ?? 0.04),
+        !calibrating && this.framesSeen > 30 && movementRange < (machine.typicalSwing ?? 0.04),
       tooClose: this.tooClose,
       rejectReason: this.rejectReason,
       debugFrame: this.debugFrame,
@@ -145,10 +134,7 @@ export class PushupCounter {
 
   ingest(frame: PoseFrame): PushupCounterSnapshot {
     const minScore = this.options.minLandmarkScore;
-    const smoothed = this.smoother.smooth(
-      frame,
-      this.options.keypointSmoothAlpha,
-    );
+    const smoothed = this.smoother.smooth(frame, this.options.keypointSmoothAlpha);
     this.debugFrame = smoothed;
     this.framesSeen += 1;
 
@@ -159,9 +145,7 @@ export class PushupCounter {
       const machine = this.repMachine.snapshot();
       const shoulder = shoulderMidpoint(frame, minScore);
       const largeBaselineShift =
-        shoulder != null &&
-        this.hasSignal &&
-        Math.abs(shoulder.y - this.smoothSignal) >= 0.1;
+        shoulder != null && this.hasSignal && Math.abs(shoulder.y - this.smoothSignal) >= 0.1;
       // Setup often begins while standing, then abruptly drops into plank.
       // Before we have any learned reps, treat that as a baseline change
       // instead of carrying an impossible old cycle top.
@@ -226,16 +210,10 @@ export class PushupCounter {
     minScore: number,
   ): boolean {
     const shift = meanLandmarkShift(current, previous, minScore);
-    return (
-      looksLikeCameraMotion(shift) ||
-      looksLikeRigidSceneShift(current, previous, minScore)
-    );
+    return looksLikeCameraMotion(shift) || looksLikeRigidSceneShift(current, previous, minScore);
   }
 
-  private shouldFreezeForCamera(
-    frame: PoseFrame,
-    minScore: number,
-  ): boolean {
+  private shouldFreezeForCamera(frame: PoseFrame, minScore: number): boolean {
     const jump = this.looksLikeHandheldJump(frame, this.previousFrame, minScore);
     this.previousFrame = frame;
     if (!jump) {
@@ -280,10 +258,7 @@ export class PushupCounter {
   }
 
   private sessionRange(): number {
-    if (
-      !Number.isFinite(this.sessionMin) ||
-      !Number.isFinite(this.sessionMax)
-    ) {
+    if (!Number.isFinite(this.sessionMin) || !Number.isFinite(this.sessionMax)) {
       return 0;
     }
 
@@ -314,10 +289,7 @@ export class PushupCounter {
   }
 }
 
-export function shouldersVisible(
-  frame: PoseFrame,
-  minScore = 0.35,
-): boolean {
+export function shouldersVisible(frame: PoseFrame, minScore = 0.35): boolean {
   const left = frame.points.leftShoulder;
   const right = frame.points.rightShoulder;
   return (

@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { EmailVerificationOtpScreen } from '@/components/auth';
+import { VerifyEmailScreen } from '@/components/auth';
 import { ScreenLoader } from '@/components/feedback';
 import { isEmailVerified, useSession } from '@/lib/auth-client';
 import type { PostAuthHref } from '@/lib/post-auth-route';
@@ -46,9 +46,8 @@ export default function VerifyEmail() {
   }
 
   return (
-    <EmailVerificationOtpScreen
+    <VerifyEmailScreen
       email={email}
-      onBackPress={() => router.replace('/category-selection')}
       onVerified={() => {
         void resolvePostAuthHref().then((href) => {
           router.replace(href ?? '/(tabs)');

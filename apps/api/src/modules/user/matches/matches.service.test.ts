@@ -6,10 +6,13 @@ import {
   MATCH_COUNT_TOO_LARGE,
   MATCH_ENDED,
   MATCH_FULL,
+  MATCH_HOST_CANNOT_LEAVE,
   MATCH_NOT_HOST,
   MATCH_NOT_OPEN,
+  MATCH_REACTION_NOT_ALLOWED,
   MATCH_WRONG_ACTIVITY,
 } from './errors/match.errors.js';
+import { MatchReactionsService } from './match-reactions.service.js';
 import { MatchesService } from './matches.service.js';
 
 const host = { id: 'host', email: 'host@a.co', name: 'Ada' };
@@ -23,11 +26,7 @@ function profile(userId: string, displayName: string) {
   };
 }
 
-function userWithProfile(
-  userId: string,
-  displayName: string,
-  image: string | null = null,
-) {
+function userWithProfile(userId: string, displayName: string, image: string | null = null) {
   return {
     id: userId,
     name: displayName,
@@ -229,6 +228,12 @@ function createPrismaMock(match = loadedMatch()) {
           return { id: 'a1' };
         },
       ),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    matchReaction: {
+      createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findMany: vi.fn().mockResolvedValue([]),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     userChallenge: {
       findUnique: vi.fn().mockResolvedValue(null),
@@ -240,7 +245,10 @@ function createPrismaMock(match = loadedMatch()) {
     analyticsEvent: {
       create: vi.fn().mockResolvedValue({ id: 'evt1' }),
     },
-    $transaction: vi.fn(async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma)),
+    $transaction: vi.fn(
+      async (work: ((tx: typeof prisma) => Promise<unknown>) | Promise<unknown>[]) =>
+        Array.isArray(work) ? Promise.all(work) : work(prisma),
+    ),
   };
   return prisma;
 }
@@ -259,6 +267,10 @@ function createBoardMoveSpy() {
   return { notifyParticipants: vi.fn().mockResolvedValue(undefined) };
 }
 
+function createReactionNotifierSpy() {
+  return { notify: vi.fn().mockResolvedValue(undefined) };
+}
+
 function createAnalyticsSpy() {
   return { track: vi.fn().mockResolvedValue({ ok: true as const }) };
 }
@@ -269,6 +281,7 @@ function createService(
   analytics: ReturnType<typeof createAnalyticsSpy> = createAnalyticsSpy(),
   inviteAccepted: ReturnType<typeof createInviteAcceptedSpy> = createInviteAcceptedSpy(),
   boardMove: ReturnType<typeof createBoardMoveSpy> = createBoardMoveSpy(),
+  reactionNotifier: ReturnType<typeof createReactionNotifierSpy> = createReactionNotifierSpy(),
 ): MatchesService {
   return new MatchesService(
     prisma as never,
@@ -278,6 +291,8 @@ function createService(
     analytics as never,
     inviteAccepted as never,
     boardMove as never,
+    new MatchReactionsService(prisma as never),
+    reactionNotifier as never,
   );
 }
 
@@ -729,6 +744,250 @@ describe('MatchesService', () => {
     await expect(service.listMine(host)).resolves.toMatchObject({
       live: [{ id: 'm1', title: 'vs Bee' }],
     });
+  });
+
+  it('lists the roster and the latest move by someone else', async () => {
+    const movedAt = new Date();
+    const prisma = createPrismaMock(
+      twoPersonMatch({
+        attempts: [
+          {
+            id: 'a-guest',
+            matchId: 'm1',
+            userId: guest.id,
+            count: 20,
+            durationSeconds: 60,
+            source: 'in_app_pose',
+            recordedAt: movedAt,
+          },
+        ],
+      }),
+    );
+    const service = createService(prisma);
+
+    const hostList = await service.listMine(host);
+    const guestList = await service.listMine(guest);
+
+    expect(hostList.live[0]).toMatchObject({
+      roster: [
+        { displayName: 'Bee', score: 20, rank: 1, isYou: false },
+        { displayName: 'Ada', score: 0, rank: 2, isYou: true },
+      ],
+      lastMove: { displayName: 'Bee', image: null, movedAt: movedAt.toISOString() },
+    });
+    expect(guestList.live[0]?.lastMove).toBeNull();
+  });
+
+  describe('today and reactions', () => {
+    function guestScoredToday() {
+      return twoPersonMatch({
+        attempts: [
+          {
+            id: 'a-guest',
+            matchId: 'm1',
+            userId: guest.id,
+            count: 12,
+            durationSeconds: 40,
+            source: 'in_app_pose',
+            recordedAt: new Date(),
+          },
+        ],
+      });
+    }
+
+    it('lights whoever moved the board today, and nobody else', async () => {
+      const service = createService(createPrismaMock(guestScoredToday()));
+
+      const board = await service.get(host, 'm1');
+
+      expect(board.standings.find((row) => row.userId === guest.id)?.doneToday).toBe(true);
+      expect(board.standings.find((row) => row.userId === host.id)?.doneToday).toBe(false);
+    });
+
+    it('cheers someone done today, and pushes only for the first tap', async () => {
+      const prisma = createPrismaMock(guestScoredToday());
+      const reactionNotifier = createReactionNotifierSpy();
+      const service = createService(
+        prisma,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        reactionNotifier,
+      );
+      const cheer = { matchId: 'm1', toUserId: guest.id, kind: 'cheer' as const };
+
+      await service.react(host, cheer);
+      prisma.matchReaction.createMany.mockResolvedValueOnce({ count: 0 });
+      await service.react(host, cheer);
+
+      expect(prisma.matchReaction.createMany).toHaveBeenCalledWith({
+        data: [expect.objectContaining({ fromUserId: host.id, toUserId: guest.id, kind: 'cheer' })],
+        skipDuplicates: true,
+      });
+      expect(reactionNotifier.notify).toHaveBeenCalledTimes(1);
+      expect(reactionNotifier.notify).toHaveBeenCalledWith(
+        expect.objectContaining({ senderName: 'Ada', kind: 'cheer', toUserId: guest.id }),
+      );
+    });
+
+    it('refuses a tap that does not fit the member', async () => {
+      const service = createService(createPrismaMock(guestScoredToday()));
+
+      await expect(
+        service.react(host, { matchId: 'm1', toUserId: guest.id, kind: 'nudge' }),
+      ).rejects.toMatchObject({ message: MATCH_REACTION_NOT_ALLOWED });
+      await expect(
+        service.react(guest, { matchId: 'm1', toUserId: host.id, kind: 'cheer' }),
+      ).rejects.toMatchObject({ message: MATCH_REACTION_NOT_ALLOWED });
+      await expect(
+        service.react(host, { matchId: 'm1', toUserId: host.id, kind: 'nudge' }),
+      ).rejects.toMatchObject({ message: MATCH_REACTION_NOT_ALLOWED });
+    });
+
+    it('never lets anyone nudge a seat that has not accepted', async () => {
+      const match = twoPersonMatch();
+      const pendingGuest = { ...match.participants[1]!, acceptedAt: null };
+      const prisma = createPrismaMock({
+        ...match,
+        participants: [match.participants[0]!, pendingGuest],
+      });
+      const service = createService(prisma);
+
+      await expect(
+        service.react(host, { matchId: 'm1', toUserId: guest.id, kind: 'nudge' }),
+      ).rejects.toMatchObject({ message: MATCH_REACTION_NOT_ALLOWED });
+      expect(prisma.matchReaction.createMany).not.toHaveBeenCalled();
+    });
+
+    it('shows the viewer what they already sent today', async () => {
+      const prisma = createPrismaMock(twoPersonMatch());
+      const sentAt = new Date();
+      prisma.matchReaction.findMany.mockResolvedValue([
+        { toUserId: guest.id, kind: 'nudge', createdAt: sentAt },
+      ]);
+      const service = createService(prisma);
+
+      const board = await service.get(host, 'm1');
+
+      expect(board.standings.find((row) => row.userId === guest.id)?.yourReactionsToday).toEqual([
+        { kind: 'nudge', sentAt: sentAt.toISOString() },
+      ]);
+      expect(board.standings.find((row) => row.isYou)?.yourReactionsToday).toEqual([]);
+    });
+
+    it('still lets a cheer follow a morning nudge once they are done', async () => {
+      const prisma = createPrismaMock(guestScoredToday());
+      const reactionNotifier = createReactionNotifierSpy();
+      const service = createService(
+        prisma,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        reactionNotifier,
+      );
+      prisma.matchReaction.findMany.mockResolvedValue([
+        { toUserId: guest.id, kind: 'nudge', createdAt: new Date() },
+      ]);
+
+      await service.react(host, { matchId: 'm1', toUserId: guest.id, kind: 'cheer' });
+
+      expect(prisma.matchReaction.createMany).toHaveBeenCalledWith({
+        data: [expect.objectContaining({ kind: 'cheer' })],
+        skipDuplicates: true,
+      });
+      expect(reactionNotifier.notify).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'cheer' }),
+      );
+    });
+
+    it('lists every member with their today flag for the Groups faces', async () => {
+      const service = createService(createPrismaMock(guestScoredToday()));
+
+      const list = await service.listMine(host);
+
+      expect(list.live[0]?.standings?.map((row) => [row.userId, row.doneToday])).toEqual([
+        [guest.id, true],
+        [host.id, false],
+      ]);
+    });
+  });
+
+  describe('day squares', () => {
+    it('sends a short streak board its days and which ones each member moved', async () => {
+      const startsAt = new Date(Date.now() - 2 * 86_400_000);
+      const prisma = createPrismaMock(
+        twoPersonMatch({
+          scoringMode: 'days_completed',
+          startsAt,
+          endsAt: new Date(startsAt.getTime() + 7 * 86_400_000),
+        }),
+      );
+      const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
+      prisma.userChallenge.findMany.mockResolvedValue([
+        completion(guest.id, todayKey, new Date().toISOString()),
+      ]);
+      const service = createService(prisma);
+
+      const board = await service.get(host, 'm1');
+
+      expect(board.dayStrip?.dayKeys.length).toBeGreaterThanOrEqual(7);
+      expect(board.dayStrip?.todayKey).toBe(todayKey);
+      expect(board.standings.find((row) => row.userId === guest.id)?.movedDayKeys).toEqual([
+        todayKey,
+      ]);
+      expect(board.standings.find((row) => row.isYou)?.movedDayKeys).toEqual([]);
+      expect(prisma.userChallenge.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('draws no squares for any other way to win', async () => {
+      const service = createService(createPrismaMock(twoPersonMatch()));
+
+      const board = await service.get(host, 'm1');
+
+      expect(board.dayStrip).toBeNull();
+      expect(board.standings[0]).not.toHaveProperty('movedDayKeys');
+    });
+  });
+
+  describe('leave', () => {
+    it('steps a member out with their sets and taps', async () => {
+      const prisma = createPrismaMock(twoPersonMatch());
+      const service = createService(prisma);
+
+      await service.leave(guest, 'm1');
+
+      expect(prisma.matchAttempt.deleteMany).toHaveBeenCalledWith({
+        where: { matchId: 'm1', userId: guest.id },
+      });
+      expect(prisma.matchParticipant.deleteMany).toHaveBeenCalledWith({
+        where: { matchId: 'm1', userId: guest.id },
+      });
+      expect(prisma.matchReaction.deleteMany).toHaveBeenCalledWith({
+        where: { matchId: 'm1', OR: [{ fromUserId: guest.id }, { toUserId: guest.id }] },
+      });
+    });
+
+    it('keeps the host, who cancels instead', async () => {
+      const service = createService(createPrismaMock(twoPersonMatch()));
+
+      await expect(service.leave(host, 'm1')).rejects.toMatchObject({
+        message: MATCH_HOST_CANNOT_LEAVE,
+      });
+    });
+  });
+
+  it('shows the host photo on the signed-in invite preview', async () => {
+    const service = createService(
+      createPrismaMock(
+        loadedMatch({ hostUser: userWithProfile(host.id, 'Ada', 'https://cdn.example/ada.jpg') }),
+      ),
+    );
+
+    const preview = await service.preview(guest, 'invite_token_1');
+
+    expect(preview.hostImage).toBe('https://cdn.example/ada.jpg');
   });
 
   it('lets the host cancel an open match', async () => {

@@ -36,6 +36,7 @@ function daysAgoKey(days: number, timeZone = 'UTC'): string {
 function createPrismaMock(
   profile: ProfileFixture | null = null,
   latestCompletionDayKey: string | null = null,
+  rewardedDailyDayKeys: string[] = [],
 ) {
   return {
     userProfile: {
@@ -43,9 +44,10 @@ function createPrismaMock(
       upsert: vi.fn().mockResolvedValue(profile),
     },
     userChallenge: {
-      findFirst: vi.fn().mockResolvedValue(
-        latestCompletionDayKey ? { periodKey: latestCompletionDayKey } : null,
-      ),
+      findFirst: vi
+        .fn()
+        .mockResolvedValue(latestCompletionDayKey ? { periodKey: latestCompletionDayKey } : null),
+      findMany: vi.fn().mockResolvedValue(rewardedDailyDayKeys.map((periodKey) => ({ periodKey }))),
     },
   };
 }
@@ -59,7 +61,10 @@ const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
 
 describe('MeService', () => {
   it('returns the authenticated user with zeros when no profile exists', async () => {
-    const service = new MeService(createPrismaMock(null) as never, createEnrollmentsMock() as never);
+    const service = new MeService(
+      createPrismaMock(null) as never,
+      createEnrollmentsMock() as never,
+    );
 
     await expect(service.getMe(user)).resolves.toEqual({
       id: 'u1',
@@ -68,6 +73,8 @@ describe('MeService', () => {
       categories: [],
       pointsBalance: 0,
       currentStreakDays: 0,
+      streakLapsedYesterday: false,
+      bestStreakDays: 0,
       timeZone: 'UTC',
       countryCode: null,
       displayName: pseudonymFor('u1'),
@@ -76,6 +83,7 @@ describe('MeService', () => {
       evidenceRemindersEnabled: true,
       promotionalMessagesEnabled: false,
       showOnLeaderboard: true,
+      groupNotificationsEnabled: true,
       inProgressNudgeEnabled: true,
       inProgressNudgeDelayMinutes: 30,
       healthLinkStatus: 'unknown',
@@ -106,6 +114,8 @@ describe('MeService', () => {
       categories: ['hypertension', 'diabetes'],
       pointsBalance: 350,
       currentStreakDays: 4,
+      streakLapsedYesterday: false,
+      bestStreakDays: 4,
       timeZone: 'Asia/Singapore',
       countryCode: null,
       displayName: 'Ada L',
@@ -114,6 +124,7 @@ describe('MeService', () => {
       evidenceRemindersEnabled: true,
       promotionalMessagesEnabled: false,
       showOnLeaderboard: true,
+      groupNotificationsEnabled: true,
       inProgressNudgeEnabled: true,
       inProgressNudgeDelayMinutes: 30,
       healthLinkStatus: 'unknown',
@@ -154,6 +165,81 @@ describe('MeService', () => {
     await expect(service.getMe(user)).resolves.toMatchObject({
       pointsBalance: 900,
       currentStreakDays: 0,
+      streakLapsedYesterday: false,
+    });
+  });
+
+  it('says the run lapsed yesterday when its last day was the day before', async () => {
+    const prisma = createPrismaMock(
+      {
+        healthCategories: [],
+        pointsBalance: 0,
+        currentStreakDays: 12,
+        timeZone: 'UTC',
+      },
+      daysAgoKey(2),
+    );
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await expect(service.getMe(user)).resolves.toMatchObject({
+      currentStreakDays: 0,
+      streakLapsedYesterday: true,
+    });
+  });
+
+  it('keeps the best run after the current one resets', async () => {
+    const prisma = createPrismaMock(
+      { healthCategories: [], pointsBalance: 0, currentStreakDays: 12, timeZone: 'UTC' },
+      daysAgoKey(2),
+      [daysAgoKey(5), daysAgoKey(4), daysAgoKey(3), daysAgoKey(2), daysAgoKey(9)],
+    );
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await expect(service.getMe(user)).resolves.toMatchObject({
+      currentStreakDays: 0,
+      bestStreakDays: 4,
+    });
+    expect(prisma.userChallenge.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'u1',
+        frequency: 'daily',
+        status: 'completed',
+        OR: [{ completionOutcome: null }, { completionOutcome: 'rewarded' }],
+      },
+      distinct: ['periodKey'],
+      select: { periodKey: true },
+    });
+  });
+
+  it('never reports a best run shorter than the live one', async () => {
+    const prisma = createPrismaMock(
+      { healthCategories: [], pointsBalance: 0, currentStreakDays: 6, timeZone: 'UTC' },
+      todayKey(),
+      [todayKey(), daysAgoKey(1)],
+    );
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await expect(service.getMe(user)).resolves.toMatchObject({
+      currentStreakDays: 6,
+      bestStreakDays: 6,
+    });
+  });
+
+  it('does not report a lapse while the run is still live', async () => {
+    const prisma = createPrismaMock(
+      {
+        healthCategories: [],
+        pointsBalance: 0,
+        currentStreakDays: 3,
+        timeZone: 'UTC',
+      },
+      todayKey(),
+    );
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await expect(service.getMe(user)).resolves.toMatchObject({
+      currentStreakDays: 3,
+      streakLapsedYesterday: false,
     });
   });
 
@@ -173,9 +259,7 @@ describe('MeService', () => {
     const prisma = createPrismaMock(profile);
     const service = new MeService(prisma as never, createEnrollmentsMock() as never);
 
-    await expect(
-      service.updateCategories(user, ['asthma']),
-    ).resolves.toMatchObject({
+    await expect(service.updateCategories(user, ['asthma'])).resolves.toMatchObject({
       categories: ['asthma'],
     });
 
@@ -209,9 +293,9 @@ describe('MeService', () => {
     const prisma = createPrismaMock(profile);
     const service = new MeService(prisma as never, createEnrollmentsMock() as never);
 
-    await expect(
-      service.updateTimeZone(user, 'Europe/London'),
-    ).resolves.toMatchObject({ timeZone: 'Europe/London' });
+    await expect(service.updateTimeZone(user, 'Europe/London')).resolves.toMatchObject({
+      timeZone: 'Europe/London',
+    });
 
     expect(prisma.userProfile.upsert).toHaveBeenCalledWith({
       where: { userId: 'u1' },
@@ -224,9 +308,9 @@ describe('MeService', () => {
     const prisma = createPrismaMock();
     const service = new MeService(prisma as never, createEnrollmentsMock() as never);
 
-    await expect(
-      service.updateTimeZone(user, 'Mars/Olympus_Mons'),
-    ).rejects.toBeInstanceOf(ORPCError);
+    await expect(service.updateTimeZone(user, 'Mars/Olympus_Mons')).rejects.toBeInstanceOf(
+      ORPCError,
+    );
     expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
   });
 
@@ -256,9 +340,7 @@ describe('MeService', () => {
     const prisma = createPrismaMock();
     const service = new MeService(prisma as never, createEnrollmentsMock() as never);
 
-    await expect(service.updateCountry(user, 'XX')).rejects.toBeInstanceOf(
-      ORPCError,
-    );
+    await expect(service.updateCountry(user, 'XX')).rejects.toBeInstanceOf(ORPCError);
     expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
   });
 
@@ -273,9 +355,10 @@ describe('MeService', () => {
     });
     const service = new MeService(prisma as never, createEnrollmentsMock() as never);
 
-    await expect(service.updateReminder(user, true, 450)).resolves.toMatchObject(
-      { reminderEnabled: true, reminderMinute: 450 },
-    );
+    await expect(service.updateReminder(user, true, 450)).resolves.toMatchObject({
+      reminderEnabled: true,
+      reminderMinute: 450,
+    });
 
     expect(prisma.userProfile.upsert).toHaveBeenCalledWith({
       where: { userId: 'u1' },
@@ -284,18 +367,13 @@ describe('MeService', () => {
     });
   });
 
-  it.each([-1, 1440, 12.5])(
-    'rejects reminder minute %p without writing',
-    async (minute) => {
-      const prisma = createPrismaMock();
-      const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+  it.each([-1, 1440, 12.5])('rejects reminder minute %p without writing', async (minute) => {
+    const prisma = createPrismaMock();
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
 
-      await expect(
-        service.updateReminder(user, true, minute),
-      ).rejects.toBeInstanceOf(ORPCError);
-      expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
-    },
-  );
+    await expect(service.updateReminder(user, true, minute)).rejects.toBeInstanceOf(ORPCError);
+    expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
+  });
 
   it('stores the designed Profile notification toggles', async () => {
     const prisma = createPrismaMock({
@@ -349,5 +427,31 @@ describe('MeService', () => {
         inProgressNudgeDelayMinutes: 30,
       },
     });
+  });
+
+  it('saves the group push switch when the app sends it', async () => {
+    const prisma = createPrismaMock({
+      healthCategories: [],
+      pointsBalance: 0,
+      currentStreakDays: 0,
+      timeZone: 'UTC',
+    });
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await service.updateNotificationSettings(user, {
+      reminderEnabled: true,
+      evidenceRemindersEnabled: true,
+      promotionalMessagesEnabled: false,
+      showOnLeaderboard: true,
+      groupNotificationsEnabled: false,
+      inProgressNudgeEnabled: false,
+      inProgressNudgeDelayMinutes: 30,
+    });
+
+    expect(prisma.userProfile.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ groupNotificationsEnabled: false }),
+      }),
+    );
   });
 });

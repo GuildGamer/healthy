@@ -2,10 +2,8 @@ import type { ChallengeEvidence } from '@product/client';
 
 export const CAMERA_FAILED_MESSAGE =
   'We could not open the camera. Check permissions and try again.';
-export const SIMULATOR_CAMERA_MESSAGE =
-  'The camera only works on a physical phone.';
-export const PHOTO_MISSING_MESSAGE =
-  'We could not keep that photo. Take another and try again.';
+export const SIMULATOR_CAMERA_MESSAGE = 'The camera only works on a physical phone.';
+export const PHOTO_MISSING_MESSAGE = 'We could not keep that photo. Take another and try again.';
 export const PHOTO_TOO_LARGE_MESSAGE =
   'That photo is too large to upload. Move closer and try again.';
 
@@ -29,10 +27,7 @@ export type CapturedSelfie = ChallengeEvidence & {
   height?: number;
 };
 
-export function photoAspectRatio(photo: {
-  width?: number;
-  height?: number;
-}): number {
+export function photoAspectRatio(photo: { width?: number; height?: number }): number {
   if (!photo.width || !photo.height || photo.width <= 0 || photo.height <= 0) {
     return DEFAULT_PHOTO_ASPECT_RATIO;
   }
@@ -65,9 +60,7 @@ export function photoFromCameraTake(result: {
       mimeType: 'image/jpeg',
       imageBase64: result.base64,
       previewUri: result.uri,
-      ...(result.width && result.height
-        ? { width: result.width, height: result.height }
-        : {}),
+      ...(result.width && result.height ? { width: result.width, height: result.height } : {}),
     },
   };
 }

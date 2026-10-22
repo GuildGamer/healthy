@@ -1,13 +1,6 @@
-import {
-  MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC,
-  type MatchScoringMode,
-} from '@product/contract';
+import { MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC, type MatchScoringMode } from '@product/contract';
 import { describe, expect, it } from 'vitest';
-import {
-  computeStandings,
-  type MatchScoringRules,
-  type StandingEvent,
-} from './match-standings.js';
+import { computeStandings, type MatchScoringRules, type StandingEvent } from './match-standings.js';
 
 const MATCH_CUMULATIVE_DAILY_CAP = MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.pushups;
 
@@ -37,12 +30,7 @@ const cam = {
   isPending: false,
 };
 
-function set(
-  userId: string,
-  count: number,
-  at: string,
-  dayKey = at.slice(0, 10),
-): StandingEvent {
+function set(userId: string, count: number, at: string, dayKey = at.slice(0, 10)): StandingEvent {
   return { userId, count, dayKey, occurredAt: new Date(at) };
 }
 
@@ -106,10 +94,7 @@ describe('computeStandings — best_single', () => {
   it('breaks a tied best count with who reached it first', () => {
     const result = computeStandings(
       [host, bee],
-      [
-        set('bee', 15, '2026-09-04T12:00:00.000Z'),
-        set('host', 15, '2026-09-04T10:00:00.000Z'),
-      ],
+      [set('bee', 15, '2026-09-04T12:00:00.000Z'), set('host', 15, '2026-09-04T10:00:00.000Z')],
       pushupRules('best_single'),
     );
 
@@ -119,18 +104,10 @@ describe('computeStandings — best_single', () => {
   });
 
   it('leaves people with no set at the bottom and names no winner', () => {
-    const result = computeStandings(
-      [host, bee, cam],
-      [],
-      pushupRules('best_single'),
-    );
+    const result = computeStandings([host, bee, cam], [], pushupRules('best_single'));
 
     expect(result.winnerUserId).toBeNull();
-    expect(result.standings.map((row) => row.userId)).toEqual([
-      'bee',
-      'cam',
-      'host',
-    ]);
+    expect(result.standings.map((row) => row.userId)).toEqual(['bee', 'cam', 'host']);
     expect(result.standings.every((row) => row.score === 0)).toBe(true);
   });
 });

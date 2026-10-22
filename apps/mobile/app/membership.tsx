@@ -6,11 +6,7 @@ export default function Membership() {
   const router = useRouter();
   const params = useLocalSearchParams<{ source?: string }>();
   const source =
-    params.source === 'success'
-      ? 'success'
-      : params.source === 'profile'
-        ? 'profile'
-        : 'other';
+    params.source === 'success' ? 'success' : params.source === 'profile' ? 'profile' : 'other';
 
   return (
     <PricingScreen

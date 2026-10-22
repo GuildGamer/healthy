@@ -1,10 +1,11 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
+import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { EmailOtpScreen } from '@/components/auth/EmailOtpScreen';
 import { confirmEmailChange, requestEmailChange } from '@/lib/auth-client';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
 type ChangeEmailOtpScreenProps = {
   newEmail: string;
@@ -18,6 +19,8 @@ export function ChangeEmailOtpScreen({
   onChanged,
 }: ChangeEmailOtpScreenProps) {
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [didChange, setDidChange] = useState(false);
   const onChangedRef = useRef(onChanged);
   onChangedRef.current = onChanged;
@@ -41,9 +44,7 @@ export function ChangeEmailOtpScreen({
           <Feather color={colors.accent} name="check-circle" size={48} />
         </View>
         <Text style={styles.savedTitle}>Email Updated</Text>
-        <Text style={styles.savedBody}>
-          Sign in with {newEmail} from now on.
-        </Text>
+        <Text style={styles.savedBody}>Sign in with {newEmail} from now on.</Text>
       </View>
     );
   }
@@ -64,26 +65,27 @@ export function ChangeEmailOtpScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  saved: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  savedIcon: {
-    marginBottom: spacing.sm,
-  },
-  savedTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-  },
-  savedBody: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    saved: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    savedIcon: {
+      marginBottom: spacing.sm,
+    },
+    savedTitle: {
+      color: theme.colors.text,
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.semibold,
+    },
+    savedBody: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
+    },
+  });

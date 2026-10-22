@@ -18,9 +18,11 @@ export function createPrismaClient(databaseUrl?: string): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
-export const prisma: PrismaClient =
-  globalThis.__productPrisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__productPrisma = prisma;
+/**
+ * The app's one shared client, created on first use. Importing this package
+ * for types or `Prisma.DbNull` must never need a database.
+ */
+export function getPrisma(): PrismaClient {
+  globalThis.__productPrisma ??= createPrismaClient();
+  return globalThis.__productPrisma;
 }

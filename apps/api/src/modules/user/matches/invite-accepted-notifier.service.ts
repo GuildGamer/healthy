@@ -65,10 +65,7 @@ export class InviteAcceptedNotifierService {
   }
 
   private async push(matchId: string, hostUserId: string, body: string): Promise<void> {
-    const devices = await this.prisma.pushDevice.findMany({
-      where: { userId: hostUserId, isActive: true },
-      select: { expoPushToken: true },
-    });
+    const devices = await this.pushDevices.groupPushDevicesFor([hostUserId]);
 
     if (devices.length === 0) {
       return;

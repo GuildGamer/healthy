@@ -1,7 +1,4 @@
-import {
-  clockTimeFromMinuteOfDay,
-  minuteOfDayFromClockTime,
-} from './minute-of-day';
+import { clockTimeFromMinuteOfDay, minuteOfDayFromClockTime } from './minute-of-day';
 
 describe('minute-of-day', () => {
   it.each([

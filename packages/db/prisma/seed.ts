@@ -23,34 +23,15 @@ type ChallengeSeed = {
   /** Lower values surface first in catalog and challenge lists. */
   sortOrder?: number;
   completionKind?:
-    | 'check_in'
-    | 'vitals_bp'
-    | 'evidence_photo'
-    | 'glucose'
-    | 'peak_flow'
-    | 'water'
-    | 'carbs';
+    'check_in' | 'vitals_bp' | 'evidence_photo' | 'glucose' | 'peak_flow' | 'water' | 'carbs';
   /** Material Community Icons glyph name. */
   icon: string;
   instruction?: string;
   surpriseEvidenceChancePercent?: number;
   surpriseEvidenceWindowSeconds?: number;
   surpriseEvidencePenaltyPoints?: number;
-  captureKind?:
-    | 'self_report'
-    | 'structured_log'
-    | 'photo'
-    | 'device_sample'
-    | 'device_session';
-  deviceMetric?:
-    | 'walk'
-    | 'run'
-    | 'cycle'
-    | 'steps'
-    | 'sleep'
-    | 'weight'
-    | 'heart_rate'
-    | 'pushups';
+  captureKind?: 'self_report' | 'structured_log' | 'photo' | 'device_sample' | 'device_session';
+  deviceMetric?: 'walk' | 'run' | 'cycle' | 'steps' | 'sleep' | 'weight' | 'heart_rate' | 'pushups';
   targetDurationMinutes?: number;
   targetDistanceMeters?: number;
   targetCount?: number;
@@ -142,8 +123,7 @@ const challengeSeeds: ChallengeSeed[] = [
     isDefault: false,
     completionKind: 'carbs',
     icon: 'food',
-    instruction:
-      'Note the carbohydrates in your main meals, as grams or a short description.',
+    instruction: 'Note the carbohydrates in your main meals, as grams or a short description.',
   },
   {
     slug: 'diabetic-foot-check',
@@ -185,8 +165,7 @@ const challengeSeeds: ChallengeSeed[] = [
     isDefault: false,
     completionKind: 'peak_flow',
     icon: 'weather-windy',
-    instruction:
-      'Blow into your peak flow meter three times and log the best reading.',
+    instruction: 'Blow into your peak flow meter three times and log the best reading.',
   },
   {
     slug: 'asthma-trigger-review',
@@ -217,11 +196,12 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: true,
     completionKind: 'water',
+    /** Glasses a day; admins can change it in the catalog. */
+    targetCount: 8,
     surpriseEvidenceChancePercent: 20,
     surpriseEvidencePenaltyPoints: 10,
     icon: 'cup-water',
-    instruction:
-      'Log how much water you drank today, in glasses or millilitres.',
+    instruction: 'Log how much water you drank today, in glasses or millilitres.',
   },
   {
     slug: 'ten-minute-walk',
@@ -334,17 +314,13 @@ function assertLeanStarterDefaults(seeds: readonly ChallengeSeed[]): void {
 
   const general = defaultsByCategory.get('general') ?? [];
   if (general.length > 2) {
-    throw new Error(
-      `General defaults must stay ≤2 (got ${general.length}: ${general.join(', ')})`,
-    );
+    throw new Error(`General defaults must stay ≤2 (got ${general.length}: ${general.join(', ')})`);
   }
 
   for (const category of ['hypertension', 'diabetes', 'asthma'] as const) {
     const list = defaultsByCategory.get(category) ?? [];
     if (list.length > 2) {
-      throw new Error(
-        `${category} defaults must stay ≤2 (got ${list.length}: ${list.join(', ')})`,
-      );
+      throw new Error(`${category} defaults must stay ≤2 (got ${list.length}: ${list.join(', ')})`);
     }
   }
 }
@@ -475,17 +451,13 @@ async function main(): Promise<void> {
       where: { slug: challenge.slug },
       create: {
         ...challenge,
-        requiresMembership:
-          challenge.requiresMembership ?? !challenge.isDefault,
+        requiresMembership: challenge.requiresMembership ?? !challenge.isDefault,
         completionKind,
         captureKind,
         instruction,
-        surpriseEvidenceChancePercent:
-          challenge.surpriseEvidenceChancePercent ?? 0,
-        surpriseEvidenceWindowSeconds:
-          challenge.surpriseEvidenceWindowSeconds ?? 60,
-        surpriseEvidencePenaltyPoints:
-          challenge.surpriseEvidencePenaltyPoints ?? 25,
+        surpriseEvidenceChancePercent: challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds: challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints: challenge.surpriseEvidencePenaltyPoints ?? 25,
         sortOrder: challenge.sortOrder ?? 100,
       },
       update: {
@@ -495,8 +467,7 @@ async function main(): Promise<void> {
         rewardPoints: challenge.rewardPoints,
         defaultFrequency: challenge.defaultFrequency,
         isDefault: challenge.isDefault,
-        requiresMembership:
-          challenge.requiresMembership ?? !challenge.isDefault,
+        requiresMembership: challenge.requiresMembership ?? !challenge.isDefault,
         isActive: true,
         sortOrder: challenge.sortOrder ?? 100,
         completionKind,
@@ -507,12 +478,9 @@ async function main(): Promise<void> {
         targetCount: challenge.targetCount ?? null,
         instruction,
         icon: challenge.icon,
-        surpriseEvidenceChancePercent:
-          challenge.surpriseEvidenceChancePercent ?? 0,
-        surpriseEvidenceWindowSeconds:
-          challenge.surpriseEvidenceWindowSeconds ?? 60,
-        surpriseEvidencePenaltyPoints:
-          challenge.surpriseEvidencePenaltyPoints ?? 25,
+        surpriseEvidenceChancePercent: challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds: challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints: challenge.surpriseEvidencePenaltyPoints ?? 25,
       },
     });
   }

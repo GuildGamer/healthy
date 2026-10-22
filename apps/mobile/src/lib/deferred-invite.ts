@@ -1,9 +1,6 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import * as SecureStore from 'expo-secure-store';
-import {
-  peekPendingMatchToken,
-  stashPendingMatchToken,
-} from './pending-match-token';
+import { peekPendingMatchToken, stashPendingMatchToken } from './pending-match-token';
 import { trackEvent } from './track-event';
 
 type ClipboardModule = typeof import('expo-clipboard');
@@ -28,9 +25,7 @@ export function isMatchInviteToken(value: string | null | undefined): boolean {
   return Boolean(value && MATCH_TOKEN_PATTERN.test(value));
 }
 
-export function tokenFromDeferredMarker(
-  value: string | null | undefined,
-): string | null {
+export function tokenFromDeferredMarker(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed?.startsWith(DEFERRED_INVITE_PREFIX)) {
     return null;
@@ -44,9 +39,7 @@ export function tokenFromDeferredMarker(
  * Parse `healthy_invite=<token>` from an Android Install Referrer string
  * (or a query `referrer=` value). Fail-soft on junk.
  */
-export function tokenFromPlayReferrer(
-  value: string | null | undefined,
-): string | null {
+export function tokenFromPlayReferrer(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) {
     return null;

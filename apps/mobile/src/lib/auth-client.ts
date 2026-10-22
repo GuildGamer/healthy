@@ -37,12 +37,19 @@ export const authClient = {
   getCookie: () => client.getCookie(),
 };
 
+/** `code` is Better Auth's stable error code, such as `OTP_EXPIRED`. */
 export type AuthActionResult = {
-  error: { message?: string } | null;
+  error: { message?: string; code?: string } | null;
 };
 
-function asActionResult(result: { error?: { message?: string } | null }): AuthActionResult {
-  return { error: result.error ?? null };
+function asActionResult(result: {
+  error?: { message?: string; code?: string } | null;
+}): AuthActionResult {
+  if (!result.error) {
+    return { error: null };
+  }
+
+  return { error: { message: result.error.message, code: result.error.code } };
 }
 
 export async function updateUser(input: {
@@ -57,12 +64,8 @@ export async function updateUser(input: {
   return result;
 }
 
-export async function requestEmailChange(
-  newEmail: string,
-): Promise<AuthActionResult> {
-  return asActionResult(
-    await client.emailOtp.requestEmailChange({ newEmail }),
-  );
+export async function requestEmailChange(newEmail: string): Promise<AuthActionResult> {
+  return asActionResult(await client.emailOtp.requestEmailChange({ newEmail }));
 }
 
 export async function confirmEmailChange(input: {
@@ -77,9 +80,7 @@ export async function confirmEmailChange(input: {
   return result;
 }
 
-export async function requestPasswordResetEmail(
-  email: string,
-): Promise<AuthActionResult> {
+export async function requestPasswordResetEmail(email: string): Promise<AuthActionResult> {
   return asActionResult(await client.forgetPassword.emailOtp({ email }));
 }
 
@@ -113,9 +114,7 @@ export async function signInWithGoogle(): Promise<AuthActionResult> {
   );
 }
 
-export async function sendSignupVerificationOtp(
-  email: string,
-): Promise<AuthActionResult> {
+export async function sendSignupVerificationOtp(email: string): Promise<AuthActionResult> {
   return asActionResult(
     await client.emailOtp.sendVerificationOtp({
       email,
@@ -145,4 +144,25 @@ export function isEmailVerified(
 export async function readEmailVerified(): Promise<boolean> {
   const result = await client.getSession();
   return isEmailVerified(result.data);
+}
+
+/** Better Auth's id for an email-and-password sign-in, beside `google` or `apple`. */
+const PASSWORD_PROVIDER_ID = 'credential';
+
+/** False for an account that only ever signed in with Google or Apple. */
+export async function hasPasswordSignIn(): Promise<boolean> {
+  const result = await client.listAccounts();
+  if (result.error) {
+    throw new Error('Linked sign-in methods could not be read.');
+  }
+
+  return result.data.some((account) => account.providerId === PASSWORD_PROVIDER_ID);
+}
+
+/** Other phones stay signed in; this one keeps its session. */
+export async function changePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<AuthActionResult> {
+  return asActionResult(await client.changePassword({ ...input, revokeOtherSessions: false }));
 }

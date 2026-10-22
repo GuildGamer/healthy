@@ -83,10 +83,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={host}>
       {children}
       {toast ? (
-        <View
-          pointerEvents="box-none"
-          style={[styles.overlay, { paddingTop: insets.top }]}
-        >
+        <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: insets.top }]}>
           <ToastBanner message={toast.message} onPress={hide} tone={toast.tone} />
         </View>
       ) : null}

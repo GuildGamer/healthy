@@ -1,104 +1,80 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { StyleSheet, Text } from 'react-native';
+import { FormButton } from '@/components/forms';
+import { Glyph } from '@/components/icons';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
-type SocialAuthButtonProps = {
+type AuthChoiceButtonProps = {
   disabled?: boolean;
   loading?: boolean;
+  /** Marks the way in this phone used last, on Welcome back. */
+  isLastUsed?: boolean;
   onPress: () => void;
   testID?: string;
 };
 
-/** Shared Google entry on login and sign-up. */
 export function GoogleAuthButton({
   disabled = false,
   loading = false,
+  isLastUsed = false,
   onPress,
   testID = 'auth-google',
-}: SocialAuthButtonProps) {
-  const isInactive = disabled || loading;
+}: AuthChoiceButtonProps) {
+  const { colors } = useTheme();
 
   return (
-    <Pressable
-      accessibilityLabel="Continue with Google"
-      accessibilityRole="button"
-      accessibilityState={{ disabled: isInactive, busy: loading }}
-      disabled={isInactive}
+    <FormButton
+      disabled={disabled}
+      label="Continue with Google"
+      leading={<MaterialCommunityIcons color={colors.text} name="google" size={18} />}
+      loading={loading}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        pressed && !isInactive ? styles.buttonPressed : null,
-        isInactive ? styles.buttonInactive : null,
-      ]}
       testID={testID}
-    >
-      {loading ? (
-        <ActivityIndicator color={colors.text} />
-      ) : (
-        <>
-          <MaterialCommunityIcons color={colors.text} name="google" size={18} />
-          <Text style={styles.label}>Continue with Google</Text>
-        </>
-      )}
-    </Pressable>
+      trailing={isLastUsed ? <LastUsedTag /> : null}
+      variant="outline"
+    />
   );
 }
 
-export function AuthMethodDivider() {
+export function EmailAuthButton({
+  disabled = false,
+  isLastUsed = false,
+  onPress,
+  testID = 'auth-email',
+}: Omit<AuthChoiceButtonProps, 'loading'>) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.dividerRow}>
-      <View style={styles.dividerLine} />
-      <Text style={styles.dividerLabel}>or</Text>
-      <View style={styles.dividerLine} />
-    </View>
+    <FormButton
+      disabled={disabled}
+      label="Continue with email"
+      leading={<Glyph color={colors.text} name="mail" size={19} strokeWidth={2} />}
+      onPress={onPress}
+      testID={testID}
+      trailing={isLastUsed ? <LastUsedTag /> : null}
+      variant="outline"
+    />
   );
 }
 
-const styles = StyleSheet.create({
-  button: {
-    minHeight: 52,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  buttonPressed: {
-    backgroundColor: colors.surfaceRaised,
-  },
-  buttonInactive: {
-    opacity: 0.55,
-  },
-  label: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginVertical: spacing.xs,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  dividerLabel: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-});
+function LastUsedTag() {
+  const styles = useThemedStyles(createStyles);
+
+  return <Text style={styles.lastUsed}>Last used</Text>;
+}
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    lastUsed: {
+      marginLeft: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+      borderRadius: radii.sm,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.surfaceRaised,
+      color: theme.colors.muted,
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.medium,
+    },
+  });

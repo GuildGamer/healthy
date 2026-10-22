@@ -16,6 +16,11 @@
       "import": "./dist/country-code.js",
       "require": "./dist/country-code.cjs"
     },
+    "./display-name": {
+      "types": "./dist/display-name.d.ts",
+      "import": "./dist/display-name.js",
+      "require": "./dist/display-name.cjs"
+    },
     "./challenge-title": {
       "types": "./dist/challenge-title.d.ts",
       "import": "./dist/challenge-title.js",
@@ -35,10 +40,15 @@
       "types": "./dist/match-board.d.ts",
       "import": "./dist/match-board.js",
       "require": "./dist/match-board.cjs"
+    },
+    "./account-deletion": {
+      "types": "./dist/account-deletion.d.ts",
+      "import": "./dist/account-deletion.js",
+      "require": "./dist/account-deletion.cjs"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts src/country-code.ts src/challenge-title.ts src/challenge-sort.ts src/challenge-capture.ts src/match-board.ts --format esm,cjs --dts --clean",
+    "build": "tsup src/index.ts src/country-code.ts src/display-name.ts src/challenge-title.ts src/challenge-sort.ts src/challenge-capture.ts src/match-board.ts src/account-deletion.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"lint: contract skipped\"",
     "test": "vitest run"

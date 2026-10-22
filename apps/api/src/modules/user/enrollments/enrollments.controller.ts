@@ -18,19 +18,28 @@ export class EnrollmentsController {
     });
   }
 
+  /** Deliberately anonymous: the first screen previews a day before sign-up. */
+  @Implement(appContract.listStarterChallenges)
+  listStarterChallenges() {
+    return implement(appContract.listStarterChallenges).handler(async () => {
+      return this.enrollmentsService.listStarterChallenges();
+    });
+  }
+
   @Implement(appContract.setChallengeEnrollment)
   setChallengeEnrollment(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;
-    return implement(appContract.setChallengeEnrollment).handler(
-      async ({ input }) => {
-        return this.enrollmentsService.setEnrollment(
-          user,
-          input.challengeId,
-          input.isEnrolled,
-          input.frequency,
-          input.targetCount,
-        );
-      },
-    );
+    return implement(appContract.setChallengeEnrollment).handler(async ({ input }) => {
+      return this.enrollmentsService.setEnrollment(
+        user,
+        input.challengeId,
+        input.isEnrolled,
+        input.frequency,
+        {
+          targetCount: input.targetCount,
+          targetDurationMinutes: input.targetDurationMinutes,
+        },
+      );
+    });
   }
 }

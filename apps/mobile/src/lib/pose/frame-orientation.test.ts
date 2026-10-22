@@ -1,7 +1,4 @@
-import {
-  isFrameOrientation,
-  uprightNormalizedPoint,
-} from './frame-orientation';
+import { isFrameOrientation, uprightNormalizedPoint } from './frame-orientation';
 
 describe('uprightNormalizedPoint', () => {
   it('leaves portrait points unchanged', () => {

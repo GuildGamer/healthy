@@ -18,6 +18,8 @@ export type ListLeaderboardDto = {
   periodStart: string | null;
   entries: LeaderboardEntryDto[];
   currentUserRank: number | null;
+  currentUserRankAtDayStart: number | null;
   currentUserPoints: number;
   currentUserVisible: boolean;
+  aroundCurrentUser: LeaderboardEntryDto[];
 };

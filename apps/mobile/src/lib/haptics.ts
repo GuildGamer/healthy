@@ -18,11 +18,10 @@ function loadHapticsModule(): HapticsModule | null {
 }
 
 /**
- * Success buzz for a goal landing mid-activity, when the user's eyes are on
- * the floor rather than the screen. Stays silent when the native module is
- * missing, so a JS-only update on an older binary cannot break the session.
+ * Stays silent when the native module is missing, so a JS-only update on an
+ * older binary cannot break the screen that buzzes.
  */
-export async function playGoalReachedHaptic(): Promise<void> {
+async function playHaptic(play: (haptics: HapticsModule) => Promise<void>): Promise<void> {
   if (!isHapticsNativeAvailable()) {
     return;
   }
@@ -33,9 +32,24 @@ export async function playGoalReachedHaptic(): Promise<void> {
   }
 
   try {
-    await haptics.notificationAsync(haptics.NotificationFeedbackType.Success);
+    await play(haptics);
   } catch {
-    // A flourish must never fail the rep it is celebrating. Silenced haptics,
+    // A flourish must never fail the act it is celebrating. Silenced haptics,
     // Low Power Mode, and unsupported hardware all land here.
   }
+}
+
+/**
+ * Success buzz for a goal landing mid-activity, when the user's eyes are on
+ * the floor rather than the screen.
+ */
+export async function playGoalReachedHaptic(): Promise<void> {
+  await playHaptic((haptics) =>
+    haptics.notificationAsync(haptics.NotificationFeedbackType.Success),
+  );
+}
+
+/** A light tap that confirms something small was sent, such as a cheer. */
+export async function playSentHaptic(): Promise<void> {
+  await playHaptic((haptics) => haptics.impactAsync(haptics.ImpactFeedbackStyle.Light));
 }

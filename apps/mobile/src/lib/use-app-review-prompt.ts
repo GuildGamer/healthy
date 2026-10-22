@@ -7,10 +7,7 @@ import {
   wasLastSuccessPenalty,
   wasMembershipCtaShownThisSession,
 } from './app-review-session';
-import {
-  loadAppReviewState,
-  saveAppReviewState,
-} from './app-review-store';
+import { loadAppReviewState, saveAppReviewState } from './app-review-store';
 
 const PROMPT_DELAY_MS = 1_500;
 
@@ -77,9 +74,7 @@ export function useAppReviewPrompt(input: UseAppReviewPromptInput): void {
           lastPromptDayKey:
             result.reason === 'win_locked' ? input.dayKey! : (state?.lastPromptDayKey ?? null),
           lastPromptedStreakMilestone:
-            result.streakMilestone ??
-            state?.lastPromptedStreakMilestone ??
-            null,
+            result.streakMilestone ?? state?.lastPromptedStreakMilestone ?? null,
         });
 
         if (cancelled) {

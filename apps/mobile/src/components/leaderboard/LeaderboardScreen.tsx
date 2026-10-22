@@ -1,318 +1,180 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
-import type { LeaderboardEntry, LeaderboardPeriod } from '@product/client';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import type { ListLeaderboardOutput, MeOutput } from '@product/client';
+import { fontSize, fontWeight, spacing } from '@product/brand';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Loader, RefreshableScroll } from '@/components/feedback';
-import { apiClient } from '@/lib/api';
-import { LeaderboardCategoryPicker } from './LeaderboardCategoryPicker';
+import { StyleSheet, Text, View } from 'react-native';
 import {
-  LEADERBOARD_PERIODS,
-  type LeaderboardCategoryFilter,
-  leaderboardIntro,
-  leaderboardQueryInput,
-  leaderboardRankWindow,
-} from './leaderboard-filters';
-import { podiumMedalColor } from './podium';
+  DeckButton,
+  DeckNavButton,
+  DeckNoteCard,
+  DeckPushedPage,
+  DeckSectionTitle,
+} from '@/components/deck';
+import { Loader } from '@/components/feedback';
+import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
+import { type Theme, useThemedStyles } from '@/theme';
+import { boardHeadline, boardLine, boardRows, boardStanding } from './board-rows';
+import { BOARD_COPY } from './constants/board';
+import { HowTheBoardWorksSheet } from './HowTheBoardWorksSheet';
+import { LeaderboardGap, LeaderboardRow } from './LeaderboardRow';
+import type { BoardStanding } from './types/board';
+import { useShowOnBoard } from './useShowOnBoard';
 
-function RankBadge({ rank }: { rank: number }) {
-  const medal = podiumMedalColor(rank);
+const HEADLINE_SIZE = 64;
 
-  if (!medal) {
+/** This week only: your place, the top three, then the people around you. */
+export function LeaderboardScreen() {
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const meQuery = useQuery({ queryKey: ['me'], queryFn: () => apiClient.me() });
+  const boardQuery = useQuery({
+    queryKey: ['leaderboard'],
+    queryFn: () => apiClient.listLeaderboard({ period: 'week' }),
+  });
+
+  return (
+    <DeckPushedPage
+      navRight={
+        <DeckNavButton
+          accessibilityLabel={BOARD_COPY.howItWorks}
+          glyph="help"
+          onPage
+          onPress={() => setIsHelpOpen(true)}
+          testID="leaderboard-help"
+        />
+      }
+      onBack={() => goBackOrHome('/(tabs)/profile')}
+      onPullRefresh={() => Promise.all([meQuery.refetch(), boardQuery.refetch()])}
+      testID="leaderboard-screen"
+      title={BOARD_COPY.title}
+    >
+      <BoardBody
+        board={boardQuery.data}
+        isPending={boardQuery.isPending}
+        me={meQuery.data}
+        onRetry={() => void boardQuery.refetch()}
+      />
+      {isHelpOpen ? (
+        <HowTheBoardWorksSheet
+          onClose={() => setIsHelpOpen(false)}
+          publicName={meQuery.data?.displayName ?? ''}
+        />
+      ) : null}
+    </DeckPushedPage>
+  );
+}
+
+interface BoardBodyProps {
+  board: ListLeaderboardOutput | undefined;
+  me: MeOutput | undefined;
+  isPending: boolean;
+  onRetry: () => void;
+}
+
+function BoardBody({ board, me, isPending, onRetry }: BoardBodyProps) {
+  const styles = useThemedStyles(createStyles);
+  const showOnBoard = useShowOnBoard(me);
+
+  if (isPending) {
     return (
-      <View style={styles.rankBadge}>
-        <Text style={styles.rankText}>{rank}</Text>
+      <View style={styles.loader}>
+        <Loader />
       </View>
     );
   }
 
-  return (
-    <View style={styles.rankBadge}>
-      <Ionicons color={medal} name="medal" size={22} />
-    </View>
-  );
-}
+  if (!board) {
+    return (
+      <DeckNoteCard
+        action={{ label: BOARD_COPY.tryAgain, onPress: onRetry, testID: 'leaderboard-retry' }}
+        body={BOARD_COPY.failedBody}
+        glyph="offline"
+        testID="leaderboard-error"
+        title={BOARD_COPY.failedTitle}
+      />
+    );
+  }
 
-function Row({
-  entry,
-  isLast,
-}: {
-  entry: LeaderboardEntry;
-  isLast: boolean;
-}) {
+  const standing = boardStanding(board, me?.showOnLeaderboard === false);
+  const { eyebrow, headline } = boardHeadline(standing);
+
   return (
     <View>
-      <View
-        style={[styles.row, entry.isCurrentUser ? styles.rowCurrent : null]}
-        testID={`leaderboard-row-${entry.rank}`}
-      >
-        <RankBadge rank={entry.rank} />
-        <Text
-          numberOfLines={1}
-          style={[styles.name, entry.isCurrentUser ? styles.nameCurrent : null]}
-        >
-          {entry.displayName}
-          {entry.isCurrentUser ? '  (you)' : ''}
-        </Text>
-        <Text style={styles.points}>{entry.points.toLocaleString()}</Text>
+      <View style={styles.hero} testID="leaderboard-standing">
+        <Text style={styles.eyebrow}>{eyebrow}</Text>
+        <Text style={styles.headline}>{headline}</Text>
+        <Text style={styles.line}>{boardLine(standing)}</Text>
       </View>
-      {isLast ? null : <View style={styles.divider} />}
+      {standing.kind === 'hidden' ? (
+        <View style={styles.showMe} testID="leaderboard-hidden-notice">
+          <DeckButton
+            label={BOARD_COPY.showMe}
+            loading={showOnBoard.isPending}
+            onPress={() => showOnBoard.mutate()}
+            testID="leaderboard-show-me"
+            variant="tonal"
+          />
+        </View>
+      ) : null}
+      <BoardList board={board} standing={standing} />
     </View>
   );
 }
 
-export function LeaderboardScreen() {
-  const router = useRouter();
-  const [period, setPeriod] = useState<LeaderboardPeriod>('week');
-  const [category, setCategory] = useState<LeaderboardCategoryFilter>('all');
-  const queryInput = leaderboardQueryInput(period, category);
-
-  const meQuery = useQuery({
-    queryKey: ['me'],
-    queryFn: () => apiClient.me(),
-  });
-
-  const leaderboardQuery = useQuery({
-    queryKey: ['leaderboard', period, category],
-    queryFn: () => apiClient.listLeaderboard(queryInput),
-    placeholderData: keepPreviousData,
-  });
-
-  const entries = leaderboardQuery.data?.entries ?? [];
-  const currentUserRank = leaderboardQuery.data?.currentUserRank ?? null;
-  // Prefer Profile setting (always available) so the notice still shows if the
-  // leaderboard payload is stale or missing `currentUserVisible`.
-  const isHiddenFromBoard =
-    meQuery.data?.showOnLeaderboard === false ||
-    leaderboardQuery.data?.currentUserVisible === false;
-  const isOffPage =
-    !isHiddenFromBoard &&
-    currentUserRank !== null &&
-    !entries.some((entry) => entry.isCurrentUser);
-
-  const openProfileSettings = () => {
-    router.push('/(tabs)/profile');
-  };
+function BoardList({ board, standing }: { board: ListLeaderboardOutput; standing: BoardStanding }) {
+  if (board.entries.length === 0) {
+    return (
+      <DeckNoteCard
+        body={BOARD_COPY.emptyBody}
+        glyph="trophy"
+        isOutlined
+        testID="leaderboard-empty"
+        title={BOARD_COPY.emptyTitle}
+      />
+    );
+  }
 
   return (
-    <RefreshableScroll
-      contentContainerStyle={styles.content}
-      onPullRefresh={() =>
-        Promise.all([meQuery.refetch(), leaderboardQuery.refetch()])
-      }
-      style={styles.container}
-      testID="leaderboard-screen"
-    >
-      <View style={styles.tabs} testID="leaderboard-period-switch">
-        {LEADERBOARD_PERIODS.map((option) => {
-          const selected = option.id === period;
-
-          return (
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              key={option.id}
-              onPress={() => setPeriod(option.id)}
-              style={styles.tab}
-              testID={`leaderboard-period-${option.id}`}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  selected ? styles.tabLabelSelected : null,
-                ]}
-              >
-                {option.label}
-              </Text>
-              <View
-                style={[
-                  styles.tabRule,
-                  selected ? styles.tabRuleSelected : null,
-                ]}
-              />
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Text style={styles.intro}>{leaderboardIntro(period)}</Text>
-
-      {isHiddenFromBoard ? (
-        <Pressable
-          accessibilityHint="Opens profile settings to show you on the leaderboard"
-          accessibilityRole="button"
-          onPress={openProfileSettings}
-          style={styles.hiddenNotice}
-          testID="leaderboard-hidden-notice"
-        >
-          <Text style={styles.hiddenBody}>
-            You turned off “Show me this week”, so your name is hidden.{' '}
-            <Text style={styles.hiddenLink} testID="leaderboard-enable-in-profile">
-              Enable in Profile
-            </Text>
-          </Text>
-        </Pressable>
-      ) : null}
-
-      <LeaderboardCategoryPicker
-        onSelect={setCategory}
-        selected={category}
-      />
-
-      {leaderboardQuery.isPending && entries.length === 0 ? (
-        <View style={styles.loader}>
-          <Loader />
-        </View>
-      ) : entries.length === 0 ? (
-        <View style={styles.empty} testID="leaderboard-empty">
-          <Ionicons color={colors.muted} name="trophy-outline" size={28} />
-          <Text style={styles.emptyTitle}>Nobody has scored yet</Text>
-          <Text style={styles.emptyBody}>
-            Finish a challenge and you will be first on the board.
-          </Text>
-        </View>
-      ) : (
-        <View>
-          {entries.map((entry, index) => (
-            <Row
-              entry={entry}
-              isLast={index === entries.length - 1}
-              key={entry.rank}
-            />
-          ))}
-        </View>
+    <View>
+      <DeckSectionTitle label={BOARD_COPY.topSection} />
+      {boardRows(board, standing).map((row, index) =>
+        row.kind === 'gap' ? (
+          <LeaderboardGap key={row.key} />
+        ) : (
+          <LeaderboardRow entry={row.entry} isFirst={index === 0} key={row.entry.rank} />
+        ),
       )}
-
-      {isOffPage ? (
-        <Text style={styles.offPage} testID="leaderboard-own-rank">
-          You are ranked {currentUserRank} with{' '}
-          {leaderboardQuery.data?.currentUserPoints ?? 0} points{' '}
-          {leaderboardRankWindow(period)}.
-        </Text>
-      ) : null}
-    </RefreshableScroll>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.lg,
-  },
-  tab: {
-    paddingTop: spacing.sm,
-  },
-  tabLabel: {
-    color: colors.muted,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    paddingBottom: spacing.sm,
-  },
-  tabLabelSelected: {
-    color: colors.text,
-    fontWeight: fontWeight.semibold,
-  },
-  tabRule: {
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: 'transparent',
-  },
-  tabRuleSelected: {
-    backgroundColor: colors.accent,
-  },
-  intro: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  loader: {
-    marginTop: spacing.xl,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.lg,
-  },
-  rowCurrent: {
-    backgroundColor: colors.accentSurface,
-  },
-  rankBadge: {
-    width: 30,
-    alignItems: 'center',
-  },
-  rankText: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  name: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.md,
-  },
-  nameCurrent: {
-    fontWeight: fontWeight.semibold,
-  },
-  points: {
-    color: colors.accent,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  offPage: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.md,
-  },
-  empty: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  emptyBody: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  hiddenNotice: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  hiddenBody: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-  },
-  hiddenLink: {
-    color: colors.accent,
-    fontWeight: fontWeight.semibold,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    loader: {
+      marginTop: spacing.xl,
+    },
+    hero: {
+      marginTop: 18,
+      paddingHorizontal: spacing.xs,
+    },
+    eyebrow: {
+      color: theme.colors.muted,
+      fontSize: 13,
+    },
+    headline: {
+      color: theme.colors.text,
+      fontSize: HEADLINE_SIZE,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: -2.5,
+      lineHeight: HEADLINE_SIZE + 4,
+    },
+    line: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      lineHeight: 21,
+      marginTop: 6,
+    },
+    showMe: {
+      marginTop: spacing.md,
+    },
+  });

@@ -154,8 +154,7 @@ export function useWalkMotion(): WalkMotion {
   const watchAgitation = useCallback(
     async (runId: number): Promise<void> => {
       const accelerometer = await loadAccelerometerModule();
-      const usable =
-        accelerometer !== null && (await accelerometer.isAvailableAsync());
+      const usable = accelerometer !== null && (await accelerometer.isAvailableAsync());
 
       if (runId !== runIdRef.current) {
         return;
@@ -244,9 +243,7 @@ function recordSample(
   }
 
   const now = Date.now();
-  const recent = agitatedAtRef.current.filter(
-    (at) => now - at < ONSET_WINDOW_MS,
-  );
+  const recent = agitatedAtRef.current.filter((at) => now - at < ONSET_WINDOW_MS);
   recent.push(now);
   agitatedAtRef.current = recent;
 

@@ -25,9 +25,7 @@ async function loadStoreReviewModule(): Promise<StoreReviewModule | null> {
 }
 
 function appleAppStoreId(): string | null {
-  const extra = Constants.expoConfig?.extra as
-    | Record<string, unknown>
-    | undefined;
+  const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
   const id = extra?.appleAppStoreId;
   if (typeof id !== 'string') {
     return null;

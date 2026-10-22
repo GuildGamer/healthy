@@ -1,21 +1,20 @@
 import { healthTips } from './constants/health-tips';
-import { groupTipsByCategory, tipsForCategories } from './select-daily-tip';
+import { selectDailyTip, tipsForCategories } from './select-daily-tip';
 
-describe('groupTipsByCategory', () => {
-  it('keeps catalog order and does not mix categories', () => {
-    const tips = tipsForCategories(healthTips, ['hypertension', 'diabetes']);
-    const groups = groupTipsByCategory(tips);
+describe('tipsForCategories', () => {
+  it('puts your conditions first, then everyday tips, in catalog order', () => {
+    const tips = tipsForCategories(healthTips, ['hypertension']);
+    const categories = [...new Set(tips.map((tip) => tip.category))];
 
-    expect(groups.map((group) => group.category)).toEqual([
-      'hypertension',
-      'diabetes',
-      'general',
-    ]);
-    expect(groups[0]?.tips.every((tip) => tip.category === 'hypertension')).toBe(
-      true,
-    );
-    expect(groups.at(-1)?.tips).toEqual(
-      healthTips.filter((tip) => tip.category === 'general'),
-    );
+    expect(categories).toEqual(['hypertension', 'general']);
+  });
+});
+
+describe('selectDailyTip', () => {
+  it('gives the same tip all day and a different one the next', () => {
+    const today = selectDailyTip(healthTips, ['hypertension'], '2026-10-22');
+
+    expect(selectDailyTip(healthTips, ['hypertension'], '2026-10-22')).toEqual(today);
+    expect(selectDailyTip(healthTips, ['hypertension'], '2026-10-23')).not.toEqual(today);
   });
 });

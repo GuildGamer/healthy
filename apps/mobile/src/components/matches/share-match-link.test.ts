@@ -11,9 +11,7 @@ function setPlatformOs(os: typeof Platform.OS) {
 }
 
 function inviteUrlCount(content: { message?: string; url?: string }): number {
-  const inMessage = content.message
-    ? content.message.split(INVITE_URL).length - 1
-    : 0;
+  const inMessage = content.message ? content.message.split(INVITE_URL).length - 1 : 0;
   const inUrl = content.url ? content.url.split(INVITE_URL).length - 1 : 0;
   return inMessage + inUrl;
 }

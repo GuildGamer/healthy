@@ -114,9 +114,7 @@ export class BoardMoveNotifierService {
 
     return recipients.filter(
       (recipient) =>
-        !notified.has(
-          boardMoveIdempotencyKey(matchId, attemptOrEventId, recipient.userId),
-        ),
+        !notified.has(boardMoveIdempotencyKey(matchId, attemptOrEventId, recipient.userId)),
     );
   }
 
@@ -124,13 +122,7 @@ export class BoardMoveNotifierService {
     matchId: string,
     rows: readonly { userId: string; title: string; body: string }[],
   ): Promise<void> {
-    const devices = await this.prisma.pushDevice.findMany({
-      where: {
-        userId: { in: rows.map((row) => row.userId) },
-        isActive: true,
-      },
-      select: { userId: true, expoPushToken: true },
-    });
+    const devices = await this.pushDevices.groupPushDevicesFor(rows.map((row) => row.userId));
 
     if (devices.length === 0) {
       return;
@@ -160,8 +152,6 @@ export class BoardMoveNotifierService {
     const result = await this.pushSender.send(messages);
     await this.pushDevices.deactivateTokens(result.rejectedTokens);
 
-    this.logger.log(
-      `Board move push sent ${result.sentCount} of ${messages.length} messages`,
-    );
+    this.logger.log(`Board move push sent ${result.sentCount} of ${messages.length} messages`);
   }
 }

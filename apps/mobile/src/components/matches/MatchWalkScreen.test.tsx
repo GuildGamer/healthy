@@ -1,11 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
 import {
@@ -146,12 +140,10 @@ beforeEach(() => {
     setUpdateInterval: jest.fn(),
     addListener: addMotionListener,
   });
-  addMotionListener.mockImplementation(
-    (callback: (sample: AccelerometerSample) => void) => {
-      emitSample = callback;
-      return { remove: jest.fn() };
-    },
-  );
+  addMotionListener.mockImplementation((callback: (sample: AccelerometerSample) => void) => {
+    emitSample = callback;
+    return { remove: jest.fn() };
+  });
 
   mockedLoadPedometerModule.mockResolvedValue({
     isAvailableAsync: jest.fn(async () => true),
@@ -160,12 +152,10 @@ beforeEach(() => {
     getStepCountAsync: jest.fn(async () => ({ steps: 0 })),
     watchStepCount,
   });
-  watchStepCount.mockImplementation(
-    (callback: (result: { steps: number }) => void) => {
-      emitSteps = (steps) => callback({ steps });
-      return { remove: jest.fn() };
-    },
-  );
+  watchStepCount.mockImplementation((callback: (result: { steps: number }) => void) => {
+    emitSteps = (steps) => callback({ steps });
+    return { remove: jest.fn() };
+  });
 });
 
 afterEach(() => {
@@ -233,9 +223,7 @@ describe('MatchWalkScreen', () => {
     await walkFor(40);
 
     expect(screen.queryByText(/Nothing counts until 01:00/)).toBeNull();
-    expect(
-      screen.getByText('Stop now and these minutes go on the board.'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('Stop now and these minutes go on the board.')).toBeOnTheScreen();
 
     await cleanup();
   });

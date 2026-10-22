@@ -2,15 +2,10 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fontWeight } from '@product/brand';
 import { useState } from 'react';
-import {
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { Image, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import heroBanner from '@/assets/hero-banner.png';
 import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
+import { formatClockTime } from '@/lib/clock-time';
 
 /**
  * Share card art direction: an editorial result slip on a mint billboard.
@@ -42,10 +37,7 @@ export type ChallengeShareCardProps = {
   verified?: boolean;
 };
 
-export function formatShareReps(
-  completedCount: number,
-  targetCount?: number,
-): string {
+export function formatShareReps(completedCount: number, targetCount?: number): string {
   if (targetCount != null && targetCount > 0) {
     return `${completedCount}/${targetCount}`;
   }
@@ -141,21 +133,11 @@ export function formatShareDate(at: Date = new Date()): string {
 }
 
 export function formatShareStamp(at: Date = new Date()): string {
-  const timePart = at.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  return `${formatShareDate(at)} · ${timePart}`;
+  return `${formatShareDate(at)} · ${formatClockTime(at)}`;
 }
 
 /** Subline under the headline: the challenge, unless the hero already says it, then the day. */
-export function formatShareContext(
-  title: string,
-  unit: string,
-  at: Date = new Date(),
-): string {
+export function formatShareContext(title: string, unit: string, at: Date = new Date()): string {
   const titleRepeatsUnit = title.toLowerCase().includes(unit);
   if (title.length === 0 || titleRepeatsUnit) {
     return formatShareDate(at);
@@ -190,11 +172,7 @@ export function ChallengeShareCard({
   const fieldRadius = designSize.fieldRadius * scale;
 
   return (
-    <View
-      onLayout={handleLayout}
-      style={styles.shot}
-      testID="challenge-share-card"
-    >
+    <View onLayout={handleLayout} style={styles.shot} testID="challenge-share-card">
       <View
         style={[
           styles.field,
@@ -246,16 +224,9 @@ function BillboardBand({ scale }: { scale: number }) {
         },
       ]}
     >
+      <Text style={[styles.bandWordmark, { fontSize: designSize.wordmark * scale }]}>Healthy</Text>
       <Text
-        style={[styles.bandWordmark, { fontSize: designSize.wordmark * scale }]}
-      >
-        Healthy
-      </Text>
-      <Text
-        style={[
-          styles.bandUrl,
-          { fontSize: designSize.url * scale, letterSpacing: 0.2 * scale },
-        ]}
+        style={[styles.bandUrl, { fontSize: designSize.url * scale, letterSpacing: 0.2 * scale }]}
       >
         {SHARE_CARD_URL}
       </Text>
@@ -289,9 +260,7 @@ function PosterField({
   const hasReps = completedCount != null && completedCount > 0;
   const hero = hasReps ? String(completedCount) : `+${pointsAwarded}`;
   const unit = hasReps ? 'push-ups' : 'points';
-  const goal = hasReps && targetCount != null && targetCount > 0
-    ? targetCount
-    : undefined;
+  const goal = hasReps && targetCount != null && targetCount > 0 ? targetCount : undefined;
 
   return (
     <>
@@ -359,15 +328,7 @@ function PosterHeadline({
   );
 }
 
-function PosterHero({
-  hero,
-  unit,
-  scale,
-}: {
-  hero: string;
-  unit: string;
-  scale: number;
-}) {
+function PosterHero({ hero, unit, scale }: { hero: string; unit: string; scale: number }) {
   return (
     <View style={{ marginTop: 22 * scale }}>
       <Text
@@ -385,10 +346,7 @@ function PosterHero({
         {hero}
       </Text>
       <Text
-        style={[
-          styles.heroUnit,
-          { fontSize: designSize.heroUnit * scale, marginTop: 2 * scale },
-        ]}
+        style={[styles.heroUnit, { fontSize: designSize.heroUnit * scale, marginTop: 2 * scale }]}
       >
         {unit}
       </Text>
@@ -421,14 +379,8 @@ function ShareMetaGrid({
         ]}
       />
       <View style={styles.metaRow}>
-        {goal != null ? (
-          <MetaCell label="Goal" scale={scale} value={String(goal)} />
-        ) : null}
-        <MetaCell
-          label="Streak"
-          scale={scale}
-          value={formatShareStreakValue(currentStreakDays)}
-        />
+        {goal != null ? <MetaCell label="Goal" scale={scale} value={String(goal)} /> : null}
+        <MetaCell label="Streak" scale={scale} value={formatShareStreakValue(currentStreakDays)} />
       </View>
       {verified ? (
         <View style={{ marginTop: 14 * scale }}>
@@ -439,23 +391,11 @@ function ShareMetaGrid({
   );
 }
 
-function MetaCell({
-  label,
-  value,
-  scale,
-}: {
-  label: string;
-  value: string;
-  scale: number;
-}) {
+function MetaCell({ label, value, scale }: { label: string; value: string; scale: number }) {
   return (
     <View style={{ width: designSize.metaCell * scale, gap: 4 * scale }}>
-      <Text style={[styles.metaLabel, { fontSize: designSize.metaLabel * scale }]}>
-        {label}
-      </Text>
-      <Text style={[styles.metaValue, { fontSize: designSize.metaValue * scale }]}>
-        {value}
-      </Text>
+      <Text style={[styles.metaLabel, { fontSize: designSize.metaLabel * scale }]}>{label}</Text>
+      <Text style={[styles.metaValue, { fontSize: designSize.metaValue * scale }]}>{value}</Text>
     </View>
   );
 }
@@ -491,10 +431,7 @@ function PhotoField({
       <PhotoFade />
 
       <View
-        style={[
-          styles.photoStats,
-          { left: inset, right: inset, bottom: inset, gap: 4 * scale },
-        ]}
+        style={[styles.photoStats, { left: inset, right: inset, bottom: inset, gap: 4 * scale }]}
       >
         {completedCount != null && completedCount > 0 ? (
           <PhotoRepsHero
@@ -505,11 +442,7 @@ function PhotoField({
             stamp={stamp}
           />
         ) : (
-          <PhotoStreakHero
-            currentStreakDays={currentStreakDays}
-            scale={scale}
-            stamp={stamp}
-          />
+          <PhotoStreakHero currentStreakDays={currentStreakDays} scale={scale} stamp={stamp} />
         )}
         {verified ? <VerifiedClaim overPhoto scale={scale} /> : null}
       </View>
@@ -647,21 +580,12 @@ function LeafMark({ cardWidth }: { cardWidth: number }) {
       importantForAccessibility="no"
       resizeMode="cover"
       source={heroBanner}
-      style={[
-        styles.leaf,
-        { width: leafWidth, height: leafWidth / HERO_BANNER_ASPECT_RATIO },
-      ]}
+      style={[styles.leaf, { width: leafWidth, height: leafWidth / HERO_BANNER_ASPECT_RATIO }]}
     />
   );
 }
 
-function VerifiedClaim({
-  scale,
-  overPhoto = false,
-}: {
-  scale: number;
-  overPhoto?: boolean;
-}) {
+function VerifiedClaim({ scale, overPhoto = false }: { scale: number; overPhoto?: boolean }) {
   const textSize = overPhoto ? designSize.foot : designSize.metaValue;
   const iconSize = overPhoto ? designSize.footIcon : designSize.metaIcon;
 
@@ -692,10 +616,7 @@ function StreakFlame({ scale }: { scale: number }) {
         color={colors.streakCore}
         name="fire"
         size={coreSize}
-        style={[
-          styles.flameCore,
-          { left: (flameSize - coreSize) / 2, bottom: 2 * scale },
-        ]}
+        style={[styles.flameCore, { left: (flameSize - coreSize) / 2, bottom: 2 * scale }]}
       />
     </View>
   );

@@ -1,13 +1,15 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
   displayChallengeTitle,
   fieldProgress,
   practiceActivityReason,
   resolveEnrollmentTargetCount,
+  resolveEnrollmentTargetDuration,
   toChallengeCapture,
   toChallengeIcon,
   type DeviceActivity,
+  type NotificationPayload,
 } from '@product/contract';
 import {
   Prisma,
@@ -20,15 +22,8 @@ import {
   type UserChallenge,
   type UserChallengeStatus,
 } from '@product/db';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
-import {
-  DEFAULT_TIME_ZONE,
-  dayKeyFor,
-  previousDayKey,
-} from '../../../shared/utils/day-key.js';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
+import { DEFAULT_TIME_ZONE, dayKeyFor, previousDayKey } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import {
   canAccessChallenge,
@@ -41,6 +36,12 @@ import {
   EVIDENCE_VALIDATOR,
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
+import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
+import {
+  PUSH_SENDER,
+  type PushMessage,
+  type PushSender,
+} from '../../shared-modules/push/push-sender.js';
 import { PracticeService } from '../practice/index.js';
 import type {
   ActivityItemDto,
@@ -52,10 +53,7 @@ import type {
   SurpriseEvidenceRequestDto,
   TodayChallengeDto,
 } from './dto/index.js';
-import {
-  requireEvidenceFor,
-  type ChallengeEvidenceInput,
-} from './evidence.js';
+import { requireEvidenceFor, type ChallengeEvidenceInput } from './evidence.js';
 import {
   clampedPenalty,
   requireSurprisePhoto,
@@ -65,28 +63,26 @@ import {
 import { SURPRISE_EVIDENCE_ROLL } from './surprise-evidence.tokens.js';
 import { parseStoredDraft, requireMatchingDraft } from './draft.js';
 import { requireDeviceActivityFor } from './device-activity.js';
-import {
-  CHALLENGE_HISTORY_LIMIT,
-  historyEvidence,
-  historyLog,
-  historyOutcome,
-} from './history.js';
+import { CHALLENGE_HISTORY_LIMIT, historyEvidence, historyLog, historyOutcome } from './history.js';
 import { requireLogFor, type ChallengeLogPayload } from './logs.js';
 import { requireVitalsFor, type ChallengeVitalsInput } from './vitals.js';
 
 /** Rows returned by the activity feed, per source, before the merge is trimmed. */
 const ACTIVITY_PAGE_SIZE = 50;
 
+/** A person's own goal on the enrolment behind an occurrence. */
+type EnrollmentGoal = { targetCount: number | null; targetDurationMinutes: number | null };
+
 type AssignmentRecord = UserChallenge & {
   challenge: Challenge;
   surpriseEvidenceRequest: SurpriseEvidenceRequest | null;
-  enrollment: { targetCount: number | null } | null;
+  enrollment: EnrollmentGoal | null;
 };
 
 const ASSIGNMENT_INCLUDE = {
   challenge: true,
   surpriseEvidenceRequest: true,
-  enrollment: { select: { targetCount: true } },
+  enrollment: { select: { targetCount: true, targetDurationMinutes: true } },
 } as const;
 
 function challengeDisplayTitle(assignment: {
@@ -95,7 +91,7 @@ function challengeDisplayTitle(assignment: {
     deviceMetric?: string | null;
     targetCount?: number | null;
   };
-  enrollment?: { targetCount: number | null } | null;
+  enrollment?: EnrollmentGoal | null;
 }): string {
   return displayChallengeTitle({
     title: assignment.challenge.title,
@@ -116,7 +112,7 @@ function captureForAssignment(assignment: {
     targetCount?: number | null;
     completionKind?: string;
   };
-  enrollment?: { targetCount: number | null } | null;
+  enrollment?: EnrollmentGoal | null;
 }) {
   return toChallengeCapture({
     ...assignment.challenge,
@@ -124,15 +120,67 @@ function captureForAssignment(assignment: {
       assignment.challenge.targetCount,
       assignment.enrollment?.targetCount,
     ),
+    targetDurationMinutes: resolveEnrollmentTargetDuration(
+      assignment.challenge.targetDurationMinutes,
+      assignment.enrollment?.targetDurationMinutes,
+    ),
   });
+}
+
+/**
+ * Inbox + Expo push payload that reopens `/challenge/success`. Every value is
+ * a string so the same object fits Expo push `data`.
+ */
+function completionSuccessPayload(input: {
+  userChallengeId: string;
+  title: string;
+  pointsAwarded: number;
+  currentStreakDays: number;
+  count: number | null;
+  targetCount: number | null;
+  deviceMetric: string | null | undefined;
+}): NotificationPayload {
+  const metric =
+    input.deviceMetric === 'pushups' || input.deviceMetric === 'walk'
+      ? input.deviceMetric
+      : 'other';
+
+  const payload: NotificationPayload = {
+    userChallengeId: input.userChallengeId,
+    title: input.title,
+    points: String(input.pointsAwarded),
+    streak: String(input.currentStreakDays),
+    metric,
+  };
+
+  if (input.count != null && input.count >= 0) {
+    payload.count = String(input.count);
+  }
+
+  if (input.targetCount != null && input.targetCount > 0) {
+    payload.target = String(input.targetCount);
+  }
+
+  return payload;
+}
+
+/** Expo only accepts string values in notification `data`. */
+function pushDataFromPayload(payload: NotificationPayload): Record<string, string> {
+  const data: Record<string, string> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (typeof value === 'string' && value.length > 0) {
+      data[key] = value;
+    }
+  }
+  return data;
 }
 
 /** The period key currently open for each cadence, in the user's own zone. */
 type DueWindow = Record<ChallengeFrequency, string>;
 
-
 @Injectable()
 export class ChallengesService {
+  private readonly logger = new Logger(ChallengesService.name);
   private readonly surpriseRoll: () => number;
 
   constructor(
@@ -143,6 +191,11 @@ export class ChallengesService {
     @Optional()
     @Inject(SURPRISE_EVIDENCE_ROLL)
     surpriseRoll?: () => number,
+    @Optional()
+    @Inject(PUSH_SENDER)
+    private readonly pushSender?: PushSender,
+    @Optional()
+    private readonly pushDevices?: PushDevicesService,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }
@@ -178,15 +231,12 @@ export class ChallengesService {
       ],
     });
 
-    const challenges = assignments.map((assignment) =>
-      this.toTodayChallenge(assignment),
-    );
+    const challenges = assignments.map((assignment) => this.toTodayChallenge(assignment));
 
     return {
       dayKey: window.daily,
       challenges,
-      completedCount: challenges.filter((item) => item.status === 'completed')
-        .length,
+      completedCount: challenges.filter((item) => item.status === 'completed').length,
       totalCount: challenges.length,
     };
   }
@@ -246,14 +296,8 @@ export class ChallengesService {
     }
 
     const reading = requireVitalsFor(assignment.challenge.completionKind, vitals);
-    const photo = requireEvidenceFor(
-      assignment.challenge.completionKind,
-      evidence,
-    );
-    const log = requireLogFor(
-      assignment.challenge.completionKind,
-      logFields ?? {},
-    );
+    const photo = requireEvidenceFor(assignment.challenge.completionKind, evidence);
+    const log = requireLogFor(assignment.challenge.completionKind, logFields ?? {});
     const capture = captureForAssignment(assignment);
     const activity = requireDeviceActivityFor(capture, deviceActivity);
 
@@ -303,8 +347,7 @@ export class ChallengesService {
       data: {
         draft,
         draftUpdatedAt: new Date(),
-        status:
-          assignment.status === 'pending' ? 'in_progress' : assignment.status,
+        status: assignment.status === 'pending' ? 'in_progress' : assignment.status,
         startedAt: assignment.startedAt ?? new Date(),
       },
       include: ASSIGNMENT_INCLUDE,
@@ -442,10 +485,7 @@ export class ChallengesService {
     return this.completionSnapshot(user.id, opened.updated, {
       pointsAwarded: 0,
       penaltyApplied: 0,
-      evidenceRequest: this.toEvidenceRequestDto(
-        opened.request,
-        'awaiting_evidence',
-      ),
+      evidenceRequest: this.toEvidenceRequestDto(opened.request, 'awaiting_evidence'),
     });
   }
 
@@ -460,8 +500,11 @@ export class ChallengesService {
     const todayKey = dayKeyFor(timeZone);
     const idempotencyKey = `challenge_complete:${assignment.id}`;
     const rewardPoints = assignment.challenge.rewardPoints;
+    const displayTitle = challengeDisplayTitle(assignment);
+    const pushTitle = 'Challenge completed';
+    const pushBody = `You earned ${rewardPoints} points for ${displayTitle}.`;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const existingLedger = await tx.pointLedgerEntry.findUnique({
         where: { idempotencyKey },
       });
@@ -474,7 +517,10 @@ export class ChallengesService {
           where: { id: assignment.id },
           include: ASSIGNMENT_INCLUDE,
         });
-        return this.toCompleteDto(refreshed, profile, 0, 0);
+        return {
+          fresh: false as const,
+          dto: this.toCompleteDto(refreshed, profile, 0, 0),
+        };
       }
 
       const dailyDoneBefore = await tx.userChallenge.count({
@@ -542,22 +588,10 @@ export class ChallengesService {
         data: {
           userId: user.id,
           delta: rewardPoints,
-          reason: `Completed: ${challengeDisplayTitle(assignment)}`,
+          reason: `Completed: ${displayTitle}`,
           idempotencyKey,
           userChallengeId: assignment.id,
         },
-      });
-
-      await tx.notification.upsert({
-        where: { idempotencyKey },
-        create: {
-          userId: user.id,
-          kind: 'success',
-          title: 'Challenge completed',
-          body: `You earned ${rewardPoints} points for ${challengeDisplayTitle(assignment)}.`,
-          idempotencyKey,
-        },
-        update: {},
       });
 
       const profileBefore = await tx.userProfile.upsert({
@@ -582,8 +616,92 @@ export class ChallengesService {
         },
       });
 
-      return this.toCompleteDto(completed, profile, rewardPoints, 0);
+      const targetCount = resolveEnrollmentTargetCount(
+        assignment.challenge.targetCount,
+        assignment.enrollment?.targetCount,
+      );
+      const payload = completionSuccessPayload({
+        userChallengeId: assignment.id,
+        title: displayTitle,
+        pointsAwarded: rewardPoints,
+        currentStreakDays: nextStreak,
+        count: activity?.count ?? null,
+        targetCount,
+        deviceMetric: assignment.challenge.deviceMetric,
+      });
+
+      await tx.notification.upsert({
+        where: { idempotencyKey },
+        create: {
+          userId: user.id,
+          kind: 'success',
+          title: pushTitle,
+          body: pushBody,
+          payload,
+          idempotencyKey,
+        },
+        update: {},
+      });
+
+      return {
+        fresh: true as const,
+        dto: this.toCompleteDto(completed, profile, rewardPoints, 0),
+        payload,
+      };
     });
+
+    if (result.fresh) {
+      await this.sendCompletionPush(user.id, pushTitle, pushBody, result.payload);
+    }
+
+    return result.dto;
+  }
+
+  /**
+   * Best-effort push for a fresh completion. A send failure must not fail the
+   * completion itself; retries that hit an existing ledger never call this.
+   */
+  private async sendCompletionPush(
+    userId: string,
+    title: string,
+    body: string,
+    payload: NotificationPayload,
+  ): Promise<void> {
+    if (!this.pushSender || !this.pushDevices) {
+      return;
+    }
+
+    try {
+      const devices = await this.prisma.pushDevice.findMany({
+        where: { userId, isActive: true },
+        select: { expoPushToken: true },
+      });
+
+      if (devices.length === 0) {
+        return;
+      }
+
+      const data = pushDataFromPayload(payload);
+      const messages: PushMessage[] = devices.map((device) => ({
+        expoPushToken: device.expoPushToken,
+        title,
+        body,
+        data,
+      }));
+
+      const pushResult = await this.pushSender.send(messages);
+      await this.pushDevices.deactivateTokens(pushResult.rejectedTokens);
+
+      this.logger.log(
+        `Completion push sent ${pushResult.sentCount} of ${messages.length} messages`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Completion push failed for user ${userId}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   private async penalizeEvidence(
@@ -591,7 +709,8 @@ export class ChallengesService {
     resolution: 'skipped' | 'expired',
   ): Promise<CompleteChallengeDto> {
     const request = assignment.surpriseEvidenceRequest;
-    const penaltyPoints = request?.penaltyPoints ?? assignment.challenge.surpriseEvidencePenaltyPoints;
+    const penaltyPoints =
+      request?.penaltyPoints ?? assignment.challenge.surpriseEvidencePenaltyPoints;
     const idempotencyKey = `challenge_evidence_penalty:${assignment.id}`;
 
     return this.prisma.$transaction(async (tx) => {
@@ -738,9 +857,7 @@ export class ChallengesService {
    * trimmed together so the newest rows win regardless of which source they
    * came from.
    */
-  async listActivity(
-    currentUser: AuthenticatedUser | null | undefined,
-  ): Promise<ListActivityDto> {
+  async listActivity(currentUser: AuthenticatedUser | null | undefined): Promise<ListActivityDto> {
     const user = requireUser(currentUser);
 
     const [entries, practice] = await Promise.all([
@@ -767,7 +884,7 @@ export class ChallengesService {
         reason: practiceActivityReason(session.metric),
         createdAt: session.recordedAt,
         kind: 'practice' as const,
-        count: session.count,
+        count: session.metric === 'pushups' ? session.count : null,
       })),
     ];
 
@@ -805,14 +922,9 @@ export class ChallengesService {
       entries: assignments.map((assignment) => ({
         id: assignment.id,
         periodKey: assignment.periodKey,
-        completedAt: (
-          assignment.completedAt ?? assignment.updatedAt
-        ).toISOString(),
+        completedAt: (assignment.completedAt ?? assignment.updatedAt).toISOString(),
         outcome: historyOutcome(assignment.completionOutcome),
-        pointsDelta: assignment.ledgerEntries.reduce(
-          (total, entry) => total + entry.delta,
-          0,
-        ),
+        pointsDelta: assignment.ledgerEntries.reduce((total, entry) => total + entry.delta, 0),
         log: historyLog({
           completionKind: assignment.challenge.completionKind,
           vitalReading: assignment.vitalReading,
@@ -855,7 +967,6 @@ export class ChallengesService {
 
     return continuedYesterday ? input.storedStreakDays + 1 : 1;
   }
-
 
   /** Creates the occurrence rows for any enrolment whose period has opened. */
   private async materialiseDueOccurrences(
@@ -980,28 +1091,32 @@ export class ChallengesService {
     });
   }
 
+  /**
+   * A partial save of this same session (a walk paused short, then walked on)
+   * already holds its externalId with no occurrence attached. Completing
+   * replaces that row in the same transaction, so the walk is one session.
+   */
   private async persistDeviceActivity(
     tx: Prisma.TransactionClient,
     userId: string,
     userChallengeId: string,
     activity: DeviceActivity,
   ): Promise<void> {
-    if (activity.externalId) {
-      const existing = await tx.deviceActivityLog.findUnique({
-        where: {
-          userId_externalId: {
-            userId,
-            externalId: activity.externalId,
-          },
-        },
-        select: { userChallengeId: true },
-      });
+    const existing = activity.externalId
+      ? await tx.deviceActivityLog.findUnique({
+          where: { userId_externalId: { userId, externalId: activity.externalId } },
+          select: { id: true, userChallengeId: true },
+        })
+      : null;
 
-      if (existing && existing.userChallengeId !== userChallengeId) {
-        throw new ORPCError('BAD_REQUEST', {
-          message: 'That workout was already used for another challenge',
-        });
-      }
+    if (existing?.userChallengeId && existing.userChallengeId !== userChallengeId) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'That workout was already used for another challenge',
+      });
+    }
+
+    if (existing && existing.userChallengeId === null) {
+      await tx.deviceActivityLog.delete({ where: { id: existing.id } });
     }
 
     const fields = {
@@ -1034,7 +1149,7 @@ export class ChallengesService {
     status: UserChallengeStatus;
     draft?: unknown;
     surpriseEvidenceRequest?: SurpriseEvidenceRequest | null;
-    enrollment?: { targetCount: number | null } | null;
+    enrollment?: EnrollmentGoal | null;
     challenge: {
       title: string;
       description: string;

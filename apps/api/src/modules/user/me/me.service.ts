@@ -12,10 +12,12 @@ import {
   isValidTimeZone,
   previousDayKey,
 } from '../../../shared/utils/day-key.js';
+import { longestConsecutiveDayRun } from '../../../shared/utils/day-run.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
 import type { MeDto } from './dto/index.js';
+import type { StreakStatus } from './types/streak-status.js';
 
 @Injectable()
 export class MeService {
@@ -41,6 +43,7 @@ export class MeService {
         evidenceRemindersEnabled: true,
         promotionalMessagesEnabled: true,
         showOnLeaderboard: true,
+        groupNotificationsEnabled: true,
         inProgressNudgeEnabled: true,
         inProgressNudgeDelayMinutes: true,
         healthLinkStatus: true,
@@ -50,6 +53,10 @@ export class MeService {
 
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
     const membershipActive = effectiveMembershipActive(profile?.membershipActive);
+    const [streak, longestRunDays] = await Promise.all([
+      this.streakStatus(user.id, profile?.currentStreakDays ?? 0, timeZone),
+      this.longestRewardedDailyRun(user.id),
+    ]);
 
     return {
       id: user.id,
@@ -57,7 +64,9 @@ export class MeService {
       name: user.name ?? null,
       categories: profile?.healthCategories ?? [],
       pointsBalance: profile?.pointsBalance ?? 0,
-      currentStreakDays: await this.liveStreak(user.id, profile?.currentStreakDays ?? 0, timeZone),
+      currentStreakDays: streak.currentStreakDays,
+      streakLapsedYesterday: streak.streakLapsedYesterday,
+      bestStreakDays: Math.max(longestRunDays, streak.currentStreakDays),
       timeZone,
       countryCode: normalizeCountryCode(profile?.countryCode ?? ''),
       displayName: publicNameFor(user.id, profile?.displayName),
@@ -66,6 +75,7 @@ export class MeService {
       evidenceRemindersEnabled: profile?.evidenceRemindersEnabled ?? true,
       promotionalMessagesEnabled: profile?.promotionalMessagesEnabled ?? false,
       showOnLeaderboard: profile?.showOnLeaderboard ?? true,
+      groupNotificationsEnabled: profile?.groupNotificationsEnabled ?? true,
       inProgressNudgeEnabled: profile?.inProgressNudgeEnabled ?? true,
       inProgressNudgeDelayMinutes: profile?.inProgressNudgeDelayMinutes ?? 30,
       healthLinkStatus: profile?.healthLinkStatus ?? 'unknown',
@@ -218,6 +228,7 @@ export class MeService {
       evidenceRemindersEnabled: boolean;
       promotionalMessagesEnabled: boolean;
       showOnLeaderboard: boolean;
+      groupNotificationsEnabled?: boolean;
       inProgressNudgeEnabled: boolean;
       inProgressNudgeDelayMinutes: number;
     },
@@ -246,6 +257,7 @@ export class MeService {
         evidenceRemindersEnabled: settings.evidenceRemindersEnabled,
         promotionalMessagesEnabled: settings.promotionalMessagesEnabled,
         showOnLeaderboard: settings.showOnLeaderboard,
+        groupNotificationsEnabled: settings.groupNotificationsEnabled,
         inProgressNudgeEnabled: settings.inProgressNudgeEnabled,
         inProgressNudgeDelayMinutes: settings.inProgressNudgeDelayMinutes,
       },
@@ -254,6 +266,7 @@ export class MeService {
         evidenceRemindersEnabled: settings.evidenceRemindersEnabled,
         promotionalMessagesEnabled: settings.promotionalMessagesEnabled,
         showOnLeaderboard: settings.showOnLeaderboard,
+        groupNotificationsEnabled: settings.groupNotificationsEnabled,
         inProgressNudgeEnabled: settings.inProgressNudgeEnabled,
         inProgressNudgeDelayMinutes: settings.inProgressNudgeDelayMinutes,
       },
@@ -270,14 +283,18 @@ export class MeService {
    * Only daily completions count, matching how the streak is advanced — a
    * weekly or monthly challenge finished yesterday says nothing about whether
    * a daily habit is still unbroken.
+   *
+   * A run whose last day was the day before yesterday broke yesterday, which
+   * Today mentions once.
    */
-  private async liveStreak(
+  private async streakStatus(
     userId: string,
     storedStreakDays: number,
     timeZone: string,
-  ): Promise<number> {
+  ): Promise<StreakStatus> {
+    const noStreak: StreakStatus = { currentStreakDays: 0, streakLapsedYesterday: false };
     if (storedStreakDays === 0) {
-      return 0;
+      return noStreak;
     }
 
     const latestCompletion = await this.prisma.userChallenge.findFirst({
@@ -287,13 +304,40 @@ export class MeService {
     });
 
     if (!latestCompletion) {
-      return 0;
+      return noStreak;
     }
 
     const today = dayKeyFor(timeZone);
-    const isLive =
-      latestCompletion.periodKey === today || latestCompletion.periodKey === previousDayKey(today);
+    const yesterday = previousDayKey(today);
+    const isLive = latestCompletion.periodKey === today || latestCompletion.periodKey === yesterday;
 
-    return isLive ? storedStreakDays : 0;
+    if (isLive) {
+      return { currentStreakDays: storedStreakDays, streakLapsedYesterday: false };
+    }
+
+    return {
+      currentStreakDays: 0,
+      streakLapsedYesterday: latestCompletion.periodKey === previousDayKey(yesterday),
+    };
+  }
+
+  /**
+   * Derived from history rather than stored, so it is right for runs that
+   * ended before anything tracked a record. A penalized day never extended a
+   * streak, so it does not extend this one; legacy rows with no outcome did.
+   */
+  private async longestRewardedDailyRun(userId: string): Promise<number> {
+    const days = await this.prisma.userChallenge.findMany({
+      where: {
+        userId,
+        frequency: 'daily',
+        status: 'completed',
+        OR: [{ completionOutcome: null }, { completionOutcome: 'rewarded' }],
+      },
+      distinct: ['periodKey'],
+      select: { periodKey: true },
+    });
+
+    return longestConsecutiveDayRun(days.map((day) => day.periodKey));
   }
 }

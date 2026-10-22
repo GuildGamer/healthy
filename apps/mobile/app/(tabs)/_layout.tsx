@@ -1,10 +1,10 @@
-import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
+import { fontSize, fontWeight, spacing } from '@product/brand';
 import { Redirect, Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLoader } from '@/components/feedback';
-import { ProfileAvatar, avatarNameFor } from '@/components/profile/ProfileAvatar';
+import { Glyph, type GlyphName } from '@/components/icons';
 import { useSession } from '@/lib/auth-client';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
@@ -13,7 +13,7 @@ import {
   clearCachedTabsGate,
   isTabsGateAllowed,
 } from '@/lib/tabs-gate-cache';
-import { useRequestReminderOnLaunch } from '@/lib/use-request-reminder-on-launch';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
 /**
  * React Navigation draws `paddingBottom` inside `height`. A fixed 60pt bar
@@ -36,9 +36,7 @@ function seedGateHref(sessionUserId: string | undefined): PostAuthHref | null {
 export default function TabsLayout() {
   const { data: session, isPending, isRefetching } = useSession();
   const sessionUserId = session?.user.id;
-  const [gateHref, setGateHref] = useState<PostAuthHref | null>(() =>
-    seedGateHref(sessionUserId),
-  );
+  const [gateHref, setGateHref] = useState<PostAuthHref | null>(() => seedGateHref(sessionUserId));
 
   useEffect(() => {
     if (sessionUserId) {
@@ -87,30 +85,65 @@ export default function TabsLayout() {
   return <TabsShell />;
 }
 
-function ProfileTabIcon({ size }: { size: number }) {
-  const { data: session } = useSession();
-  const name = avatarNameFor({
-    displayName: session?.user.name,
-    name: session?.user.name,
+const createTabLabelStyles = (theme: Theme) =>
+  StyleSheet.create({
+    label: {
+      alignItems: 'center',
+      gap: 3,
+    },
+    text: {
+      fontSize: 10,
+      fontWeight: fontWeight.medium,
+    },
+    openDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.colors.accent,
+    },
+    closedDot: {
+      width: 4,
+      height: 4,
+    },
   });
 
+function TabLabel({ focused, color, title }: { focused: boolean; color: string; title: string }) {
+  const styles = useThemedStyles(createTabLabelStyles);
+
   return (
-    <ProfileAvatar
-      imageUri={session?.user.image}
-      name={name}
-      size={size}
-      testID="profile-tab-avatar"
-    />
+    <View style={styles.label}>
+      <Text style={[styles.text, { color }]}>{title}</Text>
+      <View style={focused ? styles.openDot : styles.closedDot} />
+    </View>
   );
 }
 
+function tabGlyph(closed: GlyphName, open: GlyphName, cutoutColor: string) {
+  return function TabGlyph({
+    focused,
+    color,
+    size,
+  }: {
+    focused: boolean;
+    color: string;
+    size: number;
+  }) {
+    return (
+      <Glyph color={color} cutoutColor={cutoutColor} name={focused ? open : closed} size={size} />
+    );
+  };
+}
+
+function tabLabel(title: string) {
+  return function TabTitle({ focused, color }: { focused: boolean; color: string }) {
+    return <TabLabel color={color} focused={focused} title={title} />;
+  };
+}
+
 function TabsShell() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const tabBarBottomPadding = Math.max(
-    insets.bottom,
-    TAB_BAR_MIN_BOTTOM_PADDING,
-  );
-  useRequestReminderOnLaunch(true);
+  const tabBarBottomPadding = Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_PADDING);
 
   return (
     <Tabs
@@ -129,48 +162,37 @@ function TabsShell() {
           paddingBottom: tabBarBottomPadding,
           height: TAB_BAR_BASE_HEIGHT + tabBarBottomPadding,
         },
-        tabBarActiveTintColor: colors.accent,
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: fontWeight.medium,
-        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Today',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Feather color={color} name="home" size={size} />
-          ),
+          tabBarIcon: tabGlyph('today', 'todayFilled', colors.surface),
+          tabBarLabel: tabLabel('Today'),
         }}
       />
       <Tabs.Screen
         name="challenges"
         options={{
           title: 'Challenges',
-          tabBarIcon: ({ color, size }) => (
-            <Feather color={color} name="list" size={size} />
-          ),
+          headerShown: false,
+          tabBarIcon: tabGlyph('challenges', 'challengesFilled', colors.surface),
+          tabBarLabel: tabLabel('Challenges'),
         }}
       />
-      <Tabs.Screen
-        name="activity"
-        options={{
-          title: 'Activity',
-          tabBarIcon: ({ color, size }) => (
-            <Feather color={color} name="activity" size={size} />
-          ),
-        }}
-      />
+      {/* Points history lives under You; the route stays for old links. */}
+      <Tabs.Screen name="activity" options={{ title: 'Activity', href: null }} />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'You',
           headerShown: false,
-          tabBarIcon: ({ size }) => <ProfileTabIcon size={size} />,
+          tabBarIcon: tabGlyph('you', 'youFilled', colors.surface),
+          tabBarLabel: tabLabel('You'),
         }}
       />
     </Tabs>

@@ -1,752 +1,373 @@
-import Feather from '@expo/vector-icons/Feather';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { TodayChallenge } from '@product/client';
-import {
-  colors,
-  fontSize,
-  fontWeight,
-  radii,
-  spacing,
-} from '@product/brand';
-import { useQuery } from '@tanstack/react-query';
+import { fontWeight, spacing } from '@product/brand';
 import { useRouter } from 'expo-router';
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Loader, RefreshableScroll } from '@/components/feedback';
-import { ChallengeActionButton } from '@/components/challenges/ChallengeActionButton';
-import { ChallengeProgressRing } from '@/components/challenges/ChallengeProgressRing';
-import {
-  buildChallengeFocusLayout,
-  focusSectionLabel,
-} from '@/components/challenges/challenge-list-layout';
-import { completionRoute } from '@/components/challenges/completion-route';
-import { frequencyBadge } from '@/components/challenges/constants/frequency-labels';
-import { canPracticeAgain } from '@/components/challenges/practice-entry';
-import { TodayWinHeader } from '@/components/challenges/TodayWinHeader';
-import { useAdvanceChallenge } from '@/components/challenges/useAdvanceChallenge';
-import { podiumMedalColor } from '@/components/leaderboard/podium';
-import { selectDailyTip } from '@/components/tips';
-import { healthCategoryName } from '@/constants/health-categories';
-import { useSession } from '@/lib/auth-client';
-import { useSyncTimeZone } from '@/lib/time-zone';
-import { useAppReviewPrompt } from '@/lib/use-app-review-prompt';
-import { usePushDeviceSync } from '@/lib/use-push-device';
-import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
-import { apiClient } from '@/lib/api';
-import heroBanner from '@/assets/hero-banner.png';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { completionRoute } from '@/components/challenges/completion-route';
+import { useAdvanceChallenge } from '@/components/challenges/useAdvanceChallenge';
+import { RefreshableScroll } from '@/components/feedback';
+import { Glyph } from '@/components/icons';
+import type { MatchSessionRoute } from '@/components/matches/match-metric';
+import { waterGlassCount } from '@/components/challenges/water-glasses';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
+import { CardActsProvider, useCardActs } from './CardActsProvider';
+import { CardToastBar } from './CardToastBar';
+import { ChallengeDeckCard } from './ChallengeDeckCard';
+import { isCountedOnCard, isDoneOnCard } from './deck-card-content';
+import { FinishedDeckCard } from './FinishedDeckCard';
+import { withFinishedCard } from './finished-deck';
+import { TODAY_COPY } from './constants/today-copy';
+import { DayDoneCard } from './DayDoneCard';
+import { DAY_SHARE_CARD_WIDTH, DayShareCard } from './DayShareCard';
+import { DoneChips } from './DoneChips';
+import { FirstRunCard } from './FirstRunCard';
+import { GroupDeckCard } from './GroupDeckCard';
+import { DeckErrorCard, DeckSkeleton } from './PlainDeckCards';
+import { PresenceLine } from './PresenceLine';
+import { TodayDeck } from './TodayDeck';
+import { TodayHeader } from './TodayHeader';
 import {
-  MATCH_HOME_SECTION,
-  MATCH_LIVE_HINT,
-  matchLiveCountLabel,
-} from '@/components/matches/match-copy';
-import {
-  ProfileAvatar,
-  avatarNameFor,
-} from '@/components/profile/ProfileAvatar';
-import { weeklyRankLabel } from './home-rank';
+  dayMonthLabel,
+  lastUpdatedLabel,
+  runLabel,
+  shareDayMessage,
+  streakSentence,
+  tallyLabel,
+  weekdayLabel,
+} from './today-labels';
+import { TodayTally } from './TodayTally';
+import type { DeckItem, TallySegment, TodayFocus } from './types/today-deck';
+import { useDayFinishedPage } from './useDayFinishedPage';
+import { useFinishedCard } from './useFinishedCard';
+import { useFirstRunSuggestions } from './useFirstRunSuggestions';
+import { useShareDay } from './useShareDay';
+import { useTodayQueries } from './useTodayQueries';
 
-/** Figma uses 12px gaps (`space-y-3`) between home sections. */
-const SECTION_GAP = 12;
-/** Figma `rounded-xl` = 12px. */
-const CARD_RADIUS = 12;
-/** Display size for the streak count — points stays a supporting figure. */
-const HERO_NUMERAL_SIZE = 34;
-const HERO_NUMERAL_LINE_HEIGHT = 38;
+const SKELETON_SEGMENTS: readonly TallySegment[] = ['a', 'b', 'c', 'd'].map((id) => ({
+  id,
+  kind: 'walk',
+  fill: 0,
+  isDone: false,
+}));
 
-const FLAME_SIZE = 22;
-const FLAME_CORE_SIZE = 12;
-const FLAME_CORE_LEFT = (FLAME_SIZE - FLAME_CORE_SIZE) / 2;
-const FLAME_CORE_BOTTOM = 2;
-/** Optical: sit the flame against the numeral without kissing it. */
-const FLAME_GAP = 2;
+type TodayData = ReturnType<typeof useTodayQueries>;
 
-function firstNameFrom(name: string | null | undefined, email: string): string {
-  const trimmed = name?.trim();
-  if (trimmed) {
-    return trimmed.split(/\s+/)[0] ?? trimmed;
-  }
-  return email.split('@')[0] ?? 'there';
-}
-
-function HomeRankMark({ rank }: { rank: number | null | undefined }) {
-  const medal = rank == null ? undefined : podiumMedalColor(rank);
-
-  if (medal) {
-    return (
-      <Ionicons
-        color={medal}
-        name="medal"
-        size={16}
-        testID="home-rank-medal"
-      />
-    );
-  }
+export function HomeScreen({ focus = null }: { focus?: TodayFocus | null }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const today = useTodayQueries();
+  const now = new Date();
 
   return (
-    <Ionicons
-      color={colors.accent}
-      name="trophy-outline"
-      size={16}
-      testID="home-rank-trophy"
-    />
+    <CardActsProvider>
+      <View style={styles.container}>
+        <RefreshableScroll
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
+          onPullRefresh={today.refetchAll}
+          style={styles.scroll}
+          testID="home-screen"
+        >
+          <TodayHeader
+            date={dayMonthLabel(now)}
+            onOpenInbox={() => router.push('/notifications')}
+            unreadCount={today.unreadCount}
+            weekday={weekdayLabel(now)}
+          />
+          <TodayBody focus={focus} today={today} weekday={weekdayLabel(now)} />
+        </RefreshableScroll>
+        <CardToastBar />
+      </View>
+    </CardActsProvider>
   );
 }
 
-function formatHomeDate(at: Date = new Date()): string {
-  return at.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'short',
-  });
+function TodayBody({
+  today,
+  weekday,
+  focus,
+}: {
+  today: TodayData;
+  weekday: string;
+  focus: TodayFocus | null;
+}) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { challengesQuery, deck } = today;
+  const isDayEmpty = challengesQuery.isSuccess && deck.totalCount === 0;
+  const firstRun = useFirstRunSuggestions(isDayEmpty, today.categories);
+
+  if (challengesQuery.isPending) {
+    return (
+      <View style={styles.section}>
+        <TodayTally label={null} runLabel={null} segments={SKELETON_SEGMENTS} winLineAfter={null} />
+        <DeckSkeleton />
+      </View>
+    );
+  }
+
+  if (challengesQuery.isError && !challengesQuery.data) {
+    return (
+      <View style={styles.section}>
+        <DeckErrorCard onRetry={() => void challengesQuery.refetch()} />
+      </View>
+    );
+  }
+
+  if (isDayEmpty) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sentence}>{TODAY_COPY.emptySentence}</Text>
+        <FirstRunCard
+          isEnrolling={firstRun.isEnrolling}
+          onAdd={firstRun.enroll}
+          onSeeAll={() => router.push('/manage-challenges')}
+          suggestions={firstRun.suggestions}
+        />
+      </View>
+    );
+  }
+
+  return <DeckSection focus={focus} today={today} weekday={weekday} />;
 }
 
-function ChallengeRow({
-  challenge,
-  isBusy,
-  onAdvance,
-  onOpen,
+function DeckSection({
+  today,
+  weekday,
+  focus,
 }: {
-  challenge: TodayChallenge;
-  isBusy: boolean;
-  onAdvance: () => void;
-  onOpen: () => void;
+  today: TodayData;
+  weekday: string;
+  focus: TodayFocus | null;
 }) {
-  return (
-    <View
-      style={styles.challengeRow}
-      testID={`home-challenge-${challenge.id}`}
-    >
-      <Pressable
-        accessibilityHint="Opens schedule and reminders"
-        accessibilityLabel={challenge.title}
-        accessibilityRole="button"
-        onPress={onOpen}
-        style={({ pressed }) => [
-          styles.challengeBody,
-          pressed && styles.challengeBodyPressed,
-        ]}
-        testID={`open-challenge-${challenge.challengeId}`}
-      >
-        <View style={styles.challengeOpen}>
-          <ChallengeProgressRing
-            fieldProgress={challenge.progress}
-            status={challenge.status}
-            testID={`challenge-progress-${challenge.id}`}
-          />
-          <View style={styles.challengeText}>
-            <Text numberOfLines={1} style={styles.challengeTitle}>
-              {challenge.title}
-            </Text>
-            <Text style={styles.challengeMeta}>
-              +{challenge.rewardPoints} pts
-              {challenge.frequency === 'daily'
-                ? ''
-                : ` · ${frequencyBadge[challenge.frequency]}`}
-            </Text>
-          </View>
-          <Feather color={colors.border} name="chevron-right" size={16} />
-        </View>
-      </Pressable>
+  const styles = useThemedStyles(createStyles);
+  const { deck, me, challengesQuery } = today;
+  const now = new Date();
+  const streakDays = me?.currentStreakDays ?? 0;
+  const isLapsed = me?.streakLapsedYesterday ?? false;
+  const dayShare = useShareDay(shareDayMessage(deck.completedCount, streakDays));
+  const finished = useFinishedCard();
+  const renderItem = useDeckItemRenderer(today, weekday, dayShare, finished);
+  const opensDayPage = useDayFinishedPage(finished.finish, deck.items, finished.dismiss);
+  const items =
+    finished.finish && !opensDayPage ? withFinishedCard(deck.items, finished.finish) : deck.items;
+  const openChallenge = useOpenChallenge();
+  const isShowingStaleCopy = challengesQuery.isError && challengesQuery.data !== undefined;
 
-      <ChallengeActionButton
-        captureKind={challenge.capture.kind}
-        completionKind={challenge.completionKind}
-        isBusy={isBusy}
-        offersPractice={canPracticeAgain(challenge)}
-        onPress={onAdvance}
-        status={challenge.status}
-        testID={`advance-challenge-${challenge.id}`}
+  return (
+    <View style={styles.section}>
+      {isLapsed ? (
+        <Text style={styles.sentence} testID="home-lapsed">
+          {TODAY_COPY.lapsedTitle} <Text style={styles.sentenceMuted}>{TODAY_COPY.lapsedBody}</Text>
+        </Text>
+      ) : null}
+      <TodayTally
+        label={tallyLabel(deck)}
+        runLabel={runLabel({
+          streakDays,
+          lapsedYesterday: isLapsed,
+          bestStreakDays: me?.bestStreakDays ?? 0,
+        })}
+        segments={deck.segments}
+        updatedLabel={isShowingStaleCopy ? lastUpdatedLabel(challengesQuery.dataUpdatedAt) : null}
+        winLineAfter={deck.winLineAfter}
       />
+      <TodayDeck
+        doneCount={deck.isDayDone ? 0 : deck.done.length}
+        focus={focus}
+        items={items}
+        key={items[0]?.type === 'finished' ? items[0].key : 'deck'}
+        renderItem={renderItem}
+      />
+      {deck.isDayDone ? null : <DoneChips items={deck.done} onOpen={openChallenge} />}
+      {deck.presence ? <PresenceLine now={now} presence={deck.presence} /> : null}
+      {deck.showsMembershipLine ? <MembershipLine /> : null}
+      {deck.isDayDone ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          style={styles.offscreenShot}
+        >
+          <View collapsable={false} ref={dayShare.shotRef}>
+            <DayShareCard
+              content={{
+                weekday,
+                dateLabel: dayMonthLabel(now),
+                completedCount: deck.win.filled,
+                totalCount: deck.win.target,
+                pointsToday: deck.pointsToday,
+                streakDays,
+              }}
+            />
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-export function HomeScreen() {
+function useOpenChallenge() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const insets = useSafeAreaInsets();
+  return (challengeId: string) => router.push(`/challenge/${challengeId}`);
+}
+
+function useDeckItemRenderer(
+  today: TodayData,
+  weekday: string,
+  dayShare: ReturnType<typeof useShareDay>,
+  finished: Pick<ReturnType<typeof useFinishedCard>, 'dismiss' | 'hold'>,
+) {
+  const router = useRouter();
+  const openChallenge = useOpenChallenge();
   const { advance, isAdvancing } = useAdvanceChallenge();
+  const cardActs = useCardActs();
+  const { deck, me } = today;
+  const streakDays = me?.currentStreakDays ?? 0;
 
-  const meQuery = useQuery({
-    queryKey: ['me'],
-    queryFn: () => apiClient.me(),
-  });
+  function actOnChallenge(challenge: TodayChallenge) {
+    if (isCountedOnCard(challenge)) {
+      cardActs.addGlass(challenge);
+      return;
+    }
 
-  const challengesQuery = useQuery({
-    queryKey: ['challenges', 'today'],
-    queryFn: () => apiClient.listTodayChallenges(),
-  });
-  const tipsQuery = useQuery({
-    queryKey: ['tips'],
-    queryFn: () => apiClient.listTips(),
-  });
+    if (isDoneOnCard(challenge)) {
+      cardActs.markDone(challenge);
+      return;
+    }
 
-  useSyncTimeZone(meQuery.data?.timeZone);
-
-  const displayName = firstNameFrom(
-    meQuery.data?.name ?? session?.user.name,
-    meQuery.data?.email ?? session?.user.email ?? 'friend',
-  );
-  const pointsBalance = meQuery.data?.pointsBalance ?? 0;
-  const streakDays = meQuery.data?.currentStreakDays ?? 0;
-  const challenges = challengesQuery.data?.challenges ?? [];
-  const hasMembership = meQuery.data?.hasMembership ?? false;
-  const layout = buildChallengeFocusLayout(challenges, hasMembership);
-  const todayTip = selectDailyTip(
-    tipsQuery.data?.tips ?? [],
-    meQuery.data?.categories ?? [],
-    challengesQuery.data?.dayKey ?? '',
-  );
-
-  const notificationsQuery = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => apiClient.listNotifications(),
-  });
-  const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
-
-  const leaderboardQuery = useQuery({
-    queryKey: ['leaderboard'],
-    queryFn: () => apiClient.listLeaderboard({ period: 'week' }),
-  });
-  const matchesQuery = useQuery({
-    queryKey: ['matches', 'mine'],
-    queryFn: () => apiClient.listMyMatches(),
-  });
-  const liveMatchCount = matchesQuery.data?.live.length ?? 0;
-
-  usePushDeviceSync(meQuery.data?.reminderEnabled ?? false);
-
-  useAppReviewPrompt({
-    userId: meQuery.data?.id,
-    dayKey: challengesQuery.data?.dayKey,
-    winLocked: layout.win.locked,
-    completedCountToday: layout.completedCount,
-    currentStreakDays: streakDays,
-    ready: meQuery.isSuccess && challengesQuery.isSuccess,
-  });
-
-  function handleAdvance(challenge: TodayChallenge) {
     const route = completionRoute(challenge);
     if (route) {
       router.push(route);
       return;
     }
 
-    advance({
-      userChallengeId: challenge.id,
-      status: challenge.status,
-    });
+    advance({ userChallengeId: challenge.id, status: challenge.status });
   }
 
-  return (
-    <View style={styles.container}>
-      <Image
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-        resizeMode="cover"
-        source={heroBanner}
-        style={styles.pageBanner}
-      />
-      <RefreshableScroll
-        contentContainerStyle={styles.content}
-        onPullRefresh={() =>
-          Promise.all([
-            meQuery.refetch(),
-            challengesQuery.refetch(),
-            notificationsQuery.refetch(),
-            leaderboardQuery.refetch(),
-            matchesQuery.refetch(),
-            tipsQuery.refetch(),
-          ])
+  function actOnGroup(matchId: string, session: MatchSessionRoute | null) {
+    router.push(session ? `/matches/${matchId}/${session}` : `/matches/${matchId}`);
+  }
+
+  return function renderDeckItem(item: DeckItem) {
+    if (item.type === 'finished') {
+      return <FinishedDeckCard item={item} onHold={finished.hold} onNext={finished.dismiss} />;
+    }
+
+    if (item.type === 'dayDone') {
+      return (
+        <DayDoneCard
+          completedCount={deck.win.filled}
+          isSharing={dayShare.isSharing}
+          onShare={() => void dayShare.share()}
+          pointsToday={deck.pointsToday}
+          streakLine={streakSentence(streakDays)}
+          tomorrowTip={today.tomorrowTip}
+          totalCount={deck.win.target}
+          weekday={weekday}
+          weeklyRank={today.weeklyRank}
+          weeklyRankAtDayStart={today.weeklyRankAtDayStart}
+        />
+      );
+    }
+
+    if (item.type === 'group') {
+      return (
+        <GroupDeckCard
+          item={item}
+          onAct={(session) => actOnGroup(item.match.id, session)}
+          onOpen={() => router.push(`/matches/${item.match.id}`)}
+        />
+      );
+    }
+
+    return (
+      <ChallengeDeckCard
+        isBusy={isAdvancing(item.challenge.id) || cardActs.isActing(item.challenge.id)}
+        item={item}
+        onAct={() => actOnChallenge(item.challenge)}
+        onDecrement={
+          isCountedOnCard(item.challenge) && waterGlassCount(item.challenge) > 0
+            ? () => cardActs.removeGlass(item.challenge)
+            : null
         }
-        style={styles.scroll}
-        testID="home-screen"
-      >
-      <View style={styles.heroStage}>
-        <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-          <View style={styles.greetingBlock}>
-            <Text style={styles.greeting}>Hi, {displayName}</Text>
-            <Text style={styles.headerDate}>{formatHomeDate()}</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <Pressable
-              accessibilityLabel={
-                unreadCount > 0
-                  ? `${unreadCount} unread notifications`
-                  : 'Notifications'
-              }
-              accessibilityRole="button"
-              onPress={() => router.push('/notifications')}
-              style={styles.bellWrap}
-              testID="open-notifications"
-            >
-              <Feather color={colors.muted} name="bell" size={20} />
-              {unreadCount > 0 ? <View style={styles.unreadBadge} /> : null}
-            </Pressable>
-            <Pressable
-              accessibilityLabel="Profile"
-              accessibilityRole="button"
-              onPress={() => router.push('/(tabs)/profile')}
-              style={styles.avatarWrap}
-              testID="open-profile"
-            >
-              <ProfileAvatar
-                imageUri={session?.user.image}
-                name={avatarNameFor({
-                  displayName: meQuery.data?.displayName,
-                  name: meQuery.data?.name ?? session?.user.name,
-                })}
-                size={32}
-                testID="home-profile-avatar"
-              />
-            </Pressable>
-          </View>
-        </View>
+        onOpen={() => openChallenge(item.challenge.challengeId)}
+        todayKey={today.dayKey}
+        totalCount={deck.totalCount}
+        weekDayKeys={deck.weekDayKeys}
+      />
+    );
+  };
+}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/points')}
-          style={styles.heroBlock}
-          testID="home-points-card"
-        >
-          <View style={styles.streakRow}>
-            {streakDays > 0 ? (
-              <View style={styles.flame} testID="home-streak-flame">
-                <MaterialCommunityIcons
-                  color={colors.streak}
-                  name="fire"
-                  size={FLAME_SIZE}
-                />
-                <MaterialCommunityIcons
-                  color={colors.streakCore}
-                  name="fire"
-                  size={FLAME_CORE_SIZE}
-                  style={styles.flameCore}
-                />
-              </View>
-            ) : null}
-            <Text style={styles.streakValue}>{streakDays}</Text>
-          </View>
-          <Text style={styles.heroMeta}>
-            day streak &middot; {layout.win.heroMetaSuffix}
-          </Text>
-          <View style={styles.pointsRow}>
-            <Text style={styles.pointsLabel}>Points</Text>
-            <Text style={styles.pointsValue}>{pointsBalance.toLocaleString()}</Text>
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityHint="Opens the weekly leaderboard"
-          accessibilityLabel={weeklyRankLabel(leaderboardQuery.data?.currentUserRank)}
-          accessibilityRole="button"
-          onPress={() => router.push('/leaderboard')}
-          style={({ pressed }) => [
-            styles.rankLink,
-            pressed ? styles.rankLinkPressed : null,
-          ]}
-          testID="home-leaderboard"
-        >
-          <HomeRankMark rank={leaderboardQuery.data?.currentUserRank} />
-          <Text style={styles.rankLinkLabel}>
-            {weeklyRankLabel(leaderboardQuery.data?.currentUserRank)}
-          </Text>
-          <Feather color={colors.accent} name="chevron-right" size={16} />
-        </Pressable>
-      </View>
+function MembershipLine() {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
-      <View style={styles.body}>
-        {todayTip ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/tips')}
-            style={styles.tipCard}
-            testID="home-daily-tip"
-          >
-            <View style={styles.tipHeader}>
-              <Text style={styles.tipEyebrow}>
-                Tip · {healthCategoryName(todayTip.category)}
-              </Text>
-              <Feather color={colors.accent} name="chevron-right" size={16} />
-            </View>
-            <Text style={styles.tipQuote}>{todayTip.title}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      {liveMatchCount > 0 ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{MATCH_HOME_SECTION}</Text>
-          </View>
-          <Pressable
-            accessibilityHint="Opens your live groups"
-            accessibilityRole="button"
-            onPress={() => router.navigate('/matches')}
-            style={styles.firstRun}
-            testID="home-open-matches"
-          >
-            <Feather color={colors.accent} name="users" size={20} />
-            <View style={styles.firstRunText}>
-              <Text style={styles.firstRunTitle}>
-                {matchLiveCountLabel(liveMatchCount)}
-              </Text>
-              <Text style={styles.firstRunSubtitle}>{MATCH_LIVE_HINT}</Text>
-            </View>
-            <Feather color={colors.muted} name="chevron-right" size={18} />
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today&apos;s Challenges</Text>
-          {layout.hasMoreBeyondPreview ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push('/(tabs)/challenges')}
-              testID="home-see-all-challenges"
-            >
-              <Text style={styles.seeAll}>See all</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        {challengesQuery.isLoading ? (
-          <View style={styles.loader}>
-            <Loader />
-          </View>
-        ) : challenges.length === 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/manage-challenges')}
-            style={styles.firstRun}
-            testID="home-choose-challenges"
-          >
-            <Feather color={colors.accent} name="plus-circle" size={20} />
-            <View style={styles.firstRunText}>
-              <Text style={styles.firstRunTitle}>
-                Choose your challenges
-              </Text>
-              <Text style={styles.firstRunSubtitle}>
-                Pick what you want to work on and how often.
-              </Text>
-            </View>
-            <Feather color={colors.muted} name="chevron-right" size={18} />
-          </Pressable>
-        ) : (
-          <View>
-            {layout.win.target > 0 ? (
-              <TodayWinHeader testID="home-today-win" win={layout.win} />
-            ) : null}
-            {layout.focus ? (
-              <View testID="home-section-focus">
-                <Text style={styles.doNextLabel}>
-                  {focusSectionLabel(layout.focus)}
-                </Text>
-                <ChallengeRow
-                  challenge={layout.focus}
-                  isBusy={isAdvancing(layout.focus.id)}
-                  onAdvance={() => handleAdvance(layout.focus!)}
-                  onOpen={() =>
-                    router.push(`/challenge/${layout.focus!.challengeId}`)
-                  }
-                />
-              </View>
-            ) : null}
-            {layout.upNext.length > 0 ? (
-              <View style={styles.upNextBlock} testID="home-section-up-next">
-                <Text style={styles.upNextLabel}>Up next</Text>
-                {layout.upNext.map((challenge, index) => (
-                  <View key={challenge.id}>
-                    <ChallengeRow
-                      challenge={challenge}
-                      isBusy={isAdvancing(challenge.id)}
-                      onAdvance={() => handleAdvance(challenge)}
-                      onOpen={() =>
-                        router.push(`/challenge/${challenge.challengeId}`)
-                      }
-                    />
-                    {index < layout.upNext.length - 1 ? (
-                      <View style={styles.rowDivider} />
-                    ) : null}
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-        )}
-      </View>
-    </RefreshableScroll>
-    </View>
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={() => router.push('/membership')}
+      style={styles.membership}
+      testID="home-membership-line"
+    >
+      <Glyph color={colors.muted} name="lock" size={15} />
+      <Text style={styles.membershipText}>
+        {TODAY_COPY.membershipLine}{' '}
+        <Text style={styles.membershipLink}>{TODAY_COPY.membershipLink}</Text>
+      </Text>
+    </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  pageBanner: {
-    ...StyleSheet.absoluteFillObject,
-    // Decorative and full-bleed behind the scroll, so it must not swallow
-    // touches. A style rather than a prop: `Image` does not take one.
-    pointerEvents: 'none',
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  content: {
-    paddingBottom: spacing.xl,
-  },
-  heroStage: {
-    position: 'relative',
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  greetingBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  greeting: {
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  headerDate: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  bellWrap: {
-    padding: spacing.sm,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceRaised,
-  },
-  unreadBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.danger,
-  },
-  avatarWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flame: {
-    position: 'relative',
-  },
-  flameCore: {
-    position: 'absolute',
-    left: FLAME_CORE_LEFT,
-    bottom: FLAME_CORE_BOTTOM,
-  },
-  body: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: SECTION_GAP,
-    gap: SECTION_GAP,
-  },
-  heroBlock: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  streakRow: {
-    flexDirection: 'row',
-    // Baseline, not flex-end: the icon is a glyph too, so this stays aligned
-    // if the numeral face or its line height ever changes again.
-    alignItems: 'baseline',
-    gap: FLAME_GAP,
-    marginBottom: 4,
-  },
-  streakValue: {
-    color: colors.accent,
-    fontFamily: displayFontFamily,
-    fontSize: HERO_NUMERAL_SIZE,
-    // No fontWeight: the face is already black, and asking for a weight it has
-    // no file for makes Android synthesise a smeared bold.
-    lineHeight: HERO_NUMERAL_LINE_HEIGHT,
-  },
-  heroMeta: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    marginBottom: spacing.sm,
-  },
-  pointsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pointsLabel: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-  },
-  pointsValue: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  rankLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  rankLinkPressed: {
-    opacity: 0.7,
-  },
-  rankLinkLabel: {
-    color: colors.accent,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  tipCard: {
-    backgroundColor: colors.surface,
-    borderRadius: CARD_RADIUS,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  tipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  tipEyebrow: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    letterSpacing: 0.3,
-  },
-  tipQuote: {
-    color: colors.text,
-    fontFamily: tipQuoteFontFamily,
-    fontSize: fontSize.lg,
-    lineHeight: 28,
-  },
-  section: {
-    gap: 12,
-    paddingTop: SECTION_GAP,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-  },
-  doNextLabel: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xs,
-  },
-  upNextBlock: {
-    marginTop: spacing.lg,
-  },
-  upNextLabel: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xs,
-  },
-  seeAll: {
-    color: colors.accent,
-    fontSize: fontSize.sm,
-  },
-  challengeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 12,
-  },
-  challengeBody: {
-    flex: 1,
-    minWidth: 0,
-  },
-  challengeBodyPressed: {
-    opacity: 0.7,
-  },
-  challengeOpen: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  challengeText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  challengeTitle: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-  },
-  challengeMeta: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-  },
-  rowDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  firstRun: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  firstRunText: {
-    flex: 1,
-    gap: 2,
-  },
-  firstRunTitle: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  firstRunSubtitle: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-  },
-  loader: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scroll: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingBottom: spacing.xl,
+    },
+    section: {
+      marginTop: 20,
+      gap: spacing.md,
+    },
+    sentence: {
+      color: theme.colors.text,
+      fontSize: 15,
+      lineHeight: 21,
+      paddingHorizontal: spacing.xs,
+    },
+    sentenceMuted: {
+      color: theme.colors.muted,
+    },
+    membership: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: spacing.xs,
+    },
+    membershipText: {
+      flex: 1,
+      color: theme.colors.muted,
+      fontSize: 13,
+    },
+    membershipLink: {
+      color: theme.colors.text,
+      fontWeight: fontWeight.medium,
+    },
+    /** Laid out off the page so it can be captured; `opacity: 0` would capture blank. */
+    offscreenShot: {
+      position: 'absolute',
+      top: 0,
+      left: -DAY_SHARE_CARD_WIDTH * 4,
+      width: DAY_SHARE_CARD_WIDTH,
+    },
+  });

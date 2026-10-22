@@ -37,11 +37,7 @@ function pointUsable(point: PosePoint | undefined, minScore: number): point is P
   return point != null && point.score >= minScore;
 }
 
-export function normalizeBySessionMax(
-  raw: number,
-  sessionMax: number,
-  floor: number,
-): number {
+export function normalizeBySessionMax(raw: number, sessionMax: number, floor: number): number {
   const span = Math.max(floor, sessionMax);
   if (span <= 0) {
     return 0;
@@ -51,10 +47,7 @@ export function normalizeBySessionMax(
 }
 
 /** Best elbow flexion signal from either arm chain. */
-export function elbowArmDownness(
-  frame: PoseFrame,
-  minScore: number,
-): number | null {
+export function elbowArmDownness(frame: PoseFrame, minScore: number): number | null {
   const left = sideElbowDownness(
     frame.points.leftShoulder,
     frame.points.leftElbow,
@@ -96,10 +89,7 @@ function sideElbowDownness(
   return elbowDownness(jointAngleDegrees(shoulder, elbow, wrist));
 }
 
-export function shoulderMidpoint(
-  frame: PoseFrame,
-  minScore: number,
-): PosePoint | null {
+export function shoulderMidpoint(frame: PoseFrame, minScore: number): PosePoint | null {
   const left = frame.points.leftShoulder;
   const right = frame.points.rightShoulder;
   return averagePoint(
@@ -200,22 +190,14 @@ export function fuseFrontPushupChannels(
   if (sample.torso !== null) {
     weighted.push(
       FRONT_CHANNEL_WEIGHTS.torso *
-        normalizeBySessionMax(
-          sample.torso,
-          sessionMax.torso,
-          MIN_TORSO_DROP_SPAN,
-        ),
+        normalizeBySessionMax(sample.torso, sessionMax.torso, MIN_TORSO_DROP_SPAN),
     );
   }
 
   if (sample.wrist !== null) {
     weighted.push(
       FRONT_CHANNEL_WEIGHTS.wrist *
-        normalizeBySessionMax(
-          sample.wrist,
-          sessionMax.wrist,
-          MIN_WRIST_COMPRESSION_SPAN,
-        ),
+        normalizeBySessionMax(sample.wrist, sessionMax.wrist, MIN_WRIST_COMPRESSION_SPAN),
     );
   }
 
@@ -291,10 +273,7 @@ export function fusePushupDownness(values: readonly number[]): number {
 }
 
 /** Sample top-of-rep baselines while the user holds the extended position. */
-export function sampleCalibration(
-  frame: PoseFrame,
-  minScore: number,
-): PushupCalibration | null {
+export function sampleCalibration(frame: PoseFrame, minScore: number): PushupCalibration | null {
   const shoulder = shoulderMidpoint(frame, minScore);
   const spread = meanWristSpread(frame, minScore);
   const nose = frame.points.nose;
@@ -330,9 +309,6 @@ export function mergeCalibration(
 }
 
 /** True when at least shoulders are visible enough to attempt tracking. */
-export function hasTorsoTracking(
-  frame: PoseFrame,
-  minScore: number,
-): boolean {
+export function hasTorsoTracking(frame: PoseFrame, minScore: number): boolean {
   return shoulderMidpoint(frame, minScore) !== null;
 }

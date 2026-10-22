@@ -133,12 +133,7 @@ export function useAppleMembership({ onSynced }: UseAppleMembershipOptions) {
 
       await syncPurchase(latest);
     } catch (caught) {
-      setError(
-        messageFromPurchaseError(
-          caught,
-          'We could not restore this Apple purchase',
-        ),
-      );
+      setError(messageFromPurchaseError(caught, 'We could not restore this Apple purchase'));
     } finally {
       setBusy(false);
     }

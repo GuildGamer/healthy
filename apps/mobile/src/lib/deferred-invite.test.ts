@@ -24,15 +24,11 @@ jest.mock('expo-modules-core', () => {
   };
 });
 
-const mockedRequireOptionalNativeModule = jest.mocked(
-  requireOptionalNativeModule,
-);
+const mockedRequireOptionalNativeModule = jest.mocked(requireOptionalNativeModule);
 
 const PENDING_MATCH_TOKEN_KEY = 'pending_match_token';
 
-function mockSecureStoreItems(
-  items: Record<string, string | null> = {},
-): void {
+function mockSecureStoreItems(items: Record<string, string | null> = {}): void {
   jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
     return items[key] ?? null;
   });
@@ -40,9 +36,7 @@ function mockSecureStoreItems(
 
 describe('tokenFromDeferredMarker', () => {
   it('parses a valid marker', () => {
-    expect(tokenFromDeferredMarker(`${DEFERRED_INVITE_PREFIX}abc_token-1`)).toBe(
-      'abc_token-1',
-    );
+    expect(tokenFromDeferredMarker(`${DEFERRED_INVITE_PREFIX}abc_token-1`)).toBe('abc_token-1');
   });
 
   it('rejects junk and short tokens', () => {
@@ -55,12 +49,8 @@ describe('tokenFromDeferredMarker', () => {
 
 describe('tokenFromPlayReferrer', () => {
   it('parses a referrer query payload', () => {
-    expect(tokenFromPlayReferrer('healthy_invite=abc_token-1')).toBe(
-      'abc_token-1',
-    );
-    expect(tokenFromPlayReferrer('utm_source=x&healthy_invite=abc_token-1')).toBe(
-      'abc_token-1',
-    );
+    expect(tokenFromPlayReferrer('healthy_invite=abc_token-1')).toBe('abc_token-1');
+    expect(tokenFromPlayReferrer('utm_source=x&healthy_invite=abc_token-1')).toBe('abc_token-1');
   });
 
   it('rejects empty or invalid referrers', () => {
@@ -95,19 +85,11 @@ describe('claimDeferredInviteToken', () => {
   });
 
   it('claims a clipboard marker into SecureStore', async () => {
-    jest
-      .mocked(Clipboard.getStringAsync)
-      .mockResolvedValue(`${DEFERRED_INVITE_PREFIX}clip_token1`);
+    jest.mocked(Clipboard.getStringAsync).mockResolvedValue(`${DEFERRED_INVITE_PREFIX}clip_token1`);
 
     await expect(claimDeferredInviteToken()).resolves.toBe('clip_token1');
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      CLIPBOARD_INVITE_PROBED_KEY,
-      '1',
-    );
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      PENDING_MATCH_TOKEN_KEY,
-      'clip_token1',
-    );
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CLIPBOARD_INVITE_PROBED_KEY, '1');
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(PENDING_MATCH_TOKEN_KEY, 'clip_token1');
     expect(trackEvent).toHaveBeenCalledWith('deferred_invite_claimed', {
       source: 'clipboard',
       inviteToken: 'clip_token1',
@@ -116,9 +98,7 @@ describe('claimDeferredInviteToken', () => {
 
   it('skips clipboard when already probed this install', async () => {
     mockSecureStoreItems({ [CLIPBOARD_INVITE_PROBED_KEY]: '1' });
-    jest
-      .mocked(Clipboard.getStringAsync)
-      .mockResolvedValue(`${DEFERRED_INVITE_PREFIX}clip_token1`);
+    jest.mocked(Clipboard.getStringAsync).mockResolvedValue(`${DEFERRED_INVITE_PREFIX}clip_token1`);
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
     expect(Clipboard.getStringAsync).not.toHaveBeenCalled();
@@ -129,10 +109,7 @@ describe('claimDeferredInviteToken', () => {
     jest.mocked(Clipboard.getStringAsync).mockResolvedValue('');
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      CLIPBOARD_INVITE_PROBED_KEY,
-      '1',
-    );
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CLIPBOARD_INVITE_PROBED_KEY, '1');
     expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
       PENDING_MATCH_TOKEN_KEY,
       expect.anything(),
@@ -140,15 +117,10 @@ describe('claimDeferredInviteToken', () => {
   });
 
   it('fails soft on stale / invalid clipboard marker', async () => {
-    jest
-      .mocked(Clipboard.getStringAsync)
-      .mockResolvedValue(`${DEFERRED_INVITE_PREFIX}short`);
+    jest.mocked(Clipboard.getStringAsync).mockResolvedValue(`${DEFERRED_INVITE_PREFIX}short`);
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      CLIPBOARD_INVITE_PROBED_KEY,
-      '1',
-    );
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CLIPBOARD_INVITE_PROBED_KEY, '1');
     expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
       PENDING_MATCH_TOKEN_KEY,
       expect.anything(),
@@ -156,29 +128,19 @@ describe('claimDeferredInviteToken', () => {
   });
 
   it('fails soft when clipboard throws', async () => {
-    jest
-      .mocked(Clipboard.getStringAsync)
-      .mockRejectedValue(new Error('denied'));
+    jest.mocked(Clipboard.getStringAsync).mockRejectedValue(new Error('denied'));
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      CLIPBOARD_INVITE_PROBED_KEY,
-      '1',
-    );
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CLIPBOARD_INVITE_PROBED_KEY, '1');
   });
 
   it('skips the clipboard when ExpoClipboard is not linked', async () => {
     mockedRequireOptionalNativeModule.mockReturnValue(null);
-    jest
-      .mocked(Clipboard.getStringAsync)
-      .mockResolvedValue(`${DEFERRED_INVITE_PREFIX}clip_token1`);
+    jest.mocked(Clipboard.getStringAsync).mockResolvedValue(`${DEFERRED_INVITE_PREFIX}clip_token1`);
 
     await expect(claimDeferredInviteToken()).resolves.toBeNull();
     expect(Clipboard.getStringAsync).not.toHaveBeenCalled();
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      CLIPBOARD_INVITE_PROBED_KEY,
-      '1',
-    );
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CLIPBOARD_INVITE_PROBED_KEY, '1');
   });
 });
 
@@ -191,10 +153,7 @@ describe('stashDeferredInviteToken', () => {
   it('stashes a valid token and tracks', async () => {
     await stashDeferredInviteToken('deep_token1', 'deep_link');
 
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      'pending_match_token',
-      'deep_token1',
-    );
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith('pending_match_token', 'deep_token1');
     expect(trackEvent).toHaveBeenCalledWith('deferred_invite_stashed', {
       source: 'deep_link',
       inviteToken: 'deep_token1',

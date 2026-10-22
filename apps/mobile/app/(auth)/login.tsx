@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { LoginScreen } from '@/components/auth';
+import { WelcomeBackScreen } from '@/components/auth';
 import { ScreenLoader } from '@/components/feedback';
 import { useSession } from '@/lib/auth-client';
 import { goBackOrHome } from '@/lib/go-back';
@@ -41,14 +41,14 @@ export default function Login() {
   }
 
   return (
-    <LoginScreen
-      onAuthenticated={async () => {
+    <WelcomeBackScreen
+      onBackPress={() => goBackOrHome('/onboarding')}
+      onEmailPress={() => router.push('/login-email')}
+      onNewHerePress={() => router.replace('/onboarding')}
+      onSignedIn={async () => {
         const href = await resolvePostAuthHref();
         router.replace(href ?? '/complete-country');
       }}
-      onBackPress={() => goBackOrHome('/onboarding')}
-      onForgotPasswordPress={() => router.push('/forgot-password')}
-      onSignUpPress={() => router.push('/sign-up')}
     />
   );
 }

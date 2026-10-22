@@ -5,10 +5,7 @@ import type { ComponentProps } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
-import {
-  clearPendingShareCard,
-  setPendingShareCard,
-} from '@/lib/share-card-session';
+import { clearPendingShareCard, setPendingShareCard } from '@/lib/share-card-session';
 import { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
 
 jest.mock('@/lib/api', () => ({
@@ -47,9 +44,7 @@ const testSafeAreaMetrics: Metrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-function renderSuccess(
-  props: Partial<ComponentProps<typeof ChallengeSuccessScreen>> = {},
-) {
+function renderSuccess(props: Partial<ComponentProps<typeof ChallengeSuccessScreen>> = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
@@ -74,16 +69,20 @@ afterEach(() => {
 });
 
 describe('ChallengeSuccessScreen share card', () => {
-  it('shows a designed card after any successful completion', () => {
-    renderSuccess({ title: 'Walk 20 minutes' });
+  it('shows the share card after a check-in, without the points', () => {
+    renderSuccess({ title: 'Take your preventer inhaler', face: 'done' });
 
-    expect(screen.getByTestId('challenge-share-card')).toBeOnTheScreen();
-    expect(screen.getAllByText(/Walk 20 minutes/).length).toBeGreaterThan(0);
-    expect(screen.getByText('+40')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
+    expect(screen.getByText('Take your preventer inhaler')).toBeOnTheScreen();
+    expect(screen.getByText('Done')).toBeOnTheScreen();
+    expect(screen.getByText('Healthy')).toBeOnTheScreen();
+    expect(screen.getByText('12 days running')).toBeOnTheScreen();
+    expect(screen.queryByText('+40')).toBeNull();
+    expect(screen.queryByText('points')).toBeNull();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
   });
 
-  it('uses the gym selfie when one was just submitted', () => {
+  it('keeps a gym check-in on the same card, without a points poster', () => {
     setPendingShareCard({
       photoUri: 'file://gym.jpg',
       title: 'Gym session',
@@ -91,42 +90,46 @@ describe('ChallengeSuccessScreen share card', () => {
       currentStreakDays: 12,
     });
 
-    renderSuccess();
+    renderSuccess({ face: 'gym', title: 'Gym session' });
 
-    expect(screen.getByTestId('challenge-share-card')).toBeOnTheScreen();
-    expect(screen.getByText('12')).toBeOnTheScreen();
-    expect(screen.getByText('day streak')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
+    expect(screen.getByText('Gym session')).toBeOnTheScreen();
+    expect(screen.getByText('at the gym')).toBeOnTheScreen();
     expect(screen.getByText('Healthy')).toBeOnTheScreen();
+    expect(screen.getByText('12 days running')).toBeOnTheScreen();
+    expect(screen.queryByText('+40')).toBeNull();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
   });
 
-  it('puts the push-up set on the share card', () => {
+  it('puts the push-up count on the share card', () => {
     renderSuccess({
       completedCount: 25,
       targetCount: 20,
       title: 'Do 20 push-ups',
       pointsAwarded: 150,
+      face: 'reps',
     });
 
     expect(screen.getByText('25')).toBeOnTheScreen();
     expect(screen.getByText('push-ups')).toBeOnTheScreen();
-    expect(screen.getByText('Goal')).toBeOnTheScreen();
-    expect(screen.getByText('Counted by camera')).toBeOnTheScreen();
+    expect(screen.getByText('Do 20 push-ups')).toBeOnTheScreen();
+    expect(screen.queryByText('Goal')).toBeNull();
+    expect(screen.queryByText('Counted by camera')).toBeNull();
+    expect(screen.queryByText('+150')).toBeNull();
   });
 
   it('does not claim camera counting for a non-rep habit', () => {
-    renderSuccess({ title: 'Walk 20 minutes' });
+    renderSuccess({ title: 'Walk 20 minutes', face: 'done' });
 
     expect(screen.queryByText('Counted by camera')).toBeNull();
+    expect(screen.queryByText('+40')).toBeNull();
   });
 
   it('keeps a quiet way out while the experiment assignment loads', () => {
     const { apiClient } = jest.requireMock('@/lib/api') as {
       apiClient: { getExperimentAssignment: jest.Mock };
     };
-    apiClient.getExperimentAssignment.mockReturnValueOnce(
-      new Promise(() => undefined),
-    );
+    apiClient.getExperimentAssignment.mockReturnValueOnce(new Promise(() => undefined));
 
     renderSuccess({ completedCount: 20, title: 'Do 20 push-ups' });
 
@@ -144,7 +147,9 @@ describe('ChallengeSuccessScreen share card', () => {
     });
 
     expect(screen.getByText('25')).toBeOnTheScreen();
-    expect(screen.getAllByText('Group set.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Best single set')).toBeOnTheScreen();
+    expect(screen.getByText('push-ups')).toBeOnTheScreen();
+    expect(screen.queryByText('Group set.')).toBeNull();
     await waitFor(() => {
       expect(screen.getByText('Back to group')).toBeOnTheScreen();
     });
@@ -181,9 +186,7 @@ describe('ChallengeSuccessScreen share card', () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('challenge-success-challenge-friend'),
-      ).toBeOnTheScreen();
+      expect(screen.getByTestId('challenge-success-challenge-friend')).toBeOnTheScreen();
     });
     expect(screen.getByText('Think a friend can beat you?')).toBeOnTheScreen();
     expect(screen.getByLabelText('Challenge a friend')).toBeOnTheScreen();
@@ -202,7 +205,7 @@ describe('ChallengeSuccessScreen share card', () => {
       expect(screen.getByLabelText('Share')).toBeOnTheScreen();
     });
     expect(screen.queryByTestId('challenge-success-challenge-friend')).toBeNull();
-    expect(screen.getByText("See what's next")).toBeOnTheScreen();
+    expect(screen.getByText('See what’s next')).toBeOnTheScreen();
   });
 
   it('pairs the membership link with dismiss for non-members', async () => {
@@ -219,9 +222,7 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess();
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('challenge-success-membership'),
-      ).toBeOnTheScreen();
+      expect(screen.getByTestId('challenge-success-membership')).toBeOnTheScreen();
     });
     expect(screen.getByTestId('challenge-success-done')).toBeOnTheScreen();
   });
@@ -249,16 +250,14 @@ describe('ChallengeSuccessScreen share card', () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('challenge-success-challenge-friend'),
-      ).toBeOnTheScreen();
+      expect(screen.getByTestId('challenge-success-challenge-friend')).toBeOnTheScreen();
     });
   });
 
   it('hides share after a missed photo check', () => {
     renderSuccess({ penaltyApplied: 25, pointsAwarded: 0 });
 
-    expect(screen.queryByTestId('challenge-share-card')).toBeNull();
+    expect(screen.queryByTestId('share-poster-image')).toBeNull();
     expect(screen.queryByTestId('challenge-success-share')).toBeNull();
     expect(screen.getByText('Photo check missed')).toBeOnTheScreen();
     expect(screen.getByTestId('challenge-success-done')).toBeOnTheScreen();
@@ -277,15 +276,13 @@ describe('ChallengeSuccessScreen share card', () => {
       expect(captureRef).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          format: 'jpg',
+          format: 'png',
           quality: 1,
-          width: 1080,
-          height: 1440,
         }),
       );
       expect(Sharing.shareAsync).toHaveBeenCalledWith(
         'file://share-card.jpg',
-        expect.objectContaining({ mimeType: 'image/jpeg' }),
+        expect.objectContaining({ mimeType: 'image/png' }),
       );
     });
   });

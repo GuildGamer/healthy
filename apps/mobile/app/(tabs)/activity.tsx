@@ -1,18 +1,6 @@
 import { Redirect } from 'expo-router';
-import { ScreenLoader } from '@/components/feedback';
-import { ActivityScreen } from '@/components/activity';
-import { useSession } from '@/lib/auth-client';
 
-export default function ActivityTab() {
-  const { data: session, isPending } = useSession();
-
-  if (isPending) {
-    return <ScreenLoader />;
-  }
-
-  if (!session) {
-    return <Redirect href="/login" />;
-  }
-
-  return <ActivityScreen />;
+/** The Activity tab is gone; old links land on History. */
+export default function ActivityRedirect() {
+  return <Redirect href="/history" />;
 }

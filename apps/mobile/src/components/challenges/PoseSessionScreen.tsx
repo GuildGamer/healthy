@@ -1,607 +1,339 @@
-import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { useKeepAwake } from 'expo-keep-awake';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DeckButton, DeckNavButton } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
-import { FormButton, FormErrorBanner } from '@/components/forms';
-import {
-  MATCH_DEFAULT_METRIC,
-  MATCH_METRIC_LABEL,
-} from '@/components/matches/match-metric';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
-import type { QuickPosePushupUpdate } from '@/lib/pose/quickpose-pushup';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
+import { POSE_COPY, SAVE_FAILED_MESSAGE } from './constants/doing-copy';
+import { PoseCountHud } from './PoseCountHud';
 import {
-  POSE_MOVE_CLOSER,
-  POSE_MOVE_INTO_FRAME,
-  POSE_PRACTICE_HINT,
-  POSE_SETUP_HUD_READY,
-  POSE_SETUP_INSTRUCTION,
-  POSE_TRACKING,
-  POSE_TRACKING_WEAK,
-  PRACTICE_SESSION_TITLE,
   poseCoachBanner,
   poseReviewTitle,
-} from '@/components/challenges/pose-session-copy';
-import { PoseCountHud } from '@/components/challenges/PoseCountHud';
-import {
-  usePoseSessionCounter,
-} from '@/components/challenges/usePoseSessionCounter';
-import { apiClient } from '@/lib/api';
-import { goBackOrHome } from '@/lib/go-back';
-import { trackEvent } from '@/lib/track-event';
+  poseShortLine,
+  PRACTICE_SESSION_TITLE,
+} from './pose-session-copy';
+import { type PoseSession, type PoseSessionProps, usePoseSession } from './usePoseSession';
 
-const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
+export type PoseSessionScreenProps = PoseSessionProps;
 
-type SessionPhase = 'setup' | 'counting' | 'review';
+const GUIDE_WIDTH = 230;
 
-type QuickPoseCameraProps = {
-  sdkKey: string;
-  onUpdate: (update: QuickPosePushupUpdate) => void;
-};
+function pillLabel(props: PoseSessionProps, target: number): string {
+  if (props.mode === 'practice') {
+    return 'Extra set';
+  }
 
-export type PoseSessionScreenProps =
-  /** The daily occurrence: scored, streak-bearing, target-bound. */
-  | { mode: 'challenge'; challengeId: string }
-  /** A head-to-head set, scored on the match board. */
-  | { mode: 'match'; matchId: string }
-  /** A free set after the daily one is done: recorded, but worth nothing. */
-  | { mode: 'practice'; challengeId: string };
+  return target > 0 ? `${POSE_COPY.goal} ${target}` : PRACTICE_SESSION_TITLE;
+}
 
+/** Push-ups counted by the camera. The screen is the camera, so it stays dark in either scheme. */
 export function PoseSessionScreen(props: PoseSessionScreenProps) {
-  const isMatch = props.mode === 'match';
-  const isPractice = props.mode === 'practice';
-  const challengeId = isMatch ? undefined : props.challengeId;
-  const matchId = isMatch ? props.matchId : undefined;
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
-  const startedAtRef = useRef<string | null>(null);
-  const autoStartLockRef = useRef(false);
-  const {
-    snapshot,
-    elapsedSeconds,
-    start,
-    stop,
-    ingestQuickPose,
-  } = usePoseSessionCounter();
+  // Phone is propped and untouched during setup and the set — keep the backlight on.
+  useKeepAwake();
 
-  const [phase, setPhase] = useState<SessionPhase>('setup');
-  const [modelReady, setModelReady] = useState(false);
-  const [modelDetail, setModelDetail] = useState('Checking pose camera…');
-  const [sessionError, setSessionError] = useState<string | null>(null);
-  const [cameraSessionKey, setCameraSessionKey] = useState(0);
-  const phaseRef = useRef<SessionPhase>('setup');
-  const [QuickPoseCamera, setQuickPoseCamera] = useState<
-    ComponentType<QuickPoseCameraProps> | null
-  >(null);
+  const styles = useThemedStyles(createStyles);
+  const session = usePoseSession(props);
 
-  const todayQuery = useQuery({
-    queryKey: ['challenges', 'today'],
-    queryFn: () => apiClient.listTodayChallenges(),
-    enabled: !isMatch,
-  });
-
-  const occurrence = todayQuery.data?.challenges.find(
-    (item) => item.challengeId === challengeId,
-  );
-
-  useEffect(() => {
-    if (!QUICKPOSE_SDK_KEY) {
-      setModelReady(false);
-      setModelDetail(
-        'Live counting needs a QuickPose SDK key configured for this build.',
-      );
-      return;
-    }
-
-    let cancelled = false;
-
-    void import('@/components/challenges/QuickPosePushupCamera')
-      .then((module) => {
-        if (!cancelled) {
-          setQuickPoseCamera(() => module.QuickPosePushupCamera);
-          setModelReady(true);
-          setModelDetail('Camera ready');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setModelReady(false);
-          setModelDetail(
-            'Pose camera needs a native rebuild with QuickPose installed.',
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
-
-  const handleQuickPoseUpdate = useCallback(
-    (update: QuickPosePushupUpdate) => {
-      const watchingSetup = phaseRef.current === 'setup';
-      const countingLive = phaseRef.current === 'counting';
-      if (watchingSetup || countingLive) {
-        ingestQuickPose(update);
-      }
-    },
-    [ingestQuickPose],
-  );
-
-  const startOccurrence = useMutation({
-    mutationFn: async () => {
-      if (isMatch || isPractice || !occurrence) {
-        return;
-      }
-
-      if (occurrence.status !== 'pending') {
-        return;
-      }
-
-      await apiClient.startChallenge({ userChallengeId: occurrence.id });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] });
-    },
-  });
-
-  const complete = useMutation({
-    mutationFn: async (reps: number) => {
-      if (isMatch && matchId) {
-        return apiClient.submitMatchAttempt({
-          matchId,
-          count: reps,
-          durationSeconds: elapsedSeconds,
-          source: 'in_app_pose',
-        });
-      }
-
-      if (isPractice) {
-        const endedAt = new Date().toISOString();
-        const startedAt = startedAtRef.current ?? endedAt;
-
-        return apiClient.recordPracticeSession({
-          metric: 'pushups',
-          source: 'in_app_pose',
-          count: reps,
-          durationSeconds: elapsedSeconds,
-          startedAt,
-          endedAt,
-          externalId: `practice:${challengeId ?? 'pushups'}:${startedAt}`,
-        });
-      }
-
-      if (!occurrence) {
-        throw new Error(SUBMIT_FAILED_MESSAGE);
-      }
-
-      if (occurrence.status === 'pending') {
-        await apiClient.startChallenge({ userChallengeId: occurrence.id });
-      }
-
-      const endedAt = new Date().toISOString();
-      return apiClient.completeChallenge({
-        userChallengeId: occurrence.id,
-        deviceActivity: {
-          source: 'in_app_pose',
-          metric: 'pushups',
-          count: reps,
-          durationSeconds: elapsedSeconds,
-          startedAt: startedAtRef.current ?? endedAt,
-          endedAt,
-          externalId: `in-app-pose:${occurrence.id}:${startedAtRef.current ?? endedAt}`,
-        },
-      });
-    },
-    onSuccess: async (result, reps) => {
-      if (isMatch && matchId) {
-        await queryClient.invalidateQueries({ queryKey: ['matches'] });
-        router.replace({
-          pathname: '/challenge/success',
-          params: {
-            title: MATCH_METRIC_LABEL[MATCH_DEFAULT_METRIC],
-            count: String(reps),
-            matchId,
-          },
-        });
-        return;
-      }
-
-      if (isPractice) {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['activity'] }),
-          queryClient.invalidateQueries({ queryKey: ['practice'] }),
-        ]);
-
-        router.replace({
-          pathname: '/challenge/success',
-          params: {
-            title: occurrence?.title ?? PRACTICE_SESSION_TITLE,
-            count: String(reps),
-            practice: '1',
-          },
-        });
-        return;
-      }
-
-      if (!('pointsAwarded' in result)) {
-        return;
-      }
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['me'] }),
-        queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
-        queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
-        queryClient.invalidateQueries({ queryKey: ['activity'] }),
-      ]);
-
-      trackEvent('challenge_completed', {
-        user_challenge_id: occurrence?.id,
-        challenge_goal: reps,
-        challenge_type: 'pushups',
-      });
-
-      router.replace({
-        pathname: '/challenge/success',
-        params: {
-          title: occurrence?.title ?? 'Challenge',
-          points: String(result.pointsAwarded),
-          streak: String(result.currentStreakDays),
-          count: String(reps),
-          target: String(occurrence?.capture.target.count ?? 0),
-          userChallengeId: occurrence?.id ?? '',
-        },
-      });
-    },
-  });
-
-  const beginCounting = useCallback(
-    async (options?: { preserveCounter?: boolean }) => {
-      if (props.mode === 'challenge' && !occurrence) {
-        return;
-      }
-
-      setSessionError(null);
-
-      if (!modelReady) {
-        setSessionError(
-          'Live camera is not ready yet. Wait a moment and try again.',
-        );
-        autoStartLockRef.current = false;
-        return;
-      }
-
-      const preserveCounter = options?.preserveCounter === true;
-      autoStartLockRef.current = true;
-
-      try {
-        await startOccurrence.mutateAsync();
-      } catch (error) {
-        autoStartLockRef.current = false;
-        throw error;
-      }
-
-      startedAtRef.current = new Date().toISOString();
-
-      // Remounting the camera mid-rep drops landmarks — only reset on manual start.
-      if (!preserveCounter) {
-        setCameraSessionKey((current) => current + 1);
-      }
-
-      phaseRef.current = 'counting';
-      start({ preserveCounter });
-      setPhase('counting');
-    },
-    [modelReady, occurrence, props.mode, start, startOccurrence],
-  );
-
-  useEffect(() => {
-    if (phase !== 'setup' || !modelReady || autoStartLockRef.current) {
-      return;
-    }
-
-    const startedPushup =
-      snapshot.bodyInFrame &&
-      (snapshot.phase === 'down' || snapshot.count > 0);
-
-    if (!startedPushup) {
-      return;
-    }
-
-    autoStartLockRef.current = true;
-    void beginCounting({ preserveCounter: true }).catch(() => {
-      autoStartLockRef.current = false;
-    });
-  }, [
-    beginCounting,
-    modelReady,
-    phase,
-    snapshot.bodyInFrame,
-    snapshot.count,
-    snapshot.phase,
-  ]);
-
-  function stopCounting() {
-    stop();
-    setPhase('review');
-  }
-
-  function leaveSession() {
-    stop();
-    goBackOrHome(
-      isMatch && matchId ? `/matches/${matchId}` : '/(tabs)/challenges',
-    );
-  }
-
-  const calibrated =
-    snapshot.bodyInFrame || snapshot.visibilityRatio >= 0.5;
-  const coachBanner =
-    modelReady || phase !== 'setup' ? poseCoachBanner(snapshot) : null;
-
-  function poseStatusLabel(): string {
-    if (phase === 'setup') {
-      return modelReady ? POSE_SETUP_HUD_READY : modelDetail;
-    }
-
-    if (snapshot.movementTooSmall) {
-      return POSE_MOVE_CLOSER;
-    }
-
-    if (snapshot.visibilityRatio < 0.25) {
-      return POSE_TRACKING_WEAK;
-    }
-
-    if (calibrated && snapshot.bodyInFrame) {
-      return POSE_TRACKING;
-    }
-
-    return POSE_MOVE_INTO_FRAME;
-  }
-
-  // Practice needs no occurrence — the title is a nicety, not a gate.
-  if (props.mode === 'challenge' && (todayQuery.isLoading || !occurrence)) {
+  if (session.isLoading) {
     return <ScreenLoader />;
   }
 
-  const isUnscored = isMatch || isPractice;
-  const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
-  const count = snapshot.count;
-  const meetsTarget = isUnscored ? count > 0 : count >= target && target > 0;
-  const showLiveCamera =
-    Boolean(QUICKPOSE_SDK_KEY) &&
-    QuickPoseCamera != null &&
-    (phase === 'setup' || phase === 'counting');
-
   return (
     <View style={styles.screen} testID="pose-session-screen">
-      <View style={styles.cameraStage} testID="pose-camera">
-        {showLiveCamera && QuickPoseCamera ? (
-          <QuickPoseCamera
-            key={cameraSessionKey}
-            onUpdate={handleQuickPoseUpdate}
-            sdkKey={QUICKPOSE_SDK_KEY}
-          />
-        ) : (
-          <View style={styles.cameraFallback}>
-            <Text style={styles.cameraFallbackText}>{modelDetail}</Text>
-          </View>
-        )}
-
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.topScrim,
-            { paddingTop: insets.top + spacing.sm },
-          ]}
-        >
-          <View pointerEvents="box-none" style={styles.titleRow}>
-            <Pressable
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-              hitSlop={12}
-              onPress={leaveSession}
-              style={styles.backButton}
-              testID="pose-back"
-            >
-              <Feather color={colors.text} name="arrow-left" size={22} />
-            </Pressable>
-            <Text style={styles.title}>
-              {isMatch ? 'Push-ups' : isPractice ? PRACTICE_SESSION_TITLE : occurrence?.title}
-            </Text>
-          </View>
-          {phase === 'setup' ? (
-            <Text style={styles.instruction}>{POSE_SETUP_INSTRUCTION}</Text>
-          ) : null}
-        </View>
-
-        {coachBanner ? (
-          <View
-            pointerEvents="none"
-            style={styles.coachBanner}
-            testID="pose-coach"
-          >
-            <Text style={styles.coachBannerText} testID="pose-status">
-              {coachBanner}
-            </Text>
-          </View>
-        ) : null}
-
+      <PoseCamera session={session} />
+      {session.phase === 'setup' ? <BodyGuide fits={session.snapshot.bodyInFrame} /> : null}
+      {session.phase === 'counting' ? (
         <PoseCountHud
-          count={count}
-          meta={coachBanner ? null : poseStatusLabel()}
-          target={target}
+          count={session.snapshot.count}
+          meta={poseCoachBanner(session.snapshot)}
+          target={session.target}
         />
-      </View>
-
-      <View
-        style={[
-          styles.controls,
-          {
-            paddingBottom: Math.max(insets.bottom, spacing.md),
-            paddingTop: spacing.md,
-          },
-        ]}
-      >
-        {sessionError ? <FormErrorBanner message={sessionError} /> : null}
-        {complete.isError ? (
-          <FormErrorBanner message={SUBMIT_FAILED_MESSAGE} />
-        ) : null}
-
-        {phase === 'setup' ? (
-          <FormButton
-            label="Start counting"
-            loading={startOccurrence.isPending}
-            onPress={() => void beginCounting()}
-            testID="start-pose"
-          />
-        ) : null}
-
-        {phase === 'counting' ? (
-          <FormButton label="Stop" onPress={stopCounting} testID="stop-pose" />
-        ) : null}
-
-        {phase === 'review' ? (
-          <View style={styles.reviewCard} testID="pose-review">
-            <Text style={styles.reviewTitle}>
-              {poseReviewTitle({ mode: props.mode, count, meetsTarget })}
-            </Text>
-            <Text style={styles.reviewBody}>
-              {count} push-ups in {elapsedSeconds}s · on-device pose
-            </Text>
-            {isPractice ? (
-              <Text style={styles.reviewBody} testID="pose-practice-hint">
-                {POSE_PRACTICE_HINT}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {phase === 'review' && meetsTarget ? (
-          <FormButton
-            label={isPractice ? 'Save set' : 'Submit'}
-            loading={complete.isPending}
-            onPress={() => complete.mutate(count)}
-            testID="submit-pose"
-          />
-        ) : null}
-
-        {phase === 'review' && !meetsTarget ? (
-          <FormButton
-            label="Try again"
-            onPress={() => void beginCounting()}
-            testID="retry-pose"
-          />
-        ) : null}
-      </View>
+      ) : null}
+      <PoseTopBar label={pillLabel(props, session.target)} onClose={session.leave} />
+      <PoseBottom mode={props.mode} session={session} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  cameraStage: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  cameraFallback: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  cameraFallbackText: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  topScrim: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    marginLeft: -spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  instruction: {
-    color: colors.muted,
-    fontSize: fontSize.md,
-    lineHeight: 22,
-  },
-  coachBanner: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    top: '40%',
-    alignItems: 'center',
-  },
-  coachBannerText: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    textAlign: 'center',
-    lineHeight: 26,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    overflow: 'hidden',
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  controls: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-    backgroundColor: colors.background,
-  },
-  reviewCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  reviewTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  reviewBody: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-  },
-});
+function PoseCamera({ session }: { session: PoseSession }) {
+  const styles = useThemedStyles(createStyles);
+  const { QuickPoseCamera } = session.camera;
+  const isLive =
+    session.phase !== 'review' && QuickPoseCamera !== null && Boolean(QUICKPOSE_SDK_KEY);
+
+  return (
+    <View
+      style={[styles.stage, session.phase === 'review' ? styles.stageDimmed : null]}
+      testID="pose-camera"
+    >
+      {isLive && QuickPoseCamera ? (
+        <QuickPoseCamera
+          key={session.cameraSessionKey}
+          onUpdate={session.handleQuickPoseUpdate}
+          sdkKey={QUICKPOSE_SDK_KEY}
+        />
+      ) : (
+        <Text style={styles.fallback}>
+          {session.phase === 'review' ? '' : session.camera.detail}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+/** Where to be: dashed until you fit, then solid in the done colour. */
+function BodyGuide({ fits }: { fits: boolean }) {
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View
+      pointerEvents="none"
+      style={[styles.guide, fits ? styles.guideFits : null]}
+      testID="pose-guide"
+    />
+  );
+}
+
+function PoseTopBar({ label, onClose }: { label: string; onClose: () => void }) {
+  const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View pointerEvents="box-none" style={[styles.topBar, { top: insets.top + spacing.sm }]}>
+      <DeckNavButton
+        accessibilityLabel="Close"
+        glyph="close"
+        onPress={onClose}
+        overCamera
+        testID="pose-back"
+      />
+      <Text style={styles.pill}>{label}</Text>
+      <View style={styles.topSpacer} />
+    </View>
+  );
+}
+
+function PoseBottom({ session, mode }: { session: PoseSession; mode: PoseSessionProps['mode'] }) {
+  const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
+  const paddingBottom = Math.max(insets.bottom, spacing.md) + spacing.md;
+
+  if (session.phase === 'review') {
+    return (
+      <View style={[styles.panel, { bottom: paddingBottom }]} testID="pose-review">
+        <PoseReview mode={mode} session={session} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.fade, { paddingBottom }]}>
+      {session.phase === 'counting' ? (
+        <View style={styles.stop}>
+          <DeckButton
+            label={POSE_COPY.stop}
+            onPress={session.stopCounting}
+            testID="stop-pose"
+            variant="cameraGlass"
+          />
+        </View>
+      ) : (
+        <PoseSetupHint session={session} />
+      )}
+    </View>
+  );
+}
+
+function PoseSetupHint({ session }: { session: PoseSession }) {
+  const styles = useThemedStyles(createStyles);
+  const sub =
+    session.sessionError ??
+    (session.camera.isReady ? POSE_COPY.startsByItself : session.camera.detail);
+
+  return (
+    <>
+      <Text style={styles.hint}>{POSE_COPY.stepBack}</Text>
+      <Text style={styles.hintSub} testID="pose-status">
+        {sub}
+      </Text>
+      <DeckButton
+        label={POSE_COPY.startNow}
+        loading={session.isStarting}
+        onPress={session.startNow}
+        testID="start-pose"
+        variant="quiet"
+      />
+    </>
+  );
+}
+
+function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSessionProps['mode'] }) {
+  const { camera } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const { count } = session.snapshot;
+
+  if (session.isSaving) {
+    return (
+      <View style={styles.saving}>
+        <ActivityIndicator color={camera.text} />
+        <Text style={styles.panelSub}>{POSE_COPY.saving}</Text>
+      </View>
+    );
+  }
+
+  const canSave = session.meetsTarget;
+  const line = canSave
+    ? SAVE_FAILED_MESSAGE
+    : session.target > 0
+      ? poseShortLine({ count, target: session.target })
+      : poseReviewTitle({ mode, count, meetsTarget: false });
+
+  return (
+    <>
+      <Text style={styles.panelCount}>
+        {count}
+        {session.target > 0 ? <Text style={styles.panelOf}> of {session.target}</Text> : null}
+      </Text>
+      <Text style={styles.panelSub}>{line}</Text>
+      <View style={styles.panelAction}>
+        <DeckButton
+          label={POSE_COPY.tryAgain}
+          onPress={canSave ? session.save : session.retry}
+          testID={canSave ? 'submit-pose' : 'retry-pose'}
+          variant="cameraSolid"
+        />
+      </View>
+      <DeckButton
+        label={POSE_COPY.notNow}
+        onPress={session.leave}
+        testID="pose-not-now"
+        variant="quiet"
+      />
+    </>
+  );
+}
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    stage: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: theme.colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    stageDimmed: {
+      opacity: 0.6,
+    },
+    fallback: {
+      color: theme.camera.subtext,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    guide: {
+      position: 'absolute',
+      alignSelf: 'center',
+      top: '18%',
+      bottom: '22%',
+      width: GUIDE_WIDTH,
+      borderWidth: 2.5,
+      borderStyle: 'dashed',
+      borderColor: theme.camera.guide,
+      borderTopLeftRadius: GUIDE_WIDTH / 2,
+      borderTopRightRadius: GUIDE_WIDTH / 2,
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
+    },
+    guideFits: {
+      borderStyle: 'solid',
+      borderColor: theme.colors.primary,
+    },
+    topBar: {
+      position: 'absolute',
+      left: 18,
+      right: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    pill: {
+      color: theme.camera.text,
+      backgroundColor: theme.camera.pill,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.semibold,
+      paddingHorizontal: 14,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.full,
+      overflow: 'hidden',
+    },
+    topSpacer: {
+      width: 40,
+    },
+    fade: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingTop: 26,
+      paddingHorizontal: 22,
+      alignItems: 'center',
+      backgroundColor: theme.camera.pill,
+    },
+    stop: {
+      width: 140,
+    },
+    hint: {
+      color: theme.camera.text,
+      fontSize: 15.5,
+      fontWeight: fontWeight.medium,
+      lineHeight: 22,
+      textAlign: 'center',
+    },
+    hintSub: {
+      color: theme.camera.subtext,
+      fontSize: 13.5,
+      textAlign: 'center',
+      marginTop: 6,
+    },
+    panel: {
+      position: 'absolute',
+      left: 12,
+      right: 12,
+      borderRadius: 28,
+      backgroundColor: theme.camera.panel,
+      paddingHorizontal: 20,
+      paddingTop: 22,
+      paddingBottom: 18,
+    },
+    panelCount: {
+      color: theme.camera.text,
+      fontSize: 44,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: -1.3,
+    },
+    panelOf: {
+      color: theme.camera.subtext,
+      fontSize: fontSize.lg,
+      letterSpacing: 0,
+    },
+    panelSub: {
+      color: theme.camera.subtext,
+      fontSize: fontSize.sm,
+      lineHeight: 21,
+      marginTop: 6,
+    },
+    panelAction: {
+      marginTop: 20,
+    },
+    saving: {
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+  });

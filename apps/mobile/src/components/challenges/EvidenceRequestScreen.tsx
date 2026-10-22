@@ -1,327 +1,160 @@
-import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import type { ChallengeEvidence } from '@product/client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { ScreenLoader } from '@/components/feedback';
-import { FormButton, FormErrorBanner } from '@/components/forms';
-import { apiClient } from '@/lib/api';
-import { consumeCaptureResult } from '@/lib/capture-session';
+import type { SurpriseEvidenceRequest, TodayChallenge } from '@product/client';
+import { useRef } from 'react';
+import {
+  DeckButton,
+  DeckRingShutter,
+  DeckSheet,
+  DeckSheetEyebrow,
+  DeckSheetMessage,
+  DeckSheetSub,
+  DeckSheetTitle,
+} from '@/components/deck';
 import { goBackOrHome } from '@/lib/go-back';
-import { setPendingShareCard } from '@/lib/share-card-session';
+import { PHOTO_CHECK_COPY } from './constants/doing-copy';
+import { isReadingCheck, photoCheckTitle } from './photo-check';
+import { PhotoCheckPreview, PhotoCheckResult, PhotoCheckTime } from './PhotoCheckParts';
+import { ClosedReadingSheet } from './ReadingSheetLayout';
+import { useChallengeTone } from './useChallengeTone';
+import { type PhotoCheckFlow, usePhotoCheck } from './usePhotoCheck';
+import { useTodayOccurrence } from './useTodayOccurrence';
 
-const SUBMIT_FAILED_MESSAGE =
-  'We could not check that photo. Take another and try again.';
-
-function remainingSeconds(expiresAt: string): number {
-  return Math.max(0, Math.ceil((Date.parse(expiresAt) - Date.now()) / 1000));
+function isOpenCheck(occurrence: TodayChallenge | undefined): occurrence is TodayChallenge {
+  return occurrence?.status === 'awaiting_evidence' && occurrence.evidenceRequest !== null;
 }
 
-function formatCountdown(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
+/**
+ * The surprise photo check, as a sheet over Today with the camera already
+ * live. The check is held once open, so its outcome stays on screen after the
+ * list behind it has moved on.
+ */
 export function EvidenceRequestScreen({ challengeId }: { challengeId: string }) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-  const didAutoSkip = useRef(false);
+  const { occurrence, isPending } = useTodayOccurrence(challengeId);
+  const heldCheck = useRef<TodayChallenge | null>(null);
 
-  const todayQuery = useQuery({
-    queryKey: ['challenges', 'today'],
-    queryFn: () => apiClient.listTodayChallenges(),
-  });
-
-  const occurrence = todayQuery.data?.challenges.find(
-    (item) => item.challengeId === challengeId,
-  );
-  const evidenceRequest = occurrence?.evidenceRequest ?? null;
-
-  useEffect(() => {
-    if (!evidenceRequest) {
-      setSecondsLeft(null);
-      return;
-    }
-
-    const expiresAt = evidenceRequest.expiresAt;
-
-    function tick() {
-      setSecondsLeft(remainingSeconds(expiresAt));
-    }
-
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [evidenceRequest]);
-
-  const invalidate = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['me'] }),
-      queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
-      queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
-      queryClient.invalidateQueries({ queryKey: ['activity'] }),
-    ]);
-
-  const submit = useMutation({
-    mutationFn: async (
-      evidence: ChallengeEvidence & {
-        previewUri?: string;
-        width?: number;
-        height?: number;
-      },
-    ) => {
-      if (!occurrence) {
-        throw new Error(SUBMIT_FAILED_MESSAGE);
-      }
-
-      return apiClient.completeChallenge({
-        userChallengeId: occurrence.id,
-        evidence: {
-          mimeType: evidence.mimeType,
-          imageBase64: evidence.imageBase64,
-        },
-      });
-    },
-    onSuccess: async (result, variables) => {
-      setErrorMessage(null);
-      await invalidate();
-
-      if (variables.previewUri) {
-        setPendingShareCard({
-          photoUri: variables.previewUri,
-          photoWidth: variables.width,
-          photoHeight: variables.height,
-          title: occurrence?.title ?? 'Challenge',
-          pointsAwarded: result.pointsAwarded,
-          currentStreakDays: result.currentStreakDays,
-        });
-      }
-
-      router.replace({
-        pathname: '/challenge/success',
-        params: {
-          title: occurrence?.title ?? 'Challenge',
-          points: String(result.pointsAwarded),
-          streak: String(result.currentStreakDays),
-          penalty: String(result.penaltyApplied),
-        },
-      });
-    },
-    onError: (error: unknown) => {
-      setErrorMessage(
-        error instanceof Error ? error.message : SUBMIT_FAILED_MESSAGE,
-      );
-    },
-  });
-
-  const skip = useMutation({
-    mutationFn: async () => {
-      if (!occurrence) {
-        throw new Error(SUBMIT_FAILED_MESSAGE);
-      }
-
-      return apiClient.skipChallengeEvidence({
-        userChallengeId: occurrence.id,
-      });
-    },
-    onSuccess: async (result) => {
-      setErrorMessage(null);
-      await invalidate();
-      router.replace({
-        pathname: '/challenge/success',
-        params: {
-          title: occurrence?.title ?? 'Challenge',
-          points: String(result.pointsAwarded),
-          streak: String(result.currentStreakDays),
-          penalty: String(result.penaltyApplied),
-        },
-      });
-    },
-    onError: (error: unknown) => {
-      setErrorMessage(
-        error instanceof Error ? error.message : SUBMIT_FAILED_MESSAGE,
-      );
-    },
-  });
-
-  useEffect(() => {
-    if (secondsLeft !== 0 || !occurrence || didAutoSkip.current) {
-      return;
-    }
-
-    didAutoSkip.current = true;
-    skip.mutate();
-  }, [occurrence, secondsLeft, skip]);
-
-  useFocusEffect(
-    useCallback(() => {
-      const captured = consumeCaptureResult(challengeId);
-      if (!captured) {
-        return;
-      }
-
-      submit.mutate({
-        mimeType: captured.mimeType,
-        imageBase64: captured.imageBase64,
-        previewUri: captured.previewUri,
-        width: captured.width,
-        height: captured.height,
-      });
-    }, [challengeId, submit]),
-  );
-
-  if (todayQuery.isPending) {
-    return <ScreenLoader testID="evidence-request-loading" />;
+  if (!heldCheck.current && isOpenCheck(occurrence)) {
+    heldCheck.current = occurrence;
   }
 
-  if (!occurrence || occurrence.status === 'completed') {
+  const check = heldCheck.current;
+
+  if (check?.evidenceRequest) {
+    return <PhotoCheckSheet occurrence={check} request={check.evidenceRequest} />;
+  }
+
+  if (isPending) {
+    return null;
+  }
+
+  return <ClosedReadingSheet message={PHOTO_CHECK_COPY.closed} testID="evidence-request-closed" />;
+}
+
+function PhotoCheckSheet({
+  occurrence,
+  request,
+}: {
+  occurrence: TodayChallenge;
+  request: SurpriseEvidenceRequest;
+}) {
+  const { tone } = useChallengeTone(occurrence);
+  const flow = usePhotoCheck(occurrence, request);
+  const canDismiss = flow.phase.kind === 'asking' || flow.phase.kind === 'rejected';
+  const showsSavedCorner = isReadingCheck(occurrence) && flow.phase.kind !== 'expired';
+
+  return (
+    <DeckSheet
+      onDismiss={canDismiss ? () => goBackOrHome() : undefined}
+      testID="evidence-request-screen"
+    >
+      <DeckSheetEyebrow
+        corner={showsSavedCorner ? PHOTO_CHECK_COPY.readingSaved : null}
+        glyph="camera"
+        label={PHOTO_CHECK_COPY.eyebrow}
+        tone={tone}
+      />
+      <PhotoCheckBody
+        flow={flow}
+        occurrence={occurrence}
+        penaltyPoints={request.penaltyPoints}
+        tone={tone}
+      />
+    </DeckSheet>
+  );
+}
+
+interface PhotoCheckBodyProps {
+  flow: PhotoCheckFlow;
+  occurrence: TodayChallenge;
+  penaltyPoints: number;
+  tone: string;
+}
+
+function PhotoCheckBody({ flow, occurrence, penaltyPoints, tone }: PhotoCheckBodyProps) {
+  const { phase } = flow;
+
+  if (phase.kind === 'expired') {
     return (
-      <View style={styles.centred} testID="evidence-request-closed">
-        <Text style={styles.missing}>This photo check is no longer open.</Text>
-        <FormButton
-          label="Done"
-          onPress={() => goBackOrHome('/(tabs)/challenges')}
-        />
-      </View>
+      <PhotoCheckResult
+        actionLabel={PHOTO_CHECK_COPY.ok}
+        factLabel={PHOTO_CHECK_COPY.penaltyFact}
+        glyph="clock"
+        isBusy={flow.isSkipping}
+        onAction={flow.leaveAfterExpiry}
+        penaltyPoints={penaltyPoints}
+        sub={PHOTO_CHECK_COPY.expiredSub}
+        title={PHOTO_CHECK_COPY.expiredTitle}
+      />
     );
   }
 
-  const hint =
-    occurrence.completionKind === 'vitals_bp'
-      ? 'Photograph your monitor or the screen that shows this reading.'
-      : 'Take a photo that shows you doing this challenge.';
-  const penalty = evidenceRequest?.penaltyPoints ?? 0;
+  if (phase.kind === 'rejected') {
+    const isMonitor = occurrence.completionKind === 'vitals_bp';
+    return (
+      <PhotoCheckResult
+        actionLabel={PHOTO_CHECK_COPY.takeAnother}
+        factLabel={PHOTO_CHECK_COPY.penaltyIfMissed}
+        glyph="eyeOff"
+        isBusy={false}
+        onAction={flow.retake}
+        penaltyPoints={penaltyPoints}
+        sub={PHOTO_CHECK_COPY.rejectedSub}
+        title={
+          isMonitor ? PHOTO_CHECK_COPY.rejectedMonitorTitle : PHOTO_CHECK_COPY.rejectedActTitle
+        }
+      />
+    );
+  }
+
+  if (phase.kind === 'checking') {
+    return (
+      <>
+        <DeckSheetTitle>{PHOTO_CHECK_COPY.checkingTitle}</DeckSheetTitle>
+        <DeckSheetSub>{PHOTO_CHECK_COPY.checkingSub}</DeckSheetSub>
+        <PhotoCheckPreview cameraRef={flow.cameraRef} shotUri={phase.photo.previewUri} />
+      </>
+    );
+  }
 
   return (
-    <View style={styles.container} testID="evidence-request-screen">
-      <View style={styles.body}>
-        <View style={styles.timer} testID="evidence-request-timer">
-          <Text style={styles.timerValue}>
-            {formatCountdown(secondsLeft ?? evidenceRequest?.windowSeconds ?? 0)}
-          </Text>
-          <Text style={styles.timerLabel}>remaining</Text>
-        </View>
-
-        <Text style={styles.title}>Photo check</Text>
-        <Text style={styles.subtitle}>{occurrence.title}</Text>
-        <Text style={styles.hint}>{hint}</Text>
-
-        <View style={styles.warning}>
-          <Feather color={colors.warning} name="alert-circle" size={18} />
-          <Text style={styles.warningText}>
-            Skipping or running out of time deducts {penalty} points.
-          </Text>
-        </View>
-
-        {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
-      </View>
-
-      <View style={styles.actions}>
-        <FormButton
-          label="Open camera"
-          loading={submit.isPending}
-          onPress={() => {
-            setErrorMessage(null);
-            router.push({
-              pathname: '/challenge/[challengeId]/camera',
-              params: { challengeId, intent: 'proof' },
-            });
-          }}
-          testID="evidence-request-camera"
-        />
-        <FormButton
-          label="Skip and take the penalty"
-          loading={skip.isPending}
-          onPress={() => skip.mutate()}
-          testID="evidence-request-skip"
-          variant="secondary"
-        />
-      </View>
-    </View>
+    <>
+      <DeckSheetTitle>{photoCheckTitle(occurrence)}</DeckSheetTitle>
+      <DeckSheetSub>{PHOTO_CHECK_COPY.why}</DeckSheetSub>
+      <PhotoCheckPreview cameraRef={flow.cameraRef} shotUri={null} />
+      {flow.message ? <DeckSheetMessage message={flow.message} /> : null}
+      <DeckRingShutter
+        disabled={flow.isBusy}
+        onPress={flow.shoot}
+        remaining={flow.clock.fraction}
+        testID="evidence-request-camera"
+        tone={tone}
+      />
+      <PhotoCheckTime secondsLeft={flow.clock.secondsLeft} />
+      <DeckButton
+        label={`Skip this one · −${penaltyPoints} points`}
+        loading={flow.isSkipping}
+        onPress={flow.skip}
+        testID="evidence-request-skip"
+        variant="quiet"
+      />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    justifyContent: 'space-between',
-  },
-  centred: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  body: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  timer: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    backgroundColor: colors.accentSurface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  timerValue: {
-    color: colors.accent,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
-  },
-  timerLabel: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  hint: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  warning: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    width: '100%',
-  },
-  warningText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-  },
-  actions: {
-    gap: spacing.sm,
-  },
-  missing: {
-    color: colors.muted,
-    textAlign: 'center',
-  },
-});

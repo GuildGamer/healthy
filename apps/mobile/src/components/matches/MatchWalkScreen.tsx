@@ -1,23 +1,17 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { WalkRouteMap } from '@/components/challenges/WalkRouteMap';
-import {
-  useWalkRecorder,
-  type WalkRecording,
-} from '@/components/challenges/useWalkRecorder';
+import { useWalkRecorder, type WalkRecording } from '@/components/challenges/useWalkRecorder';
 import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
-import {
-  formatDistance,
-  formatDuration,
-  pathDistanceMeters,
-} from '@/lib/geo-session';
+import { formatDistance, formatDuration, pathDistanceMeters } from '@/lib/geo-session';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import {
   MATCH_WALK_FAILED,
   MATCH_WALK_LOG,
@@ -36,6 +30,8 @@ import {
  */
 export function MatchWalkScreen({ matchId }: { matchId: string }) {
   const insets = useSafeAreaInsets();
+  const { camera } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const queryClient = useQueryClient();
   const recorder = useWalkRecorder();
   const [walk, setWalk] = useState<WalkRecording | null>(null);
@@ -91,8 +87,7 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
 
   const { autoPaused, elapsedSeconds, phase, points } = recorder;
   const isRecording = phase === 'recording';
-  const tooShort =
-    walk !== null && walk.durationSeconds < MATCH_WALK_MIN_SECONDS;
+  const tooShort = walk !== null && walk.durationSeconds < MATCH_WALK_MIN_SECONDS;
   const status = matchWalkStatus({
     phase,
     autoPaused,
@@ -121,25 +116,18 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
             style={styles.backButton}
             testID="match-walk-back"
           >
-            <Feather color={colors.text} name="arrow-left" size={22} />
+            <Feather color={camera.text} name="arrow-left" size={22} />
           </Pressable>
           <Text style={styles.title}>{MATCH_WALK_TITLE}</Text>
         </View>
 
         <View pointerEvents="none" style={styles.statusCard}>
           <View style={styles.statusHeader}>
-            <Text
-              style={[
-                styles.statusEyebrow,
-                autoPaused ? styles.statusEyebrowPaused : null,
-              ]}
-            >
+            <Text style={[styles.statusEyebrow, autoPaused ? styles.statusEyebrowPaused : null]}>
               {status.eyebrow}
             </Text>
             {phase === 'idle' ? null : (
-              <Text style={styles.statusSecondary}>
-                {formatDistance(distanceMeters)}
-              </Text>
+              <Text style={styles.statusSecondary}>{formatDistance(distanceMeters)}</Text>
             )}
           </View>
 
@@ -150,12 +138,7 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
         </View>
       </View>
 
-      <View
-        style={[
-          styles.controls,
-          { paddingBottom: Math.max(insets.bottom, spacing.md) },
-        ]}
-      >
+      <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         {/* A short walk is not an error, and the status card over the map has
             already said so. Only a real failure gets a banner. */}
         {recorder.error ? <FormErrorBanner message={recorder.error} /> : null}
@@ -204,83 +187,84 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  stage: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  topScrim: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: 'rgba(11,18,32,0.78)',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    marginLeft: -spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-  },
-  statusCard: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: radii.lg,
-    gap: spacing.xs,
-    backgroundColor: 'rgba(11,18,32,0.88)',
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statusEyebrow: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    textTransform: 'uppercase',
-  },
-  statusEyebrowPaused: {
-    color: colors.accent,
-  },
-  statusSecondary: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-  },
-  statusReadout: {
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
-  },
-  statusMeta: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-  },
-  controls: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    gap: spacing.sm,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    stage: {
+      flex: 1,
+      backgroundColor: theme.colors.surface,
+      overflow: 'hidden',
+    },
+    topScrim: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      backgroundColor: theme.camera.fade,
+    },
+    backButton: {
+      width: 44,
+      height: 44,
+      marginLeft: -spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      flex: 1,
+      color: theme.camera.text,
+      fontFamily: displayFontFamily,
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.semibold,
+    },
+    statusCard: {
+      position: 'absolute',
+      left: spacing.lg,
+      right: spacing.lg,
+      bottom: spacing.lg,
+      padding: spacing.lg,
+      borderRadius: radii.lg,
+      gap: spacing.xs,
+      backgroundColor: theme.camera.panel,
+    },
+    statusHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    statusEyebrow: {
+      color: theme.camera.subtext,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.semibold,
+      textTransform: 'uppercase',
+    },
+    statusEyebrowPaused: {
+      color: theme.colors.accent,
+    },
+    statusSecondary: {
+      color: theme.camera.subtext,
+      fontSize: fontSize.sm,
+    },
+    statusReadout: {
+      color: theme.camera.text,
+      fontFamily: displayFontFamily,
+      fontSize: fontSize.xxl,
+      fontWeight: fontWeight.bold,
+    },
+    statusMeta: {
+      color: theme.camera.subtext,
+      fontSize: fontSize.sm,
+    },
+    controls: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      gap: spacing.sm,
+    },
+  });

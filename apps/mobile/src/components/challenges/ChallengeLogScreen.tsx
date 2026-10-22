@@ -1,44 +1,49 @@
-import { useQuery } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
-import { ScreenLoader } from '@/components/feedback';
-import { apiClient } from '@/lib/api';
-import { LogReadingScreen } from './LogReadingScreen';
-import { LogVitalsScreen } from './LogVitalsScreen';
+import { BloodPressureSheet } from './BloodPressureSheet';
+import { NOT_ON_TODAY } from './constants/doing-copy';
+import { ClosedReadingSheet } from './ReadingSheetLayout';
+import { isSingleReadingKind } from './single-reading';
+import { SingleReadingSheet } from './SingleReadingSheet';
+import { useTodayOccurrence } from './useTodayOccurrence';
+import { WaterSheet } from './WaterSheet';
 
+const ALREADY_LOGGED = 'This one is already logged today.';
+
+/** Picks the sheet for a log: the blood-pressure pair, one number, or the water count. */
 export function ChallengeLogScreen({ challengeId }: { challengeId: string }) {
-  const todayQuery = useQuery({
-    queryKey: ['challenges', 'today'],
-    queryFn: () => apiClient.listTodayChallenges(),
-  });
+  const { occurrence, isPending } = useTodayOccurrence(challengeId);
 
-  const occurrence = todayQuery.data?.challenges.find(
-    (item) => item.challengeId === challengeId,
-  );
-
-  if (todayQuery.isPending) {
-    return <ScreenLoader />;
+  if (isPending) {
+    return null;
   }
 
-  if (occurrence?.completionKind === 'vitals_bp') {
-    return <LogVitalsScreen challengeId={challengeId} />;
+  if (!occurrence) {
+    return <ClosedReadingSheet message={NOT_ON_TODAY} testID="log-reading-missing" />;
   }
 
-  if (
-    occurrence?.completionKind === 'glucose' ||
-    occurrence?.completionKind === 'peak_flow' ||
-    occurrence?.completionKind === 'water' ||
-    occurrence?.completionKind === 'carbs'
-  ) {
-    return <LogReadingScreen challengeId={challengeId} />;
+  if (occurrence.status === 'completed') {
+    return <ClosedReadingSheet message={ALREADY_LOGGED} testID="log-reading-done" />;
   }
 
-  if (occurrence?.completionKind === 'check_in') {
+  if (occurrence.status === 'awaiting_evidence') {
+    return <Redirect href={`/challenge/${challengeId}/verify`} />;
+  }
+
+  if (occurrence.completionKind === 'vitals_bp') {
+    return <BloodPressureSheet occurrence={occurrence} />;
+  }
+
+  if (occurrence.completionKind === 'water') {
+    return <WaterSheet occurrence={occurrence} />;
+  }
+
+  if (isSingleReadingKind(occurrence.completionKind)) {
+    return <SingleReadingSheet kind={occurrence.completionKind} occurrence={occurrence} />;
+  }
+
+  if (occurrence.completionKind === 'check_in') {
     return <Redirect href={`/challenge/${challengeId}/confirm`} />;
   }
 
-  if (occurrence?.completionKind === 'evidence_photo') {
-    return <Redirect href={`/challenge/${challengeId}/evidence`} />;
-  }
-
-  return <Redirect href="/(tabs)/challenges" />;
+  return <Redirect href={`/challenge/${challengeId}/evidence`} />;
 }

@@ -62,10 +62,7 @@ export function deviceCountryCode(): CountryCode | null {
   }
 }
 
-export function filterCountryOptions(
-  options: CountryOption[],
-  query: string,
-): CountryOption[] {
+export function filterCountryOptions(options: CountryOption[], query: string): CountryOption[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
     return options;

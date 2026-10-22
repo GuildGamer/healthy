@@ -13,9 +13,7 @@ import {
 
 describe('legalScoringModeFor', () => {
   it('keeps a mode the activity can run', () => {
-    expect(legalScoringModeFor('walk', 'cumulative_total')).toBe(
-      'cumulative_total',
-    );
+    expect(legalScoringModeFor('walk', 'cumulative_total')).toBe('cumulative_total');
   });
 
   // Longest single walk would reward one punishing session over regular ones,
@@ -41,9 +39,9 @@ describe('matchActivity', () => {
   });
 
   it('names the activity a narrowed streak races', () => {
-    expect(
-      matchActivity('days_completed', 'walk', 'chosen_activity').label,
-    ).toBe(MATCH_METRIC_LABEL.walk);
+    expect(matchActivity('days_completed', 'walk', 'chosen_activity').label).toBe(
+      MATCH_METRIC_LABEL.walk,
+    );
   });
 });
 
@@ -51,9 +49,7 @@ describe('activityChoiceForMode', () => {
   // Every streak counted everything before a host could narrow one, and that
   // stays the opening position.
   it('opens a streak up to any challenge', () => {
-    expect(activityChoiceForMode('days_completed', 'walk')).toBe(
-      MATCH_ANY_DAILY_CHOICE,
-    );
+    expect(activityChoiceForMode('days_completed', 'walk')).toBe(MATCH_ANY_DAILY_CHOICE);
   });
 
   it('keeps the activity when the mode still scores one', () => {
@@ -63,9 +59,7 @@ describe('activityChoiceForMode', () => {
   // Nothing else can score "any challenge", so leaving a streak has to land
   // on a real activity rather than send a choice the API would reject.
   it('falls back to an activity when a streak is left', () => {
-    expect(
-      activityChoiceForMode('best_single', MATCH_ANY_DAILY_CHOICE),
-    ).toBe(MATCH_DEFAULT_METRIC);
+    expect(activityChoiceForMode('best_single', MATCH_ANY_DAILY_CHOICE)).toBe(MATCH_DEFAULT_METRIC);
   });
 });
 
@@ -78,17 +72,15 @@ describe('matchActivityInput', () => {
   });
 
   it('leaves an open streak scoring every challenge', () => {
-    expect(
-      matchActivityInput(MATCH_ANY_DAILY_CHOICE, 'days_completed').dailyScope,
-    ).toBe('any_challenge');
+    expect(matchActivityInput(MATCH_ANY_DAILY_CHOICE, 'days_completed').dailyScope).toBe(
+      'any_challenge',
+    );
   });
 
   // Nothing but a streak reads the scope, so an attempt-driven contest must
   // not persist one that suggests it does.
   it('leaves the scope at its default for attempt-driven contests', () => {
-    expect(matchActivityInput('walk', 'cumulative_total').dailyScope).toBe(
-      'any_challenge',
-    );
+    expect(matchActivityInput('walk', 'cumulative_total').dailyScope).toBe('any_challenge');
   });
 });
 

@@ -1,127 +1,82 @@
-import { colors, fontSize, fontWeight, spacing } from '@product/brand';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { ScreenLoader } from '@/components/feedback';
-import { FormButton, FormErrorBanner } from '@/components/forms';
-import { apiClient } from '@/lib/api';
+import type { TodayChallenge } from '@product/client';
+import { spacing } from '@product/brand';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import {
+  DeckButton,
+  DeckSheet,
+  DeckSheetEyebrow,
+  DeckSheetMessage,
+  DeckSheetSub,
+  DeckSheetTitle,
+} from '@/components/deck';
+import { healthCategoryName } from '@/constants/health-categories';
+import { goBackOrHome } from '@/lib/go-back';
+import { NOT_ON_TODAY, READING_COPY, SAVE_RETRY_LABEL } from './constants/doing-copy';
+import { finishAndLeave } from './finish-challenge';
+import { ClosedReadingSheet } from './ReadingSheetLayout';
+import { saveFailedMessage } from './save-error';
+import { useChallengeTone } from './useChallengeTone';
+import { useCompleteChallenge } from './useCompleteChallenge';
+import { useTodayOccurrence } from './useTodayOccurrence';
 
-const SUBMIT_FAILED_MESSAGE = 'We could not mark that as done. Try again.';
+/**
+ * A check-in opened from anywhere but its card. On Today the card's own
+ * button marks it done; this sheet is the same act for the list and detail.
+ */
+export function ChallengeConfirmScreen({ challengeId }: { challengeId: string }) {
+  const { occurrence, isPending } = useTodayOccurrence(challengeId);
 
-export function ChallengeConfirmScreen({
-  challengeId,
-}: {
-  challengeId: string;
-}) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  if (isPending) {
+    return null;
+  }
 
-  const todayQuery = useQuery({
-    queryKey: ['challenges', 'today'],
-    queryFn: () => apiClient.listTodayChallenges(),
-  });
+  if (!occurrence || occurrence.status === 'completed') {
+    return <ClosedReadingSheet message={NOT_ON_TODAY} testID="confirm-closed" />;
+  }
 
-  const occurrence = todayQuery.data?.challenges.find(
-    (item) => item.challengeId === challengeId,
-  );
+  return <CheckInSheet occurrence={occurrence} />;
+}
 
-  const start = useMutation({
-    mutationFn: async () => {
-      if (!occurrence || occurrence.status !== 'pending') {
-        return;
-      }
+function CheckInSheet({ occurrence }: { occurrence: TodayChallenge }) {
+  const { tone, glyph } = useChallengeTone(occurrence);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const complete = useCompleteChallenge();
 
-      await apiClient.startChallenge({ userChallengeId: occurrence.id });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] });
-    },
-  });
-
-  const complete = useMutation({
-    mutationFn: async () => {
-      if (!occurrence) {
-        throw new Error(SUBMIT_FAILED_MESSAGE);
-      }
-
-      if (occurrence.status === 'pending') {
-        await apiClient.startChallenge({ userChallengeId: occurrence.id });
-      }
-
-      return apiClient.completeChallenge({ userChallengeId: occurrence.id });
-    },
-    onSuccess: async (result) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['me'] }),
-        queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
-        queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
-        queryClient.invalidateQueries({ queryKey: ['activity'] }),
-      ]);
-
-      if (result.evidenceRequest) {
-        router.replace(`/challenge/${challengeId}/verify`);
-        return;
-      }
-
-      router.replace({
-        pathname: '/challenge/success',
-        params: {
-          title: occurrence?.title ?? 'Challenge',
-          points: String(result.pointsAwarded),
-          streak: String(result.currentStreakDays),
-        },
-      });
-    },
-  });
-
-  const didStart = useRef(false);
-
-  useEffect(() => {
-    if (!occurrence || occurrence.status !== 'pending' || didStart.current) {
-      return;
-    }
-
-    didStart.current = true;
-    start.mutate();
-  }, [occurrence, start]);
-
-  if (todayQuery.isLoading || !occurrence) {
-    return <ScreenLoader />;
+  function markDone() {
+    setSaveError(null);
+    complete.mutate(
+      { occurrence, payload: {} },
+      {
+        onSuccess: (result) => finishAndLeave(result, { kind: 'checkedIn' }),
+        onError: (error) => setSaveError(saveFailedMessage(error)),
+      },
+    );
   }
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.title}>{occurrence.title}</Text>
-      <Text style={styles.instruction}>{occurrence.instruction}</Text>
-      {complete.isError ? (
-        <FormErrorBanner message={SUBMIT_FAILED_MESSAGE} />
-      ) : null}
-      <FormButton
-        label="I did this"
-        loading={complete.isPending}
-        onPress={() => complete.mutate()}
-        testID="confirm-challenge"
-      />
-    </View>
+    <DeckSheet
+      onDismiss={complete.isPending ? undefined : () => goBackOrHome()}
+      testID="confirm-sheet"
+    >
+      <DeckSheetEyebrow glyph={glyph} label={healthCategoryName(occurrence.category)} tone={tone} />
+      <DeckSheetTitle>{occurrence.title}</DeckSheetTitle>
+      {occurrence.instruction ? <DeckSheetSub>{occurrence.instruction}</DeckSheetSub> : null}
+      {saveError ? <DeckSheetMessage message={saveError} /> : null}
+      <View style={styles.action}>
+        <DeckButton
+          label={complete.isError ? SAVE_RETRY_LABEL : READING_COPY.checkInDone}
+          loading={complete.isPending}
+          onPress={markDone}
+          testID="confirm-challenge"
+        />
+      </View>
+    </DeckSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  instruction: {
-    color: colors.muted,
-    fontSize: fontSize.md,
-    lineHeight: 24,
+  action: {
+    marginTop: spacing.lg,
   },
 });

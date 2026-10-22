@@ -11,7 +11,8 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -28,16 +29,5 @@
   },
   "submit": {
     "production": {}
-  },
-  "update": {
-    "development": {
-      "channel": "development"
-    },
-    "preview": {
-      "channel": "preview"
-    },
-    "production": {
-      "channel": "production"
-    }
   }
 }

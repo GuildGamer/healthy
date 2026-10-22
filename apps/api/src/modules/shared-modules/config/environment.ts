@@ -323,8 +323,9 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     adminAppUrl: readOptional(source.ADMIN_APP_URL) ?? 'http://localhost:3001',
     // Not localhost by default: an invite is shared with someone else, so a
     // link only this machine can open is worse than one pointing at the
-    // public site.
-    websiteUrl: readOptional(source.WEBSITE_URL) ?? 'https://gethealthyapp.com',
+    // public site. The apex host 308s to www, and a redirect cannot be a
+    // universal / app link, so the shared origin is www.
+    websiteUrl: readOptional(source.WEBSITE_URL) ?? 'https://www.gethealthyapp.com',
     adminBootstrapEmail: readOptional(source.ADMIN_BOOTSTRAP_EMAIL),
     adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
     testingMembership: readTestingMembership(source),

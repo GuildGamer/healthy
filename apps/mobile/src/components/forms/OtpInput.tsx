@@ -1,10 +1,15 @@
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { Platform, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { type Theme, useThemedStyles } from '@/theme';
 
 const DEFAULT_LENGTH = 6;
 
+/** `invalid` rings every box after a wrong code; `dimmed` greys a dead code. */
+export type OtpInputTone = 'default' | 'invalid' | 'dimmed';
+
 type OtpInputProps = {
   value: string;
+  tone?: OtpInputTone;
   onChange: (value: string) => void;
   length?: number;
   testID?: string;
@@ -55,7 +60,14 @@ function nextOtpValue(current: string, rawValue: string, length: number): string
   return digitsOnly(rawValue).slice(0, length);
 }
 
-export function OtpInput({ value, onChange, length = DEFAULT_LENGTH, testID }: OtpInputProps) {
+export function OtpInput({
+  value,
+  onChange,
+  tone = 'default',
+  length = DEFAULT_LENGTH,
+  testID,
+}: OtpInputProps) {
+  const styles = useThemedStyles(createStyles);
   const digits = nextOtpValue('', value, length);
 
   return (
@@ -65,8 +77,17 @@ export function OtpInput({ value, onChange, length = DEFAULT_LENGTH, testID }: O
           digits.length === index || (digits.length === length && index === length - 1);
 
         return (
-          <View key={index} style={[styles.cell, isActive ? styles.cellActive : null]}>
-            <Text style={styles.digit}>{digits[index] ?? ''}</Text>
+          <View
+            key={index}
+            style={[
+              styles.cell,
+              tone === 'default' && isActive ? styles.cellActive : null,
+              tone === 'invalid' ? styles.cellInvalid : null,
+            ]}
+          >
+            <Text style={[styles.digit, tone === 'dimmed' ? styles.digitDimmed : null]}>
+              {digits[index] ?? ''}
+            </Text>
           </View>
         );
       })}
@@ -91,36 +112,42 @@ export function OtpInput({ value, onChange, length = DEFAULT_LENGTH, testID }: O
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  cell: {
-    flex: 1,
-    minHeight: 52,
-    borderRadius: radii.xl,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cellActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSurface,
-  },
-  digit: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-  },
-  // Opacity must stay at 1. iOS does not hit-test a fully transparent
-  // field, so the long-press paste menu never appears.
-  input: {
-    ...StyleSheet.absoluteFillObject,
-    color: 'transparent',
-    backgroundColor: 'transparent',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    cell: {
+      flex: 1,
+      minHeight: 58,
+      borderRadius: radii.lg,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      backgroundColor: theme.colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cellActive: {
+      borderColor: theme.colors.text,
+    },
+    cellInvalid: {
+      borderColor: theme.colors.danger,
+    },
+    digit: {
+      color: theme.colors.text,
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.semibold,
+    },
+    digitDimmed: {
+      color: theme.colors.muted,
+    },
+    // Opacity must stay at 1. iOS does not hit-test a fully transparent
+    // field, so the long-press paste menu never appears.
+    input: {
+      ...StyleSheet.absoluteFillObject,
+      color: 'transparent',
+      backgroundColor: 'transparent',
+    },
+  });

@@ -1,14 +1,7 @@
-import type {
-  ChallengeCompletionKind,
-  ChallengeFrequency,
-  PrismaClient,
-} from '@product/db';
+import type { ChallengeCompletionKind, ChallengeFrequency, PrismaClient } from '@product/db';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import '../../../load-env.js';
-import {
-  createTestPrismaClient,
-  resetDatabase,
-} from '../../../../test/integration-db.js';
+import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
 import { PracticeService } from '../practice/practice.service.js';
@@ -57,10 +50,7 @@ async function seedCatalog(specs: CatalogSpec[]): Promise<void> {
       defaultFrequency: spec.defaultFrequency ?? 'daily',
       isDefault: spec.isDefault ?? true,
       completionKind: spec.completionKind ?? 'check_in',
-      instruction:
-        spec.completionKind === 'vitals_bp'
-          ? 'Sit still and log your reading.'
-          : '',
+      instruction: spec.completionKind === 'vitals_bp' ? 'Sit still and log your reading.' : '',
       surpriseEvidenceChancePercent: spec.surpriseEvidenceChancePercent ?? 0,
       surpriseEvidencePenaltyPoints: spec.surpriseEvidencePenaltyPoints ?? 25,
     })),
@@ -174,10 +164,19 @@ describe('ChallengesService against Postgres', () => {
     });
     expect(ledgerEntries).toBe(1);
 
-    const inboxRows = await prisma.notification.count({
+    const inboxRows = await prisma.notification.findMany({
       where: { userId: user.id },
     });
-    expect(inboxRows).toBe(1);
+    expect(inboxRows).toHaveLength(1);
+    expect(inboxRows[0]).toMatchObject({
+      kind: 'success',
+      payload: {
+        userChallengeId: first!.id,
+        points: '20',
+        streak: '1',
+        metric: 'other',
+      },
+    });
 
     const profile = await prisma.userProfile.findUniqueOrThrow({
       where: { userId: user.id },
@@ -233,9 +232,7 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('anchors a weekly occurrence to the Monday of the current week', async () => {
-    await seedEnrolledUser([
-      { slug: 'weekly-review', defaultFrequency: 'weekly' },
-    ]);
+    await seedEnrolledUser([{ slug: 'weekly-review', defaultFrequency: 'weekly' }]);
 
     const [weekly] = (await challenges.listToday(user)).challenges;
 
@@ -244,9 +241,7 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('leaves the streak alone when a weekly challenge is completed', async () => {
-    await seedEnrolledUser([
-      { slug: 'weekly-review', defaultFrequency: 'weekly' },
-    ]);
+    await seedEnrolledUser([{ slug: 'weekly-review', defaultFrequency: 'weekly' }]);
     const [weekly] = (await challenges.listToday(user)).challenges;
 
     const result = await challenges.complete(user, weekly!.id);
@@ -271,15 +266,11 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('requires and stores a blood-pressure reading on complete', async () => {
-    await seedEnrolledUser([
-      { slug: 'check-bp', completionKind: 'vitals_bp' },
-    ]);
+    await seedEnrolledUser([{ slug: 'check-bp', completionKind: 'vitals_bp' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
 
     expect(assignment?.completionKind).toBe('vitals_bp');
-    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(
-      /blood pressure/,
-    );
+    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(/blood pressure/);
 
     const result = await challenges.complete(user, assignment!.id, {
       systolic: 120,
@@ -302,25 +293,16 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('requires a gym photo on complete', async () => {
-    await seedEnrolledUser([
-      { slug: 'gym-session', completionKind: 'evidence_photo' },
-    ]);
+    await seedEnrolledUser([{ slug: 'gym-session', completionKind: 'evidence_photo' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
 
     expect(assignment?.completionKind).toBe('evidence_photo');
-    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(
-      /gym photo/,
-    );
+    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(/gym photo/);
 
-    const result = await challenges.complete(
-      user,
-      assignment!.id,
-      undefined,
-      {
-        mimeType: 'image/jpeg',
-        imageBase64: 'a'.repeat(32),
-      },
-    );
+    const result = await challenges.complete(user, assignment!.id, undefined, {
+      mimeType: 'image/jpeg',
+      imageBase64: 'a'.repeat(32),
+    });
 
     expect(result.pointsAwarded).toBe(20);
   });
@@ -342,15 +324,10 @@ describe('ChallengesService against Postgres', () => {
     expect(requested.challenge.status).toBe('awaiting_evidence');
     expect(requested.evidenceRequest?.penaltyPoints).toBe(10);
 
-    const submitted = await challenges.complete(
-      user,
-      assignment!.id,
-      undefined,
-      {
-        mimeType: 'image/jpeg',
-        imageBase64: 'a'.repeat(32),
-      },
-    );
+    const submitted = await challenges.complete(user, assignment!.id, undefined, {
+      mimeType: 'image/jpeg',
+      imageBase64: 'a'.repeat(32),
+    });
 
     expect(submitted.pointsAwarded).toBe(40);
     expect(submitted.challenge.status).toBe('completed');
@@ -391,9 +368,9 @@ describe('ChallengesService against Postgres', () => {
     await me.updateCategories(user, ['asthma']);
     const afterChange = await challenges.listToday(user);
 
-    expect(
-      afterChange.challenges.find((challenge) => challenge.id === first!.id),
-    ).toMatchObject({ status: 'in_progress' });
+    expect(afterChange.challenges.find((challenge) => challenge.id === first!.id)).toMatchObject({
+      status: 'in_progress',
+    });
   });
 
   it('lists past completions for one challenge, newest first', async () => {
@@ -421,9 +398,7 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('includes the stored blood-pressure reading on a history row', async () => {
-    await seedEnrolledUser([
-      { slug: 'check-bp', completionKind: 'vitals_bp' },
-    ]);
+    await seedEnrolledUser([{ slug: 'check-bp', completionKind: 'vitals_bp' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
     await challenges.complete(user, assignment!.id, {
       systolic: 120,
@@ -474,11 +449,49 @@ describe('ChallengesService against Postgres', () => {
     await seedEnrolledUser([{ slug: 'fresh' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
 
-    await expect(
-      challenges.listHistory(user, assignment!.challengeId),
-    ).resolves.toEqual({
+    await expect(challenges.listHistory(user, assignment!.challengeId)).resolves.toEqual({
       challengeId: assignment!.challengeId,
       entries: [],
     });
+  });
+
+  it('holds a walk to the minutes its walker chose, on Today and at the finish', async () => {
+    await seedUser();
+    const walk = await prisma.challenge.create({
+      data: {
+        slug: 'ten-minute-walk',
+        title: 'Take a ten-minute walk',
+        description: 'Walk.',
+        category: 'general',
+        rewardPoints: 150,
+        captureKind: 'device_session',
+        deviceMetric: 'walk',
+        targetDurationMinutes: 10,
+      },
+    });
+    await enrollments.setEnrollment(user, walk.id, true, undefined, { targetDurationMinutes: 20 });
+    const walkOf = (minutes: number) => ({
+      source: 'in_app_gps' as const,
+      metric: 'walk' as const,
+      durationSeconds: minutes * 60,
+    });
+
+    const catalog = await enrollments.listCatalog(user);
+    const [occurrence] = (await challenges.listToday(user)).challenges;
+
+    expect(catalog.challenges[0]?.capture.target.durationMinutes).toBe(20);
+    expect(occurrence?.capture.target.durationMinutes).toBe(20);
+    await expect(
+      challenges.complete(user, occurrence!.id, undefined, undefined, undefined, walkOf(15)),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    const finished = await challenges.complete(
+      user,
+      occurrence!.id,
+      undefined,
+      undefined,
+      undefined,
+      walkOf(21),
+    );
+    expect(finished.pointsAwarded).toBe(150);
   });
 });

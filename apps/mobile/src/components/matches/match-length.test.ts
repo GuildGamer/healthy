@@ -2,6 +2,7 @@ import {
   MATCH_CUSTOM_DAYS_DEFAULT,
   clampCustomDays,
   legalChoiceFor,
+  lengthEndHint,
   matchLengthInput,
 } from './match-length';
 
@@ -17,9 +18,7 @@ describe('clampCustomDays', () => {
   });
 
   it('falls back when the typed value is not a number', () => {
-    expect(clampCustomDays(Number.NaN, 'best_single')).toBe(
-      MATCH_CUSTOM_DAYS_DEFAULT,
-    );
+    expect(clampCustomDays(Number.NaN, 'best_single')).toBe(MATCH_CUSTOM_DAYS_DEFAULT);
   });
 });
 
@@ -32,9 +31,10 @@ describe('legalChoiceFor', () => {
   });
 
   it('moves off a preset the mode cannot run', () => {
-    expect(
-      legalChoiceFor({ kind: 'preset', window: 'today' }, 'days_completed'),
-    ).toEqual({ kind: 'preset', window: 'week' });
+    expect(legalChoiceFor({ kind: 'preset', window: 'today' }, 'days_completed')).toEqual({
+      kind: 'preset',
+      window: 'week',
+    });
   });
 
   // Switching to a streak contest must not silently leave an illegal day count
@@ -58,5 +58,15 @@ describe('matchLengthInput', () => {
     expect(matchLengthInput({ kind: 'custom', days: 45 })).toEqual({
       durationDays: 45,
     });
+  });
+});
+
+describe('lengthEndHint', () => {
+  const thursday = new Date('2026-10-22T12:00:00.000Z');
+
+  it('says when each length would end', () => {
+    expect(lengthEndHint({ kind: 'preset', window: 'today' }, thursday)).toBe('Ends at midnight');
+    expect(lengthEndHint({ kind: 'preset', window: 'week' }, thursday)).toBe('Ends next Thursday');
+    expect(lengthEndHint({ kind: 'preset', window: 'month' }, thursday)).toBe('Ends 21 November');
   });
 });

@@ -11,8 +11,7 @@ import {
 
 /** What the host has selected in the "How long" row. */
 export type MatchLengthChoice =
-  | { kind: 'preset'; window: MatchWindow }
-  | { kind: 'custom'; days: number };
+  { kind: 'preset'; window: MatchWindow } | { kind: 'custom'; days: number };
 
 /**
  * Where the custom field opens: double the longest preset, so the control
@@ -24,18 +23,12 @@ export function customDaysFloor(scoringMode: MatchScoringMode): number {
   return MATCH_MIN_DAYS_BY_SCORING_MODE[scoringMode];
 }
 
-export function clampCustomDays(
-  days: number,
-  scoringMode: MatchScoringMode,
-): number {
+export function clampCustomDays(days: number, scoringMode: MatchScoringMode): number {
   if (!Number.isFinite(days)) {
     return MATCH_CUSTOM_DAYS_DEFAULT;
   }
 
-  return Math.min(
-    MATCH_LENGTH_MAX_DAYS,
-    Math.max(customDaysFloor(scoringMode), Math.round(days)),
-  );
+  return Math.min(MATCH_LENGTH_MAX_DAYS, Math.max(customDaysFloor(scoringMode), Math.round(days)));
 }
 
 /**
@@ -71,6 +64,27 @@ export function matchLengthInput(
   }
 
   return { window: choice.window };
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * When a length would end, under its tile: "Ends at midnight", "Ends next
+ * Thursday", "Ends 21 November". Today is calendar-bounded; the rest count
+ * whole days from now.
+ */
+export function lengthEndHint(choice: MatchLengthChoice, now: Date = new Date()): string {
+  const length = matchChosenLength(choice);
+  if (length.kind === 'today') {
+    return 'Ends at midnight';
+  }
+
+  const endsAt = new Date(now.getTime() + length.days * DAY_MS);
+  if (length.days === 7) {
+    return `Ends next ${endsAt.toLocaleDateString('en-GB', { weekday: 'long' })}`;
+  }
+
+  return `Ends ${endsAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}`;
 }
 
 /** The same choice as the contract models it, for copy that counts days. */

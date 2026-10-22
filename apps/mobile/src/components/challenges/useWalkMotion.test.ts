@@ -66,20 +66,14 @@ function pedometer(overrides: Record<string, unknown> = {}) {
 /** Sensor streams attached but never torn down. Must always settle at zero. */
 function leakedSubscriptions(): number {
   const attached = addListener.mock.calls.length + watchStepCount.mock.calls.length;
-  const removed =
-    removeSubscription.mock.calls.length +
-    removeStepSubscription.mock.calls.length;
+  const removed = removeSubscription.mock.calls.length + removeStepSubscription.mock.calls.length;
   return attached - removed;
 }
 
 let stepTotal = 0;
 
 /** Runs both sensors at their real cadence, with or without steps landing. */
-function feed(
-  seconds: number,
-  sample: AccelerometerSample,
-  stepping: boolean,
-) {
+function feed(seconds: number, sample: AccelerometerSample, stepping: boolean) {
   const ticks = Math.round((seconds * 1_000) / WALK_SAMPLE_INTERVAL_MS);
 
   for (let tick = 0; tick < ticks; tick += 1) {

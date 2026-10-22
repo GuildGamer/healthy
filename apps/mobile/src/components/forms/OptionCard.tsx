@@ -1,7 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, radii, spacing } from '@product/brand';
+import { fontSize, radii, spacing } from '@product/brand';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
 interface OptionCardProps {
   selected: boolean;
@@ -22,6 +23,9 @@ export function OptionCard({
   disabled = false,
   testID,
 }: OptionCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -49,50 +53,51 @@ export function OptionCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 2,
-  },
-  cardSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSurface,
-  },
-  cardUnselected: {
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  cardDisabled: {
-    opacity: 0.5,
-  },
-  body: {
-    flex: 1,
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.md,
-  },
-  description: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-  },
-  check: {
-    width: 24,
-    height: 24,
-    borderRadius: radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkSelected: {
-    backgroundColor: colors.accent,
-  },
-  checkUnselected: {
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      borderWidth: 2,
+    },
+    cardSelected: {
+      borderColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentSurface,
+    },
+    cardUnselected: {
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    cardDisabled: {
+      opacity: 0.5,
+    },
+    body: {
+      flex: 1,
+    },
+    title: {
+      color: theme.colors.text,
+      fontSize: fontSize.md,
+    },
+    description: {
+      color: theme.colors.muted,
+      fontSize: fontSize.xs,
+      marginTop: 2,
+    },
+    check: {
+      width: 24,
+      height: 24,
+      borderRadius: radii.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkSelected: {
+      backgroundColor: theme.colors.accent,
+    },
+    checkUnselected: {
+      borderWidth: 2,
+      borderColor: theme.colors.border,
+    },
+  });

@@ -24,11 +24,7 @@ export const APPLE_IAP_REBUILD_MESSAGE =
 export const APPLE_PRODUCT_MISSING_MESSAGE =
   'This Apple membership is not on the App Store yet. Add the product in App Store Connect, then try again.';
 
-const MISSING_STORE_PRODUCT_CODES = new Set([
-  'sku-not-found',
-  'item-unavailable',
-  'query-product',
-]);
+const MISSING_STORE_PRODUCT_CODES = new Set(['sku-not-found', 'item-unavailable', 'query-product']);
 
 export function isAppleIapNativeAvailable(): boolean {
   return requireOptionalNativeModule('ExpoIap') != null;
@@ -89,10 +85,7 @@ export function latestRestorablePurchase<
   return restorable[0] ?? null;
 }
 
-export function messageFromPurchaseError(
-  error: unknown,
-  fallback: string,
-): string {
+export function messageFromPurchaseError(error: unknown, fallback: string): string {
   if (isMissingStoreProductError(error)) {
     return APPLE_PRODUCT_MISSING_MESSAGE;
   }

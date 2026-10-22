@@ -8,6 +8,8 @@ export type MeDto = {
   categories: HealthCategory[];
   pointsBalance: number;
   currentStreakDays: number;
+  streakLapsedYesterday: boolean;
+  bestStreakDays: number;
   timeZone: string;
   countryCode: string | null;
   displayName: string;
@@ -16,6 +18,7 @@ export type MeDto = {
   evidenceRemindersEnabled: boolean;
   promotionalMessagesEnabled: boolean;
   showOnLeaderboard: boolean;
+  groupNotificationsEnabled: boolean;
   inProgressNudgeEnabled: boolean;
   inProgressNudgeDelayMinutes: number;
   healthLinkStatus: HealthLinkStatus;

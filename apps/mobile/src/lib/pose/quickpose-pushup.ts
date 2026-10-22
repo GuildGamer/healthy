@@ -19,9 +19,7 @@ export type QuickPosePushupUpdate = {
   feedbacks: Record<string, string>;
 };
 
-export function pushupMeasureFromResults(
-  results: Record<string, number>,
-): number | null {
+export function pushupMeasureFromResults(results: Record<string, number>): number | null {
   const value = results[QUICKPOSE_PUSHUP_FEATURE];
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
@@ -30,24 +28,20 @@ export function pushupMeasureFromResults(
  * QuickPose form feedback for the exercise (not the framing box). When this
  * is set, the official sample skips counting so partial reps stay out.
  */
-export function pushupFormFeedback(
-  feedbacks: Record<string, string>,
-): string | null {
+export function pushupFormFeedback(feedbacks: Record<string, string>): string | null {
   const prompt = feedbacks[QUICKPOSE_PUSHUP_FEATURE];
   return typeof prompt === 'string' && prompt.length > 0 ? prompt : null;
 }
 
-export function insideMeasureFromResults(
-  results: Record<string, number>,
-): number | null {
+export function insideMeasureFromResults(results: Record<string, number>): number | null {
   const value = results[QUICKPOSE_INSIDE_FEATURE];
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-export function quickPoseFraming(input: {
-  measure: number | null;
-  insideMeasure: number | null;
-}): { tooClose: boolean; bodyInFrame: boolean } {
+export function quickPoseFraming(input: { measure: number | null; insideMeasure: number | null }): {
+  tooClose: boolean;
+  bodyInFrame: boolean;
+} {
   const personVisible = input.measure != null || input.insideMeasure != null;
   if (input.insideMeasure == null) {
     return { tooClose: false, bodyInFrame: input.measure != null };

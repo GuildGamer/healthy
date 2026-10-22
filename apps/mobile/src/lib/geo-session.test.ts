@@ -1,10 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import {
-  formatDistance,
-  formatDuration,
-  haversineMeters,
-  pathDistanceMeters,
-} from './geo-session';
+import { formatDistance, formatDuration, haversineMeters, pathDistanceMeters } from './geo-session';
 
 describe('geo-session', () => {
   it('measures a short city block in metres', () => {

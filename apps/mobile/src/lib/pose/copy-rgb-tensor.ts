@@ -1,8 +1,7 @@
 import { MOVENET_INPUT_SIZE } from './movenet';
 
 /** MoveNet Thunder expects 256×256 RGB uint8 (3 bytes per pixel). */
-export const MOVENET_RGB_BYTE_LENGTH =
-  MOVENET_INPUT_SIZE * MOVENET_INPUT_SIZE * 3;
+export const MOVENET_RGB_BYTE_LENGTH = MOVENET_INPUT_SIZE * MOVENET_INPUT_SIZE * 3;
 
 /**
  * Pack resize-plugin output for runOnJS.

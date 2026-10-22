@@ -15,9 +15,7 @@ type PracticeCandidate = {
  * A completed push-up occurrence keeps offering free sets, which are recorded
  * as activity but earn no points and no streak.
  */
-export function canPracticeAgain(
-  occurrence: PracticeCandidate | null | undefined,
-): boolean {
+export function canPracticeAgain(occurrence: PracticeCandidate | null | undefined): boolean {
   if (!occurrence || occurrence.status !== 'completed') {
     return false;
   }
@@ -25,9 +23,7 @@ export function canPracticeAgain(
   return occurrence.capture?.metric === 'pushups';
 }
 
-export function practiceRoute(
-  challengeId: string,
-): `/challenge/${string}/practice` {
+export function practiceRoute(challengeId: string): `/challenge/${string}/practice` {
   return `/challenge/${challengeId}/practice`;
 }
 

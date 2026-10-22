@@ -87,6 +87,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -116,6 +123,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -149,6 +159,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -156,6 +168,7 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
@@ -246,6 +259,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -275,6 +295,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -308,6 +331,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -315,6 +340,7 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
@@ -396,6 +422,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -425,6 +458,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -458,6 +494,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -465,6 +503,7 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
@@ -546,6 +585,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -575,6 +621,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -608,6 +657,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -615,6 +666,7 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
@@ -700,6 +752,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -729,6 +788,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -762,6 +824,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -769,6 +833,7 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
@@ -802,6 +867,9 @@
                     "type": "boolean"
                   },
                   "showOnLeaderboard": {
+                    "type": "boolean"
+                  },
+                  "groupNotificationsEnabled": {
                     "type": "boolean"
                   },
                   "inProgressNudgeEnabled": {
@@ -870,6 +938,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -899,6 +974,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -932,6 +1010,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -939,6 +1019,7 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
@@ -1022,6 +1103,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -1051,6 +1139,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -1084,6 +1175,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -1091,11 +1184,37 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/delete": {
+      "post": {
+        "operationId": "deleteAccount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "deleted"
                   ]
                 }
               }
@@ -1173,6 +1292,13 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "timeZone": {
                       "type": "string"
                     },
@@ -1202,6 +1328,9 @@
                       "type": "boolean"
                     },
                     "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
                       "type": "boolean"
                     },
                     "inProgressNudgeEnabled": {
@@ -1235,6 +1364,8 @@
                     "categories",
                     "pointsBalance",
                     "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
                     "timeZone",
                     "displayName",
                     "reminderEnabled",
@@ -1242,6 +1373,7 @@
                     "evidenceRemindersEnabled",
                     "promotionalMessagesEnabled",
                     "showOnLeaderboard",
+                    "groupNotificationsEnabled",
                     "inProgressNudgeEnabled",
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
@@ -1315,6 +1447,38 @@
                                       "today",
                                       "challenges",
                                       "challenge"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "userChallengeId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "points": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "streak": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "count": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "target": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "metric": {
+                                    "enum": [
+                                      "pushups",
+                                      "walk",
+                                      "other"
                                     ],
                                     "type": "string"
                                   }
@@ -1480,11 +1644,49 @@
                         }
                       ]
                     },
+                    "currentUserRankAtDayStart": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "currentUserPoints": {
                       "type": "integer"
                     },
                     "currentUserVisible": {
                       "type": "boolean"
+                    },
+                    "aroundCurrentUser": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "points": {
+                            "type": "integer"
+                          },
+                          "isCurrentUser": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "rank",
+                          "displayName",
+                          "points",
+                          "isCurrentUser"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -1493,8 +1695,10 @@
                     "periodStart",
                     "entries",
                     "currentUserRank",
+                    "currentUserRankAtDayStart",
                     "currentUserPoints",
-                    "currentUserVisible"
+                    "currentUserVisible",
+                    "aroundCurrentUser"
                   ]
                 }
               }
@@ -2162,6 +2366,161 @@
         }
       }
     },
+    "/challenges/starter": {
+      "get": {
+        "operationId": "listStarterChallenges",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "isUniversal": {
+                            "type": "boolean"
+                          },
+                          "completionKind": {
+                            "enum": [
+                              "check_in",
+                              "vitals_bp",
+                              "evidence_photo",
+                              "glucose",
+                              "peak_flow",
+                              "water",
+                              "carbs"
+                            ],
+                            "type": "string"
+                          },
+                          "capture": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "self_report",
+                                  "structured_log",
+                                  "photo",
+                                  "device_sample",
+                                  "device_session"
+                                ],
+                                "type": "string"
+                              },
+                              "metric": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "walk",
+                                      "run",
+                                      "cycle",
+                                      "steps",
+                                      "sleep",
+                                      "weight",
+                                      "heart_rate",
+                                      "pushups"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "target": {
+                                "type": "object",
+                                "properties": {
+                                  "durationMinutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "distanceMeters": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "count": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "durationMinutes",
+                                  "distanceMeters",
+                                  "count"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "metric",
+                              "target"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "challengeId",
+                          "title",
+                          "description",
+                          "category",
+                          "isUniversal",
+                          "completionKind",
+                          "capture"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "challenges"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/challenges/enrollment": {
       "put": {
         "operationId": "setChallengeEnrollment",
@@ -2191,6 +2550,11 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 200000
+                  },
+                  "targetDurationMinutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1440
                   }
                 },
                 "required": [
@@ -5922,6 +6286,39 @@
                               },
                               "isPending": {
                                 "type": "boolean"
+                              },
+                              "doneToday": {
+                                "type": "boolean"
+                              },
+                              "yourReactionsToday": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "cheer",
+                                        "nudge"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "sentAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "sentAt"
+                                  ]
+                                }
+                              },
+                              "movedDayKeys": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                }
                               }
                             },
                             "required": [
@@ -5938,6 +6335,34 @@
                         },
                         "canSaveCrew": {
                           "type": "boolean"
+                        },
+                        "dayStrip": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "dayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "minItems": 1
+                                },
+                                "todayKey": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                }
+                              },
+                              "required": [
+                                "dayKeys",
+                                "todayKey"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -6066,6 +6491,224 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "roster": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
+                          },
+                          "lastMove": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "displayName": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "image": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "movedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "displayName",
+                                  "image",
+                                  "movedAt"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "standings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
                           }
                         },
                         "required": [
@@ -6079,7 +6722,9 @@
                           "participantCount",
                           "yourScore",
                           "yourBestCount",
-                          "yourRank"
+                          "yourRank",
+                          "roster",
+                          "lastMove"
                         ]
                       }
                     },
@@ -6152,6 +6797,224 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "roster": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
+                          },
+                          "lastMove": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "displayName": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "image": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "movedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "displayName",
+                                  "image",
+                                  "movedAt"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "standings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
                           }
                         },
                         "required": [
@@ -6165,7 +7028,9 @@
                           "participantCount",
                           "yourScore",
                           "yourBestCount",
-                          "yourRank"
+                          "yourRank",
+                          "roster",
+                          "lastMove"
                         ]
                       }
                     }
@@ -6218,6 +7083,17 @@
                     "hostDisplayName": {
                       "type": "string",
                       "minLength": 1
+                    },
+                    "hostImage": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "metric": {
                       "enum": [
@@ -6579,6 +7455,39 @@
                           },
                           "isPending": {
                             "type": "boolean"
+                          },
+                          "doneToday": {
+                            "type": "boolean"
+                          },
+                          "yourReactionsToday": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "cheer",
+                                    "nudge"
+                                  ],
+                                  "type": "string"
+                                },
+                                "sentAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "sentAt"
+                              ]
+                            }
+                          },
+                          "movedDayKeys": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
                           }
                         },
                         "required": [
@@ -6595,6 +7504,34 @@
                     },
                     "canSaveCrew": {
                       "type": "boolean"
+                    },
+                    "dayStrip": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "dayKeys": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "minItems": 1
+                            },
+                            "todayKey": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "dayKeys",
+                            "todayKey"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -6767,6 +7704,39 @@
                           },
                           "isPending": {
                             "type": "boolean"
+                          },
+                          "doneToday": {
+                            "type": "boolean"
+                          },
+                          "yourReactionsToday": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "cheer",
+                                    "nudge"
+                                  ],
+                                  "type": "string"
+                                },
+                                "sentAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "sentAt"
+                              ]
+                            }
+                          },
+                          "movedDayKeys": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
                           }
                         },
                         "required": [
@@ -6783,6 +7753,34 @@
                     },
                     "canSaveCrew": {
                       "type": "boolean"
+                    },
+                    "dayStrip": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "dayKeys": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "minItems": 1
+                            },
+                            "todayKey": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "dayKeys",
+                            "todayKey"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -6981,6 +7979,39 @@
                           },
                           "isPending": {
                             "type": "boolean"
+                          },
+                          "doneToday": {
+                            "type": "boolean"
+                          },
+                          "yourReactionsToday": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "cheer",
+                                    "nudge"
+                                  ],
+                                  "type": "string"
+                                },
+                                "sentAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "sentAt"
+                              ]
+                            }
+                          },
+                          "movedDayKeys": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
                           }
                         },
                         "required": [
@@ -6997,6 +8028,34 @@
                     },
                     "canSaveCrew": {
                       "type": "boolean"
+                    },
+                    "dayStrip": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "dayKeys": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "minItems": 1
+                            },
+                            "todayKey": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "dayKeys",
+                            "todayKey"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -7175,6 +8234,39 @@
                           },
                           "isPending": {
                             "type": "boolean"
+                          },
+                          "doneToday": {
+                            "type": "boolean"
+                          },
+                          "yourReactionsToday": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "cheer",
+                                    "nudge"
+                                  ],
+                                  "type": "string"
+                                },
+                                "sentAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "sentAt"
+                              ]
+                            }
+                          },
+                          "movedDayKeys": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
                           }
                         },
                         "required": [
@@ -7191,6 +8283,34 @@
                     },
                     "canSaveCrew": {
                       "type": "boolean"
+                    },
+                    "dayStrip": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "dayKeys": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "minItems": 1
+                            },
+                            "todayKey": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "dayKeys",
+                            "todayKey"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -7210,6 +8330,928 @@
                     "winnerUserId",
                     "standings",
                     "canSaveCrew"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/react": {
+      "post": {
+        "operationId": "reactToMatchMember",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "matchId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "toUserId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "enum": [
+                      "cheer",
+                      "nudge"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "matchId",
+                  "toUserId",
+                  "kind"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "inviteUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "metric": {
+                      "enum": [
+                        "pushups",
+                        "walk"
+                      ],
+                      "type": "string"
+                    },
+                    "scoringMode": {
+                      "enum": [
+                        "best_single",
+                        "cumulative_total",
+                        "days_completed"
+                      ],
+                      "type": "string"
+                    },
+                    "dailyScope": {
+                      "enum": [
+                        "any_challenge",
+                        "chosen_activity"
+                      ],
+                      "type": "string"
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "completed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "participantCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "participantCap": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourScore": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "yourBestCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "winnerUserId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "standings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "image": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "score": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "bestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "isYou": {
+                            "type": "boolean"
+                          },
+                          "isHost": {
+                            "type": "boolean"
+                          },
+                          "isPending": {
+                            "type": "boolean"
+                          },
+                          "doneToday": {
+                            "type": "boolean"
+                          },
+                          "yourReactionsToday": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "cheer",
+                                    "nudge"
+                                  ],
+                                  "type": "string"
+                                },
+                                "sentAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "sentAt"
+                              ]
+                            }
+                          },
+                          "movedDayKeys": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "displayName",
+                          "rank",
+                          "score",
+                          "bestCount",
+                          "isYou",
+                          "isHost",
+                          "isPending"
+                        ]
+                      }
+                    },
+                    "canSaveCrew": {
+                      "type": "boolean"
+                    },
+                    "dayStrip": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "dayKeys": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "minItems": 1
+                            },
+                            "todayKey": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "dayKeys",
+                            "todayKey"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "token",
+                    "inviteUrl",
+                    "metric",
+                    "scoringMode",
+                    "dailyScope",
+                    "startsAt",
+                    "endsAt",
+                    "status",
+                    "participantCount",
+                    "participantCap",
+                    "yourScore",
+                    "yourBestCount",
+                    "winnerUserId",
+                    "standings",
+                    "canSaveCrew"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/leave": {
+      "post": {
+        "operationId": "leaveMatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "matchId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "matchId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "live": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "metric": {
+                            "enum": [
+                              "pushups",
+                              "walk"
+                            ],
+                            "type": "string"
+                          },
+                          "scoringMode": {
+                            "enum": [
+                              "best_single",
+                              "cumulative_total",
+                              "days_completed"
+                            ],
+                            "type": "string"
+                          },
+                          "dailyScope": {
+                            "enum": [
+                              "any_challenge",
+                              "chosen_activity"
+                            ],
+                            "type": "string"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "enum": [
+                              "open",
+                              "completed",
+                              "cancelled"
+                            ],
+                            "type": "string"
+                          },
+                          "participantCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourScore": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourBestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourRank": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "roster": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
+                          },
+                          "lastMove": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "displayName": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "image": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "movedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "displayName",
+                                  "image",
+                                  "movedAt"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "standings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "metric",
+                          "scoringMode",
+                          "dailyScope",
+                          "endsAt",
+                          "status",
+                          "participantCount",
+                          "yourScore",
+                          "yourBestCount",
+                          "yourRank",
+                          "roster",
+                          "lastMove"
+                        ]
+                      }
+                    },
+                    "ended": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "metric": {
+                            "enum": [
+                              "pushups",
+                              "walk"
+                            ],
+                            "type": "string"
+                          },
+                          "scoringMode": {
+                            "enum": [
+                              "best_single",
+                              "cumulative_total",
+                              "days_completed"
+                            ],
+                            "type": "string"
+                          },
+                          "dailyScope": {
+                            "enum": [
+                              "any_challenge",
+                              "chosen_activity"
+                            ],
+                            "type": "string"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "enum": [
+                              "open",
+                              "completed",
+                              "cancelled"
+                            ],
+                            "type": "string"
+                          },
+                          "participantCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourScore": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourBestCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "yourRank": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "roster": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
+                          },
+                          "lastMove": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "displayName": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "image": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "movedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "displayName",
+                                  "image",
+                                  "movedAt"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "standings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "displayName": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "image": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "bestCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "isYou": {
+                                  "type": "boolean"
+                                },
+                                "isHost": {
+                                  "type": "boolean"
+                                },
+                                "isPending": {
+                                  "type": "boolean"
+                                },
+                                "doneToday": {
+                                  "type": "boolean"
+                                },
+                                "yourReactionsToday": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "cheer",
+                                          "nudge"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "sentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "sentAt"
+                                    ]
+                                  }
+                                },
+                                "movedDayKeys": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "displayName",
+                                "rank",
+                                "score",
+                                "bestCount",
+                                "isYou",
+                                "isHost",
+                                "isPending"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "metric",
+                          "scoringMode",
+                          "dailyScope",
+                          "endsAt",
+                          "status",
+                          "participantCount",
+                          "yourScore",
+                          "yourBestCount",
+                          "yourRank",
+                          "roster",
+                          "lastMove"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "live",
+                    "ended"
                   ]
                 }
               }
@@ -7683,10 +9725,18 @@
                 "type": "object",
                 "properties": {
                   "metric": {
-                    "const": "pushups"
+                    "enum": [
+                      "pushups",
+                      "walk"
+                    ],
+                    "type": "string"
                   },
                   "source": {
-                    "const": "in_app_pose"
+                    "enum": [
+                      "in_app_pose",
+                      "in_app_gps"
+                    ],
+                    "type": "string"
                   },
                   "count": {
                     "type": "integer",
@@ -7697,6 +9747,11 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 86400
+                  },
+                  "distanceMeters": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200000
                   },
                   "startedAt": {
                     "type": "string",
@@ -7715,7 +9770,6 @@
                 "required": [
                   "metric",
                   "source",
-                  "count",
                   "durationSeconds",
                   "startedAt",
                   "endedAt",
@@ -7848,6 +9902,801 @@
                   "required": [
                     "todayCount",
                     "todaySessions"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/today/details": {
+      "get": {
+        "operationId": "getTodayDetails",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dayKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "weekStartKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "occurrences": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userChallengeId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "lastCompletedDayKey": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "bestMeasuredInPeriod": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "activeDayKeys": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          },
+                          "completedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "userChallengeId",
+                          "lastCompletedDayKey",
+                          "bestMeasuredInPeriod",
+                          "activeDayKeys",
+                          "completedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "dayKey",
+                    "weekStartKey",
+                    "occurrences"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/progress/days": {
+      "get": {
+        "operationId": "listProgressDays",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dayKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "weekStartKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "joinedDayKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "days": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "dayKey": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "dailyChallenges": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "challengeId": {
+                                  "type": "string"
+                                },
+                                "category": {
+                                  "enum": [
+                                    "hypertension",
+                                    "diabetes",
+                                    "asthma",
+                                    "general"
+                                  ],
+                                  "type": "string"
+                                },
+                                "completionKind": {
+                                  "enum": [
+                                    "check_in",
+                                    "vitals_bp",
+                                    "evidence_photo",
+                                    "glucose",
+                                    "peak_flow",
+                                    "water",
+                                    "carbs"
+                                  ],
+                                  "type": "string"
+                                },
+                                "capture": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "self_report",
+                                        "structured_log",
+                                        "photo",
+                                        "device_sample",
+                                        "device_session"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "metric": {
+                                      "anyOf": [
+                                        {
+                                          "enum": [
+                                            "walk",
+                                            "run",
+                                            "cycle",
+                                            "steps",
+                                            "sleep",
+                                            "weight",
+                                            "heart_rate",
+                                            "pushups"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "object",
+                                      "properties": {
+                                        "durationMinutes": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer",
+                                              "minimum": 0
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "distanceMeters": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer",
+                                              "minimum": 0
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "count": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer",
+                                              "minimum": 0
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "durationMinutes",
+                                        "distanceMeters",
+                                        "count"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "metric",
+                                    "target"
+                                  ]
+                                },
+                                "isDone": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "challengeId",
+                                "category",
+                                "completionKind",
+                                "capture",
+                                "isDone"
+                              ]
+                            }
+                          },
+                          "pointsTotal": {
+                            "type": "integer"
+                          },
+                          "pointsLost": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "isShownUp": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "dayKey",
+                          "dailyChallenges",
+                          "pointsTotal",
+                          "pointsLost",
+                          "isShownUp"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "dayKey",
+                    "weekStartKey",
+                    "joinedDayKey",
+                    "days"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/progress/day": {
+      "get": {
+        "operationId": "getProgressDay",
+        "parameters": [
+          {
+            "name": "dayKey",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dayKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "pointsEarned": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "pointsLost": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "dailyDoneCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "dailyDueCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "done": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "completionKind": {
+                            "enum": [
+                              "check_in",
+                              "vitals_bp",
+                              "evidence_photo",
+                              "glucose",
+                              "peak_flow",
+                              "water",
+                              "carbs"
+                            ],
+                            "type": "string"
+                          },
+                          "capture": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "self_report",
+                                  "structured_log",
+                                  "photo",
+                                  "device_sample",
+                                  "device_session"
+                                ],
+                                "type": "string"
+                              },
+                              "metric": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "walk",
+                                      "run",
+                                      "cycle",
+                                      "steps",
+                                      "sleep",
+                                      "weight",
+                                      "heart_rate",
+                                      "pushups"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "target": {
+                                "type": "object",
+                                "properties": {
+                                  "durationMinutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "distanceMeters": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "count": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "durationMinutes",
+                                  "distanceMeters",
+                                  "count"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "metric",
+                              "target"
+                            ]
+                          },
+                          "userChallengeId": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "completedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "points": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "share": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "reps"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "minutes"
+                                      },
+                                      "minutes": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "minutes"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "glasses"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "gym"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind"
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "challengeId",
+                          "category",
+                          "completionKind",
+                          "capture",
+                          "userChallengeId",
+                          "title",
+                          "completedAt",
+                          "points",
+                          "share"
+                        ]
+                      }
+                    },
+                    "missedPhotoChecks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "challengeId": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "enum": [
+                              "hypertension",
+                              "diabetes",
+                              "asthma",
+                              "general"
+                            ],
+                            "type": "string"
+                          },
+                          "completionKind": {
+                            "enum": [
+                              "check_in",
+                              "vitals_bp",
+                              "evidence_photo",
+                              "glucose",
+                              "peak_flow",
+                              "water",
+                              "carbs"
+                            ],
+                            "type": "string"
+                          },
+                          "capture": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "self_report",
+                                  "structured_log",
+                                  "photo",
+                                  "device_sample",
+                                  "device_session"
+                                ],
+                                "type": "string"
+                              },
+                              "metric": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "walk",
+                                      "run",
+                                      "cycle",
+                                      "steps",
+                                      "sleep",
+                                      "weight",
+                                      "heart_rate",
+                                      "pushups"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "target": {
+                                "type": "object",
+                                "properties": {
+                                  "durationMinutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "distanceMeters": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "count": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "durationMinutes",
+                                  "distanceMeters",
+                                  "count"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "metric",
+                              "target"
+                            ]
+                          },
+                          "userChallengeId": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "resolution": {
+                            "enum": [
+                              "expired",
+                              "skipped"
+                            ],
+                            "type": "string"
+                          },
+                          "windowSeconds": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "pointsLost": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "challengeId",
+                          "category",
+                          "completionKind",
+                          "capture",
+                          "userChallengeId",
+                          "title",
+                          "resolution",
+                          "windowSeconds",
+                          "pointsLost",
+                          "at"
+                        ]
+                      }
+                    },
+                    "practice": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "metric": {
+                            "enum": [
+                              "walk",
+                              "run",
+                              "cycle",
+                              "steps",
+                              "sleep",
+                              "weight",
+                              "heart_rate",
+                              "pushups"
+                            ],
+                            "type": "string"
+                          },
+                          "count": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "durationSeconds": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "recordedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "metric",
+                          "count",
+                          "durationSeconds",
+                          "recordedAt"
+                        ]
+                      }
+                    },
+                    "adjustments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "points": {
+                            "type": "integer"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "reason",
+                          "points",
+                          "at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "dayKey",
+                    "pointsEarned",
+                    "pointsLost",
+                    "dailyDoneCount",
+                    "dailyDueCount",
+                    "done",
+                    "missedPhotoChecks",
+                    "practice",
+                    "adjustments"
                   ]
                 }
               }

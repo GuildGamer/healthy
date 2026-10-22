@@ -1,262 +1,159 @@
-import { colors, radii, spacing } from '@product/brand';
-import { useEffect } from 'react';
-import { Image, StyleSheet } from 'react-native';
-import Animated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
-import { displayFontFamily } from '@/lib/fonts';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { Glyph } from '@/components/icons';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import appIcon from '../../../assets/icon.png';
 import {
-  SPLASH_ORBIT_RADIUS,
-  splashOrbitMarks,
-  type SplashOrbitMark,
-} from './constants/splash-orbit';
-import { TintedMark } from './TintedMark';
+  SPLASH_CARD_HEIGHT,
+  SPLASH_CARD_WIDTH,
+  SPLASH_SWAY_DEG,
+  type SplashFanCard,
+} from './constants/splash-intro';
+import { deckCardTone } from './deck-card-tone';
+import { useSplashIntro } from './use-splash-intro';
 
-const STAGE_SIZE = 320;
-const DISC_SIZE = 190;
 const ICON_SIZE = 104;
-const WORDMARK_SIZE = 32;
-const UNDERLINE_WIDTH = 72;
-
-const DISC_MS = 620;
-const MARK_DELAY_MS = 300;
-const MARK_STAGGER_MS = 90;
-const MARK_MS = 620;
-const WORDMARK_DELAY_MS = 760;
-const WORDMARK_MS = 520;
-/** Starts once the constellation has settled, so nothing drifts mid-flight. */
-const AMBIENT_DELAY_MS = 1100;
-const AMBIENT_MS = 2600;
+const FAN_RAIL_HEIGHT = 4;
 
 interface SplashScreenProps {
-  /** Launch only. Session loading gates stay still so the mark does not replay. */
-  animate?: boolean;
+  /** True once the native splash has been told to hide; the intro clock starts here. */
+  hasNativeSplashHidden: boolean;
+  /** True once the screen underneath can take over: the overlay leaves at once. */
+  isReady: boolean;
+  /** After the exit fade, so the overlay can be unmounted. */
+  onExited: () => void;
 }
 
 /**
- * Launch screen built from the onboarding carousel's visual language: the app
- * icon on a tinted disc, ringed by the same category marks the first-run slides
- * open with. On launch the marks fly out of the icon and settle onto the ring.
- *
- * The icon itself never animates. It is the one thing the native splash already
- * has on screen, at this size and this position, so holding it still turns the
- * handoff into a continuation rather than a cut.
+ * One overlay above the whole app for launch. The icon sits at dead centre,
+ * where the native splash leaves it, and Today's three cards are dealt out
+ * from behind it like a hand while launch work runs.
  */
-export function SplashScreen({ animate = false }: SplashScreenProps) {
-  const disc = useSharedValue(animate ? 0 : 1);
-  const wordmark = useSharedValue(animate ? 0 : 1);
-  const ambient = useSharedValue(0);
-
-  useEffect(() => {
-    if (!animate) {
-      return;
-    }
-
-    disc.value = withTiming(1, {
-      duration: DISC_MS,
-      easing: Easing.out(Easing.cubic),
-    });
-
-    wordmark.value = withDelay(
-      WORDMARK_DELAY_MS,
-      withTiming(1, { duration: WORDMARK_MS, easing: Easing.out(Easing.cubic) }),
-    );
-
-    ambient.value = withDelay(
-      AMBIENT_DELAY_MS,
-      withRepeat(
-        withTiming(1, { duration: AMBIENT_MS, easing: Easing.inOut(Easing.quad) }),
-        -1,
-        true,
-      ),
-    );
-  }, [ambient, animate, disc, wordmark]);
-
-  const discStyle = useAnimatedStyle(() => ({
-    opacity: disc.value,
-    transform: [
-      { scale: interpolate(disc.value, [0, 1], [0.72, 1]) },
-      { scale: interpolate(ambient.value, [0, 1], [1, 1.06]) },
-    ],
-  }));
-
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(disc.value, [0.3, 1], [0, 1]),
-    transform: [{ scale: interpolate(disc.value, [0, 1], [0.8, 1]) }],
-  }));
-
-  // A slow turn of the whole constellation, so the settled ring keeps breathing.
-  const orbitStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${interpolate(ambient.value, [0, 1], [0, -5])}deg` }],
-  }));
-
-  const wordmarkStyle = useAnimatedStyle(() => ({
-    opacity: wordmark.value,
-    transform: [{ translateY: interpolate(wordmark.value, [0, 1], [14, 0]) }],
-  }));
-
-  const underlineStyle = useAnimatedStyle(() => ({
-    opacity: wordmark.value,
-    transform: [{ scaleX: wordmark.value }],
-  }));
+export function SplashScreen({ hasNativeSplashHidden, isReady, onExited }: SplashScreenProps) {
+  const styles = useThemedStyles(createStyles);
+  const { motion, isExiting } = useSplashIntro({ hasNativeSplashHidden, isReady, onExited });
+  const swayRotate = motion.sway.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', `-${SPLASH_SWAY_DEG}deg`],
+  });
 
   return (
-    <Animated.View style={styles.container} testID="splash-screen">
-      <Animated.View style={styles.stage}>
-        <Animated.View pointerEvents="none" style={[styles.layer, discStyle]}>
-          <Animated.View style={styles.disc} />
-        </Animated.View>
-
-        <Animated.View pointerEvents="none" style={[styles.layer, ringStyle]}>
-          <Animated.View style={styles.ring} />
-        </Animated.View>
-
-        <Animated.View pointerEvents="none" style={[styles.layer, orbitStyle]}>
-          {splashOrbitMarks.map((mark, index) => (
-            <SplashOrbitTile
-              key={mark.id}
-              animate={animate}
-              index={index}
-              mark={mark}
-            />
+    <Animated.View
+      pointerEvents={isExiting ? 'none' : 'auto'}
+      style={[styles.overlay, { opacity: motion.layerOpacity }]}
+      testID="splash-screen"
+    >
+      <View style={styles.stage}>
+        <Animated.View
+          style={[
+            styles.fan,
+            { opacity: motion.cardsOpacity, transform: [{ rotate: swayRotate }] },
+          ]}
+        >
+          {motion.fan.map(({ card, progress }) => (
+            <FanCard card={card} key={card.kind} progress={progress} />
           ))}
         </Animated.View>
-
         <Image
           accessibilityLabel="Healthy"
           source={appIcon}
           style={styles.icon}
           testID="splash-icon"
         />
-      </Animated.View>
-
-      <Animated.View style={styles.caption}>
-        <Animated.Text
-          allowFontScaling={false}
-          style={[styles.wordmark, wordmarkStyle]}
-        >
+      </View>
+      <View style={styles.caption}>
+        <Text allowFontScaling={false} style={styles.wordmark}>
           Healthy
-        </Animated.Text>
-        <Animated.View style={[styles.underline, underlineStyle]} />
-      </Animated.View>
+        </Text>
+      </View>
     </Animated.View>
   );
 }
 
-/** One orbiting mark, flying out of the app icon and settling onto the ring. */
-function SplashOrbitTile({
-  animate,
-  index,
-  mark,
-}: {
-  animate: boolean;
-  index: number;
-  mark: SplashOrbitMark;
-}) {
-  const settle = useSharedValue(animate ? 0 : 1);
+function FanCard({ card, progress }: { card: SplashFanCard; progress: Animated.Value }) {
+  const theme = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const { deckCards } = theme;
 
-  useEffect(() => {
-    if (!animate) {
-      return;
-    }
-
-    settle.value = withDelay(
-      MARK_DELAY_MS + index * MARK_STAGGER_MS,
-      withTiming(1, { duration: MARK_MS, easing: Easing.out(Easing.back(1.2)) }),
-    );
-  }, [animate, index, settle]);
-
-  const tileStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(settle.value, [0, 0.35, 1], [0, 1, 1]),
-    transform: [
-      { translateX: interpolate(settle.value, [0, 1], [0, mark.offsetX]) },
-      { translateY: interpolate(settle.value, [0, 1], [0, mark.offsetY]) },
-      { rotate: `${interpolate(settle.value, [0, 1], [0, mark.tilt])}deg` },
-      { scale: interpolate(settle.value, [0, 1], [0.4, 1]) },
-    ],
-  }));
+  const transform = [
+    { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, card.translateX] }) },
+    { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, card.translateY] }) },
+    {
+      rotate: progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', `${card.rotateDeg}deg`],
+      }),
+    },
+  ];
+  const opacity = progress.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 1, 1] });
 
   return (
-    <Animated.View style={[styles.layer, tileStyle]}>
-      <TintedMark
-        icon={mark.icon}
-        iconColor={mark.iconColor}
-        testID={`splash-orbit-${mark.id}`}
-        tint={mark.tint}
-      />
+    <Animated.View
+      style={[styles.fanCard, { backgroundColor: deckCards[card.kind], opacity, transform }]}
+      testID={`splash-fan-${card.kind}`}
+    >
+      {deckCards.hasToneRail ? (
+        <View style={[styles.fanRail, { backgroundColor: deckCardTone(theme, card.kind) }]} />
+      ) : null}
+      <Glyph color={deckCards.subtext} name={card.glyph} size={14} />
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignSelf: 'stretch',
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  stage: {
-    width: STAGE_SIZE,
-    height: STAGE_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  layer: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disc: {
-    width: DISC_SIZE,
-    height: DISC_SIZE,
-    borderRadius: radii.full,
-    backgroundColor: colors.accentContainer,
-  },
-  ring: {
-    width: SPLASH_ORBIT_RADIUS * 2,
-    height: SPLASH_ORBIT_RADIUS * 2,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: `${colors.accent}3D`,
-  },
-  icon: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: radii.xl,
-  },
-  /**
-   * Hung off the vertical midpoint rather than stacked under the stage, so the
-   * icon stays at dead centre — exactly where the native splash leaves it.
-   */
-  caption: {
-    position: 'absolute',
-    top: '50%',
-    left: 0,
-    right: 0,
-    marginTop: STAGE_SIZE / 2 + spacing.md,
-    alignItems: 'center',
-  },
-  wordmark: {
-    alignSelf: 'stretch',
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: WORDMARK_SIZE,
-    textAlign: 'center',
-  },
-  underline: {
-    width: UNDERLINE_WIDTH,
-    height: 4,
-    borderRadius: radii.full,
-    backgroundColor: colors.accent,
-    marginTop: spacing.sm,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.background,
+    },
+    stage: {
+      width: ICON_SIZE,
+      height: ICON_SIZE,
+    },
+    fan: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    /** Starts tucked wholly behind the icon and pivots from its bottom edge. */
+    fanCard: {
+      position: 'absolute',
+      width: SPLASH_CARD_WIDTH,
+      height: SPLASH_CARD_HEIGHT,
+      borderRadius: radii.md,
+      padding: spacing.sm,
+      overflow: 'hidden',
+      transformOrigin: 'bottom',
+      borderWidth: theme.deckCards.hasToneRail ? StyleSheet.hairlineWidth : 0,
+      borderColor: theme.colors.border,
+    },
+    fanRail: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: FAN_RAIL_HEIGHT,
+    },
+    icon: {
+      width: ICON_SIZE,
+      height: ICON_SIZE,
+      borderRadius: radii.xl,
+    },
+    /** Hung off the midpoint so the icon itself never moves. */
+    caption: {
+      position: 'absolute',
+      top: '50%',
+      left: 0,
+      right: 0,
+      marginTop: ICON_SIZE / 2 + spacing.md,
+      alignItems: 'center',
+    },
+    wordmark: {
+      color: theme.colors.text,
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: -0.4,
+    },
+  });

@@ -5,20 +5,44 @@ describe('hrefForPushData', () => {
     expect(hrefForPushData({ destination: 'today' })).toBe('/(tabs)');
   });
 
-  it('opens the challenge when the payload names one', () => {
-    expect(
-      hrefForPushData({ destination: 'challenge', challengeId: 'c1' }),
-    ).toBe('/challenge/c1');
+  it('opens Today on the card of the challenge a reminder names', () => {
+    const onCard = { pathname: '/(tabs)', params: { focus: 'c1' } };
+    expect(hrefForPushData({ destination: 'challenge', challengeId: 'c1' })).toEqual(onCard);
+    expect(hrefForPushData({ challengeId: 'c1' })).toEqual(onCard);
+    expect(hrefForPushData({ destination: 'today', challengeId: 'c1' })).toEqual(onCard);
   });
 
   it('opens Challenges from an admin broadcast', () => {
-    expect(hrefForPushData({ destination: 'challenges' })).toBe(
-      '/(tabs)/challenges',
-    );
+    expect(hrefForPushData({ destination: 'challenges' })).toBe('/(tabs)/challenges');
   });
 
   it('opens the match board when the payload names the match', () => {
     expect(hrefForPushData({ matchId: 'm1' })).toBe('/matches/m1');
+  });
+
+  it('opens the completion screen from a success payload', () => {
+    expect(
+      hrefForPushData({
+        userChallengeId: 'uc1',
+        title: '20 push-ups',
+        points: '20',
+        streak: '3',
+        count: '24',
+        target: '20',
+        metric: 'pushups',
+      }),
+    ).toEqual({
+      pathname: '/challenge/success',
+      params: {
+        userChallengeId: 'uc1',
+        title: '20 push-ups',
+        points: '20',
+        streak: '3',
+        count: '24',
+        target: '20',
+        metric: 'pushups',
+      },
+    });
   });
 
   it('stays on home when the payload is empty', () => {
@@ -32,12 +56,11 @@ describe('isNavigablePushData', () => {
     expect(isNavigablePushData({})).toBe(false);
   });
 
-  it('is true for match, challenge, and today destinations', () => {
+  it('is true for match, challenge, today, and completion destinations', () => {
     expect(isNavigablePushData({ matchId: 'm1' })).toBe(true);
-    expect(
-      isNavigablePushData({ destination: 'challenge', challengeId: 'c1' }),
-    ).toBe(true);
+    expect(isNavigablePushData({ destination: 'challenge', challengeId: 'c1' })).toBe(true);
     expect(isNavigablePushData({ destination: 'today' })).toBe(true);
     expect(isNavigablePushData({ destination: 'challenges' })).toBe(true);
+    expect(isNavigablePushData({ userChallengeId: 'uc1' })).toBe(true);
   });
 });

@@ -9,13 +9,13 @@ import { PricingScreen } from './PricingScreen';
 
 jest.mock('@product/contract', () => ({
   formatMembershipAmount: (currency: string, amountMinor: number) =>
-    currency === 'NGN'
-      ? `₦${Math.trunc(amountMinor / 100)}`
-      : `$${(amountMinor / 100).toFixed(2)}`,
+    currency === 'NGN' ? `₦${Math.trunc(amountMinor / 100)}` : `$${(amountMinor / 100).toFixed(2)}`,
 }));
 
 jest.mock('@/lib/apple-membership', () => {
-  const actual = jest.requireActual('@/lib/apple-membership') as typeof import('@/lib/apple-membership');
+  const actual = jest.requireActual(
+    '@/lib/apple-membership',
+  ) as typeof import('@/lib/apple-membership');
   return {
     ...actual,
     isAppleIapNativeAvailable: jest.fn(() => true),
@@ -35,9 +35,7 @@ const offer = {
   marketKey: 'NG',
   currency: 'NGN' as const,
   amountMinor: 100_000,
-  paymentMethods: [
-    { id: 'card' as const, label: 'Card', hint: 'Visa or Mastercard' },
-  ],
+  paymentMethods: [{ id: 'card' as const, label: 'Card', hint: 'Visa or Mastercard' }],
   hasMembership: false,
   currentSubscription: null,
   appleProductId: 'com.healthyapp.app.premium.month',
@@ -92,7 +90,7 @@ describe('PricingScreen Apple IAP', () => {
     renderPricing('ios');
 
     expect(await screen.findByTestId('pricing-pay')).toBeOnTheScreen();
-    expect(screen.getByText('Subscribe')).toBeOnTheScreen();
+    expect(screen.getByText('Subscribe for ₦1000 a month')).toBeOnTheScreen();
     expect(screen.getByTestId('pricing-restore')).toBeOnTheScreen();
     expect(screen.queryByTestId('pricing-method-card')).toBeNull();
   });

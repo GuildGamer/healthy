@@ -1,8 +1,4 @@
-import {
-  createApiClient,
-  createApiQueryUtils,
-  type ApiClient,
-} from '@product/client';
+import { createApiClient, createApiQueryUtils, type ApiClient } from '@product/client';
 import { authClient } from './auth-client';
 import { API_BASE_URL } from './config';
 

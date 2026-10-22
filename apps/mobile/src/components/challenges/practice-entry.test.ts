@@ -1,25 +1,15 @@
-import {
-  canPracticeAgain,
-  practiceRoute,
-  practiceTallyCopy,
-} from './practice-entry';
+import { canPracticeAgain, practiceRoute, practiceTallyCopy } from './practice-entry';
 
 const pushups = { kind: 'device_session', metric: 'pushups' } as const;
 
 describe('canPracticeAgain', () => {
   it('opens once the daily push-up challenge is finished', () => {
-    expect(canPracticeAgain({ status: 'completed', capture: pushups })).toBe(
-      true,
-    );
+    expect(canPracticeAgain({ status: 'completed', capture: pushups })).toBe(true);
   });
 
   it('stays shut while the daily challenge is still winnable', () => {
-    expect(canPracticeAgain({ status: 'pending', capture: pushups })).toBe(
-      false,
-    );
-    expect(canPracticeAgain({ status: 'in_progress', capture: pushups })).toBe(
-      false,
-    );
+    expect(canPracticeAgain({ status: 'pending', capture: pushups })).toBe(false);
+    expect(canPracticeAgain({ status: 'in_progress', capture: pushups })).toBe(false);
   });
 
   it('is push-ups only, not every finished challenge', () => {

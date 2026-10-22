@@ -1,0 +1,18 @@
+export const SUCCESS_COPY = {
+  dayFinished: 'That’s the day.',
+  complete: 'Challenge complete',
+  extraSet: 'Extra set',
+  sharePrompt: 'Post it to your story or send it to a friend.',
+  share: 'Share',
+  shareResult: 'Share result',
+  shareDialog: 'Share your Healthy win',
+  prepareFailed: 'Could not prepare that image. Try again.',
+  sharingUnavailable: 'Sharing is not available on this device.',
+  shareFailed: 'Could not share that image. Try again.',
+  notNow: 'Not now',
+  backToGroup: 'Back to group',
+  seeNext: 'See what’s next',
+  unlockMembership: 'Unlock membership',
+  photoCheckMissed: 'Photo check missed',
+  penaltyLine: 'points were deducted. Tomorrow is a fresh start.',
+} as const;

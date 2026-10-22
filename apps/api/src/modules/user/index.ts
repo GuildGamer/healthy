@@ -1,3 +1,4 @@
+import { AccountModule } from './account/index.js';
 import { AnalyticsModule } from './analytics/index.js';
 import { ChallengesModule } from './challenges/index.js';
 import { CrewsModule } from './crews/index.js';
@@ -9,17 +10,22 @@ import { MeModule } from './me/index.js';
 import { MembershipModule } from './membership/index.js';
 import { NotificationsModule } from './notifications/index.js';
 import { PracticeModule } from './practice/index.js';
+import { ProgressModule } from './progress/index.js';
 import { PushDevicesModule } from './push/index.js';
 import { RemindersModule } from './reminders/index.js';
 import { TipsModule } from './tips/index.js';
+import { TodayModule } from './today/index.js';
 import { WaitlistModule } from './waitlist/index.js';
 
 export default [
   RemindersModule,
   EnrollmentsModule,
   MeModule,
+  AccountModule,
   MembershipModule,
   ChallengesModule,
+  TodayModule,
+  ProgressModule,
   MatchesModule,
   CrewsModule,
   PracticeModule,

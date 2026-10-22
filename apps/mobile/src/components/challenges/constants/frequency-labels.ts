@@ -1,10 +1,6 @@
 import type { ChallengeFrequency } from '@product/client';
 
-export const frequencyOptions: ChallengeFrequency[] = [
-  'daily',
-  'weekly',
-  'monthly',
-];
+export const frequencyOptions: ChallengeFrequency[] = ['daily', 'weekly', 'monthly'];
 
 export const frequencyLabel: Record<ChallengeFrequency, string> = {
   daily: 'Daily',

@@ -1,7 +1,4 @@
-import {
-  ArchivoBlack_400Regular,
-  useFonts,
-} from '@expo-google-fonts/archivo-black';
+import { ArchivoBlack_400Regular, useFonts } from '@expo-google-fonts/archivo-black';
 import { Platform } from 'react-native';
 
 /**

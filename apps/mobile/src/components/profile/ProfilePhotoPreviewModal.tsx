@@ -1,13 +1,11 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, spacing } from '@product/brand';
-import {
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { spacing } from '@product/brand';
+import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
+
+/** A photo is viewed on black in either scheme; the chrome uses camera tokens. */
+const VIEWER_BACKDROP = 'rgba(0, 0, 0, 0.92)';
 
 export function ProfilePhotoPreviewModal({
   imageUri,
@@ -19,14 +17,11 @@ export function ProfilePhotoPreviewModal({
   visible: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { camera } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onClose}
-      transparent
-      visible={visible}
-    >
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
       <Pressable
         accessibilityLabel="Close photo preview"
         accessibilityRole="button"
@@ -46,7 +41,7 @@ export function ProfilePhotoPreviewModal({
             style={styles.closeButton}
             testID="profile-photo-preview-close"
           >
-            <Feather color={colors.text} name="x" size={22} />
+            <Feather color={camera.text} name="x" size={22} />
           </Pressable>
         </View>
         <View pointerEvents="none" style={styles.imageHost}>
@@ -63,31 +58,32 @@ export function ProfilePhotoPreviewModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.92)',
-  },
-  closeRow: {
-    alignItems: 'flex-end',
-    paddingHorizontal: spacing.md,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-  },
-  imageHost: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: VIEWER_BACKDROP,
+    },
+    closeRow: {
+      alignItems: 'flex-end',
+      paddingHorizontal: spacing.md,
+    },
+    closeButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.camera.glass,
+    },
+    imageHost: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.xl,
+    },
+    image: {
+      width: '100%',
+      height: '100%',
+    },
+  });

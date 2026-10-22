@@ -18,9 +18,7 @@ jest.mock('expo-modules-core', () => ({
   requireOptionalNativeModule: jest.fn(() => null),
 }));
 
-const requireOptionalNativeModuleMock = jest.mocked(
-  requireOptionalNativeModule,
-);
+const requireOptionalNativeModuleMock = jest.mocked(requireOptionalNativeModule);
 
 describe('apple membership helpers', () => {
   it('treats iOS as the Apple IAP platform', () => {
@@ -53,9 +51,7 @@ describe('apple membership helpers', () => {
   });
 
   it('reads the StoreKit JWS from the unified purchase token', () => {
-    expect(
-      signedTransactionInfoFromPurchase({ purchaseToken: ' eyJhbGciOi ' }),
-    ).toBe('eyJhbGciOi');
+    expect(signedTransactionInfoFromPurchase({ purchaseToken: ' eyJhbGciOi ' })).toBe('eyJhbGciOi');
     expect(signedTransactionInfoFromPurchase({ purchaseToken: null })).toBeNull();
   });
 
@@ -72,9 +68,9 @@ describe('apple membership helpers', () => {
         'fallback',
       ),
     ).toBe(APPLE_PRODUCT_MISSING_MESSAGE);
-    expect(
-      storeListsProduct([{ id: APPLE_MONTHLY_PRODUCT_ID }], APPLE_MONTHLY_PRODUCT_ID),
-    ).toBe(true);
+    expect(storeListsProduct([{ id: APPLE_MONTHLY_PRODUCT_ID }], APPLE_MONTHLY_PRODUCT_ID)).toBe(
+      true,
+    );
     expect(storeListsProduct([], APPLE_MONTHLY_PRODUCT_ID)).toBe(false);
   });
 

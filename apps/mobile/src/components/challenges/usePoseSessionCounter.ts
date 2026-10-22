@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  PushupCounter,
-  type PushupCounterSnapshot,
-} from '@/lib/pose/pushup-counter';
+import { PushupCounter, type PushupCounterSnapshot } from '@/lib/pose/pushup-counter';
 import {
   insideMeasureFromResults,
   pushupFormFeedback,
@@ -71,11 +68,7 @@ export function usePoseSessionCounter() {
     const framing = quickPoseFraming({ measure, insideMeasure });
     const finishingRep = liveCounterRef.current.state.isEntered;
 
-    if (
-      measure != null &&
-      formFeedback == null &&
-      (!framing.tooClose || finishingRep)
-    ) {
+    if (measure != null && formFeedback == null && (!framing.tooClose || finishingRep)) {
       liveCounterRef.current.count(measure);
     }
 
@@ -130,4 +123,4 @@ export function usePoseSessionCounter() {
     reset,
     ingestQuickPose,
   };
-};
+}

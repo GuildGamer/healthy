@@ -13,7 +13,7 @@ export function useUpdateProfilePhoto() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const save = useMutation({
-    mutationFn: async (image: string) => {
+    mutationFn: async (image: string | null) => {
       const { error } = await updateUser({ image });
       if (error) {
         throw new Error(PHOTO_SAVE_FAILED_MESSAGE);
@@ -21,13 +21,10 @@ export function useUpdateProfilePhoto() {
     },
     onSuccess: async () => {
       setErrorMessage(null);
-      setSheetOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['me'] });
     },
     onError: (error: unknown) => {
-      setErrorMessage(
-        error instanceof Error ? error.message : PHOTO_SAVE_FAILED_MESSAGE,
-      );
+      setErrorMessage(error instanceof Error ? error.message : PHOTO_SAVE_FAILED_MESSAGE);
     },
   });
 
@@ -38,6 +35,7 @@ export function useUpdateProfilePhoto() {
       return;
     }
 
+    setSheetOpen(false);
     if (picked.status === 'failed') {
       setErrorMessage(picked.message);
       return;
@@ -54,6 +52,11 @@ export function useUpdateProfilePhoto() {
     },
     closeSheet: () => setSheetOpen(false),
     pickFrom,
+    removePhoto: () => {
+      setErrorMessage(null);
+      setSheetOpen(false);
+      save.mutate(null);
+    },
     isSaving: save.isPending,
     errorMessage,
   };

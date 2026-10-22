@@ -406,10 +406,11 @@ moving groups next to challenges is exactly when the mismatch becomes visible.
 
 ## Growth loop
 
-Invites are `https://gethealthyapp.com/match/<token>`. The path deliberately
-matches the app's `app/match/[token]` route, so the universal link resolves
-with no extra linking config, and the same URL is a real web page for anyone
-without the app.
+Invites are `https://www.gethealthyapp.com/match/<token>`. The apex host
+308-redirects to www, and a redirected URL cannot be a universal or app link,
+so the shared link uses www. The path deliberately matches the app's
+`app/match/[token]` route, so the universal link resolves with no extra
+linking config, and the same URL is a real web page for anyone without the app.
 
 The URL is built server-side from `WEBSITE_URL` and handed to clients as
 `MatchBoard.inviteUrl`. No client composes an invite link, so a staging API

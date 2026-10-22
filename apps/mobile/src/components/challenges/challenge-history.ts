@@ -71,9 +71,7 @@ export function historyLogCopy(log: ChallengeHistoryLog | null): string {
   return 'Checked in';
 }
 
-export function historyEvidenceCopy(
-  evidence: ChallengeHistoryEntry['evidence'],
-): string | null {
+export function historyEvidenceCopy(evidence: ChallengeHistoryEntry['evidence']): string | null {
   if (evidence === 'submitted') {
     return 'Photo sent';
   }
@@ -89,9 +87,14 @@ export function historyEvidenceCopy(
   return null;
 }
 
+/**
+ * The occurrence finished this period, when history has not caught up with it.
+ * Without the real finish time it is placed at midday of its period.
+ */
 export function mergeTodayIntoHistory(
   entries: ChallengeHistoryEntry[],
   occurrence: TodayChallenge | null | undefined,
+  completedAt: string | null = null,
 ): ChallengeHistoryEntry[] {
   if (!occurrence || occurrence.status !== 'completed') {
     return entries;
@@ -105,7 +108,7 @@ export function mergeTodayIntoHistory(
     {
       id: occurrence.id,
       periodKey: occurrence.periodKey,
-      completedAt: `${occurrence.periodKey}T12:00:00.000Z`,
+      completedAt: completedAt ?? `${occurrence.periodKey}T12:00:00.000Z`,
       outcome: 'rewarded',
       pointsDelta: occurrence.rewardPoints,
       log: historyLogFromKind(occurrence.completionKind),
@@ -115,9 +118,7 @@ export function mergeTodayIntoHistory(
   ];
 }
 
-function historyLogFromKind(
-  kind: ChallengeCompletionKind,
-): ChallengeHistoryLog | null {
+function historyLogFromKind(kind: ChallengeCompletionKind): ChallengeHistoryLog | null {
   if (kind === 'evidence_photo') {
     return { kind: 'evidence_photo' };
   }
@@ -129,9 +130,7 @@ function historyLogFromKind(
   return null;
 }
 
-function deviceLogCopy(
-  log: Extract<ChallengeHistoryLog, { kind: 'device' }>,
-): string {
+function deviceLogCopy(log: Extract<ChallengeHistoryLog, { kind: 'device' }>): string {
   const metric = DEVICE_METRIC[log.metric] ?? log.metric;
 
   if (log.durationSeconds != null) {

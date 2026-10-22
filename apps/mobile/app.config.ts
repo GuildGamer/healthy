@@ -1,11 +1,15 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 /**
- * Host for universal / app links. Invite links are served from here, and the
- * `/match/<token>` path deliberately mirrors the `app/match/[token]` route so
- * an opened link resolves without any extra linking config.
+ * Host for universal / app links. The apex `gethealthyapp.com` 308s to www,
+ * and iOS and Android will not open an app from a link that redirects, so
+ * invites and this claim both use www. `/match/<token>` mirrors
+ * `app/match/[token]`.
+ *
+ * `associatedDomains` and `intentFilters` are native. They apply only after
+ * a new dev-client build (`make ios` / `make android`), not an EAS Update.
  */
-const LINK_HOST = 'gethealthyapp.com';
+const LINK_HOST = 'www.gethealthyapp.com';
 /** Trailing slash matters: without it Android would also claim `/matches/...`. */
 const MATCH_INVITE_PATH_PREFIX = '/match/';
 
@@ -17,12 +21,12 @@ const MATCH_INVITE_PATH_PREFIX = '/match/';
  *
  * Example throwaway: IOS_BUNDLE_IDENTIFIER=com.healthyapp.tfpreview
  */
-const IOS_BUNDLE_IDENTIFIER =
-  process.env.IOS_BUNDLE_IDENTIFIER?.trim() || 'com.healthyapp.app';
-const ANDROID_PACKAGE =
-  process.env.ANDROID_PACKAGE?.trim() || 'com.healthyapp.app';
+const IOS_BUNDLE_IDENTIFIER = process.env.IOS_BUNDLE_IDENTIFIER?.trim() || 'com.healthyapp.app';
+const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE?.trim() || 'com.healthyapp.app';
 /** CFBundleVersion. Codemagic sets this before prebuild; local builds stay on 1. */
 const IOS_BUILD_NUMBER = process.env.IOS_BUILD_NUMBER?.trim() || '1';
+/** EAS project that hosts updates for this app. */
+const EAS_PROJECT_ID = 'be6f70ce-9076-4d48-8d07-b841eb0dce17';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -30,6 +34,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'healthy',
   scheme: 'healthy',
   version: '1.0.0',
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
+  updates: {
+    url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+  },
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
@@ -46,8 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
       NSLocationWhenInUseUsageDescription:
         'Healthy uses your location to record walking and running routes.',
-      NSMotionUsageDescription:
-        'Healthy uses motion data to count steps from this phone.',
+      NSMotionUsageDescription: 'Healthy uses motion data to count steps from this phone.',
     },
   },
   android: {
@@ -88,13 +97,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-font',
     'expo-iap',
     [
-      // Hands off to the animated `SplashScreen` component: same background,
-      // same 104pt rounded icon, dead centre. Colours mirror `@product/brand`
-      // (`background`, `accent`), which cannot be imported here because the
-      // package resolves to a build output Expo CLI may not have yet.
+      // Hands off to the animated `SplashScreen` component. The native splash
+      // can follow the phone (Clinic white / Healthy night) but not a stored
+      // Light or Dark choice — that arrives only after JS reads SecureStore.
+      // Colours mirror `@product/brand`, which cannot be imported here because
+      // the package resolves to a build output Expo CLI may not have yet.
       'expo-splash-screen',
       {
-        backgroundColor: '#0B1220',
+        backgroundColor: '#F5F6F8',
         image: './assets/splash-icon.png',
         imageWidth: 104,
         resizeMode: 'contain',
@@ -158,10 +168,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-image-picker',
       {
-        cameraPermission:
-          'Healthy uses the camera for gym proof and your profile photo.',
-        photosPermission:
-          'Healthy uses your photos so you can set a profile picture.',
+        cameraPermission: 'Healthy uses the camera for gym proof and your profile photo.',
+        photosPermission: 'Healthy uses your photos so you can set a profile picture.',
       },
     ],
     [
@@ -177,7 +185,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     eas: {
-      projectId: 'be6f70ce-9076-4d48-8d07-b841eb0dce17',
+      projectId: EAS_PROJECT_ID,
     },
     /**
      * Numeric App Store id (not the bundle id). Required for the Profile

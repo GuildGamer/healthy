@@ -5,9 +5,11 @@ import {
   isScoringModeAllowedForMetric,
   matchAttemptSourceSchema,
   matchDailyScopeSchema,
+  matchDayStripSchema,
   matchDurationDaysSchema,
   matchInviteTokenSchema,
   matchMetricSchema,
+  matchReactionKindSchema,
   matchScoringModeSchema,
   matchStandingSchema,
   matchStatusSchema,
@@ -22,6 +24,7 @@ export {
   MATCH_ATTEMPT_SOURCE_BY_METRIC,
   MATCH_CUMULATIVE_DAILY_CAP,
   MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC,
+  MATCH_DAY_STRIP_MAX_DAYS,
   MATCH_LENGTH_MAX_DAYS,
   MATCH_LENGTH_MIN_DAYS,
   MATCH_MIN_DAYS_BY_SCORING_MODE,
@@ -35,15 +38,22 @@ export {
   matchAttemptSourceSchema,
   matchContestTitle,
   matchDailyScopeSchema,
+  matchDayKeySchema,
+  matchDayStripSchema,
   matchDurationDaysSchema,
+  matchGroupPhrase,
   matchInviteTokenSchema,
   matchInviteUrl,
   matchLengthDays,
   matchMetricSchema,
+  matchNudgePush,
+  matchReactionKindSchema,
+  matchReactionSentSchema,
   matchScoreUnit,
   matchScoringModeSchema,
   matchStandingSchema,
   matchStatusSchema,
+  matchTimeLeft,
   matchWindowLength,
   matchWindowSchema,
   resolveMatchLength,
@@ -51,7 +61,11 @@ export {
 export type {
   MatchAttemptSource,
   MatchDailyScope,
+  MatchDayStrip,
   MatchLength,
+  MatchPushCopy,
+  MatchReactionKind,
+  MatchReactionSent,
 } from './match-board.js';
 
 export const createMatchInputSchema = z
@@ -163,6 +177,11 @@ export const matchBoardSchema = z.object({
    * seated from a crew.
    */
   canSaveCrew: z.boolean(),
+  /**
+   * A streak contest of a week or less draws its days as squares. Null for
+   * every other contest. Optional for older API builds.
+   */
+  dayStrip: matchDayStripSchema.nullable().optional(),
 });
 
 export const matchInviteLinkSchema = z.object({
@@ -184,6 +203,12 @@ export const matchPreviewSchema = z.object({
   token: z.string().min(1),
   matchId: z.string().min(1),
   hostDisplayName: z.string().min(1),
+  /**
+   * The host's profile photo, so the invite shows who is asking. Only the
+   * signed-in preview carries it: the host chose to hand this person the link,
+   * which the public card cannot know. Optional for older API builds.
+   */
+  hostImage: z.string().min(1).nullable().optional(),
   metric: matchMetricSchema,
   scoringMode: matchScoringModeSchema,
   dailyScope: matchDailyScopeSchema,
@@ -219,6 +244,16 @@ export const matchIdInputSchema = z.object({
   matchId: z.string().min(1),
 });
 
+/**
+ * Another member's score going up, as the board already shows it: who and
+ * when, never what they did to get there or anything from outside the group.
+ */
+export const matchMoveSchema = z.object({
+  displayName: z.string().min(1),
+  image: z.string().min(1).nullable(),
+  movedAt: z.string().datetime(),
+});
+
 export const matchListItemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -233,6 +268,21 @@ export const matchListItemSchema = z.object({
   /** @deprecated Mirrors `yourScore`. See `matchStandingSchema.bestCount`. */
   yourBestCount: z.number().int().nonnegative(),
   yourRank: z.number().int().positive().nullable(),
+  /**
+   * The top of the standings in rank order, at most three rows and always
+   * including the caller, so a card can show the race without the board.
+   */
+  roster: z.array(matchStandingSchema),
+  /**
+   * The latest move by another accepted member during the contest's current
+   * day, or null when nobody else has scored today.
+   */
+  lastMove: matchMoveSchema.nullable(),
+  /**
+   * Everyone in the group in rank order, for the faces on the Groups list
+   * that light up once a member has done today. Optional for older API builds.
+   */
+  standings: z.array(matchStandingSchema).optional(),
 });
 
 export const listMyMatchesOutputSchema = z.object({
@@ -291,6 +341,28 @@ export const cancelMatchContract = oc
   .input(matchIdInputSchema)
   .output(matchBoardSchema);
 
+/**
+ * One tap on a member's face. The server decides whether that tap is a cheer
+ * or a nudge is allowed — done today or not — rather than trusting the client.
+ */
+export const reactToMatchMemberInputSchema = z.object({
+  matchId: z.string().min(1),
+  toUserId: z.string().min(1),
+  kind: matchReactionKindSchema,
+});
+
+/** Idempotent per pair and day: a repeat returns the same board and sends nothing. */
+export const reactToMatchMemberContract = oc
+  .route({ method: 'POST', path: '/matches/react' })
+  .input(reactToMatchMemberInputSchema)
+  .output(matchBoardSchema);
+
+/** A member who is not the host steps out of a live group. The host cancels instead. */
+export const leaveMatchContract = oc
+  .route({ method: 'POST', path: '/matches/leave' })
+  .input(matchIdInputSchema)
+  .output(listMyMatchesOutputSchema);
+
 export type MatchMetric = z.infer<typeof matchMetricSchema>;
 export type MatchScoringMode = z.infer<typeof matchScoringModeSchema>;
 export type MatchStatus = z.infer<typeof matchStatusSchema>;
@@ -304,11 +376,9 @@ export type CreateMatchInput = z.input<typeof createMatchInputSchema>;
 export type ResolvedCreateMatchInput = z.output<typeof createMatchInputSchema>;
 export type CreateMatchOutput = z.infer<typeof createMatchOutputSchema>;
 export type MatchPreview = z.infer<typeof matchPreviewSchema>;
-export type PublicMatchInvitePreview = z.infer<
-  typeof publicMatchInvitePreviewSchema
->;
+export type PublicMatchInvitePreview = z.infer<typeof publicMatchInvitePreviewSchema>;
 export type MatchListItem = z.infer<typeof matchListItemSchema>;
+export type MatchMove = z.infer<typeof matchMoveSchema>;
 export type ListMyMatchesOutput = z.infer<typeof listMyMatchesOutputSchema>;
-export type SubmitMatchAttemptInput = z.infer<
-  typeof submitMatchAttemptInputSchema
->;
+export type SubmitMatchAttemptInput = z.infer<typeof submitMatchAttemptInputSchema>;
+export type ReactToMatchMemberInput = z.infer<typeof reactToMatchMemberInputSchema>;

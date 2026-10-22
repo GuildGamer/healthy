@@ -1,134 +1,91 @@
-import { colors, fontSize, spacing } from '@product/brand';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  FieldMark,
-  FormButton,
-  FormErrorBanner,
-  FormField,
-  TextField,
-} from '@/components/forms';
+import { FormButton, InlineNotice, InsetField } from '@/components/forms';
 import { requestPasswordResetEmail } from '@/lib/auth-client';
-import { AuthScreenHeader } from './AuthScreenHeader';
+import { useThemedStyles } from '@/theme';
+import { CONNECTION_FAILED_MESSAGE } from './constants/auth-messages';
+import { isPlausibleEmail } from '@/lib/credentials';
+import { createFieldStackStyles } from './field-stack-styles';
+import { FrontDoorLayout, FrontDoorTitle } from './FrontDoorLayout';
+import { FieldNote } from './FrontDoorText';
 
-const NETWORK_FAILED_MESSAGE =
-  'We could not reach the server. Check your connection and try again.';
-
-type ForgotPasswordEmailScreenProps = {
+interface ForgotPasswordEmailScreenProps {
+  /** Carried over from Log in, so it is not typed twice. */
+  initialEmail: string;
   onBackPress: () => void;
   onCodeSent: (email: string) => void;
-};
+}
 
+/** The note is careful not to confirm that an account exists. */
 export function ForgotPasswordEmailScreen({
+  initialEmail,
   onBackPress,
   onCodeSent,
 }: ForgotPasswordEmailScreenProps) {
-  const [email, setEmail] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const styles = useThemedStyles(createFieldStackStyles);
+  const [email, setEmail] = useState(initialEmail);
+  const [hasFailed, setHasFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const trimmedEmail = email.trim();
-  const canSubmit = trimmedEmail.includes('@');
+  const canSubmit = isPlausibleEmail(trimmedEmail);
 
-  async function handleSubmit() {
-    if (!canSubmit) {
+  async function sendCode() {
+    if (!canSubmit || isSubmitting) {
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMessage(null);
-
+    setHasFailed(false);
     try {
       const { error } = await requestPasswordResetEmail(trimmedEmail);
-
       if (error) {
-        setErrorMessage(NETWORK_FAILED_MESSAGE);
+        setHasFailed(true);
         return;
       }
 
       onCodeSent(trimmedEmail);
     } catch {
-      setErrorMessage(NETWORK_FAILED_MESSAGE);
+      setHasFailed(true);
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <AuthScreenHeader
-            onBackPress={onBackPress}
-            subtitle="Enter the email on your account and we will send a code to reset your password."
-            title="Forgot Password?"
-          />
-
-          {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
-
-          <FormField
-            hint="We'll send a 6-digit verification code to this address"
-            label="Email"
-            required
-          >
-            <TextField
-              autoCapitalize="none"
-              autoComplete="email"
-              autoCorrect={false}
-              keyboardType="email-address"
-              leading={<FieldMark role="email" />}
-              onChangeText={setEmail}
-              placeholder="your@email.com"
-              testID="forgot-email"
-              value={email}
-            />
-          </FormField>
-
-          <FormButton
-            disabled={!canSubmit}
-            label="Send Code"
-            loading={isSubmitting}
-            onPress={handleSubmit}
-            testID="forgot-send-code"
-          />
-
-          <Text style={styles.caption}>
-            Use the email you signed up with.
-          </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <FrontDoorLayout
+      dock={
+        <FormButton
+          disabled={!canSubmit}
+          label="Send code"
+          loading={isSubmitting}
+          onPress={() => void sendCode()}
+          testID="forgot-send-code"
+        />
+      }
+      onBackPress={onBackPress}
+      testID="forgot-password"
+    >
+      <FrontDoorTitle subtitle="We’ll email you a code." title="Reset your password" />
+      {hasFailed ? (
+        <InlineNotice icon="offline" message={CONNECTION_FAILED_MESSAGE} tone="error" />
+      ) : null}
+      <InsetField
+        autoCapitalize="none"
+        autoComplete="email"
+        autoCorrect={false}
+        autoFocus={!initialEmail}
+        containerStyle={styles.firstField}
+        keyboardType="email-address"
+        label="Email"
+        onChangeText={setEmail}
+        onSubmitEditing={() => void sendCode()}
+        placeholder="you@example.com"
+        returnKeyType="send"
+        testID="forgot-email"
+        textContentType="emailAddress"
+        value={email}
+      />
+      <FieldNote>If there’s an account with this email, the code arrives in a minute.</FieldNote>
+    </FrontDoorLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  caption: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    textAlign: 'center',
-  },
-});

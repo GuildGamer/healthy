@@ -74,9 +74,7 @@ describe('app-review', () => {
   it('builds an Android write-review market URL', () => {
     setPlatformOs('android');
 
-    expect(writeReviewUrl()).toBe(
-      'market://details?id=com.healthyapp.app&showAllReviews=true',
-    );
+    expect(writeReviewUrl()).toBe('market://details?id=com.healthyapp.app&showAllReviews=true');
     expect(canOpenWriteReviewPage()).toBe(true);
   });
 
@@ -106,15 +104,11 @@ describe('app-review', () => {
 
   it('opens the write-review page when Linking allows it', async () => {
     setPlatformOs('android');
-    const canOpen = jest
-      .spyOn(Linking, 'canOpenURL')
-      .mockResolvedValue(true);
+    const canOpen = jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
 
     await expect(openWriteReviewPage()).resolves.toBe(true);
-    expect(open).toHaveBeenCalledWith(
-      'market://details?id=com.healthyapp.app&showAllReviews=true',
-    );
+    expect(open).toHaveBeenCalledWith('market://details?id=com.healthyapp.app&showAllReviews=true');
 
     canOpen.mockRestore();
     open.mockRestore();

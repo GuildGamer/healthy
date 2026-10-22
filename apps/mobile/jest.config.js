@@ -9,6 +9,8 @@ module.exports = {
     '^@product/client$': '<rootDir>/../../packages/client/src/index.ts',
     '^@product/contract/country-code$':
       '<rootDir>/../../packages/contract/src/country-code.ts',
+    '^@product/contract/display-name$':
+      '<rootDir>/../../packages/contract/src/display-name.ts',
     '^@product/contract/challenge-title$':
       '<rootDir>/../../packages/contract/src/challenge-title.ts',
     '^@product/contract/challenge-sort$':
@@ -17,6 +19,8 @@ module.exports = {
       '<rootDir>/../../packages/contract/src/challenge-capture.ts',
     '^@product/contract/match-board$':
       '<rootDir>/../../packages/contract/src/match-board.ts',
+    '^@product/contract/account-deletion$':
+      '<rootDir>/../../packages/contract/src/account-deletion.ts',
     '^@product/contract$': '<rootDir>/../../packages/contract/src/index.ts',
     '\\.tflite$': '<rootDir>/jest.tflite-mock.js',
   },

@@ -1,9 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@product/db';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { PRISMA } from '../database/prisma.tokens.js';
 import type { DevicePlatform, PushDeviceDto } from './dto/push-device.dto.js';
 
@@ -54,6 +51,30 @@ export class PushDevicesService {
     });
 
     return { success: true };
+  }
+
+  /**
+   * Where group pushes (cheers, nudges, board moves, seats, joins) may go:
+   * active devices of members who have not turned group notifications off.
+   * A member with no profile yet keeps the default, which is on.
+   */
+  async groupPushDevicesFor(
+    userIds: readonly string[],
+  ): Promise<{ userId: string; expoPushToken: string }[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    return this.prisma.pushDevice.findMany({
+      where: {
+        userId: { in: [...userIds] },
+        isActive: true,
+        user: {
+          OR: [{ profile: { is: null } }, { profile: { is: { groupNotificationsEnabled: true } } }],
+        },
+      },
+      select: { userId: true, expoPushToken: true },
+    });
   }
 
   /** Retires tokens the provider reported as gone for good. */

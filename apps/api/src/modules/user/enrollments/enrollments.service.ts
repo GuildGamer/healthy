@@ -2,19 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
   displayChallengeTitle,
+  durationGoalBounds,
   resolveEnrollmentTargetCount,
+  resolveEnrollmentTargetDuration,
   toChallengeCapture,
   toChallengeIcon,
 } from '@product/contract';
-import type {
-  ChallengeFrequency,
-  HealthCategory,
-  PrismaClient,
-} from '@product/db';
-import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
+import type { ChallengeFrequency, HealthCategory, PrismaClient } from '@product/db';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import {
   canEnrollInChallenge,
   isCatalogChallengeLocked,
@@ -23,20 +18,14 @@ import {
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { RemindersService } from '../reminders/reminders.service.js';
-import type {
-  CatalogChallengeDto,
-  ChallengeCatalogDto,
-} from './dto/challenge-catalog.dto.js';
+import type { CatalogChallengeDto, ChallengeCatalogDto } from './dto/challenge-catalog.dto.js';
+import type { EnrollmentGoalDto } from './dto/enrollment-goal.dto.js';
+import type { StarterChallengeDto, StarterChallengesDto } from './dto/starter-challenge.dto.js';
 
 /** Everyone sees general-health challenges alongside their own conditions. */
 const UNIVERSAL_CATEGORY: HealthCategory = 'general';
 
-const ALL_CATEGORIES: HealthCategory[] = [
-  'hypertension',
-  'diabetes',
-  'asthma',
-  'general',
-];
+const ALL_CATEGORIES: HealthCategory[] = ['hypertension', 'diabetes', 'asthma', 'general'];
 
 @Injectable()
 export class EnrollmentsService {
@@ -115,14 +104,17 @@ export class EnrollmentsService {
         capture: toChallengeCapture({
           ...challenge,
           targetCount,
+          targetDurationMinutes: resolveEnrollmentTargetDuration(
+            challenge.targetDurationMinutes,
+            enrollment?.targetDurationMinutes,
+          ),
         }),
       };
     });
 
     return {
       challenges,
-      enrolledCount: challenges.filter((challenge) => challenge.isEnrolled)
-        .length,
+      enrolledCount: challenges.filter((challenge) => challenge.isEnrolled).length,
       hasMembership: membershipActive,
       maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
     };
@@ -137,7 +129,7 @@ export class EnrollmentsService {
     challengeId: string,
     isEnrolled: boolean,
     frequency?: ChallengeFrequency,
-    targetCount?: number,
+    goal: EnrollmentGoalDto = {},
   ): Promise<ChallengeCatalogDto> {
     const user = requireUser(currentUser);
 
@@ -149,6 +141,7 @@ export class EnrollmentsService {
         defaultFrequency: true,
         requiresMembership: true,
         targetCount: true,
+        targetDurationMinutes: true,
       },
     });
 
@@ -179,11 +172,7 @@ export class EnrollmentsService {
       });
     }
 
-    if (targetCount !== undefined && challenge.targetCount == null) {
-      throw new ORPCError('BAD_REQUEST', {
-        message: 'This challenge does not have a count you can change',
-      });
-    }
+    this.assertGoalFits(challenge, goal);
 
     const chosenFrequency = frequency ?? challenge.defaultFrequency;
 
@@ -196,12 +185,13 @@ export class EnrollmentsService {
         challengeId: challenge.id,
         frequency: chosenFrequency,
         isActive: isEnrolled,
-        targetCount: targetCount ?? null,
+        targetCount: goal.targetCount ?? null,
+        targetDurationMinutes: goal.targetDurationMinutes ?? null,
       },
       update: {
         frequency: chosenFrequency,
         isActive: isEnrolled,
-        ...(targetCount !== undefined ? { targetCount } : {}),
+        ...goal,
       },
       select: { id: true },
     });
@@ -216,14 +206,70 @@ export class EnrollmentsService {
   }
 
   /**
+   * A goal only changes what the challenge already measures, and a minutes
+   * goal stays within `durationGoalBounds`. Points are the catalogue's either way.
+   */
+  private assertGoalFits(
+    challenge: { targetCount: number | null; targetDurationMinutes: number | null },
+    goal: EnrollmentGoalDto,
+  ): void {
+    if (goal.targetCount !== undefined && challenge.targetCount == null) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'This challenge does not have a count you can change',
+      });
+    }
+
+    if (goal.targetDurationMinutes === undefined) {
+      return;
+    }
+
+    if (challenge.targetDurationMinutes == null) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'This challenge does not have minutes you can change',
+      });
+    }
+
+    const bounds = durationGoalBounds(challenge.targetDurationMinutes);
+    if (goal.targetDurationMinutes < bounds.min || goal.targetDurationMinutes > bounds.max) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: `Choose between ${bounds.min} and ${bounds.max} minutes`,
+      });
+    }
+  }
+
+  /**
+   * Every challenge `enrollDefaultsFor` could enrol, for previewing a first
+   * day before sign-up. Catalog data only, the same for every caller.
+   */
+  async listStarterChallenges(): Promise<StarterChallengesDto> {
+    const defaults = await this.prisma.challenge.findMany({
+      where: { isActive: true, isDefault: true },
+      orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+    });
+
+    const challenges: StarterChallengeDto[] = defaults.map((challenge) => ({
+      challengeId: challenge.id,
+      title: displayChallengeTitle({
+        title: challenge.title,
+        metric: challenge.deviceMetric,
+        count: challenge.targetCount,
+      }),
+      description: challenge.description,
+      category: challenge.category,
+      isUniversal: challenge.category === UNIVERSAL_CATEGORY,
+      completionKind: challenge.completionKind,
+      capture: toChallengeCapture(challenge),
+    }));
+
+    return { challenges };
+  }
+
+  /**
    * Enrols a user in the starter set for the categories they just chose.
    * Idempotent, and deliberately does not revive an enrolment the user turned
    * off — only genuinely new rows are created.
    */
-  async enrollDefaultsFor(
-    userId: string,
-    categories: readonly HealthCategory[],
-  ): Promise<void> {
+  async enrollDefaultsFor(userId: string, categories: readonly HealthCategory[]): Promise<void> {
     const scope = this.withUniversalCategory(categories);
 
     const defaults = await this.prisma.challenge.findMany({
@@ -240,12 +286,8 @@ export class EnrollmentsService {
       select: { challengeId: true },
     });
 
-    const enrolledIds = new Set(
-      alreadyEnrolled.map((enrollment) => enrollment.challengeId),
-    );
-    const newChallenges = defaults.filter(
-      (challenge) => !enrolledIds.has(challenge.id),
-    );
+    const enrolledIds = new Set(alreadyEnrolled.map((enrollment) => enrollment.challengeId));
+    const newChallenges = defaults.filter((challenge) => !enrolledIds.has(challenge.id));
 
     if (newChallenges.length === 0) {
       return;
@@ -302,9 +344,7 @@ export class EnrollmentsService {
     return this.withUniversalCategory(chosen);
   }
 
-  private withUniversalCategory(
-    categories: readonly HealthCategory[],
-  ): HealthCategory[] {
+  private withUniversalCategory(categories: readonly HealthCategory[]): HealthCategory[] {
     return [...new Set<HealthCategory>([...categories, UNIVERSAL_CATEGORY])];
   }
 }

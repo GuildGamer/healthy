@@ -9,30 +9,7 @@ export const CREW_NAME_MAX = 40;
 
 export const crewNameSchema = z.string().trim().min(1).max(CREW_NAME_MAX);
 
-/**
- * Default crew name, derived from who is in it. A derived default is what makes
- * saving cost one tap instead of one tap and a keyboard, and it keeps
- * host-authored free text out of the product for anyone who does not want it.
- *
- * Mirrors `matchContestTitle`, but reads as a roster rather than an opponent.
- */
-export function crewLabel(memberNames: string[]): string {
-  const [first, second, ...rest] = memberNames;
-
-  if (!first) {
-    return 'Crew';
-  }
-
-  if (!second) {
-    return first;
-  }
-
-  if (rest.length === 0) {
-    return `${first}, ${second}`;
-  }
-
-  return `${first}, ${second} +${rest.length}`;
-}
+export { crewLabel } from './match-board.js';
 
 export const crewSchema = z.object({
   id: z.string().min(1),

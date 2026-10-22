@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  NATIVE_MOVEMENT_UNAVAILABLE,
-  loadLocationModule,
-} from '@/lib/device-health';
-import {
-  haversineMeters,
-  pathDistanceMeters,
-  type GeoPoint,
-} from '@/lib/geo-session';
+import { NATIVE_MOVEMENT_UNAVAILABLE, loadLocationModule } from '@/lib/device-health';
+import { haversineMeters, pathDistanceMeters, type GeoPoint } from '@/lib/geo-session';
 import { useWalkMotion } from './useWalkMotion';
 import { useWalkTimer } from './useWalkTimer';
 import { WALK_LOCATION_DENIED, type WalkPhase } from './walk-session-copy';
@@ -49,10 +42,7 @@ export type WalkRecorder = {
    * Resuming keeps the banked time and the route already drawn — a walk that
    * came up short has to be extendable, not restarted from zero.
    */
-  start: (options: {
-    resume: boolean;
-    beforeRecording?: () => Promise<void>;
-  }) => Promise<void>;
+  start: (options: { resume: boolean; beforeRecording?: () => Promise<void> }) => Promise<void>;
   /** Banks the walk and moves to review. */
   stop: () => WalkRecording;
   /** Releases the GPS and motion streams without producing a recording. */
@@ -164,10 +154,7 @@ export function useWalkRecorder(): WalkRecorder {
           const previousFix = lastFixRef.current;
           lastFixRef.current = point;
 
-          if (
-            previousFix &&
-            haversineMeters(previousFix, point) >= DISPLACEMENT_METERS
-          ) {
+          if (previousFix && haversineMeters(previousFix, point) >= DISPLACEMENT_METERS) {
             reportDisplacement(fix.timestamp);
           }
 
@@ -190,14 +177,7 @@ export function useWalkRecorder(): WalkRecorder {
       watchRef.current = watch;
       resumeTimer();
     },
-    [
-      isMovingNow,
-      reportDisplacement,
-      resetTimer,
-      resumeTimer,
-      startMotion,
-      stopWatching,
-    ],
+    [isMovingNow, reportDisplacement, resetTimer, resumeTimer, startMotion, stopWatching],
   );
 
   const stop = useCallback((): WalkRecording => {

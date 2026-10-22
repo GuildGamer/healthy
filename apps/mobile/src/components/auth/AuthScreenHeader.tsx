@@ -1,7 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, spacing } from '@product/brand';
+import { fontSize, spacing } from '@product/brand';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { displayFontFamily } from '@/lib/fonts';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
 interface AuthScreenHeaderProps {
   title: string;
@@ -10,6 +11,9 @@ interface AuthScreenHeaderProps {
 }
 
 export function AuthScreenHeader({ title, subtitle, onBackPress }: AuthScreenHeaderProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.header}>
       <Pressable
@@ -29,22 +33,23 @@ export function AuthScreenHeader({ title, subtitle, onBackPress }: AuthScreenHea
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    marginBottom: spacing.lg,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginBottom: spacing.lg,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xl,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: fontSize.md,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    header: {
+      marginBottom: spacing.lg,
+    },
+    backButton: {
+      alignSelf: 'flex-start',
+      marginBottom: spacing.lg,
+    },
+    title: {
+      color: theme.colors.text,
+      fontFamily: displayFontFamily,
+      fontSize: fontSize.xl,
+      marginBottom: spacing.sm,
+    },
+    subtitle: {
+      color: theme.colors.muted,
+      fontSize: fontSize.md,
+    },
+  });

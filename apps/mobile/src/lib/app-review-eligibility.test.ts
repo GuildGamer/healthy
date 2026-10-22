@@ -7,9 +7,7 @@ import type { AppReviewState } from './app-review-store';
 
 const NOW = new Date('2026-09-20T12:00:00.000Z');
 
-function base(
-  overrides: Partial<AppReviewEligibilityInput> = {},
-): AppReviewEligibilityInput {
+function base(overrides: Partial<AppReviewEligibilityInput> = {}): AppReviewEligibilityInput {
   return {
     now: NOW,
     dayKey: '2026-09-20',
@@ -120,25 +118,24 @@ describe('evaluateAppReviewEligibility', () => {
   });
 
   it('blocks a photo-check penalty path', () => {
-    expect(
-      evaluateAppReviewEligibility(base({ wasPenalized: true })),
-    ).toEqual({ eligible: false, reason: 'penalty' });
+    expect(evaluateAppReviewEligibility(base({ wasPenalized: true }))).toEqual({
+      eligible: false,
+      reason: 'penalty',
+    });
   });
 
   it('blocks the same session as a membership CTA', () => {
-    expect(
-      evaluateAppReviewEligibility(
-        base({ membershipCtaShownThisSession: true }),
-      ),
-    ).toEqual({ eligible: false, reason: 'membership_cta_same_session' });
+    expect(evaluateAppReviewEligibility(base({ membershipCtaShownThisSession: true }))).toEqual({
+      eligible: false,
+      reason: 'membership_cta_same_session',
+    });
   });
 
   it('blocks a second attempt in the same session', () => {
-    expect(
-      evaluateAppReviewEligibility(
-        base({ promptAttemptedThisSession: true }),
-      ),
-    ).toEqual({ eligible: false, reason: 'already_attempted_this_session' });
+    expect(evaluateAppReviewEligibility(base({ promptAttemptedThisSession: true }))).toEqual({
+      eligible: false,
+      reason: 'already_attempted_this_session',
+    });
   });
 
   it('blocks when there is no win lock and no streak milestone', () => {

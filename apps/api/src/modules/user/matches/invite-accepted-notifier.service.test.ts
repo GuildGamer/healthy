@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
 import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
 
 const notice = {
@@ -30,7 +31,8 @@ function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   pushSender = createPushSender(),
 ) {
-  const pushDevices = { deactivateTokens: vi.fn() };
+  const pushDevices = new PushDevicesService(prisma as never);
+  vi.spyOn(pushDevices, 'deactivateTokens').mockResolvedValue(undefined);
   const service = new InviteAcceptedNotifierService(
     prisma as never,
     pushSender,

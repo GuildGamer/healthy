@@ -28,11 +28,7 @@ export const deviceActivitySourceSchema = z.enum([
   'manual',
 ]);
 
-export const healthLinkStatusSchema = z.enum([
-  'unknown',
-  'connected',
-  'denied',
-]);
+export const healthLinkStatusSchema = z.enum(['unknown', 'connected', 'denied']);
 
 export const challengeTargetSchema = z.object({
   durationMinutes: z.number().int().positive().nullable(),
@@ -82,14 +78,19 @@ export type ChallengeCapture = z.infer<typeof challengeCaptureSchema>;
 export type DeviceActivity = z.infer<typeof deviceActivitySchema>;
 export type UpdateHealthLinkInput = z.infer<typeof updateHealthLinkInputSchema>;
 
+/** Glasses a day when a water challenge sets no goal of its own. */
+export const DEFAULT_WATER_GLASS_GOAL = 8;
+
+/** A water challenge's daily goal in glasses, from its target count. */
+export function waterGlassGoalFor(target: ChallengeTarget): number {
+  return target.count ?? DEFAULT_WATER_GLASS_GOAL;
+}
+
 export function isDeviceCapture(kind: ChallengeCaptureKind): boolean {
   return kind === 'device_sample' || kind === 'device_session';
 }
 
-export function activityMeetsTarget(
-  activity: DeviceActivity,
-  target: ChallengeTarget,
-): boolean {
+export function activityMeetsTarget(activity: DeviceActivity, target: ChallengeTarget): boolean {
   if (activity.source === 'manual') {
     return true;
   }
@@ -101,10 +102,7 @@ export function activityMeetsTarget(
     return false;
   }
 
-  if (
-    target.distanceMeters !== null &&
-    (activity.distanceMeters ?? 0) < target.distanceMeters
-  ) {
+  if (target.distanceMeters !== null && (activity.distanceMeters ?? 0) < target.distanceMeters) {
     return false;
   }
 
@@ -123,6 +121,28 @@ export function resolveEnrollmentTargetCount(
   return enrollmentCount ?? catalogCount ?? null;
 }
 
+/** Same rule as the count: a person's own minutes, else the catalogue's. */
+export function resolveEnrollmentTargetDuration(
+  catalogMinutes: number | null | undefined,
+  enrollmentMinutes: number | null | undefined,
+): number | null {
+  return enrollmentMinutes ?? catalogMinutes ?? null;
+}
+
+export const DURATION_GOAL_MIN_MINUTES = 5;
+export const DURATION_GOAL_MAX_MINUTES = 120;
+
+/**
+ * The minutes a person may set on a timed challenge. Always wide enough to
+ * hold the catalogue's own goal, so the default is never out of range.
+ */
+export function durationGoalBounds(catalogMinutes: number): { min: number; max: number } {
+  return {
+    min: Math.min(DURATION_GOAL_MIN_MINUTES, catalogMinutes),
+    max: Math.max(DURATION_GOAL_MAX_MINUTES, catalogMinutes),
+  };
+}
+
 export function toChallengeCapture(input: {
   captureKind?: ChallengeCaptureKind | string | null;
   deviceMetric?: DeviceMetric | string | null;
@@ -135,9 +155,7 @@ export function toChallengeCapture(input: {
   const metric = deviceMetricSchema.safeParse(input.deviceMetric);
 
   return {
-    kind: kind.success
-      ? kind.data
-      : defaultCaptureKindFor(input.completionKind ?? 'check_in'),
+    kind: kind.success ? kind.data : defaultCaptureKindFor(input.completionKind ?? 'check_in'),
     metric: metric.success ? metric.data : null,
     target: {
       durationMinutes: input.targetDurationMinutes ?? null,
@@ -147,9 +165,7 @@ export function toChallengeCapture(input: {
   };
 }
 
-export function defaultCaptureKindFor(
-  completionKind: string,
-): ChallengeCaptureKind {
+export function defaultCaptureKindFor(completionKind: string): ChallengeCaptureKind {
   if (completionKind === 'evidence_photo') {
     return 'photo';
   }

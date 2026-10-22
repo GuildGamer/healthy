@@ -1,12 +1,12 @@
 appId: com.healthyapp.app
 ---
-# A signed-out launch shows the splash for two seconds, then onboarding.
+# A signed-out launch lands on making an account, with the way back in for
+# existing accounts. The splash shows only while launch work runs, so it is
+# not asserted.
 - launchApp
-- assertVisible:
-    id: 'splash-screen'
 - extendedWaitUntil:
     visible:
-      id: 'onboarding-advance'
+      id: 'auth-google'
     timeout: 10000
 - assertVisible:
     id: 'onboarding-login'

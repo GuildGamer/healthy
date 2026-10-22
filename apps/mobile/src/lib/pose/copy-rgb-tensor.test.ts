@@ -19,9 +19,7 @@ describe('packMoveNetInputForBridge', () => {
   });
 
   it('rejects tensors that are not 256×256×3 bytes', () => {
-    expect(() => packMoveNetInputForBridge(new Uint8Array(100))).toThrow(
-      /196608 bytes/,
-    );
+    expect(() => packMoveNetInputForBridge(new Uint8Array(100))).toThrow(/196608 bytes/);
   });
 });
 
@@ -54,9 +52,7 @@ describe('copyMoveNetInputTensor', () => {
   });
 
   it('rejects tensors that are not 256×256×3 bytes', () => {
-    expect(() => copyMoveNetInputTensor(new Uint8Array(100))).toThrow(
-      /196608 bytes/,
-    );
+    expect(() => copyMoveNetInputTensor(new Uint8Array(100))).toThrow(/196608 bytes/);
   });
 });
 

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
+  DEFAULT_WATER_GLASS_GOAL,
   challengeSpecIssue,
   type AdminChallenge,
   type UpdateAdminChallengeInput,
@@ -96,6 +97,15 @@ export class AdminCatalogService {
     }
   }
 
+  /** A water challenge always has a glass goal; left blank, it takes the default. */
+  private targetCountFor(input: UpsertAdminChallengeInput): number | null {
+    if (input.completionKind !== 'water') {
+      return input.targetCount;
+    }
+
+    return input.targetCount ?? DEFAULT_WATER_GLASS_GOAL;
+  }
+
   private toData(input: UpsertAdminChallengeInput) {
     return {
       slug: input.slug,
@@ -114,7 +124,7 @@ export class AdminCatalogService {
       deviceMetric: input.deviceMetric,
       targetDurationMinutes: input.targetDurationMinutes,
       targetDistanceMeters: input.targetDistanceMeters,
-      targetCount: input.targetCount,
+      targetCount: this.targetCountFor(input),
       surpriseEvidenceChancePercent: input.surpriseEvidenceChancePercent,
       surpriseEvidenceWindowSeconds: input.surpriseEvidenceWindowSeconds,
       surpriseEvidencePenaltyPoints: input.surpriseEvidencePenaltyPoints,
@@ -122,9 +132,7 @@ export class AdminCatalogService {
     };
   }
 
-  private toDto(
-    row: Challenge & { _count: { enrollments: number } },
-  ): AdminChallenge {
+  private toDto(row: Challenge & { _count: { enrollments: number } }): AdminChallenge {
     return {
       id: row.id,
       slug: row.slug,

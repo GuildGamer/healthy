@@ -33,16 +33,10 @@ describe('historyLogCopy', () => {
         context: 'fasting',
       }),
     ).toBe('5.4 mmol/L · Fasting');
-    expect(
-      historyLogCopy({ kind: 'peak_flow', bestLitresPerMinute: 420 }),
-    ).toBe('420 L/min');
-    expect(historyLogCopy({ kind: 'water', amount: 3, unit: 'glasses' })).toBe(
-      '3 glasses',
-    );
+    expect(historyLogCopy({ kind: 'peak_flow', bestLitresPerMinute: 420 })).toBe('420 L/min');
+    expect(historyLogCopy({ kind: 'water', amount: 3, unit: 'glasses' })).toBe('3 glasses');
     expect(historyLogCopy({ kind: 'carbs', grams: 45, note: null })).toBe('45 g');
-    expect(historyLogCopy({ kind: 'carbs', grams: null, note: 'Rice' })).toBe(
-      'Rice',
-    );
+    expect(historyLogCopy({ kind: 'carbs', grams: null, note: 'Rice' })).toBe('Rice');
     expect(
       historyLogCopy({
         kind: 'device',
@@ -91,9 +85,7 @@ describe('mergeTodayIntoHistory', () => {
   });
 
   it('leaves an unfinished occurrence off the list', () => {
-    expect(
-      mergeTodayIntoHistory([], { ...occurrence, status: 'pending' }),
-    ).toEqual([]);
+    expect(mergeTodayIntoHistory([], { ...occurrence, status: 'pending' })).toEqual([]);
   });
 });
 

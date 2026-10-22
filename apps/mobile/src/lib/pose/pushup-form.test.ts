@@ -12,10 +12,7 @@ import { syntheticFrontPushupFrame } from './synthetic-front-pushup';
 
 describe('pushup-form', () => {
   it('accepts vertical shoulder drop and rejects lateral sway', () => {
-    const calibration = sampleCalibration(
-      syntheticFrontPushupFrame(0, 0),
-      0.3,
-    );
+    const calibration = sampleCalibration(syntheticFrontPushupFrame(0, 0), 0.3);
     expect(calibration).not.toBeNull();
 
     const bottom = syntheticFrontPushupFrame(100, 1);
@@ -50,16 +47,11 @@ describe('pushup-form', () => {
       score: 0.95,
     };
 
-    expect(shoulderLateralOffset(swayed, calibration, 0.3)).toBeGreaterThan(
-      0.08,
-    );
+    expect(shoulderLateralOffset(swayed, calibration, 0.3)).toBeGreaterThan(0.08);
   });
 
   it('lets shoulder drop lead depth when elbow angle barely changes', () => {
-    const calibration = sampleCalibration(
-      syntheticFrontPushupFrame(0, 0),
-      0.3,
-    );
+    const calibration = sampleCalibration(syntheticFrontPushupFrame(0, 0), 0.3);
     expect(calibration).not.toBeNull();
 
     const top = syntheticFrontPushupFrame(0, 0);
@@ -88,10 +80,7 @@ describe('pushup-form', () => {
   });
 
   it('keeps the same depth for an identical dip after session max grows', () => {
-    const calibration = sampleCalibration(
-      syntheticFrontPushupFrame(0, 0),
-      0.3,
-    );
+    const calibration = sampleCalibration(syntheticFrontPushupFrame(0, 0), 0.3);
     expect(calibration).not.toBeNull();
 
     const bottom = syntheticFrontPushupFrame(100, 1);
@@ -131,12 +120,8 @@ describe('pushup-form', () => {
   });
 
   it('rejects a vertical torso as standing up, not a press-up', () => {
-    expect(looksLikeStandingUp(syntheticFrontPushupFrame(0, 0), 0.3)).toBe(
-      false,
-    );
-    expect(looksLikeStandingUp(syntheticFrontPushupFrame(0, 1), 0.3)).toBe(
-      false,
-    );
+    expect(looksLikeStandingUp(syntheticFrontPushupFrame(0, 0), 0.3)).toBe(false);
+    expect(looksLikeStandingUp(syntheticFrontPushupFrame(0, 1), 0.3)).toBe(false);
     expect(looksLikeStandingUp(standingFromPlankFrame(0, 1), 0.3)).toBe(true);
   });
 

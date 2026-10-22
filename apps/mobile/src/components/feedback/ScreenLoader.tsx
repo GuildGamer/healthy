@@ -1,5 +1,5 @@
-import { colors } from '@product/brand';
 import { StyleSheet, View } from 'react-native';
+import { type Theme, useThemedStyles } from '@/theme';
 import { Loader } from './Loader';
 
 interface ScreenLoaderProps {
@@ -7,6 +7,8 @@ interface ScreenLoaderProps {
 }
 
 export function ScreenLoader({ testID = 'screen-loader' }: ScreenLoaderProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.screen} testID={testID}>
       <Loader />
@@ -14,12 +16,13 @@ export function ScreenLoader({ testID = 'screen-loader' }: ScreenLoaderProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    alignSelf: 'stretch',
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      alignSelf: 'stretch',
+      backgroundColor: theme.colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });

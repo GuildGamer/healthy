@@ -1,6 +1,6 @@
 'use client';
 
-import type { UpsertAdminChallengeInput } from '@product/contract';
+import { DEFAULT_WATER_GLASS_GOAL, type UpsertAdminChallengeInput } from '@product/contract';
 import { useState } from 'react';
 
 const empty: UpsertAdminChallengeInput = {
@@ -36,9 +36,7 @@ export function ChallengeForm({
   onSubmit: (input: UpsertAdminChallengeInput) => void;
   pending: boolean;
 }) {
-  const [value, setValue] = useState<UpsertAdminChallengeInput>(
-    initial ?? empty,
-  );
+  const [value, setValue] = useState<UpsertAdminChallengeInput>(initial ?? empty);
 
   function set<K extends keyof UpsertAdminChallengeInput>(
     key: K,
@@ -67,17 +65,11 @@ export function ChallengeForm({
       </div>
       <label>
         Description
-        <textarea
-          onChange={(e) => set('description', e.target.value)}
-          value={value.description}
-        />
+        <textarea onChange={(e) => set('description', e.target.value)} value={value.description} />
       </label>
       <label>
         Instruction
-        <textarea
-          onChange={(e) => set('instruction', e.target.value)}
-          value={value.instruction}
-        />
+        <textarea onChange={(e) => set('instruction', e.target.value)} value={value.instruction} />
       </label>
       <div className="row">
         <label>
@@ -136,10 +128,7 @@ export function ChallengeForm({
           Completion
           <select
             onChange={(e) =>
-              set(
-                'completionKind',
-                e.target.value as UpsertAdminChallengeInput['completionKind'],
-              )
+              set('completionKind', e.target.value as UpsertAdminChallengeInput['completionKind'])
             }
             value={value.completionKind}
           >
@@ -156,10 +145,7 @@ export function ChallengeForm({
           Capture
           <select
             onChange={(e) =>
-              set(
-                'captureKind',
-                e.target.value as UpsertAdminChallengeInput['captureKind'],
-              )
+              set('captureKind', e.target.value as UpsertAdminChallengeInput['captureKind'])
             }
             value={value.captureKind}
           >
@@ -178,9 +164,7 @@ export function ChallengeForm({
                 'deviceMetric',
                 e.target.value === ''
                   ? null
-                  : (e.target.value as NonNullable<
-                      UpsertAdminChallengeInput['deviceMetric']
-                    >),
+                  : (e.target.value as NonNullable<UpsertAdminChallengeInput['deviceMetric']>),
               )
             }
             value={value.deviceMetric ?? ''}
@@ -202,10 +186,7 @@ export function ChallengeForm({
           Target minutes
           <input
             onChange={(e) =>
-              set(
-                'targetDurationMinutes',
-                e.target.value ? Number(e.target.value) : null,
-              )
+              set('targetDurationMinutes', e.target.value ? Number(e.target.value) : null)
             }
             type="number"
             value={value.targetDurationMinutes ?? ''}
@@ -215,20 +196,18 @@ export function ChallengeForm({
           Target metres
           <input
             onChange={(e) =>
-              set(
-                'targetDistanceMeters',
-                e.target.value ? Number(e.target.value) : null,
-              )
+              set('targetDistanceMeters', e.target.value ? Number(e.target.value) : null)
             }
             type="number"
             value={value.targetDistanceMeters ?? ''}
           />
         </label>
         <label>
-          Target count
+          {value.completionKind === 'water' ? 'Glasses per day' : 'Target count'}
           <input
-            onChange={(e) =>
-              set('targetCount', e.target.value ? Number(e.target.value) : null)
+            onChange={(e) => set('targetCount', e.target.value ? Number(e.target.value) : null)}
+            placeholder={
+              value.completionKind === 'water' ? String(DEFAULT_WATER_GLASS_GOAL) : undefined
             }
             type="number"
             value={value.targetCount ?? ''}
@@ -239,9 +218,7 @@ export function ChallengeForm({
         <label>
           Surprise chance %
           <input
-            onChange={(e) =>
-              set('surpriseEvidenceChancePercent', Number(e.target.value))
-            }
+            onChange={(e) => set('surpriseEvidenceChancePercent', Number(e.target.value))}
             type="number"
             value={value.surpriseEvidenceChancePercent}
           />
@@ -249,9 +226,7 @@ export function ChallengeForm({
         <label>
           Surprise window (sec)
           <input
-            onChange={(e) =>
-              set('surpriseEvidenceWindowSeconds', Number(e.target.value))
-            }
+            onChange={(e) => set('surpriseEvidenceWindowSeconds', Number(e.target.value))}
             type="number"
             value={value.surpriseEvidenceWindowSeconds}
           />
@@ -259,9 +234,7 @@ export function ChallengeForm({
         <label>
           Surprise penalty
           <input
-            onChange={(e) =>
-              set('surpriseEvidencePenaltyPoints', Number(e.target.value))
-            }
+            onChange={(e) => set('surpriseEvidencePenaltyPoints', Number(e.target.value))}
             type="number"
             value={value.surpriseEvidencePenaltyPoints}
           />

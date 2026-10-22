@@ -88,6 +88,11 @@ jest.mock('react-native-maps', () => {
   };
 });
 
+jest.mock('expo-system-ui', () => ({
+  setBackgroundColorAsync: jest.fn(async () => undefined),
+  getBackgroundColorAsync: jest.fn(async () => null),
+}));
+
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
@@ -127,9 +132,7 @@ jest.mock('expo-iap', () => ({
     getAvailablePurchases: jest.fn(async () => undefined),
     restorePurchases: jest.fn(async () => undefined),
   }),
-  fetchProducts: jest.fn(async () => [
-    { id: 'com.healthyapp.app.premium.month' },
-  ]),
+  fetchProducts: jest.fn(async () => [{ id: 'com.healthyapp.app.premium.month' }]),
   finishTransaction: jest.fn(async () => undefined),
   getAvailablePurchases: jest.fn(async () => []),
   requestPurchase: jest.fn(async () => undefined),
@@ -137,11 +140,21 @@ jest.mock('expo-iap', () => ({
 
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(async () => undefined),
+  impactAsync: jest.fn(async () => undefined),
   NotificationFeedbackType: {
     Success: 'success',
     Warning: 'warning',
     Error: 'error',
   },
+  ImpactFeedbackStyle: {
+    Light: 'light',
+    Medium: 'medium',
+    Heavy: 'heavy',
+  },
+}));
+
+jest.mock('expo-keep-awake', () => ({
+  useKeepAwake: jest.fn(),
 }));
 
 jest.mock('expo-store-review', () => ({
@@ -150,3 +163,20 @@ jest.mock('expo-store-review', () => ({
   requestReview: jest.fn(async () => undefined),
   storeUrl: jest.fn(() => null),
 }));
+
+// No phone in Jest: report no 12/24-hour setting unless a test sets one.
+jest.mock('expo-localization', () => ({
+  getCalendars: jest.fn(() => [
+    { calendar: null, timeZone: 'UTC', uses24hourClock: null, firstWeekday: 2 },
+  ]),
+}));
+
+// Times follow the phone's 12/24-hour clock; pin a 24-hour locale so every machine agrees.
+jest.mock('@/lib/clock-time', () => {
+  const actual = jest.requireActual<typeof import('@/lib/clock-time')>('@/lib/clock-time');
+  return {
+    ...actual,
+    formatClockTime: (value: Date | number) => actual.formatClockTime(value, 'en-GB'),
+    usesTwentyFourHourClock: () => actual.usesTwentyFourHourClock('en-GB'),
+  };
+});

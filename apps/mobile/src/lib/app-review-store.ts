@@ -10,9 +10,7 @@ function storageKey(userId: string): string {
   return `app_review_state_${userId}`;
 }
 
-export async function loadAppReviewState(
-  userId: string,
-): Promise<AppReviewState | null> {
+export async function loadAppReviewState(userId: string): Promise<AppReviewState | null> {
   const raw = await SecureStore.getItemAsync(storageKey(userId));
   if (!raw) {
     return null;
@@ -27,9 +25,7 @@ export async function loadAppReviewState(
     return {
       lastPromptedAt: parsed.lastPromptedAt,
       lastPromptDayKey:
-        typeof parsed.lastPromptDayKey === 'string'
-          ? parsed.lastPromptDayKey
-          : null,
+        typeof parsed.lastPromptDayKey === 'string' ? parsed.lastPromptDayKey : null,
       lastPromptedStreakMilestone:
         typeof parsed.lastPromptedStreakMilestone === 'number'
           ? parsed.lastPromptedStreakMilestone
@@ -40,9 +36,6 @@ export async function loadAppReviewState(
   }
 }
 
-export async function saveAppReviewState(
-  userId: string,
-  state: AppReviewState,
-): Promise<void> {
+export async function saveAppReviewState(userId: string, state: AppReviewState): Promise<void> {
   await SecureStore.setItemAsync(storageKey(userId), JSON.stringify(state));
 }

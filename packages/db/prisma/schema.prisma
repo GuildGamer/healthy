@@ -11,27 +11,29 @@ datasource db {
 
 /// Better Auth core tables
 model User {
-  id                   String                @id
-  name                 String
-  email                String                @unique
-  emailVerified        Boolean               @default(false)
-  image                String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  sessions             Session[]
-  accounts             Account[]
-  profile              UserProfile?
-  challengeAssignments UserChallenge[]
-  challengeEnrollments ChallengeEnrollment[]
-  pointLedger          PointLedgerEntry[]
-  pushDevices          PushDevice[]
-  notifications        Notification[]
-  deviceActivityLogs   DeviceActivityLog[]
-  hostedMatches        Match[]               @relation("MatchHost")
-  wonMatches           Match[]               @relation("MatchWinner")
-  matchParticipations  MatchParticipant[]
-  matchAttempts        MatchAttempt[]
-  ownedCrews             Crew[]                  @relation("CrewOwner")
+  id                     String                 @id
+  name                   String
+  email                  String                 @unique
+  emailVerified          Boolean                @default(false)
+  image                  String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  sessions               Session[]
+  accounts               Account[]
+  profile                UserProfile?
+  challengeAssignments   UserChallenge[]
+  challengeEnrollments   ChallengeEnrollment[]
+  pointLedger            PointLedgerEntry[]
+  pushDevices            PushDevice[]
+  notifications          Notification[]
+  deviceActivityLogs     DeviceActivityLog[]
+  hostedMatches          Match[]                @relation("MatchHost")
+  wonMatches             Match[]                @relation("MatchWinner")
+  matchParticipations    MatchParticipant[]
+  matchAttempts          MatchAttempt[]
+  matchReactionsSent     MatchReaction[]        @relation("MatchReactionFrom")
+  matchReactionsReceived MatchReaction[]        @relation("MatchReactionTo")
+  ownedCrews             Crew[]                 @relation("CrewOwner")
   crewMemberships        CrewMember[]
   subscriptions          Subscription[]
   entitlements           Entitlement[]
@@ -118,6 +120,9 @@ model UserProfile {
   inProgressNudgeDelayMinutes Int              @default(30)
   /// Opt-out. Hidden users still see the board; others do not see them on it.
   showOnLeaderboard           Boolean          @default(true)
+  /// Pushes from groups: cheers, nudges, board moves, seats and joins. The
+  /// inbox row is still written when this is off.
+  groupNotificationsEnabled   Boolean          @default(true)
   /// Apple Health / Health Connect: unknown until they answer the prompt.
   healthLinkStatus            HealthLinkStatus @default(unknown)
   /// Chronic-condition preferences used to tailor challenges.
@@ -126,6 +131,10 @@ model UserProfile {
   membershipActive            Boolean          @default(false)
   /// Soft lock. Set by support; the member cannot sign in until it is cleared.
   deactivatedAt               DateTime?
+  /// Set when the member deleted their account. The user row stays as an
+  /// anonymous tombstone so finished group standings and the points ledger
+  /// keep adding up; everything that identified them is gone.
+  deletedAt                   DateTime?
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 
@@ -251,20 +260,22 @@ model Challenge {
 
 /// A user's standing opt-in to a catalog challenge, with their own cadence.
 model ChallengeEnrollment {
-  id          String              @id @default(cuid())
-  userId      String
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  challengeId String
-  challenge   Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  frequency   ChallengeFrequency
+  id                    String              @id @default(cuid())
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId           String
+  challenge             Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  frequency             ChallengeFrequency
   /// Per-user count goal. Null means use the catalog `Challenge.targetCount`.
-  targetCount Int?
+  targetCount           Int?
+  /// Per-user minutes goal. Null means use the catalog `Challenge.targetDurationMinutes`.
+  targetDurationMinutes Int?
   /// Deactivated rather than deleted so completion history keeps its context.
-  isActive    Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  assignments UserChallenge[]
-  reminders   ChallengeReminder[]
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  assignments           UserChallenge[]
+  reminders             ChallengeReminder[]
 
   @@unique([userId, challengeId])
   @@index([userId, isActive])
@@ -888,6 +899,7 @@ model Match {
   updatedAt             DateTime           @updatedAt
   participants          MatchParticipant[]
   attempts              MatchAttempt[]
+  reactions             MatchReaction[]
 
   @@index([hostUserId, createdAt])
   @@index([status, endsAt])
@@ -911,6 +923,32 @@ model MatchParticipant {
   @@unique([matchId, userId])
   @@index([userId, joinedAt])
   @@map("match_participants")
+}
+
+enum MatchReactionKind {
+  cheer
+  nudge
+}
+
+/// One tap on a group mate's face. One of each kind per pair per contest day,
+/// so a nudge in the morning can still be followed by a cheer once they are
+/// done, and a retried tap is a no-op rather than a second push.
+model MatchReaction {
+  id         String            @id @default(cuid())
+  matchId    String
+  match      Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  fromUserId String
+  fromUser   User              @relation("MatchReactionFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User              @relation("MatchReactionTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  kind       MatchReactionKind
+  /// The contest's local day, `YYYY-MM-DD`, in the zone its daily cap uses.
+  dayKey     String
+  createdAt  DateTime          @default(now())
+
+  @@unique([matchId, fromUserId, toUserId, dayKey, kind])
+  @@index([matchId, toUserId, dayKey])
+  @@map("match_reactions")
 }
 
 /// A saved roster, the way a beneficiary list is saved. Formed retroactively
@@ -994,19 +1032,19 @@ model Experiment {
 }
 
 model ExperimentVariant {
-  id              String                 @id @default(cuid())
-  experimentId    String
-  experiment      Experiment             @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  id            String                 @id @default(cuid())
+  experimentId  String
+  experiment    Experiment             @relation(fields: [experimentId], references: [id], onDelete: Cascade)
   /// Stable key within the experiment (`control`, `treatment`).
-  key             String
-  name            String
+  key           String
+  name          String
   /// Relative allocation weight. Equal weights → 50/50.
-  weight          Int                    @default(1)
+  weight        Int                    @default(1)
   /// UI / product config for this variant (CTA copy, etc.).
-  configuration   Json?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  assignments     ExperimentAssignment[]
+  configuration Json?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  assignments   ExperimentAssignment[]
 
   @@unique([experimentId, key])
   @@index([experimentId])

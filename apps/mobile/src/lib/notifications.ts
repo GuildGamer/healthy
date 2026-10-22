@@ -61,6 +61,7 @@ export async function getExpoPushToken(): Promise<string | null> {
   return token.data;
 }
 
+/** @deprecated Always 12-hour; use `formatClockTime` from `@/lib/clock-time`, which follows the phone. */
 export function formatReminderMinute(reminderMinute: number): string {
   const hour = Math.floor(reminderMinute / 60);
   const minute = reminderMinute % 60;

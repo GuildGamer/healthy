@@ -3,7 +3,9 @@ import {
   activityMeetsTarget,
   defaultCaptureKindFor,
   isDeviceCapture,
+  durationGoalBounds,
   resolveEnrollmentTargetCount,
+  resolveEnrollmentTargetDuration,
 } from './challenge-capture';
 
 describe('activityMeetsTarget', () => {
@@ -76,5 +78,24 @@ describe('resolveEnrollmentTargetCount', () => {
   it('falls back to the catalog count', () => {
     expect(resolveEnrollmentTargetCount(20, null)).toBe(20);
     expect(resolveEnrollmentTargetCount(20, undefined)).toBe(20);
+  });
+});
+
+describe('resolveEnrollmentTargetDuration', () => {
+  it('prefers a person’s own minutes, else the catalogue’s', () => {
+    expect(resolveEnrollmentTargetDuration(10, 25)).toBe(25);
+    expect(resolveEnrollmentTargetDuration(10, null)).toBe(10);
+    expect(resolveEnrollmentTargetDuration(null, undefined)).toBeNull();
+  });
+});
+
+describe('durationGoalBounds', () => {
+  it('runs from five minutes to two hours', () => {
+    expect(durationGoalBounds(10)).toEqual({ min: 5, max: 120 });
+  });
+
+  it('always holds the catalogue’s own goal', () => {
+    expect(durationGoalBounds(3)).toEqual({ min: 3, max: 120 });
+    expect(durationGoalBounds(180)).toEqual({ min: 5, max: 180 });
   });
 });

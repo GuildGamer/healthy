@@ -1,7 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
@@ -32,6 +33,8 @@ export function NumberStepper({
   suffix?: string;
   testID: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const canDecrease = value > min;
   const canIncrease = value < max;
 
@@ -45,11 +48,7 @@ export function NumberStepper({
         style={[styles.step, canDecrease ? null : styles.stepDisabled]}
         testID={`${testID}-dec`}
       >
-        <Feather
-          color={canDecrease ? colors.text : colors.muted}
-          name="minus"
-          size={18}
-        />
+        <Feather color={canDecrease ? colors.text : colors.muted} name="minus" size={18} />
       </Pressable>
 
       <View style={styles.readout}>
@@ -77,11 +76,7 @@ export function NumberStepper({
         style={[styles.step, canIncrease ? null : styles.stepDisabled]}
         testID={`${testID}-inc`}
       >
-        <Feather
-          color={canIncrease ? colors.text : colors.muted}
-          name="plus"
-          size={18}
-        />
+        <Feather color={canIncrease ? colors.text : colors.muted} name="plus" size={18} />
       </Pressable>
     </View>
   );
@@ -104,6 +99,7 @@ function TypedValue({
   max: number;
   testID: string;
 }) {
+  const styles = useThemedStyles(createStyles);
   const [draft, setDraft] = useState<string | null>(null);
 
   function commit() {
@@ -132,43 +128,44 @@ function TypedValue({
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  step: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  stepDisabled: {
-    opacity: 0.4,
-  },
-  readout: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.xs,
-  },
-  value: {
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
-    minWidth: 48,
-    textAlign: 'center',
-    padding: 0,
-  },
-  suffix: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.colors.surface,
+      borderRadius: radii.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    step: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    stepDisabled: {
+      opacity: 0.4,
+    },
+    readout: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: spacing.xs,
+    },
+    value: {
+      color: theme.colors.text,
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.semibold,
+      minWidth: 48,
+      textAlign: 'center',
+      padding: 0,
+    },
+    suffix: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+    },
+  });

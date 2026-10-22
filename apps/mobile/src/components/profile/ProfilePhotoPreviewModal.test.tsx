@@ -10,11 +10,7 @@ function renderPreview(onClose: jest.Mock) {
         insets: { top: 47, left: 0, right: 0, bottom: 34 },
       }}
     >
-      <ProfilePhotoPreviewModal
-        imageUri="data:image/jpeg;base64,abcd"
-        onClose={onClose}
-        visible
-      />
+      <ProfilePhotoPreviewModal imageUri="data:image/jpeg;base64,abcd" onClose={onClose} visible />
     </SafeAreaProvider>,
   );
 }
