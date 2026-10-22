@@ -57,6 +57,6 @@ export function QuickPosePushupCamera({ sdkKey, onUpdate }: QuickPosePushupCamer
 
 const styles = StyleSheet.create({
   camera: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
 });

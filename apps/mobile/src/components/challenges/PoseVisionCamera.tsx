@@ -302,7 +302,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
       padding: spacing.md,
-      backgroundColor: theme.colors.background,
+      backgroundColor: '#000000',
     },
     fallbackText: {
       color: theme.colors.muted,

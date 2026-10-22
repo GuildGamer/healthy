@@ -221,7 +221,7 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: '#000000',
     },
     blocked: {
       justifyContent: 'center',

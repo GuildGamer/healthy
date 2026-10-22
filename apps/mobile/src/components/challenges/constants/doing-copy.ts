@@ -80,6 +80,7 @@ export const WALK_COPY = {
   openSettings: 'Open Settings',
   distance: 'distance',
   steps: 'steps today',
+  stepsUnread: 'Healthy can’t read steps on this phone.',
   pause: 'Pause',
   resume: 'Resume',
   close: 'Close',

@@ -75,9 +75,11 @@ function PoseCamera({ session }: { session: PoseSession }) {
           sdkKey={QUICKPOSE_SDK_KEY}
         />
       ) : (
-        <Text style={styles.fallback}>
-          {session.phase === 'review' ? '' : session.camera.detail}
-        </Text>
+        <View style={styles.fallbackWrap}>
+          <Text style={styles.fallback}>
+            {session.phase === 'review' ? '' : session.camera.detail}
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -218,14 +220,17 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: '#000000',
     },
     stage: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: theme.colors.background,
+      backgroundColor: '#000000',
+      overflow: 'hidden',
+    },
+    fallbackWrap: {
+      ...StyleSheet.absoluteFillObject,
       alignItems: 'center',
       justifyContent: 'center',
-      overflow: 'hidden',
     },
     stageDimmed: {
       opacity: 0.6,

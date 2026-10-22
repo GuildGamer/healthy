@@ -98,7 +98,7 @@ export async function requestMovementAccess(): Promise<
   return granted ? 'connected' : 'denied';
 }
 
-export async function readTodaySteps(): Promise<number | null> {
+export async function readTodaySteps(options?: { ask?: boolean }): Promise<number | null> {
   const pedometer = await loadPedometerModule();
   if (!pedometer) {
     return null;
@@ -109,7 +109,10 @@ export async function readTodaySteps(): Promise<number | null> {
     return null;
   }
 
-  const permission = await pedometer.getPermissionsAsync();
+  let permission = await pedometer.getPermissionsAsync();
+  if (!permission.granted && options?.ask) {
+    permission = await pedometer.requestPermissionsAsync();
+  }
   if (!permission.granted) {
     return null;
   }

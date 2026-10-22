@@ -1,25 +1,32 @@
+import { fontSize } from '@product/brand';
 import type { TodayChallenge } from '@product/client';
 import { activityMeetsTarget } from '@product/contract/challenge-capture';
 import { useEffect, useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import { DeckButton, DeckEyebrow } from '@/components/deck';
-import { listTodayDeviceSamples, type DeviceSample } from '@/lib/device-health';
+import { readTodaySteps } from '@/lib/device-health';
 import { goBackOrHome } from '@/lib/go-back';
+import { type Theme, useThemedStyles } from '@/theme';
 import { WALK_COPY } from './constants/doing-copy';
 import { finishAndLeave } from './finish-challenge';
 import { SessionShell, SessionTitle } from './SessionShell';
+import { stepsHeroValue } from './steps-hero';
 import { useChallengeTone } from './useChallengeTone';
 import { useCompleteChallenge } from './useCompleteChallenge';
 import { WalkHero } from './WalkSessionParts';
 
-function useTodaySteps(occurrence: TodayChallenge): DeviceSample | null {
-  const [sample, setSample] = useState<DeviceSample | null>(null);
+type TodaySteps = { status: 'reading' } | { status: 'count'; count: number } | { status: 'unread' };
+
+function useTodaySteps(occurrence: TodayChallenge): TodaySteps {
+  const [reading, setReading] = useState<TodaySteps>({ status: 'reading' });
 
   useEffect(() => {
     let isCancelled = false;
-    void listTodayDeviceSamples(occurrence.capture.metric ?? 'steps').then((found) => {
-      if (!isCancelled) {
-        setSample(found[0] ?? null);
+    void readTodaySteps({ ask: true }).then((count) => {
+      if (isCancelled) {
+        return;
       }
+      setReading(count === null ? { status: 'unread' } : { status: 'count', count });
     });
 
     return () => {
@@ -27,15 +34,25 @@ function useTodaySteps(occurrence: TodayChallenge): DeviceSample | null {
     };
   }, [occurrence.capture.metric]);
 
-  return sample;
+  return reading;
 }
 
 /** Today's steps, read from the phone: use them once they meet the goal. */
 export function StepsSession({ occurrence }: { occurrence: TodayChallenge }) {
+  const styles = useThemedStyles(createStyles);
   const { fill } = useChallengeTone(occurrence);
-  const sample = useTodaySteps(occurrence);
+  const reading = useTodaySteps(occurrence);
   const complete = useCompleteChallenge();
   const target = occurrence.capture.target;
+  const count = reading.status === 'count' ? reading.count : null;
+  const sample =
+    count === null
+      ? null
+      : {
+          source: 'pedometer' as const,
+          metric: occurrence.capture.metric ?? 'steps',
+          count,
+        };
   const meetsGoal = sample !== null && activityMeetsTarget(sample, target);
   const stepsLabel = target.count
     ? `of ${target.count.toLocaleString('en-GB')} ${WALK_COPY.steps}`
@@ -80,10 +97,23 @@ export function StepsSession({ occurrence }: { occurrence: TodayChallenge }) {
       <SessionTitle>{occurrence.title}</SessionTitle>
       <WalkHero
         isGoalMet={meetsGoal}
-        isIdle={sample === null}
+        isIdle={false}
         of={stepsLabel}
-        value={sample?.count?.toLocaleString('en-GB') ?? '—'}
+        value={stepsHeroValue(count)}
       />
+      {reading.status === 'unread' ? (
+        <Text style={styles.unread}>{WALK_COPY.stepsUnread}</Text>
+      ) : null}
     </SessionShell>
   );
 }
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    unread: {
+      color: theme.deckCards.subtext,
+      fontSize: fontSize.md,
+      lineHeight: 21,
+      marginTop: 14,
+    },
+  });

@@ -138,7 +138,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: radii.xl,
       overflow: 'hidden',
       marginTop: spacing.md,
-      backgroundColor: theme.colors.background,
+      backgroundColor: '#000000',
       alignItems: 'center',
       justifyContent: 'center',
     },
