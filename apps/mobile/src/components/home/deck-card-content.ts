@@ -113,16 +113,24 @@ export function deckCardVerb(challenge: DeckChallenge): string {
   return LOG_VERB[challenge.completionKind] ?? 'Mark as done';
 }
 
+function countUnit(metric: DeckChallenge['capture']['metric']): string {
+  if (metric === 'pushups') {
+    return 'reps';
+  }
+
+  return metric === 'steps' ? 'steps' : '';
+}
+
 function targetMeasure(
   target: ChallengeTarget,
-  isPushups: boolean,
+  metric: DeckChallenge['capture']['metric'],
 ): { total: number; unit: string } | null {
   if (target.durationMinutes !== null) {
     return { total: target.durationMinutes, unit: 'min' };
   }
 
   if (target.count !== null) {
-    return { total: target.count, unit: isPushups ? 'reps' : '' };
+    return { total: target.count, unit: countUnit(metric) };
   }
 
   return null;
@@ -132,6 +140,8 @@ function targetMeasure(
 export type DeckMeasureContext = {
   detail: TodayOccurrenceDetail | null;
   todayKey: string;
+  /** Steps this phone has counted today. Null until the pedometer answers. */
+  phoneSteps?: number | null;
 };
 
 const WITHOUT_DETAIL: DeckMeasureContext = { detail: null, todayKey: '' };
@@ -150,7 +160,7 @@ function readingMeasure(challenge: DeckChallenge, context: DeckMeasureContext): 
   };
 }
 
-/** Done fills the target; otherwise the best measured session so far, never past it. */
+/** Done fills the target. Short of that, the best saved session, or the steps already on this phone. */
 function measuredSoFar(
   challenge: DeckChallenge,
   total: number,
@@ -160,7 +170,9 @@ function measuredSoFar(
     return total;
   }
 
-  return Math.min(context.detail?.bestMeasuredInPeriod ?? 0, total);
+  const saved = context.detail?.bestMeasuredInPeriod ?? 0;
+  const onPhone = challenge.capture.metric === 'steps' ? (context.phoneSteps ?? 0) : 0;
+  return Math.min(Math.max(saved, onPhone), total);
 }
 
 /** What stands in the middle of the card: a numeral, a sentence, a photo slot, or a ring. */
@@ -186,7 +198,7 @@ export function deckCardMeasure(
     return { kind: 'count', value: glasses, total: goal, unit: 'glasses', fill: glasses / goal };
   }
 
-  const target = targetMeasure(challenge.capture.target, challenge.capture.metric === 'pushups');
+  const target = targetMeasure(challenge.capture.target, challenge.capture.metric);
   if (target) {
     const value = measuredSoFar(challenge, target.total, context);
     return {

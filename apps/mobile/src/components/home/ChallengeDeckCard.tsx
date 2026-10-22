@@ -22,6 +22,8 @@ interface ChallengeDeckCardProps {
   totalCount: number;
   /** Today's day key; empty until the details land. */
   todayKey: string;
+  /** Steps this phone has counted today. */
+  phoneSteps: number | null;
   /** Days of the current week, for a weekly card's strip. */
   weekDayKeys: readonly string[] | null;
   isBusy: boolean;
@@ -36,6 +38,7 @@ export function ChallengeDeckCard({
   item,
   totalCount,
   todayKey,
+  phoneSteps,
   weekDayKeys,
   isBusy,
   onAct,
@@ -106,7 +109,10 @@ export function ChallengeDeckCard({
         ) : null}
       </View>
       <View style={styles.measure}>
-        <ChallengeMeasure measure={deckCardMeasure(challenge, { detail, todayKey })} tone={tone} />
+        <ChallengeMeasure
+          measure={deckCardMeasure(challenge, { detail, todayKey, phoneSteps })}
+          tone={tone}
+        />
         {showsWeek ? (
           <WeekStrip
             activeDayKeys={detail.activeDayKeys}

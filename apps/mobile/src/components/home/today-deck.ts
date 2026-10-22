@@ -28,6 +28,8 @@ type TodayDeckInput = {
   todayTip: HealthTip | null;
   /** Null until they land; every card draws without them first. */
   details: TodayDetails | null;
+  /** Steps this phone has counted today, once the pedometer has answered. */
+  phoneSteps?: number | null;
 };
 
 /**
@@ -46,9 +48,13 @@ export function orderOpenChallenges(open: readonly TodayChallenge[]): TodayChall
 }
 
 /** A counted card fills its segment as far as its numeral; the rest by fields entered. */
-function segmentFill(item: ChallengeDeckItem, todayKey: string): number {
+function segmentFill(
+  item: ChallengeDeckItem,
+  todayKey: string,
+  phoneSteps: number | null,
+): number {
   const { challenge } = item;
-  const measure = deckCardMeasure(challenge, { detail: item.detail, todayKey });
+  const measure = deckCardMeasure(challenge, { detail: item.detail, todayKey, phoneSteps });
   if (measure.kind === 'count') {
     return measure.fill;
   }
@@ -124,6 +130,7 @@ export function buildTodayDeck({
   liveGroups,
   todayTip,
   details,
+  phoneSteps = null,
 }: TodayDeckInput): TodayDeck {
   const completed = challenges.filter((item) => item.status === 'completed');
   const open = orderOpenChallenges(challenges.filter((item) => item.status !== 'completed'));
@@ -154,7 +161,7 @@ export function buildTodayDeck({
   const segments: TallySegment[] = ordered.map((item) => ({
     id: item.key,
     kind: item.kind,
-    fill: segmentFill(item, details?.dayKey ?? ''),
+    fill: segmentFill(item, details?.dayKey ?? '', phoneSteps),
     isDone: item.challenge.status === 'completed',
   }));
 
@@ -175,5 +182,6 @@ export function buildTodayDeck({
     showsMembershipLine: !hasMembership && win.locked && open.length > 0,
     weekDayKeys: details ? weekDayKeys(details.weekStartKey) : null,
     presence: latestGroupPresence(liveGroups),
+    phoneSteps,
   };
 }

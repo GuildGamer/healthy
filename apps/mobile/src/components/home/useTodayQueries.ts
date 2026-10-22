@@ -1,11 +1,37 @@
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { selectDailyTip } from '@/components/tips';
 import { apiClient } from '@/lib/api';
+import { readTodaySteps } from '@/lib/device-health';
 import { useSyncTimeZone } from '@/lib/time-zone';
 import { useAppReviewPrompt } from '@/lib/use-app-review-prompt';
 import { usePushDeviceSync } from '@/lib/use-push-device';
 import { buildTodayDeck } from './today-deck';
 import { nextDayKey } from './today-labels';
+
+/** Today's step count from this phone, refreshed whenever Today is on screen. */
+function useTodayPhoneSteps(): number | null {
+  const [steps, setSteps] = useState<number | null>(null);
+
+  const read = useCallback(() => {
+    let isCancelled = false;
+    void readTodaySteps()
+      .then((count) => {
+        if (!isCancelled && count !== null) {
+          setSteps(count);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useFocusEffect(read);
+  return steps;
+}
 
 /** Everything Today reads, and the background work that rides on opening it. */
 export function useTodayQueries() {
@@ -36,6 +62,7 @@ export function useTodayQueries() {
     enabled: challengesQuery.isSuccess,
   });
 
+  const phoneSteps = useTodayPhoneSteps();
   const me = meQuery.data;
   const tips = tipsQuery.data?.tips ?? [];
   const categories = me?.categories ?? [];
@@ -46,6 +73,7 @@ export function useTodayQueries() {
     liveGroups: matchesQuery.data?.live ?? [],
     todayTip,
     details: detailsQuery.data ?? null,
+    phoneSteps,
   });
 
   useSyncTimeZone(me?.timeZone);

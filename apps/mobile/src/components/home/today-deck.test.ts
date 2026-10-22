@@ -196,6 +196,20 @@ describe('buildTodayDeck', () => {
     ]);
   });
 
+  it('fills a steps card from the phone when nothing has been saved', () => {
+    const steps = {
+      kind: 'device_session',
+      metric: 'steps',
+      target: { durationMinutes: null, distanceMeters: null, count: 5_000 },
+    } as const;
+    const deck = deckFor([todayChallenge({ id: 'steps', capture: steps })], {
+      phoneSteps: 1213,
+    });
+
+    expect(deck.phoneSteps).toBe(1213);
+    expect(deck.segments[0]?.fill).toBe(1213 / 5000);
+  });
+
   it('has no week to draw until the details land', () => {
     expect(deckFor([todayChallenge({ id: 'a' })]).weekDayKeys).toBeNull();
   });

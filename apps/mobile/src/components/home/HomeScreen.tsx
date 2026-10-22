@@ -292,6 +292,7 @@ function useDeckItemRenderer(
             : null
         }
         onOpen={() => openChallenge(item.challenge.challengeId)}
+        phoneSteps={deck.phoneSteps}
         todayKey={today.dayKey}
         totalCount={deck.totalCount}
         weekDayKeys={deck.weekDayKeys}

@@ -123,6 +123,38 @@ describe('deckCardMeasure', () => {
     expect(measureFor(14)).toMatchObject({ value: 10, fill: 1 });
   });
 
+  it('shows the steps this phone has already counted, even when none are saved', () => {
+    const steps = {
+      kind: 'device_session',
+      metric: 'steps',
+      target: { ...noTarget, count: 5_000 },
+    } as const;
+
+    expect(
+      deckCardMeasure(todayChallenge({ id: 'steps', capture: steps }), {
+        detail: occurrenceDetail({ userChallengeId: 'steps', bestMeasuredInPeriod: null }),
+        todayKey: '2026-10-22',
+        phoneSteps: 1213,
+      }),
+    ).toMatchObject({ kind: 'count', value: 1213, total: 5000, unit: 'steps', fill: 1213 / 5000 });
+  });
+
+  it('keeps a saved step count when it is ahead of the phone', () => {
+    const steps = {
+      kind: 'device_session',
+      metric: 'steps',
+      target: { ...noTarget, count: 5_000 },
+    } as const;
+
+    expect(
+      deckCardMeasure(todayChallenge({ id: 'steps', capture: steps }), {
+        detail: occurrenceDetail({ userChallengeId: 'steps', bestMeasuredInPeriod: 2000 }),
+        todayKey: '2026-10-22',
+        phoneSteps: 1213,
+      }),
+    ).toMatchObject({ value: 2000 });
+  });
+
   it('shows a photo slot, or a ring for a plain check-in', () => {
     expect(
       deckCardMeasure(todayChallenge({ completionKind: 'evidence_photo', capture: photo })).kind,

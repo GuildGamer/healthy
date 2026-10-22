@@ -90,6 +90,8 @@ export type TodayDeck = {
   weekDayKeys: string[] | null;
   /** The latest move by someone else across live groups today. */
   presence: GroupPresence | null;
+  /** Steps this phone has counted today, or null before the pedometer answers. */
+  phoneSteps: number | null;
 };
 
 export type DeckMeasure =
