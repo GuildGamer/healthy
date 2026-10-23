@@ -87,11 +87,13 @@ workflows:
           mkdir -p "$profiles_dir"
           python3 - "$extension_bundle_id" "$profiles_dir" <<'PY'
           import json
+          import shutil
           import subprocess
           import sys
+          from pathlib import Path
 
           extension_bundle_id = sys.argv[1]
-          profiles_dir = sys.argv[2]
+          profiles_dir = Path(sys.argv[2])
 
           def run(args: list[str]) -> str:
               completed = subprocess.run(args, capture_output=True, text=True)
@@ -113,11 +115,28 @@ workflows:
                       return [parsed]
               return []
 
-          def asc(*args: str) -> str:
-              return run(["app-store-connect", "--profiles-dir", profiles_dir, *args])
+          def asc(group: str, *args: str) -> str:
+              # The action must be the first non-flag token. This CLI reads
+              # --json on the group, not before it.
+              return run(["app-store-connect", group, "--json", *args])
+
+          def publish_profiles() -> None:
+              profiles_dir.mkdir(parents=True, exist_ok=True)
+              sources = [
+                  Path.home() / "Library/MobileDevice/Provisioning Profiles",
+                  Path.home() / "Library/Developer/Xcode/UserData/Provisioning Profiles",
+              ]
+              for source in sources:
+                  if not source.is_dir():
+                      continue
+                  for profile in source.glob("*.mobileprovision"):
+                      target = profiles_dir / profile.name
+                      if profile.resolve() == target.resolve():
+                          continue
+                      shutil.copy2(profile, target)
 
           listed = resources(asc(
-              "--json", "bundle-ids", "list",
+              "bundle-ids", "list",
               "--bundle-id-identifier", extension_bundle_id,
               "--strict-match-identifier",
           ))
@@ -125,7 +144,7 @@ workflows:
               bundle_resource_id = listed[0]["id"]
           else:
               created = resources(asc(
-                  "--json", "bundle-ids", "create", extension_bundle_id,
+                  "bundle-ids", "create", extension_bundle_id,
                   "--name", "Healthy Live Activity",
               ))
               if not created:
@@ -133,7 +152,7 @@ workflows:
               bundle_resource_id = created[0]["id"]
 
           existing = resources(asc(
-              "--json", "bundle-ids", "profiles",
+              "bundle-ids", "profiles",
               "--bundle-ids", bundle_resource_id,
               "--type", "IOS_APP_STORE",
               "--state", "ACTIVE",
@@ -148,8 +167,8 @@ workflows:
               )
           else:
               identity = run(["security", "find-identity", "-v", "-p", "codesigning"])
-              certificates = resources(asc("--json", "certificates", "list", "--type", "IOS_DISTRIBUTION"))
-              certificates += resources(asc("--json", "certificates", "list", "--type", "DISTRIBUTION"))
+              certificates = resources(asc("certificates", "list", "--type", "IOS_DISTRIBUTION"))
+              certificates += resources(asc("certificates", "list", "--type", "DISTRIBUTION"))
               certificate_id = next(
                   (
                       certificate["id"]
@@ -171,6 +190,7 @@ workflows:
                   "--certificate-ids", certificate_id,
                   "--save",
               )
+          publish_profiles()
           PY
           # Fail here if cert/profile do not match — do not soft-warn into a vague archive 65.
           xcode-project use-profiles \
