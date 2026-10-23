@@ -3599,6 +3599,28 @@
                       }
                     }
                   },
+                  "sleep": {
+                    "type": "object",
+                    "properties": {
+                      "wentToBedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "wokeUpAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "rested": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5
+                      }
+                    },
+                    "required": [
+                      "wentToBedAt",
+                      "wokeUpAt"
+                    ]
+                  },
                   "deviceActivity": {
                     "type": "object",
                     "properties": {
@@ -5457,6 +5479,45 @@
                                       "kind",
                                       "grams",
                                       "note"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "const": "sleep"
+                                      },
+                                      "wentToBedAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      },
+                                      "wokeUpAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      },
+                                      "durationMinutes": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "rested": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 5
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "wentToBedAt",
+                                      "wokeUpAt",
+                                      "durationMinutes",
+                                      "rested"
                                     ]
                                   },
                                   {

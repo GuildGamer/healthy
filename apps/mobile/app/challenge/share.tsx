@@ -4,7 +4,7 @@ import { parseShareFriend } from '@/components/challenges/friend-challenge';
 import { parseSharePoster } from '@/components/challenges/share-poster';
 import { ScreenLoader } from '@/components/feedback';
 import { useSession } from '@/lib/auth-client';
-import { pendingSharePhotoFor } from '@/lib/share-card-session';
+import { pendingSharePhotoFor, pendingShareRouteFor } from '@/lib/share-card-session';
 
 export default function ChallengeShareRoute() {
   const { data: session, isPending } = useSession();
@@ -38,6 +38,7 @@ export default function ChallengeShareRoute() {
       friend={parseShareFriend(params)}
       photoUri={pendingSharePhotoFor(params.userChallengeId)}
       poster={poster}
+      routePoints={pendingShareRouteFor(params.userChallengeId)}
     />
   );
 }

@@ -78,6 +78,30 @@ describe('historyLog', () => {
     });
   });
 
+  it('reads a stored sleep payload and computes the duration', () => {
+    expect(
+      historyLog({
+        completionKind: 'check_in',
+        vitalReading: null,
+        challengeLogPayload: {
+          kind: 'sleep',
+          fields: {
+            wentToBedAt: '2026-10-22T23:00:00+01:00',
+            wokeUpAt: '2026-10-23T07:25:00+01:00',
+            rested: 4,
+          },
+        },
+        deviceActivity: null,
+      }),
+    ).toEqual({
+      kind: 'sleep',
+      wentToBedAt: '2026-10-22T23:00:00+01:00',
+      wokeUpAt: '2026-10-23T07:25:00+01:00',
+      durationMinutes: 505,
+      rested: 4,
+    });
+  });
+
   it('maps a device sample', () => {
     expect(
       historyLog({

@@ -7,7 +7,8 @@ config({
   path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'),
 });
 
-const { prisma } = await import('../src/index.js');
+const { getPrisma } = await import('../src/index.js');
+const prisma = getPrisma();
 
 type ChallengeSeed = {
   slug: string;
@@ -275,6 +276,9 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: false,
     icon: 'sleep',
+    captureKind: 'structured_log',
+    deviceMetric: 'sleep',
+    instruction: 'Enter the time you went to bed and when you woke up. You can also say how rested you feel.',
   },
   {
     slug: 'weekly-weigh-in',

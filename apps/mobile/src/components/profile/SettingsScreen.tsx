@@ -76,7 +76,7 @@ export function SettingsScreen() {
         />
         <SettingsLinkRow
           glyph="watch"
-          label="Movement & watch"
+          label="Movement & sleep"
           onPress={() => router.push('/settings/movement')}
           testID="open-health-link"
           value={me ? movementValue(me.healthLinkStatus) : null}

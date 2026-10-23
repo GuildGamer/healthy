@@ -7,6 +7,7 @@ import { listTodayDeviceSamples, type DeviceSample } from '@/lib/device-health';
 import { pathDistanceMeters } from '@/lib/geo-session';
 import { goBackOrHome } from '@/lib/go-back';
 import { playGoalReachedHaptic } from '@/lib/haptics';
+import { setPendingShareRoute } from '@/lib/share-card-session';
 import { finishAndLeave } from './finish-challenge';
 import { partialWalkSession, walkSessionId } from './partial-session';
 import { useCompleteChallenge } from './useCompleteChallenge';
@@ -101,15 +102,24 @@ export function useWalkSession(occurrence: TodayChallenge) {
   useGoalBuzz(isGoalMet, recorder.phase === 'recording');
 
   function submit(activity: DeviceActivity) {
+    const routePoints = recorder.points.map((point) => ({
+      latitude: point.latitude,
+      longitude: point.longitude,
+    }));
     complete.mutate(
       { occurrence, payload: { deviceActivity: activity } },
       {
-        onSuccess: (result) =>
+        onSuccess: (result) => {
+          setPendingShareRoute({
+            userChallengeId: occurrence.id,
+            points: routePoints,
+          });
           finishAndLeave(result, {
             kind: 'walk',
             durationSeconds: activity.durationSeconds ?? 0,
             distanceMeters: activity.distanceMeters ?? null,
-          }),
+          });
+        },
       },
     );
   }

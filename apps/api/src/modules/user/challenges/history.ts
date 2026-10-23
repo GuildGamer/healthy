@@ -3,6 +3,7 @@ import {
   challengeCarbsSchema,
   challengeGlucoseSchema,
   challengePeakFlowSchema,
+  challengeSleepSchema,
   challengeWaterSchema,
   deviceMetricSchema,
   type ChallengeHistoryEvidence,
@@ -17,6 +18,7 @@ const storedLogSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('peak_flow'), fields: challengePeakFlowSchema }),
   z.object({ kind: z.literal('water'), fields: challengeWaterSchema }),
   z.object({ kind: z.literal('carbs'), fields: challengeCarbsSchema }),
+  z.object({ kind: z.literal('sleep'), fields: challengeSleepSchema }),
 ]);
 
 export function historyOutcome(
@@ -73,6 +75,20 @@ export function historyLog(input: {
 
     if (stored.data.kind === 'water') {
       return { kind: 'water', ...stored.data.fields };
+    }
+
+    if (stored.data.kind === 'sleep') {
+      const wentToBedAtMs = Date.parse(stored.data.fields.wentToBedAt);
+      const wokeUpAtMs = Date.parse(stored.data.fields.wokeUpAt);
+      const durationMinutes = Math.round((wokeUpAtMs - wentToBedAtMs) / 60_000);
+
+      return {
+        kind: 'sleep',
+        wentToBedAt: stored.data.fields.wentToBedAt,
+        wokeUpAt: stored.data.fields.wokeUpAt,
+        durationMinutes,
+        rested: stored.data.fields.rested ?? null,
+      };
     }
 
     return {

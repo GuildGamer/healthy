@@ -140,10 +140,23 @@ describe('buildTodayDeck', () => {
     expect(deck.items.map((item) => item.key)).toEqual([DAY_DONE_KEY]);
   });
 
-  it('deals live groups after the challenges', () => {
+  it('deals live groups before open personal cards', () => {
     const deck = deckFor([todayChallenge({ id: 'a' })], { liveGroups: [liveGroup()] });
 
-    expect(deck.items.map((item) => item.key)).toEqual(['a', 'group-m1']);
+    expect(deck.items.map((item) => item.key)).toEqual(['group-m1', 'a']);
+  });
+
+  it('keeps the day summary on top, then groups, then remaining opens', () => {
+    const deck = deckFor(
+      [
+        todayChallenge({ id: 'a', status: 'completed' }),
+        todayChallenge({ id: 'b', status: 'completed' }),
+        todayChallenge({ id: 'c' }),
+      ],
+      { hasMembership: false, liveGroups: [liveGroup()] },
+    );
+
+    expect(deck.items.map((item) => item.key)).toEqual([DAY_DONE_KEY, 'group-m1', 'c']);
   });
 
   it('rides the tip on the first open card about its condition only', () => {

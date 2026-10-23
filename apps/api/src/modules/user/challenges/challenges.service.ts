@@ -64,7 +64,7 @@ import { SURPRISE_EVIDENCE_ROLL } from './surprise-evidence.tokens.js';
 import { parseStoredDraft, requireMatchingDraft } from './draft.js';
 import { requireDeviceActivityFor } from './device-activity.js';
 import { CHALLENGE_HISTORY_LIMIT, historyEvidence, historyLog, historyOutcome } from './history.js';
-import { requireLogFor, type ChallengeLogPayload } from './logs.js';
+import { requireLogFor, requireSleepLogFor, type ChallengeLogPayload } from './logs.js';
 import { requireVitalsFor, type ChallengeVitalsInput } from './vitals.js';
 
 /** Rows returned by the activity feed, per source, before the merge is trimmed. */
@@ -277,6 +277,7 @@ export class ChallengesService {
       peakFlow?: Parameters<typeof requireLogFor>[1]['peakFlow'];
       water?: Parameters<typeof requireLogFor>[1]['water'];
       carbs?: Parameters<typeof requireLogFor>[1]['carbs'];
+      sleep?: Parameters<typeof requireSleepLogFor>[1];
     },
     deviceActivity?: DeviceActivity,
   ): Promise<CompleteChallengeDto> {
@@ -297,8 +298,10 @@ export class ChallengesService {
 
     const reading = requireVitalsFor(assignment.challenge.completionKind, vitals);
     const photo = requireEvidenceFor(assignment.challenge.completionKind, evidence);
-    const log = requireLogFor(assignment.challenge.completionKind, logFields ?? {});
     const capture = captureForAssignment(assignment);
+    const log =
+      requireLogFor(assignment.challenge.completionKind, logFields ?? {}) ??
+      requireSleepLogFor(capture, logFields?.sleep);
     const activity = requireDeviceActivityFor(capture, deviceActivity);
 
     if (photo) {

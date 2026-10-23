@@ -28,8 +28,21 @@ export const READING_COPY = {
   water: 'Hydration',
   waterTitle: 'How much so far?',
   waterUnit: 'glasses',
+  sleep: 'Sleep',
+  sleepTitle: 'Last night',
+  wentToBed: 'Went to bed',
+  wokeUp: 'Woke up',
+  restedPrompt: 'How rested do you feel?',
+  saveSleep: 'Save sleep',
+  editTimes: 'Edit times',
+  fromAppleHealth: 'From Apple Health',
+  fromHealthConnect: 'From Health Connect',
+  inBedFromAppleHealth: 'In bed · from Apple Health',
+  inBedFromHealthConnect: 'In bed · from Health Connect',
   checkInDone: 'Mark as done',
 } as const;
+
+export const SLEEP_RESTED_CHOICES = [1, 2, 3, 4, 5] as const;
 
 export const GLUCOSE_CONTEXT_CHOICES: readonly { id: GlucoseContext; label: string }[] = [
   { id: 'fasting', label: 'Fasting' },

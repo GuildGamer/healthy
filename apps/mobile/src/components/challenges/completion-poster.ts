@@ -21,8 +21,8 @@ const READING_KINDS = new Set<ProgressDoneItem['completionKind']>([
   'carbs',
 ]);
 
-/** Weight and heart rate. Step and sleep totals are left off the image as well. */
-const READING_METRICS = new Set<DeviceMetric>(['weight', 'heart_rate']);
+/** Weight, heart rate, and sleep. Step totals are left off the image as well. */
+const READING_METRICS = new Set<DeviceMetric>(['weight', 'heart_rate', 'sleep']);
 
 const QUIET_LOGGED = 'Logged';
 const QUIET_DONE = 'Done';
@@ -213,6 +213,7 @@ function logIsReading(log: ChallengeHistoryLog | null | undefined): boolean {
     return READING_METRICS.has(log.metric);
   }
 
+  // vitals, glucose, peak flow, carbs, and sleep stay off the share image.
   return true;
 }
 

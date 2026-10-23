@@ -13,6 +13,14 @@ const LOG_KINDS = new Set<ChallengeCompletionKind>([
   'carbs',
 ]);
 
+/** Sleep stays a check_in; the sheet opens when capture says structured sleep. */
+export function isSleepCapture(capture?: {
+  kind?: ChallengeCaptureKind | string | null;
+  metric?: string | null;
+}): boolean {
+  return capture?.kind === 'structured_log' && capture.metric === 'sleep';
+}
+
 export function completionRoute(challenge: {
   challengeId: string;
   status: UserChallengeStatus;
@@ -41,6 +49,10 @@ export function completionRoute(challenge: {
 
   if (challenge.capture?.kind === 'device_session' || challenge.capture?.kind === 'device_sample') {
     return `/challenge/${challenge.challengeId}/session`;
+  }
+
+  if (isSleepCapture(challenge.capture)) {
+    return `/challenge/${challenge.challengeId}/log`;
   }
 
   if (challenge.completionKind === 'check_in') {

@@ -90,6 +90,18 @@ jest.mock('expo-sensors', () => ({
   },
 }));
 
+jest.mock('@kingstinct/react-native-healthkit', () => ({
+  isHealthDataAvailableAsync: jest.fn(async () => false),
+  requestAuthorization: jest.fn(async () => true),
+  queryCategorySamples: jest.fn(async () => []),
+}));
+
+jest.mock('react-native-health-connect', () => ({
+  initialize: jest.fn(async () => false),
+  requestPermission: jest.fn(async () => []),
+  readRecords: jest.fn(async () => ({ records: [] })),
+}));
+
 jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View } = require('react-native');

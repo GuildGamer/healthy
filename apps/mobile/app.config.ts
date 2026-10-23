@@ -66,6 +66,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSSupportsLiveActivities: true,
       UIBackgroundModes: ['location'],
     },
+    entitlements: {
+      'com.apple.developer.healthkit': true,
+    },
   },
   android: {
     adaptiveIcon: {
@@ -95,6 +98,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'ACCESS_COARSE_LOCATION',
       'ACCESS_FINE_LOCATION',
       'ACTIVITY_RECOGNITION',
+      // Health Connect sleep read (declared; runtime grant via the library).
+      'android.permission.health.READ_SLEEP',
     ],
   },
   plugins: [
@@ -199,6 +204,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-live-activity',
     // Overwrites the generated SwiftUI with Healthy’s deck-style Pause/Resume card.
     './modules/walk-live-activity/app.plugin.js',
+    [
+      '@kingstinct/react-native-healthkit',
+      {
+        NSHealthShareUsageDescription:
+          'Healthy reads last night’s sleep from Apple Health so you can confirm it in one tap.',
+        // Apple still requires this string when the HealthKit entitlement is present,
+        // even though Healthy only reads sleep and never writes to the store.
+        NSHealthUpdateUsageDescription:
+          'Healthy does not write sleep or other health data to Apple Health.',
+        background: false,
+      },
+    ],
+    'react-native-health-connect',
   ],
   experiments: {
     typedRoutes: true,

@@ -4,6 +4,8 @@ import type {
   ChallengeHistoryLog,
   TodayChallenge,
 } from '@product/client';
+import { formatClockTime } from '@/lib/clock-time';
+import { sleepDurationLabel } from './sleep-window';
 
 const GLUCOSE_CONTEXT: Record<string, string> = {
   fasting: 'Fasting',
@@ -58,6 +60,12 @@ export function historyLogCopy(log: ChallengeHistoryLog | null): string {
     }
 
     return log.note ?? 'Carbs logged';
+  }
+
+  if (log.kind === 'sleep') {
+    const from = formatClockTime(new Date(log.wentToBedAt));
+    const to = formatClockTime(new Date(log.wokeUpAt));
+    return `${sleepDurationLabel(log.durationMinutes)} · ${from} to ${to}`;
   }
 
   if (log.kind === 'evidence_photo') {

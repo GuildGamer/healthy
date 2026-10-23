@@ -456,4 +456,116 @@ describe('ChallengesService.complete', () => {
       }),
     ).rejects.toBeInstanceOf(ORPCError);
   });
+
+  it('rejects a sleep entry on a challenge that is not about sleep', async () => {
+    const prisma = createPrismaMock(createAssignment({ status: 'in_progress' }));
+    const service = createService(prisma);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, {
+        sleep: {
+          wentToBedAt: '2026-10-22T23:00:00+01:00',
+          wokeUpAt: '2026-10-23T07:00:00+01:00',
+        },
+      }),
+    ).rejects.toBeInstanceOf(ORPCError);
+  });
+
+  it('lets an older app finish a sleep challenge without a sleep entry', async () => {
+    const assignment = sleepAssignment();
+    const { prisma, challengeLogUpsert } = createCompletePrismaMock(assignment);
+    const service = createService(prisma);
+
+    await expect(service.complete(user, 'uc1')).resolves.toMatchObject({
+      pointsAwarded: 20,
+    });
+    expect(challengeLogUpsert).not.toHaveBeenCalled();
+  });
+
+  it('stores a sleep log when the new app sends bedtime and wake time', async () => {
+    const assignment = sleepAssignment();
+    const { prisma, challengeLogUpsert } = createCompletePrismaMock(assignment);
+    const service = createService(prisma);
+    const wokeUpAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const wentToBedAt = new Date(wokeUpAt.getTime() - 8 * 60 * 60 * 1000);
+    const sleep = {
+      wentToBedAt: wentToBedAt.toISOString().replace('Z', '+00:00'),
+      wokeUpAt: wokeUpAt.toISOString().replace('Z', '+00:00'),
+      rested: 4,
+    };
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, { sleep }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+    expect(challengeLogUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          payload: { kind: 'sleep', fields: sleep },
+        }),
+      }),
+    );
+  });
 });
+
+function sleepAssignment() {
+  return createAssignment({
+    status: 'in_progress',
+    challenge: {
+      ...createAssignment().challenge,
+      title: "Log last night’s sleep",
+      completionKind: 'check_in',
+      captureKind: 'structured_log',
+      deviceMetric: 'sleep',
+      surpriseEvidenceChancePercent: 0,
+    },
+  });
+}
+
+function createCompletePrismaMock(assignment: ReturnType<typeof createAssignment>) {
+  const completed = {
+    ...assignment,
+    status: 'completed',
+    completedAt: new Date(),
+  };
+  const profile = {
+    userId: 'u1',
+    pointsBalance: 20,
+    currentStreakDays: 1,
+    membershipActive: false,
+  };
+  const challengeLogUpsert = vi.fn().mockResolvedValue({});
+  const tx = {
+    pointLedgerEntry: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+    },
+    userChallenge: {
+      count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue(completed),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(completed),
+    },
+    challengeLog: {
+      upsert: challengeLogUpsert,
+    },
+    userProfile: {
+      upsert: vi.fn().mockResolvedValue(profile),
+      update: vi.fn().mockResolvedValue(profile),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(profile),
+    },
+    notification: {
+      upsert: vi.fn().mockResolvedValue({}),
+    },
+  };
+  const prisma = {
+    ...createPrismaMock(assignment),
+    $transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
+      callback(tx),
+    ),
+    pushDevice: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+  };
+
+  return { prisma, challengeLogUpsert };
+}

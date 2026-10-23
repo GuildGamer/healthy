@@ -120,9 +120,10 @@ export function latestGroupPresence(liveGroups: readonly MatchListItem[]): Group
 }
 
 /**
- * Deals today as a deck: finished cards first in the tally, then the open ones
- * in the order they are played. A finished day (or a free member's locked win)
- * puts the day's summary on top, with any extras still behind it.
+ * Deals today as a deck: finished cards first in the tally, then live groups,
+ * then open personal cards in the order they are played. A finished day (or a
+ * free member's locked win) puts the day's summary on top, with any extras
+ * still behind it.
  */
 export function buildTodayDeck({
   challenges,
@@ -171,7 +172,7 @@ export function buildTodayDeck({
   return {
     segments,
     winLineAfter,
-    items: [...dayDone, ...openItems, ...liveGroups.map(groupItem)],
+    items: [...dayDone, ...liveGroups.map(groupItem), ...openItems],
     done,
     completedCount: completed.length,
     totalCount: challenges.length,

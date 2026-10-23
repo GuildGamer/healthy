@@ -1,9 +1,11 @@
 import { Redirect } from 'expo-router';
 import { BloodPressureSheet } from './BloodPressureSheet';
+import { isSleepCapture } from './completion-route';
 import { NOT_ON_TODAY } from './constants/doing-copy';
 import { ClosedReadingSheet } from './ReadingSheetLayout';
 import { isSingleReadingKind } from './single-reading';
 import { SingleReadingSheet } from './SingleReadingSheet';
+import { SleepSheet } from './SleepSheet';
 import { useTodayOccurrence } from './useTodayOccurrence';
 import { WaterSheet } from './WaterSheet';
 
@@ -27,6 +29,10 @@ export function ChallengeLogScreen({ challengeId }: { challengeId: string }) {
 
   if (occurrence.status === 'awaiting_evidence') {
     return <Redirect href={`/challenge/${challengeId}/verify`} />;
+  }
+
+  if (isSleepCapture(occurrence.capture)) {
+    return <SleepSheet occurrence={occurrence} />;
   }
 
   if (occurrence.completionKind === 'vitals_bp') {

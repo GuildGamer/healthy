@@ -31,6 +31,17 @@ describe('completionRoute', () => {
     ).toBe('/challenge/c-walk/confirm');
   });
 
+  it('opens the log screen for a sleep challenge, not the Done button', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-sleep',
+        status: 'pending',
+        completionKind: 'check_in',
+        capture: { kind: 'structured_log', metric: 'sleep' },
+      }),
+    ).toBe('/challenge/c-sleep/log');
+  });
+
   it('opens the session screen for a walk or step challenge', () => {
     expect(
       completionRoute({

@@ -26,18 +26,18 @@ export function MovementScreen() {
       dock={<MovementDock healthLink={healthLink} onNotNow={leave} status={status} />}
       onBack={leave}
       testID="movement-settings"
-      title="Movement & watch"
+      title="Movement & sleep"
     >
       <View style={styles.hero}>
         <View style={styles.tile}>
           <Glyph color={colors.text} name="walk" size={30} strokeWidth={2} />
         </View>
         <Text accessibilityRole="header" style={styles.title}>
-          Count walks for you.
+          Count walks and sleep for you.
         </Text>
         <Text style={styles.sub}>
-          Allow motion and location so this phone can count steps and record walks you start. Apple
-          Health or Health Connect can add your watch workouts.
+          Allow motion, location, and sleep so this phone can count steps, record walks you start,
+          and offer last night’s sleep from Apple Health or Health Connect.
         </Text>
       </View>
       {healthLink.errorMessage ? (
@@ -46,8 +46,8 @@ export function MovementScreen() {
       <SettingsSectionTitle>What we read</SettingsSectionTitle>
       <SettingsGroup isSpaced={false}>
         <Text style={styles.read}>
-          Steps, workouts, and the route of a walk you start in the app. You confirm before anything
-          is marked done.
+          Steps, workouts, sleep, and the route of a walk you start in the app. You confirm before
+          anything is marked done. Healthy never writes to the health store.
         </Text>
       </SettingsGroup>
     </SettingsPage>
@@ -82,7 +82,7 @@ function MovementDock({
   return (
     <>
       <DeckButton
-        label="Allow motion & location"
+        label="Allow access"
         loading={healthLink.isSaving}
         onPress={healthLink.allow}
         testID="connect-health"

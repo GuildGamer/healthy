@@ -14,6 +14,7 @@ const pushups = {
   target: { ...noTarget, count: 20 },
 } as const;
 const reading = { kind: 'structured_log', metric: null, target: noTarget } as const;
+const sleep = { kind: 'structured_log', metric: 'sleep', target: noTarget } as const;
 const photo = { kind: 'photo', metric: null, target: noTarget } as const;
 
 describe('deckCardKindFor', () => {
@@ -47,6 +48,7 @@ describe('deckCardVerb', () => {
     [todayChallenge({ completionKind: 'water', capture: reading }), 'Add a glass'],
     [todayChallenge({ completionKind: 'evidence_photo', capture: photo }), 'Add photo'],
     [todayChallenge({ completionKind: 'check_in' }), 'Mark as done'],
+    [todayChallenge({ completionKind: 'check_in', capture: sleep }), 'Log sleep'],
     [todayChallenge({ capture: walk, status: 'in_progress' }), 'Resume'],
     [todayChallenge({ status: 'awaiting_evidence' }), 'Add photo'],
   ])('names the next action', (challenge, verb) => {
@@ -61,6 +63,9 @@ describe('deckCardProof', () => {
     expect(
       deckCardProof(todayChallenge({ completionKind: 'vitals_bp', capture: reading })).line,
     ).toBe('You enter the reading');
+    expect(deckCardProof(todayChallenge({ completionKind: 'check_in', capture: sleep })).line).toBe(
+      'You enter your times',
+    );
     expect(deckCardProof(todayChallenge({})).line).toBe('You confirm it');
   });
 });

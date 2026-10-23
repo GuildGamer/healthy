@@ -22,6 +22,7 @@ import {
   challengeGlucoseSchema,
   challengePeakFlowSchema,
   challengeProgressSchema,
+  challengeSleepSchema,
   challengeWaterSchema,
   glucoseContextSchema,
   saveChallengeDraftInputSchema,
@@ -177,6 +178,7 @@ export {
   challengePeakFlowDraftSchema,
   challengePeakFlowSchema,
   challengeProgressSchema,
+  challengeSleepSchema,
   challengeVitalsDraftSchema,
   challengeWaterDraftSchema,
   challengeWaterSchema,
@@ -191,6 +193,7 @@ export type {
   ChallengeFieldProgress,
   ChallengeGlucose,
   ChallengePeakFlow,
+  ChallengeSleep,
   ChallengeWater,
   GlucoseContext,
   WaterUnit,
@@ -632,6 +635,7 @@ export const completeChallengeInputSchema = z.object({
   peakFlow: challengePeakFlowSchema.optional(),
   water: challengeWaterSchema.optional(),
   carbs: challengeCarbsSchema.optional(),
+  sleep: challengeSleepSchema.optional(),
   deviceActivity: deviceActivitySchema.optional(),
 });
 
@@ -697,6 +701,13 @@ export const challengeHistoryLogSchema = z.discriminatedUnion('kind', [
     kind: z.literal('carbs'),
     grams: z.number().int().nullable(),
     note: z.string().nullable(),
+  }),
+  z.object({
+    kind: z.literal('sleep'),
+    wentToBedAt: z.string().datetime({ offset: true }),
+    wokeUpAt: z.string().datetime({ offset: true }),
+    durationMinutes: z.number().int().positive(),
+    rested: z.number().int().min(1).max(5).nullable(),
   }),
   z.object({ kind: z.literal('evidence_photo') }),
   z.object({

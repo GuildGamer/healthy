@@ -18,18 +18,19 @@ export function ConnectHealthSheet({
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
       <Pressable onPress={onClose} style={styles.backdrop} />
       <View style={styles.sheet}>
-        <Text style={styles.title}>Movement & watch</Text>
+        <Text style={styles.title}>Movement & sleep</Text>
         <Text style={styles.body}>
-          Allow motion and location so this phone can count steps and record walks. If you wear a
-          watch, keep Apple Health or Health Connect connected so those workouts can appear here.
+          Allow motion, location, and sleep so this phone can count steps, record walks, and offer
+          last night’s sleep from Apple Health or Health Connect. If you wear a watch, keep that
+          store connected so workouts and sleep can appear here.
         </Text>
         <Text style={styles.body}>
-          We only read workouts, steps, and the route you start in the app. You confirm before
-          anything is marked done.
+          We only read workouts, steps, sleep, and the route you start in the app. You confirm
+          before anything is marked done. Healthy never writes to the health store.
         </Text>
         {healthLink.errorMessage ? <FormErrorBanner message={healthLink.errorMessage} /> : null}
         <FormButton
-          label="Allow motion & location"
+          label="Allow access"
           loading={healthLink.isSaving}
           onPress={healthLink.allow}
           testID="connect-health"

@@ -18,17 +18,19 @@ const MINUTES_PER_HOUR = 60;
 
 const twoDigits = (value: number) => String(value).padStart(2, '0');
 
-/** Any time of day, on the phone's own 12- or 24-hour clock, for a reminder no moment fits. */
+/** Any time of day, on the phone's own 12- or 24-hour clock. */
 export function TimePickerModal({
   initialMinute,
   onCancel,
   onConfirm,
+  title = 'Reminder time',
   visible,
 }: {
   visible: boolean;
   initialMinute: number;
   onConfirm: (minuteOfDay: number) => void;
   onCancel: () => void;
+  title?: string;
 }) {
   const styles = useThemedStyles(createStyles);
   const [time, setTime] = useState<ClockTime>(() => clockTimeFromMinuteOfDay(initialMinute));
@@ -46,7 +48,7 @@ export function TimePickerModal({
       <Pressable accessibilityLabel="Close" onPress={onCancel} style={styles.backdrop}>
         <Pressable onPress={() => undefined} style={styles.panel}>
           <Text accessibilityRole="header" style={styles.title}>
-            Reminder time
+            {title}
           </Text>
           <View style={styles.columns}>
             {isTwentyFourHour ? (

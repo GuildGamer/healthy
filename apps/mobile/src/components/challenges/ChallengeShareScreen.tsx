@@ -1,13 +1,15 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import * as Sharing from 'expo-sharing';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
+import { clearPendingShareRoute } from '@/lib/share-card-session';
+import type { ShareRoutePoint } from '@/lib/share-route-path';
 import { type Theme, useThemedStyles } from '@/theme';
 import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { friendChallengeSpec } from './friend-challenge';
@@ -23,18 +25,31 @@ export function ChallengeShareScreen({
   poster,
   friend = null,
   photoUri,
+  routePoints,
 }: {
   poster: SharePoster;
   /** Set when history opened this screen. Absent for a share that just finished. */
   friend?: ShareFriend | null;
   /** The gym selfie, only while it is still on the phone from this finish. */
   photoUri?: string;
+  /** Walk path for this finish; history shares omit it. */
+  routePoints?: ShareRoutePoint[];
 }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const posterRef = useRef<View>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Hold the route for this screen; the session is cleared on leave so a later
+  // history share for another finish never paints this path.
+  const [heldRoutePoints] = useState(() => routePoints);
+
+  useEffect(
+    () => () => {
+      clearPendingShareRoute();
+    },
+    [],
+  );
   const meQuery = useQuery({ queryKey: ['me'], queryFn: () => apiClient.me() });
   const invite = useFriendChallenge({
     spec: friendChallengeSpec(friend?.source ?? { kind: 'day' }),
@@ -89,6 +104,7 @@ export function ChallengeShareScreen({
         <SharePosterCard
           photoUri={photoUri}
           poster={poster}
+          routePoints={heldRoutePoints}
           runLine={posterRunLine(meQuery.data?.currentStreakDays ?? 0)}
         />
       </View>

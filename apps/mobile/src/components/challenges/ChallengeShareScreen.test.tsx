@@ -77,7 +77,11 @@ function assignment(variantKey: 'treatment' | 'control') {
   };
 }
 
-function renderShare(poster: SharePoster, friend: ShareFriend) {
+function renderShare(
+  poster: SharePoster,
+  friend: ShareFriend,
+  extras: { routePoints?: { latitude: number; longitude: number }[] } = {},
+) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
@@ -87,7 +91,7 @@ function renderShare(poster: SharePoster, friend: ShareFriend) {
   const view = render(
     <QueryClientProvider client={client}>
       <SafeAreaProvider initialMetrics={safeArea}>
-        <ChallengeShareScreen friend={friend} poster={poster} />
+        <ChallengeShareScreen friend={friend} poster={poster} routePoints={extras.routePoints} />
       </SafeAreaProvider>
     </QueryClientProvider>,
   );
@@ -100,6 +104,26 @@ function renderShare(poster: SharePoster, friend: ShareFriend) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+describe('ChallengeShareScreen route poster', () => {
+  it('shows the walk path silhouette when route points are handed in', async () => {
+    const walk: SharePoster = {
+      kind: 'walk',
+      label: 'Morning walk',
+      value: '28',
+      unit: 'minutes walked',
+      when: '2026-10-23T08:00:00.000Z',
+    };
+    renderShare(walk, { source: { kind: 'day' }, userChallengeId: 'uc-walk', isEligible: false }, {
+      routePoints: [
+        { latitude: 51.5, longitude: -0.13 },
+        { latitude: 51.51, longitude: -0.12 },
+      ],
+    });
+
+    expect(await screen.findByTestId('share-poster-route')).toBeOnTheScreen();
+  });
 });
 
 describe('ChallengeShareScreen friend invite', () => {

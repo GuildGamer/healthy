@@ -39,6 +39,15 @@ describe('historyLogCopy', () => {
     expect(historyLogCopy({ kind: 'carbs', grams: null, note: 'Rice' })).toBe('Rice');
     expect(
       historyLogCopy({
+        kind: 'sleep',
+        wentToBedAt: '2026-10-22T22:40:00.000Z',
+        wokeUpAt: '2026-10-23T06:05:00.000Z',
+        durationMinutes: 445,
+        rested: 4,
+      }),
+    ).toMatch(/^7h 25m · .+ to .+$/);
+    expect(
+      historyLogCopy({
         kind: 'device',
         metric: 'walk',
         durationSeconds: 1200,

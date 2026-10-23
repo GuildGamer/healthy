@@ -50,6 +50,13 @@ const LOGGED_KINDS = new Set<ChallengeCompletionKind>([
   'carbs',
 ]);
 
+const SLEEP_TIMES: ChallengeProof = {
+  glyph: 'pencil',
+  short: 'You enter your times',
+  sentence: 'You enter your bedtime and wake time.',
+  by: 'What you log',
+};
+
 /** How a challenge is proved, said the way the catalogue and settings say it. */
 export function challengeProof(
   challenge: Pick<CatalogChallenge, 'completionKind' | 'capture'>,
@@ -65,6 +72,10 @@ export function challengeProof(
 
   if (challenge.completionKind === 'evidence_photo' || kind === 'photo') {
     return PHOTO;
+  }
+
+  if (kind === 'structured_log' && metric === 'sleep') {
+    return SLEEP_TIMES;
   }
 
   return LOGGED_KINDS.has(challenge.completionKind) ? LOG : CONFIRM;

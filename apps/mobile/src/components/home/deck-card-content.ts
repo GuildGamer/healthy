@@ -66,6 +66,10 @@ function isPhotoChallenge(challenge: DeckChallenge): boolean {
   return challenge.completionKind === 'evidence_photo' || challenge.capture.kind === 'photo';
 }
 
+function isSleepChallenge(challenge: DeckChallenge): boolean {
+  return challenge.capture.kind === 'structured_log' && challenge.capture.metric === 'sleep';
+}
+
 /** How the card is proved: Healthy's honest edge, so it gets its own line. */
 export function deckCardProof(challenge: DeckChallenge): DeckProof {
   if (challenge.capture.metric === 'pushups') {
@@ -78,6 +82,10 @@ export function deckCardProof(challenge: DeckChallenge): DeckProof {
 
   if (isPhotoChallenge(challenge)) {
     return { glyph: 'camera', line: 'Checked from your photo' };
+  }
+
+  if (isSleepChallenge(challenge)) {
+    return { glyph: 'pencil', line: 'You enter your times' };
   }
 
   const logProof = LOG_PROOF[challenge.completionKind];
@@ -108,6 +116,10 @@ export function deckCardVerb(challenge: DeckChallenge): string {
 
   if (isDeviceCapture(challenge)) {
     return challenge.capture.metric === 'walk' ? 'Start a walk' : 'Start';
+  }
+
+  if (isSleepChallenge(challenge)) {
+    return 'Log sleep';
   }
 
   return LOG_VERB[challenge.completionKind] ?? 'Mark as done';
