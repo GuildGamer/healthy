@@ -82,18 +82,19 @@ workflows:
           # ios_signing only fetches profiles that already exist. Register the
           # widget App ID and an App Store profile on the existing distribution
           # certificate, then apply both profiles. Do not mint a new certificate.
+          # --save writes to ~/Library/Developer/Xcode/UserData/Provisioning Profiles,
+          # which xcode-project use-profiles reads by default.
           extension_bundle_id="${IOS_BUNDLE_IDENTIFIER}.LiveActivity"
-          profiles_dir="${HOME}/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$profiles_dir"
-          python3 - "$extension_bundle_id" "$profiles_dir" <<'PY'
+          python3 - "$extension_bundle_id" <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
           import json
-          import shutil
           import subprocess
           import sys
-          from pathlib import Path
 
           extension_bundle_id = sys.argv[1]
-          profiles_dir = Path(sys.argv[2])
 
           def run(args: list[str]) -> str:
               completed = subprocess.run(args, capture_output=True, text=True)
@@ -115,25 +116,20 @@ workflows:
                       return [parsed]
               return []
 
-          def asc(group: str, *args: str) -> str:
-              # The action must be the first non-flag token. This CLI reads
-              # --json on the group, not before it.
-              return run(["app-store-connect", group, "--json", *args])
+          def asc(group: str, action: str, *args: str) -> str:
+              # Shared flags such as --json belong to the action subcommand.
+              return run(["app-store-connect", group, action, "--json", *args])
 
-          def publish_profiles() -> None:
-              profiles_dir.mkdir(parents=True, exist_ok=True)
-              sources = [
-                  Path.home() / "Library/MobileDevice/Provisioning Profiles",
-                  Path.home() / "Library/Developer/Xcode/UserData/Provisioning Profiles",
-              ]
-              for source in sources:
-                  if not source.is_dir():
+          def keychain_certificate_id(certificates: list[dict]) -> str | None:
+              identities = run(["security", "find-identity", "-v", "-p", "codesigning"]).upper()
+              for certificate in certificates:
+                  content = (certificate.get("attributes") or {}).get("certificateContent")
+                  if not content:
                       continue
-                  for profile in source.glob("*.mobileprovision"):
-                      target = profiles_dir / profile.name
-                      if profile.resolve() == target.resolve():
-                          continue
-                      shutil.copy2(profile, target)
+                  fingerprint = hashlib.sha1(base64.b64decode(content)).hexdigest().upper()
+                  if fingerprint in identities:
+                      return certificate["id"]
+              return None
 
           listed = resources(asc(
               "bundle-ids", "list",
@@ -146,6 +142,7 @@ workflows:
               created = resources(asc(
                   "bundle-ids", "create", extension_bundle_id,
                   "--name", "Healthy Live Activity",
+                  "--platform", "IOS",
               ))
               if not created:
                   sys.exit(f"Apple did not return a Bundle ID for {extension_bundle_id}.")
@@ -166,18 +163,11 @@ workflows:
                   "--save",
               )
           else:
-              identity = run(["security", "find-identity", "-v", "-p", "codesigning"])
-              certificates = resources(asc("certificates", "list", "--type", "IOS_DISTRIBUTION"))
-              certificates += resources(asc("certificates", "list", "--type", "DISTRIBUTION"))
-              certificate_id = next(
-                  (
-                      certificate["id"]
-                      for certificate in certificates
-                      if (certificate.get("attributes") or {}).get("displayName")
-                      and certificate["attributes"]["displayName"] in identity
-                  ),
-                  None,
-              )
+              certificates = resources(asc(
+                  "certificates", "list",
+                  "--type", "IOS_DISTRIBUTION", "DISTRIBUTION",
+              ))
+              certificate_id = keychain_certificate_id(certificates)
               if not certificate_id:
                   sys.exit(
                       "No Apple Distribution certificate in the keychain matches the team. "
@@ -190,7 +180,6 @@ workflows:
                   "--certificate-ids", certificate_id,
                   "--save",
               )
-          publish_profiles()
           PY
           # Fail here if cert/profile do not match — do not soft-warn into a vague archive 65.
           xcode-project use-profiles \
