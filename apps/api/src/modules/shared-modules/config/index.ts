@@ -4,6 +4,7 @@ export type {
   AppleIapConfig,
   Environment,
   EvidenceVisionConfig,
+  EvidenceVisionProvider,
   MailConfig,
   MailProvider,
   SchedulerMode,

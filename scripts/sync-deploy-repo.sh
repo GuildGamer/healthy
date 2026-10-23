@@ -174,10 +174,15 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      # openai | gemini | openai-compatible. Unset uses OpenAI when a key is set.
+      - key: EVIDENCE_VISION_PROVIDER
+        sync: false
       - key: EVIDENCE_VISION_API_KEY
         sync: false
       - key: EVIDENCE_VISION_MODEL
-        value: gpt-4o-mini
+        sync: false
+      - key: EVIDENCE_VISION_BASE_URL
+        sync: false
 
 databases:
   - name: product-db

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createOpenAiEvidenceValidator } from './openai-evidence-validator.js';
+import { createOpenAiEvidenceValidator } from './chat-completions-evidence-validator.js';
 
 const photo = {
   mimeType: 'image/jpeg' as const,
@@ -30,9 +30,14 @@ describe('createOpenAiEvidenceValidator', () => {
       accepted: true,
     });
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/chat/completions',
+      expect.objectContaining({ method: 'POST' }),
+    );
     const request = fetchMock.mock.calls[0]?.[1] as { body: string };
     expect(request.body).toContain('physically inside a gym');
     expect(request.body).toContain('Exercising alone is not enough');
+    expect(request.body).toContain('"detail":"low"');
   });
 
   it('fails closed when the model is unreachable', async () => {

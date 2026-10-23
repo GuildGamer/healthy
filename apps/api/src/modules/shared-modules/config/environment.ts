@@ -45,11 +45,29 @@ export type MailConfig =
 const DEFAULT_SEND_BYTE_FROM = 'hello@gethealthyapp.com';
 
 /**
+ * Which model checks a gym photo. `EVIDENCE_VISION_PROVIDER` selects one.
+ * Leave it unset: a real key uses OpenAI, and `0` / blank accepts every
+ * photo outside production. Add a provider by extending this union, reading
+ * its env in `readEvidenceVision`, and branching in `createEvidenceValidator`.
+ */
+export const evidenceVisionProviders = [
+  'accept',
+  'openai',
+  'gemini',
+  'openai-compatible',
+] as const;
+export type EvidenceVisionProvider = (typeof evidenceVisionProviders)[number];
+
+/**
  * Local and development use `0` (or blank) so gym photos are accepted
  * without a model key. Production refuses to start until a key is set.
+ * An explicit provider other than `accept` requires its key in every environment.
  */
 export type EvidenceVisionConfig =
-  { mode: 'accept' } | { mode: 'openai'; apiKey: string; model: string };
+  | { mode: 'accept' }
+  | { mode: 'openai'; apiKey: string; model: string }
+  | { mode: 'gemini'; apiKey: string; model: string }
+  | { mode: 'openai-compatible'; apiKey: string; model: string; baseUrl: string };
 
 export type AppleIapEnvironmentName = 'Sandbox' | 'Production';
 
@@ -227,21 +245,91 @@ function readMail(source: NodeJS.ProcessEnv, policy: MailPolicy): MailConfig {
   return readSmtpMail(source, policy, false);
 }
 
-const DEFAULT_VISION_MODEL = 'gpt-4o-mini';
+const DEFAULT_OPENAI_VISION_MODEL = 'gpt-4o-mini';
+const DEFAULT_GEMINI_VISION_MODEL = 'gemini-2.5-flash';
+
+function readEvidenceVisionProvider(
+  value: string | undefined,
+): EvidenceVisionProvider | null {
+  const configured = readConfigured(value);
+
+  if (!configured) {
+    return null;
+  }
+
+  const provider = configured.toLowerCase();
+
+  if (isEvidenceVisionProvider(provider)) {
+    return provider;
+  }
+
+  const allowed = evidenceVisionProviders.map((name) => `'${name}'`).join(', ');
+  throw new Error(`EVIDENCE_VISION_PROVIDER must be ${allowed}, got '${configured}'`);
+}
+
+function isEvidenceVisionProvider(value: string): value is EvidenceVisionProvider {
+  return (evidenceVisionProviders as readonly string[]).includes(value);
+}
 
 function readEvidenceVision(source: NodeJS.ProcessEnv, isProd: boolean): EvidenceVisionConfig {
+  const provider = readEvidenceVisionProvider(source.EVIDENCE_VISION_PROVIDER);
   const apiKey = readConfigured(source.EVIDENCE_VISION_API_KEY);
-  const model = readConfigured(source.EVIDENCE_VISION_MODEL) ?? DEFAULT_VISION_MODEL;
+  const model = readConfigured(source.EVIDENCE_VISION_MODEL);
 
-  if (apiKey) {
-    return { mode: 'openai', apiKey, model };
+  if (provider === 'accept') {
+    if (isProd) {
+      throw new Error('EVIDENCE_VISION_PROVIDER=accept is not allowed in production');
+    }
+
+    return { mode: 'accept' };
   }
 
-  if (isProd) {
-    throw new Error('EVIDENCE_VISION_API_KEY is required in production');
+  if (provider === null) {
+    if (!apiKey) {
+      if (isProd) {
+        throw new Error('EVIDENCE_VISION_API_KEY is required in production');
+      }
+
+      return { mode: 'accept' };
+    }
+
+    return { mode: 'openai', apiKey, model: model ?? DEFAULT_OPENAI_VISION_MODEL };
   }
 
-  return { mode: 'accept' };
+  if (!apiKey) {
+    throw new Error(
+      `EVIDENCE_VISION_API_KEY is required when EVIDENCE_VISION_PROVIDER is ${provider}`,
+    );
+  }
+
+  if (provider === 'openai') {
+    return { mode: 'openai', apiKey, model: model ?? DEFAULT_OPENAI_VISION_MODEL };
+  }
+
+  if (provider === 'gemini') {
+    return { mode: 'gemini', apiKey, model: model ?? DEFAULT_GEMINI_VISION_MODEL };
+  }
+
+  if (provider !== 'openai-compatible') {
+    const unexpected: never = provider;
+    throw new Error(`Unsupported evidence vision provider: ${String(unexpected)}`);
+  }
+
+  const baseUrl = readConfigured(source.EVIDENCE_VISION_BASE_URL);
+
+  if (!baseUrl) {
+    throw new Error(
+      'EVIDENCE_VISION_BASE_URL is required when EVIDENCE_VISION_PROVIDER is openai-compatible',
+    );
+  }
+
+  if (!model) {
+    throw new Error(
+      'EVIDENCE_VISION_MODEL is required when EVIDENCE_VISION_PROVIDER is openai-compatible',
+    );
+  }
+
+  return { mode: 'openai-compatible', apiKey, model, baseUrl };
 }
 
 function readAppleIap(source: NodeJS.ProcessEnv): AppleIapConfig {

@@ -150,6 +150,87 @@ describe('readEnvironment', () => {
     });
   });
 
+  it('defaults a bare OpenAI key to gpt-4o-mini', () => {
+    const environment = readEnvironment({ EVIDENCE_VISION_API_KEY: 'sk-live' });
+
+    expect(environment.evidenceVision).toEqual({
+      mode: 'openai',
+      apiKey: 'sk-live',
+      model: 'gpt-4o-mini',
+    });
+  });
+
+  it('reads a Gemini vision provider', () => {
+    const environment = readEnvironment({
+      EVIDENCE_VISION_PROVIDER: 'gemini',
+      EVIDENCE_VISION_API_KEY: 'gemini-live',
+    });
+
+    expect(environment.evidenceVision).toEqual({
+      mode: 'gemini',
+      apiKey: 'gemini-live',
+      model: 'gemini-2.5-flash',
+    });
+  });
+
+  it('reads an OpenAI-compatible vision host', () => {
+    const environment = readEnvironment({
+      EVIDENCE_VISION_PROVIDER: 'openai-compatible',
+      EVIDENCE_VISION_API_KEY: 'gsk-live',
+      EVIDENCE_VISION_MODEL: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      EVIDENCE_VISION_BASE_URL: 'https://api.groq.com/openai/v1',
+    });
+
+    expect(environment.evidenceVision).toEqual({
+      mode: 'openai-compatible',
+      apiKey: 'gsk-live',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      baseUrl: 'https://api.groq.com/openai/v1',
+    });
+  });
+
+  it('refuses an explicit vision provider without its key', () => {
+    expect(() =>
+      readEnvironment({ EVIDENCE_VISION_PROVIDER: 'gemini', EVIDENCE_VISION_API_KEY: '0' }),
+    ).toThrow(/EVIDENCE_VISION_API_KEY is required when EVIDENCE_VISION_PROVIDER is gemini/);
+  });
+
+  it('refuses an OpenAI-compatible host without a base URL or model', () => {
+    expect(() =>
+      readEnvironment({
+        EVIDENCE_VISION_PROVIDER: 'openai-compatible',
+        EVIDENCE_VISION_API_KEY: 'gsk-live',
+        EVIDENCE_VISION_MODEL: 'some-model',
+      }),
+    ).toThrow(/EVIDENCE_VISION_BASE_URL is required/);
+
+    expect(() =>
+      readEnvironment({
+        EVIDENCE_VISION_PROVIDER: 'openai-compatible',
+        EVIDENCE_VISION_API_KEY: 'gsk-live',
+        EVIDENCE_VISION_BASE_URL: 'https://api.groq.com/openai/v1',
+      }),
+    ).toThrow(/EVIDENCE_VISION_MODEL is required/);
+  });
+
+  it('refuses an unknown vision provider', () => {
+    expect(() => readEnvironment({ EVIDENCE_VISION_PROVIDER: 'rekognition' })).toThrow(
+      /EVIDENCE_VISION_PROVIDER must be 'accept', 'openai', 'gemini', 'openai-compatible'/,
+    );
+  });
+
+  it('refuses the accept stub in production', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'sendbyte',
+        SEND_BYTE_LIVE_KEY: 'sk_live_test',
+        EVIDENCE_VISION_PROVIDER: 'accept',
+        EVIDENCE_VISION_API_KEY: 'sk-test',
+      }),
+    ).toThrow(/EVIDENCE_VISION_PROVIDER=accept is not allowed/);
+  });
+
   it('refuses production without a vision key', () => {
     expect(() =>
       readEnvironment({
