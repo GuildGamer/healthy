@@ -100,7 +100,17 @@ function LiveCamera({
 
   return (
     <View style={styles.screen} testID="capture-camera-screen">
-      <CameraView facing={facing} ref={cameraRef} style={StyleSheet.absoluteFill} />
+      {/*
+        Front preview is mirrored by the system; capture is not. Flip the live
+        feed back so what you frame matches the natural (unmirrored) photo —
+        mirrored faces look wrong once the shutter fires.
+      */}
+      <CameraView
+        facing={facing}
+        mirror={false}
+        ref={cameraRef}
+        style={[StyleSheet.absoluteFill, facing === 'front' ? styles.naturalFrontPreview : null]}
+      />
       <FrameCorners />
       <View style={[styles.topBar, { top: insets.top + spacing.sm }]}>
         <DeckNavButton
@@ -233,6 +243,9 @@ const createStyles = (theme: Theme) =>
     screen: {
       flex: 1,
       backgroundColor: '#000000',
+    },
+    naturalFrontPreview: {
+      transform: [{ scaleX: -1 }],
     },
     blocked: {
       justifyContent: 'center',

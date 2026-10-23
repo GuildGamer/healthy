@@ -61,6 +61,13 @@ function renderCamera(overrides: Partial<Parameters<typeof CaptureCameraScreen>[
 }
 
 describe('CaptureCameraScreen', () => {
+  it('keeps the front preview natural so the take is not mirrored', () => {
+    renderCamera();
+
+    expect(screen.getByTestId('camera-live')).toHaveProp('mirror', false);
+    expect(screen.getByTestId('camera-live')).toHaveStyle({ transform: [{ scaleX: -1 }] });
+  });
+
   it('says what has to be in the frame, then shows the take full size', async () => {
     const { onUse } = renderCamera();
 
