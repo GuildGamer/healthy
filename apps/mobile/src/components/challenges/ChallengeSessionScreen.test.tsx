@@ -22,6 +22,7 @@ jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
   apiClient: {
     listTodayChallenges: jest.fn(),
+    getTodayDetails: jest.fn(),
     me: jest.fn(),
     startChallenge: jest.fn(),
     completeChallenge: jest.fn(),
@@ -57,6 +58,7 @@ jest.mock('@/lib/device-health', () => ({
 
 const mockedApi = apiClient as unknown as {
   listTodayChallenges: jest.Mock;
+  getTodayDetails: jest.Mock;
   me: jest.Mock;
   startChallenge: jest.Mock;
   completeChallenge: jest.Mock;
@@ -253,6 +255,19 @@ beforeEach(() => {
     challenges: [walkChallenge()],
     completedCount: 0,
     totalCount: 1,
+  });
+  mockedApi.getTodayDetails.mockResolvedValue({
+    dayKey: '2026-09-22',
+    weekStartKey: '2026-09-21',
+    occurrences: [
+      {
+        userChallengeId: 'uc-walk',
+        lastCompletedDayKey: null,
+        bestMeasuredInPeriod: null,
+        activeDayKeys: [],
+        completedAt: null,
+      },
+    ],
   });
   mockedApi.me.mockResolvedValue({ healthLinkStatus: 'connected' });
   mockedApi.startChallenge.mockResolvedValue({ id: 'uc-walk' });
@@ -451,6 +466,45 @@ describe('ChallengeSessionScreen walk goal', () => {
         deviceActivity: expect.objectContaining({ durationSeconds: 600 }),
       });
     });
+
+    await cleanup();
+  });
+
+  it('restores banked minutes when the walk is opened again', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-09-22',
+      challenges: [walkChallenge({ status: 'in_progress' })],
+      completedCount: 0,
+      totalCount: 1,
+    });
+    mockedApi.getTodayDetails.mockResolvedValue({
+      dayKey: '2026-09-22',
+      weekStartKey: '2026-09-21',
+      occurrences: [
+        {
+          userChallengeId: 'uc-walk',
+          lastCompletedDayKey: null,
+          bestMeasuredInPeriod: 8,
+          activeDayKeys: ['2026-09-22'],
+          completedAt: null,
+        },
+      ],
+    });
+
+    const { cleanup } = renderSession();
+
+    expect(await screen.findByTestId('session-stats')).toHaveTextContent('8:00');
+    expect(screen.getByText('of 10:00')).toBeOnTheScreen();
+    expect(screen.getByTestId('resume-session')).toHaveTextContent('Keep walking');
+    expect(screen.queryByTestId('start-session')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('resume-session'));
+    await waitFor(() => {
+      expect(screen.getByTestId('stop-session')).toBeOnTheScreen();
+    });
+    await walkFor(120);
+
+    expect(screen.getByTestId('session-stats')).toHaveTextContent('10:00');
 
     await cleanup();
   });

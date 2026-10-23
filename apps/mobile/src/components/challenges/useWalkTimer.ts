@@ -12,6 +12,8 @@ export type WalkTimer = {
    * last step, so the gap before we noticed the stop earns nothing.
    */
   pause: (options?: { effectiveAtMs?: number }) => number;
+  /** Seeds banked time after leaving and reopening a short walk. */
+  restore: (seconds: number) => void;
   reset: () => void;
 };
 
@@ -68,6 +70,16 @@ export function useWalkTimer(): WalkTimer {
     [clearTick],
   );
 
+  const restore = useCallback(
+    (seconds: number) => {
+      clearTick();
+      segmentStartedAtRef.current = null;
+      bankedSecondsRef.current = Math.max(0, Math.floor(seconds));
+      setElapsedSeconds(bankedSecondsRef.current);
+    },
+    [clearTick],
+  );
+
   const reset = useCallback(() => {
     clearTick();
     bankedSecondsRef.current = 0;
@@ -75,7 +87,7 @@ export function useWalkTimer(): WalkTimer {
     setElapsedSeconds(0);
   }, [clearTick]);
 
-  return { elapsedSeconds, resume, pause, reset };
+  return { elapsedSeconds, resume, pause, restore, reset };
 }
 
 function secondsBetween(fromMs: number, toMs: number): number {

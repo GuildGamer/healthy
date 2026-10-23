@@ -75,6 +75,11 @@ export type WalkRecorder = {
   resume: () => void;
   /** Banks the walk and moves to review. */
   stop: () => WalkRecording;
+  /**
+   * Puts a previously saved short walk back on the clock in review, so Leave →
+   * Home → open again can Keep walking instead of starting from zero.
+   */
+  restore: (recording: WalkRecording) => void;
   /** Releases the GPS and motion streams without producing a recording. */
   abandon: () => void;
 };
@@ -152,6 +157,7 @@ export function useWalkRecorder(): WalkRecorder {
     elapsedSeconds,
     pause: pauseTimer,
     resume: resumeTimer,
+    restore: restoreTimer,
     reset: resetTimer,
   } = useWalkTimer();
 
@@ -433,6 +439,23 @@ export function useWalkRecorder(): WalkRecorder {
     };
   }, [elapsedSeconds, pauseTimer, points, scheme, startedAt, stopMotion, stopWatching]);
 
+  const restore = useCallback(
+    (recording: WalkRecording) => {
+      stopWatching();
+      stopMotion();
+      endWalkLiveActivity();
+      lastCardRef.current = null;
+      lastFixRef.current = null;
+      setUserPaused(false);
+      setError(null);
+      setPoints([]);
+      setStartedAt(recording.startedAt);
+      restoreTimer(recording.durationSeconds);
+      setPhase('review');
+    },
+    [restoreTimer, stopMotion, stopWatching],
+  );
+
   const abandon = useCallback(() => {
     stopWatching();
     stopMotion();
@@ -453,6 +476,7 @@ export function useWalkRecorder(): WalkRecorder {
     pause,
     resume,
     stop,
+    restore,
     abandon,
   };
 }

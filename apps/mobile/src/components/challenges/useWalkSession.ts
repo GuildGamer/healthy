@@ -1,6 +1,6 @@
 import type { TodayChallenge } from '@product/client';
 import { activityMeetsTarget, type DeviceActivity } from '@product/contract/challenge-capture';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { listTodayDeviceSamples, type DeviceSample } from '@/lib/device-health';
@@ -8,6 +8,7 @@ import { pathDistanceMeters } from '@/lib/geo-session';
 import { goBackOrHome } from '@/lib/go-back';
 import { playGoalReachedHaptic } from '@/lib/haptics';
 import { setPendingShareRoute } from '@/lib/share-card-session';
+import { bankedWalkFromBestMeasured } from './banked-walk-from-detail';
 import { finishAndLeave } from './finish-challenge';
 import { partialWalkSession, walkSessionId } from './partial-session';
 import { useCompleteChallenge } from './useCompleteChallenge';
@@ -93,13 +94,49 @@ export function useWalkSession(occurrence: TodayChallenge) {
   const { savePartial } = useSavePartialSession();
   const [banked, setBanked] = useState<WalkRecording | null>(null);
   const [hasTriedToFinish, setHasTriedToFinish] = useState(false);
+  const didRestoreRef = useRef(false);
+  const todayQuery = useQuery({
+    queryKey: ['challenges', 'today'],
+    queryFn: () => apiClient.listTodayChallenges(),
+  });
+  const dayKey = todayQuery.data?.dayKey ?? '';
+  const detailsQuery = useQuery({
+    queryKey: ['challenges', 'today', 'details', dayKey],
+    queryFn: () => apiClient.getTodayDetails(),
+    enabled: todayQuery.isSuccess,
+  });
   const target = occurrence.capture.target;
+  const liveDistance = pathDistanceMeters(recorder.points);
   const progress: WalkProgress = {
     elapsedSeconds: recorder.elapsedSeconds,
-    distanceMeters: pathDistanceMeters(recorder.points),
+    distanceMeters:
+      recorder.phase === 'recording' || liveDistance > 0
+        ? liveDistance
+        : (banked?.distanceMeters ?? 0),
   };
   const isGoalMet = walkShortfall(progress, target) === null;
   useGoalBuzz(isGoalMet, recorder.phase === 'recording');
+
+  // Home already shows bestMeasuredInPeriod; put that time back on the clock
+  // when the walker opens the session again after leaving.
+  useEffect(() => {
+    if (didRestoreRef.current || recorder.phase !== 'idle' || banked) {
+      return;
+    }
+
+    const detail = detailsQuery.data?.occurrences.find(
+      (item) => item.userChallengeId === occurrence.id,
+    );
+    const restored = bankedWalkFromBestMeasured(occurrence, detail?.bestMeasuredInPeriod);
+    if (!restored) {
+      return;
+    }
+
+    didRestoreRef.current = true;
+    recorder.restore(restored);
+    setBanked(restored);
+    setHasTriedToFinish(true);
+  }, [banked, detailsQuery.data, occurrence, recorder.phase, recorder.restore]);
 
   function submit(activity: DeviceActivity) {
     const routePoints = recorder.points.map((point) => ({

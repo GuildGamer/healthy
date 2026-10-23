@@ -98,4 +98,16 @@ describe('useWalkTimer', () => {
 
     expect(result.current.elapsedSeconds).toBe(0);
   });
+
+  it('restores banked time so a reopened walk can continue', () => {
+    const { result } = renderHook(() => useWalkTimer());
+
+    act(() => result.current.restore(480));
+    expect(result.current.elapsedSeconds).toBe(480);
+
+    act(() => result.current.resume());
+    walkFor(60);
+
+    expect(result.current.elapsedSeconds).toBe(540);
+  });
 });
