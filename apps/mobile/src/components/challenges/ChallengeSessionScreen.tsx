@@ -65,7 +65,11 @@ function eyebrowFor(session: WalkSession): string {
     return WALK_COPY.shortOfGoal;
   }
 
-  if (session.view === 'paused' || session.recorder.autoPaused) {
+  if (
+    session.view === 'paused' ||
+    session.recorder.autoPaused ||
+    session.recorder.userPaused
+  ) {
     return WALK_COPY.paused;
   }
 
@@ -205,13 +209,23 @@ function WalkActions({ session }: { session: WalkSession }) {
   }
 
   const isRecording = session.view === 'recording';
+  const userPaused = session.recorder.userPaused;
+  // Soft pause from the lock-screen card keeps the session recording; bank
+  // pause is the in-app Pause while the clock is still running.
+  const showResume = !isRecording || userPaused;
+  const onPauseOrResume = userPaused
+    ? session.recorder.resume
+    : isRecording
+      ? session.pause
+      : session.resume;
+
   return (
     <View style={styles.row}>
       <DeckRoundButton
-        accessibilityLabel={isRecording ? WALK_COPY.pause : WALK_COPY.resume}
-        glyph={isRecording ? 'pause' : 'play'}
-        onPress={isRecording ? session.pause : session.resume}
-        testID={isRecording ? 'pause-session' : 'resume-session'}
+        accessibilityLabel={showResume ? WALK_COPY.resume : WALK_COPY.pause}
+        glyph={showResume ? 'play' : 'pause'}
+        onPress={onPauseOrResume}
+        testID={showResume ? 'resume-session' : 'pause-session'}
       />
       <DeckButton
         isFlexible

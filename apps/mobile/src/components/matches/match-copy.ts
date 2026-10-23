@@ -145,6 +145,8 @@ export const MATCH_WALK_MIN_SECONDS = 60;
 export const MATCH_WALK_TITLE = 'Walk';
 export const MATCH_WALK_START = 'Start walk';
 export const MATCH_WALK_STOP = 'Stop';
+export const MATCH_WALK_PAUSE = 'Pause';
+export const MATCH_WALK_RESUME_LIVE = 'Resume';
 export const MATCH_WALK_LOG = 'Add to the board';
 export const MATCH_WALK_RESUME = 'Keep walking';
 export const MATCH_WALK_TOO_SHORT =
@@ -166,12 +168,15 @@ const MATCH_WALK_MIN_READOUT = formatDuration(MATCH_WALK_MIN_SECONDS);
 export function matchWalkStatus({
   phase,
   autoPaused,
+  userPaused = false,
   countsYet,
   saving,
   tooShort,
 }: {
   phase: WalkPhase;
   autoPaused: boolean;
+  /** Walker tapped Pause — movement alone will not restart the clock. */
+  userPaused?: boolean;
   /** Whether the clock has already passed the floor. */
   countsYet: boolean;
   saving: boolean;
@@ -185,6 +190,13 @@ export function matchWalkStatus({
   }
 
   if (phase === 'recording') {
+    if (userPaused) {
+      return {
+        eyebrow: 'Paused',
+        meta: 'Paused. Resume when you are ready to keep walking.',
+      };
+    }
+
     if (autoPaused) {
       return {
         eyebrow: 'Paused',

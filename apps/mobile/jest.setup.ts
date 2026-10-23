@@ -44,11 +44,35 @@ jest.mock('expo-image-picker', () => ({
 
 jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3, High: 4 },
+  ActivityType: { Fitness: 2 },
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
   requestForegroundPermissionsAsync: jest.fn(async () => ({
     status: 'granted',
   })),
+  requestBackgroundPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+  })),
+  hasStartedLocationUpdatesAsync: jest.fn(async () => false),
+  startLocationUpdatesAsync: jest.fn(async () => undefined),
+  stopLocationUpdatesAsync: jest.fn(async () => undefined),
   watchPositionAsync: jest.fn(async () => ({ remove: jest.fn() })),
+}));
+
+jest.mock('expo-task-manager', () => ({
+  defineTask: jest.fn(),
+  isTaskDefined: jest.fn(() => false),
+}));
+
+jest.mock('walk-live-activity', () => ({
+  startWalkLiveActivity: jest.fn(),
+  updateWalkLiveActivity: jest.fn(),
+  endWalkLiveActivity: jest.fn(),
+}));
+
+jest.mock('expo-live-activity', () => ({
+  startActivity: jest.fn(() => 'activity-1'),
+  updateActivity: jest.fn(),
+  stopActivity: jest.fn(),
 }));
 
 jest.mock('expo-sensors', () => ({

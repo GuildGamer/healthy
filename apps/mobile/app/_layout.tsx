@@ -1,6 +1,7 @@
 import { HeaderBackButton } from '@react-navigation/elements';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { hideAsync, preventAutoHideAsync, setOptions } from 'expo-splash-screen';
 import { useCallback, useEffect, useState } from 'react';
 import { NATIVE_SPLASH_FADE_MS, SplashScreen } from '@/components/auth';
@@ -13,6 +14,8 @@ import { useDisplayFont } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
 import { usePushResponse } from '@/lib/use-push-response';
+import '@/lib/walk-background-location';
+import { dispatchWalkControlUrl } from '@/lib/walk-control';
 import { ThemeProvider, useTheme } from '@/theme';
 
 /**
@@ -40,6 +43,19 @@ export default function RootLayout() {
 
     void hideAsync();
   }, [isDisplayFontReady]);
+
+  // Lock-screen Pause / Resume opens the app with healthy://walk-control/…
+  useEffect(() => {
+    function handleUrl(url: string | null) {
+      if (url) {
+        dispatchWalkControlUrl(url);
+      }
+    }
+
+    void Linking.getInitialURL().then(handleUrl);
+    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => subscription.remove();
+  }, []);
 
   const [queryClient] = useState(
     () =>

@@ -1,6 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NATIVE_MOVEMENT_UNAVAILABLE, loadLocationModule } from '@/lib/device-health';
+import {
+  endWalkLiveActivity,
+  startWalkLiveActivity,
+  updateWalkLiveActivity,
+} from 'walk-live-activity';
+import {
+  NATIVE_MOVEMENT_UNAVAILABLE,
+  loadLocationModule,
+  type LocationModule,
+} from '@/lib/device-health';
 import { haversineMeters, pathDistanceMeters, type GeoPoint } from '@/lib/geo-session';
+import {
+  WALK_LOCATION_TASK,
+  setWalkLocationListener,
+  type WalkLocationFix,
+} from '@/lib/walk-background-location';
+import { setWalkControlHandler } from '@/lib/walk-control';
+import {
+  walkCardChanged,
+  walkCardCopy,
+  type WalkCardCopy,
+} from '@/lib/walk-session-card';
+import { useTheme } from '@/theme';
 import { useWalkMotion } from './useWalkMotion';
 import { useWalkTimer } from './useWalkTimer';
 import { WALK_LOCATION_DENIED, type WalkPhase } from './walk-session-copy';
@@ -35,6 +56,11 @@ export type WalkRecorder = {
   elapsedSeconds: number;
   /** Recording, but the walker has stopped moving and the clock is held. */
   autoPaused: boolean;
+  /**
+   * The walker tapped Pause (in-app or lock-screen). Distinct from standing
+   * still: movement alone will not restart the clock until they Resume.
+   */
+  userPaused: boolean;
   /** Location was unavailable or refused. Cleared by the next start. */
   error: string | null;
   /**
@@ -43,11 +69,58 @@ export type WalkRecorder = {
    * came up short has to be extendable, not restarted from zero.
    */
   start: (options: { resume: boolean; beforeRecording?: () => Promise<void> }) => Promise<void>;
+  /** Holds the clock without ending the session or the lock-screen card. */
+  pause: () => void;
+  /** Clears a manual pause; the clock follows movement again. */
+  resume: () => void;
   /** Banks the walk and moves to review. */
   stop: () => WalkRecording;
   /** Releases the GPS and motion streams without producing a recording. */
   abandon: () => void;
 };
+
+async function stopBackgroundUpdates(location: LocationModule): Promise<void> {
+  if (!location.hasStartedLocationUpdatesAsync || !location.stopLocationUpdatesAsync) {
+    return;
+  }
+
+  try {
+    const running = await location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK);
+    if (running) {
+      await location.stopLocationUpdatesAsync(WALK_LOCATION_TASK);
+    }
+  } catch {
+    // Already stopped, or this binary has no background location.
+  }
+}
+
+async function startBackgroundUpdates(
+  location: LocationModule,
+  card: WalkCardCopy,
+): Promise<boolean> {
+  if (!location.startLocationUpdatesAsync) {
+    return false;
+  }
+
+  try {
+    await location.startLocationUpdatesAsync(WALK_LOCATION_TASK, {
+      accuracy: location.Accuracy.High,
+      distanceInterval: ROUTE_FIX_INTERVAL_METERS,
+      timeInterval: ROUTE_FIX_INTERVAL_MS,
+      showsBackgroundLocationIndicator: true,
+      pausesUpdatesAutomatically: false,
+      activityType: location.ActivityType?.Fitness,
+      foregroundService: {
+        notificationTitle: card.title,
+        notificationBody: card.body,
+        notificationColor: '#3DDC97',
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Owns the sensors a walk needs: location permission, the route stream, the
@@ -56,11 +129,17 @@ export type WalkRecorder = {
  * two copies of this would drift into two different definitions of a minute.
  */
 export function useWalkRecorder(): WalkRecorder {
-  const watchRef = useRef<{ remove: () => void } | null>(null);
-  /** Bumped by every stop, so an in-flight watch request knows it is stale. */
-  const watchIdRef = useRef(0);
+  const { scheme } = useTheme();
+  const locationRef = useRef<LocationModule | null>(null);
+  const foregroundWatchRef = useRef<{ remove: () => void } | null>(null);
+  /** Bumped by every stop, so an in-flight start knows it is stale. */
+  const sessionIdRef = useRef(0);
   /** Last fix received, moving or not, so jitter is measured against itself. */
   const lastFixRef = useRef<GeoPoint | null>(null);
+  const lastCardRef = useRef<WalkCardCopy | null>(null);
+  const isMovingNowRef = useRef<() => boolean>(() => false);
+  const reportDisplacementRef = useRef<(atMs: number) => void>(() => undefined);
+  const usingBackgroundRef = useRef(false);
   const {
     isMoving,
     isMovingNow,
@@ -80,18 +159,53 @@ export function useWalkRecorder(): WalkRecorder {
   const [points, setPoints] = useState<GeoPoint[]>([]);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userPaused, setUserPaused] = useState(false);
+  const userPausedRef = useRef(false);
+
+  isMovingNowRef.current = isMovingNow;
+  reportDisplacementRef.current = reportDisplacement;
+  userPausedRef.current = userPaused;
+
+  const applyFixes = useCallback((fixes: readonly WalkLocationFix[]) => {
+    for (const point of fixes) {
+      const previousFix = lastFixRef.current;
+      lastFixRef.current = point;
+
+      if (previousFix && haversineMeters(previousFix, point) >= DISPLACEMENT_METERS) {
+        reportDisplacementRef.current(point.recordedAt);
+      }
+
+      // Manual pause and standing still both leave distance alone.
+      if (userPausedRef.current || !isMovingNowRef.current()) {
+        continue;
+      }
+
+      setPoints((current) => [...current, point]);
+    }
+  }, []);
 
   const stopWatching = useCallback(() => {
-    watchIdRef.current += 1;
-    watchRef.current?.remove();
-    watchRef.current = null;
+    sessionIdRef.current += 1;
+    setWalkLocationListener(null);
+    foregroundWatchRef.current?.remove();
+    foregroundWatchRef.current = null;
+    usingBackgroundRef.current = false;
+    const location = locationRef.current;
+    if (location) {
+      void stopBackgroundUpdates(location);
+    }
   }, []);
 
   useEffect(() => stopWatching, [stopWatching]);
 
-  // The clock follows the walker's feet: standing still earns no credit.
+  // Manual pause wins; otherwise the clock follows the walker's feet.
   useEffect(() => {
     if (phase !== 'recording') {
+      return;
+    }
+
+    if (userPaused) {
+      pauseTimer();
       return;
     }
 
@@ -101,7 +215,60 @@ export function useWalkRecorder(): WalkRecorder {
     }
 
     pauseTimer({ effectiveAtMs: lastMovementAt() });
-  }, [isMoving, lastMovementAt, pauseTimer, phase, resumeTimer]);
+  }, [isMoving, lastMovementAt, pauseTimer, phase, resumeTimer, userPaused]);
+
+  const isClockPaused = userPaused || !isMoving;
+
+  // Keep the lock-screen card in sync with the live clock and pause state.
+  useEffect(() => {
+    if (phase !== 'recording') {
+      return;
+    }
+
+    const copy = walkCardCopy({
+      elapsedSeconds,
+      distanceMeters: pathDistanceMeters(points),
+      paused: isClockPaused,
+      scheme,
+    });
+
+    if (!walkCardChanged(lastCardRef.current, copy)) {
+      return;
+    }
+
+    const previous = lastCardRef.current;
+    lastCardRef.current = copy;
+    updateWalkLiveActivity(copy);
+
+    const location = locationRef.current;
+    if (!location || !usingBackgroundRef.current) {
+      return;
+    }
+
+    // Restarting the Android foreground service every second would gap GPS.
+    // Only refresh when pause state flips or a full minute ticks on the clock.
+    const pausedChanged =
+      (previous?.body.startsWith('Paused') ?? false) !== copy.body.startsWith('Paused');
+    const minuteChanged =
+      previous !== null && previous.title.slice(0, 2) !== copy.title.slice(0, 2);
+    if (!pausedChanged && !minuteChanged) {
+      return;
+    }
+
+    void (async () => {
+      if (!location.hasStartedLocationUpdatesAsync) {
+        return;
+      }
+
+      const running = await location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK);
+      if (!running) {
+        return;
+      }
+
+      await stopBackgroundUpdates(location);
+      await startBackgroundUpdates(location, copy);
+    })();
+  }, [elapsedSeconds, isClockPaused, phase, points, scheme]);
 
   const start = useCallback(
     async ({
@@ -119,11 +286,21 @@ export function useWalkRecorder(): WalkRecorder {
         return;
       }
 
-      const permission = await location.requestForegroundPermissionsAsync();
-      if (permission.status !== location.PermissionStatus.GRANTED) {
+      locationRef.current = location;
+
+      const foreground = await location.requestForegroundPermissionsAsync();
+      if (foreground.status !== location.PermissionStatus.GRANTED) {
         setError(WALK_LOCATION_DENIED);
         return;
       }
+
+      // Background is what keeps the walk measuring after the phone locks.
+      // When the walker refuses it, fall back to a foreground watch so a walk
+      // with the app open still works.
+      const background = location.requestBackgroundPermissionsAsync
+        ? await location.requestBackgroundPermissionsAsync()
+        : { status: 'denied' };
+      const canBackground = background.status === location.PermissionStatus.GRANTED;
 
       await beforeRecording?.();
 
@@ -134,11 +311,38 @@ export function useWalkRecorder(): WalkRecorder {
         resetTimer();
       }
 
+      setUserPaused(false);
       setPhase('recording');
       await startMotion();
 
       stopWatching();
-      const watchId = watchIdRef.current;
+      const sessionId = sessionIdRef.current;
+      setWalkLocationListener(applyFixes);
+
+      const initialCard = walkCardCopy({
+        elapsedSeconds: resume ? elapsedSeconds : 0,
+        distanceMeters: resume ? pathDistanceMeters(points) : 0,
+        paused: false,
+        scheme,
+      });
+      lastCardRef.current = initialCard;
+      startWalkLiveActivity(initialCard);
+
+      if (canBackground) {
+        const started = await startBackgroundUpdates(location, initialCard);
+        if (sessionId !== sessionIdRef.current) {
+          await stopBackgroundUpdates(location);
+          endWalkLiveActivity();
+          return;
+        }
+
+        if (started) {
+          usingBackgroundRef.current = true;
+          resumeTimer();
+          return;
+        }
+      }
+
       const watch = await location.watchPositionAsync(
         {
           accuracy: location.Accuracy.High,
@@ -146,43 +350,76 @@ export function useWalkRecorder(): WalkRecorder {
           timeInterval: ROUTE_FIX_INTERVAL_MS,
         },
         (fix) => {
-          const point: GeoPoint = {
-            latitude: fix.coords.latitude,
-            longitude: fix.coords.longitude,
-            recordedAt: fix.timestamp,
-          };
-          const previousFix = lastFixRef.current;
-          lastFixRef.current = point;
-
-          if (previousFix && haversineMeters(previousFix, point) >= DISPLACEMENT_METERS) {
-            reportDisplacement(fix.timestamp);
-          }
-
-          // Drift while the walker stands still would inflate the route.
-          if (!isMovingNow()) {
-            return;
-          }
-
-          setPoints((current) => [...current, point]);
+          applyFixes([
+            {
+              latitude: fix.coords.latitude,
+              longitude: fix.coords.longitude,
+              recordedAt: fix.timestamp,
+            },
+          ]);
         },
       );
 
-      // Leaving mid-request would otherwise strand a high-accuracy GPS stream
-      // that outlives the screen.
-      if (watchId !== watchIdRef.current) {
+      if (sessionId !== sessionIdRef.current) {
         watch.remove();
+        endWalkLiveActivity();
         return;
       }
 
-      watchRef.current = watch;
+      foregroundWatchRef.current = watch;
       resumeTimer();
     },
-    [isMovingNow, reportDisplacement, resetTimer, resumeTimer, startMotion, stopWatching],
+    [
+      applyFixes,
+      elapsedSeconds,
+      points,
+      resetTimer,
+      resumeTimer,
+      scheme,
+      startMotion,
+      stopWatching,
+    ],
   );
 
+  const pause = useCallback(() => {
+    if (phase !== 'recording' || userPausedRef.current) {
+      return;
+    }
+
+    setUserPaused(true);
+    pauseTimer();
+  }, [pauseTimer, phase]);
+
+  const resume = useCallback(() => {
+    if (phase !== 'recording' || !userPausedRef.current) {
+      return;
+    }
+
+    setUserPaused(false);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'recording') {
+      setWalkControlHandler(null);
+      return;
+    }
+
+    setWalkControlHandler({ pause, resume });
+    return () => setWalkControlHandler(null);
+  }, [pause, phase, resume]);
+
   const stop = useCallback((): WalkRecording => {
+    const copy = walkCardCopy({
+      elapsedSeconds,
+      distanceMeters: pathDistanceMeters(points),
+      paused: false,
+      scheme,
+    });
     stopWatching();
     stopMotion();
+    endWalkLiveActivity(copy);
+    lastCardRef.current = null;
+    setUserPaused(false);
 
     const durationSeconds = pauseTimer();
     const endedAt = new Date().toISOString();
@@ -194,21 +431,27 @@ export function useWalkRecorder(): WalkRecorder {
       startedAt: startedAt ?? endedAt,
       endedAt,
     };
-  }, [pauseTimer, points, startedAt, stopMotion, stopWatching]);
+  }, [elapsedSeconds, pauseTimer, points, scheme, startedAt, stopMotion, stopWatching]);
 
   const abandon = useCallback(() => {
     stopWatching();
     stopMotion();
     pauseTimer();
+    endWalkLiveActivity();
+    lastCardRef.current = null;
+    setUserPaused(false);
   }, [pauseTimer, stopMotion, stopWatching]);
 
   return {
     phase,
     points,
     elapsedSeconds,
-    autoPaused: phase === 'recording' && !isMoving,
+    autoPaused: phase === 'recording' && !userPaused && !isMoving,
+    userPaused: phase === 'recording' && userPaused,
     error,
     start,
+    pause,
+    resume,
     stop,
     abandon,
   };

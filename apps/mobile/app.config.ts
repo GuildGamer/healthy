@@ -56,7 +56,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
       NSLocationWhenInUseUsageDescription:
         'Healthy uses your location to record walking and running routes.',
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
+      NSLocationAlwaysUsageDescription:
+        'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
       NSMotionUsageDescription: 'Healthy uses motion data to count steps from this phone.',
+      // Required by ActivityKit. Without this key, startActivity fails and the
+      // lock-screen walk card never appears.
+      NSSupportsLiveActivities: true,
+      UIBackgroundModes: ['location'],
     },
   },
   android: {
@@ -177,8 +185,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         locationWhenInUsePermission:
           'Healthy uses your location to record walking and running routes.',
+        locationAlwaysAndWhenInUsePermission:
+          'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
+        locationAlwaysPermission:
+          'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
       },
     ],
+    // Widget extension for the lock-screen walk card. Only list this once —
+    // applying it twice duplicates the Xcode target and breaks pod install.
+    'expo-live-activity',
+    // Overwrites the generated SwiftUI with Healthy’s deck-style Pause/Resume card.
+    './modules/walk-live-activity/app.plugin.js',
   ],
   experiments: {
     typedRoutes: true,

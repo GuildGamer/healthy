@@ -16,7 +16,9 @@ import {
   MATCH_WALK_FAILED,
   MATCH_WALK_LOG,
   MATCH_WALK_MIN_SECONDS,
+  MATCH_WALK_PAUSE,
   MATCH_WALK_RESUME,
+  MATCH_WALK_RESUME_LIVE,
   MATCH_WALK_START,
   MATCH_WALK_STOP,
   MATCH_WALK_TITLE,
@@ -85,17 +87,19 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
     submit.mutate(recording);
   }
 
-  const { autoPaused, elapsedSeconds, phase, points } = recorder;
+  const { autoPaused, elapsedSeconds, phase, points, userPaused } = recorder;
   const isRecording = phase === 'recording';
   const tooShort = walk !== null && walk.durationSeconds < MATCH_WALK_MIN_SECONDS;
   const status = matchWalkStatus({
     phase,
     autoPaused,
+    userPaused,
     countsYet: elapsedSeconds >= MATCH_WALK_MIN_SECONDS,
     saving: submit.isPending,
     tooShort,
   });
   const distanceMeters = walk?.distanceMeters ?? pathDistanceMeters(points);
+  const statusPaused = autoPaused || userPaused;
 
   return (
     <View style={styles.screen} testID="match-walk-screen">
@@ -123,7 +127,7 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
 
         <View pointerEvents="none" style={styles.statusCard}>
           <View style={styles.statusHeader}>
-            <Text style={[styles.statusEyebrow, autoPaused ? styles.statusEyebrowPaused : null]}>
+            <Text style={[styles.statusEyebrow, statusPaused ? styles.statusEyebrowPaused : null]}>
               {status.eyebrow}
             </Text>
             {phase === 'idle' ? null : (
@@ -153,11 +157,19 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
         ) : null}
 
         {isRecording ? (
-          <FormButton
-            label={MATCH_WALK_STOP}
-            onPress={() => stopWalk(recorder.stop())}
-            testID="match-walk-stop"
-          />
+          <>
+            <FormButton
+              label={userPaused ? MATCH_WALK_RESUME_LIVE : MATCH_WALK_PAUSE}
+              onPress={userPaused ? recorder.resume : recorder.pause}
+              testID={userPaused ? 'match-walk-resume-live' : 'match-walk-pause'}
+              variant="secondary"
+            />
+            <FormButton
+              label={MATCH_WALK_STOP}
+              onPress={() => stopWalk(recorder.stop())}
+              testID="match-walk-stop"
+            />
+          </>
         ) : null}
 
         {/* Stopping already sent it, so this button only exists for the walk

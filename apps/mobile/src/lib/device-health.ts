@@ -9,10 +9,30 @@ export const NATIVE_MOVEMENT_UNAVAILABLE =
 
 type LocationPermissionStatus = { GRANTED: string };
 
-type LocationModule = {
+export type LocationModule = {
   PermissionStatus: LocationPermissionStatus;
   Accuracy: { Balanced: number; High: number };
+  ActivityType?: { Fitness: number };
   requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
+  requestBackgroundPermissionsAsync?: () => Promise<{ status: string }>;
+  hasStartedLocationUpdatesAsync?: (taskName: string) => Promise<boolean>;
+  startLocationUpdatesAsync?: (
+    taskName: string,
+    options: {
+      accuracy: number;
+      distanceInterval: number;
+      timeInterval: number;
+      showsBackgroundLocationIndicator?: boolean;
+      pausesUpdatesAutomatically?: boolean;
+      activityType?: number;
+      foregroundService?: {
+        notificationTitle: string;
+        notificationBody: string;
+        notificationColor?: string;
+      };
+    },
+  ) => Promise<void>;
+  stopLocationUpdatesAsync?: (taskName: string) => Promise<void>;
   watchPositionAsync: (
     options: {
       accuracy: number;

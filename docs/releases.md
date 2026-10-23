@@ -8,7 +8,8 @@ Configured in `apps/mobile/eas.json`:
 |---------|---------|
 | `development` | Dev client with `expo-dev-client` for **physical devices** (internal IPA/APK) — not an iOS Simulator build. Local Simulator/emulator: `make ios` / `make android` in `docs/testing.md` |
 | `preview` | Internal distribution builds |
-| `production` | Store binaries |
+| `production` | Store binaries (Android App Bundle) |
+| `production-apk` | Same production app as an installable Android APK |
 | `e2e-test` | Android APK / iOS simulator for Maestro |
 
 ### JS-only updates

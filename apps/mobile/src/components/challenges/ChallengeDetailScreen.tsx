@@ -6,7 +6,7 @@ import type {
   TodayOccurrenceDetail,
 } from '@product/client';
 import { displayChallengeTitle } from '@product/contract/challenge-title';
-import { fontWeight, spacing } from '@product/brand';
+import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -18,7 +18,8 @@ import { weekDayKeys } from '@/components/home/day-keys';
 import { WeekStrip } from '@/components/home/WeekStrip';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
-import { type Theme, useThemedStyles } from '@/theme';
+import { useLiveTodaySteps } from '@/lib/use-live-today-steps';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { rewardCornerLabel } from './catalog-layout';
 import { mergeTodayIntoHistory } from './challenge-history';
 import { ChallengeHero } from './ChallengeHero';
@@ -26,7 +27,9 @@ import { ChallengeSettingsSheet } from './ChallengeSettingsSheet';
 import { ReminderSettings, ScheduleSettings } from './ChallengeSettingsSections';
 import { confirmRemoval } from './confirm-removal';
 import { ROUTINE_COPY, SETTINGS_COPY } from './constants/routine-copy';
+import { WALK_COPY } from './constants/doing-copy';
 import { timesLabel } from './history-weeks';
+import { stepsHeroValue } from './steps-hero';
 import type { SettingsSheet } from './types/settings-sheet';
 import {
   useRemoveChallenge,
@@ -207,12 +210,23 @@ function DetailHero({
   week,
   frequency = challenge.frequency,
 }: SettingsBodyProps & { frequency?: ChallengeFrequency }) {
+  const { deckCards } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { tone } = useChallengeTone(challenge);
+  const isSteps = challenge.capture.metric === 'steps';
+  const liveSteps = useLiveTodaySteps({ ask: true, enabled: isSteps });
   const title = displayChallengeTitle({
     title: challenge.title,
     metric: challenge.capture.metric,
     count: challenge.capture.target.count,
   });
+  const targetCount = challenge.capture.target.count;
+  const stepsLine =
+    isSteps && liveSteps.status === 'count'
+      ? targetCount
+        ? `${stepsHeroValue(liveSteps.count)} of ${targetCount.toLocaleString('en-GB')} ${WALK_COPY.steps}`
+        : `${stepsHeroValue(liveSteps.count)} ${WALK_COPY.steps}`
+      : null;
 
   return (
     <ChallengeHero
@@ -221,6 +235,11 @@ function DetailHero({
       testID="challenge-detail-hero"
       title={title}
     >
+      {stepsLine ? (
+        <Text style={[styles.stepsLive, { color: deckCards.subtext }]} testID="detail-steps-live">
+          {stepsLine}
+        </Text>
+      ) : null}
       {detail && week ? (
         <WeekStrip
           activeDayKeys={detail.activeDayKeys}
@@ -263,6 +282,11 @@ function RemoveChallenge({ challenge }: { challenge: CatalogChallenge }) {
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
+    stepsLive: {
+      marginTop: spacing.sm,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+    },
     screen: {
       flex: 1,
       backgroundColor: theme.colors.background,

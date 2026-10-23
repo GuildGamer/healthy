@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { selectDailyTip } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { readTodaySteps } from '@/lib/device-health';
@@ -10,22 +11,38 @@ import { usePushDeviceSync } from '@/lib/use-push-device';
 import { buildTodayDeck } from './today-deck';
 import { nextDayKey } from './today-labels';
 
-/** Today's step count from this phone, refreshed whenever Today is on screen. */
+const PHONE_STEPS_REFRESH_MS = 2_000;
+
+/** Today's step count from this phone, refreshed while Today is on screen. */
 function useTodayPhoneSteps(): number | null {
   const [steps, setSteps] = useState<number | null>(null);
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
 
   const read = useCallback(() => {
     let isCancelled = false;
-    void readTodaySteps()
-      .then((count) => {
-        if (!isCancelled && count !== null) {
+
+    async function refresh() {
+      try {
+        const count = await readTodaySteps();
+        if (!isCancelled && count !== null && count !== stepsRef.current) {
           setSteps(count);
         }
-      })
-      .catch(() => undefined);
+      } catch {
+        // Pedometer can fail briefly; keep the last good total.
+      }
+    }
+
+    void refresh();
+    const intervalId = setInterval(() => void refresh(), PHONE_STEPS_REFRESH_MS);
+    const appSub = AppState.addEventListener('change', () => {
+      void refresh();
+    });
 
     return () => {
       isCancelled = true;
+      clearInterval(intervalId);
+      appSub.remove();
     };
   }, []);
 

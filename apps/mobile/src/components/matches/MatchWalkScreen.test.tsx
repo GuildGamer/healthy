@@ -51,6 +51,10 @@ const mockedLoadLocationModule = loadLocationModule as jest.Mock;
 const mockedLoadAccelerometerModule = loadAccelerometerModule as jest.Mock;
 const mockedLoadPedometerModule = loadPedometerModule as jest.Mock;
 const requestForegroundPermissionsAsync = jest.fn();
+const requestBackgroundPermissionsAsync = jest.fn();
+const hasStartedLocationUpdatesAsync = jest.fn();
+const startLocationUpdatesAsync = jest.fn();
+const stopLocationUpdatesAsync = jest.fn();
 const watchPositionAsync = jest.fn();
 const addMotionListener = jest.fn();
 const watchStepCount = jest.fn();
@@ -58,7 +62,12 @@ const watchStepCount = jest.fn();
 const locationModule = {
   PermissionStatus: { GRANTED: 'granted' },
   Accuracy: { Balanced: 3, High: 4 },
+  ActivityType: { Fitness: 2 },
   requestForegroundPermissionsAsync,
+  requestBackgroundPermissionsAsync,
+  hasStartedLocationUpdatesAsync,
+  startLocationUpdatesAsync,
+  stopLocationUpdatesAsync,
   watchPositionAsync,
 };
 
@@ -133,6 +142,10 @@ beforeEach(() => {
   mockedApi.submitMatchAttempt.mockResolvedValue({ ok: true });
   mockedLoadLocationModule.mockResolvedValue(locationModule);
   requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+  requestBackgroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+  hasStartedLocationUpdatesAsync.mockResolvedValue(false);
+  startLocationUpdatesAsync.mockResolvedValue(undefined);
+  stopLocationUpdatesAsync.mockResolvedValue(undefined);
   watchPositionAsync.mockResolvedValue({ remove: jest.fn() });
 
   mockedLoadAccelerometerModule.mockResolvedValue({

@@ -106,6 +106,8 @@ On the home screen, tap **Check API health**. Expect `ok · api`, not `unreachab
 
 Live push-up counting uses QuickPose (`EXPO_PUBLIC_QUICKPOSE_SDK_KEY`). After adding that native module or changing `app.config.ts`, rebuild the development client (`make ios` / `make android` or EAS). The SDK is not loaded until someone opens the in-app push-up session.
 
+A walk’s lock-screen card (Live Activity on iOS, foreground-service notification on Android) and background GPS also need that native rebuild after `app.config.ts` or `walk-live-activity` changes. On a physical phone: start a GPS walk, lock the phone, move far enough for distance to change, stand still until the card says Paused, tap Pause / Resume on the card, unlock, and stop — the saved duration and distance must match the card. For a steps challenge, open the session, confirm the count ticks up on screen, lock the phone, and check the STEPS Live Activity shows the latest total.
+
 ### EAS vs local Simulator
 
 - **Local Simulator/emulator:** `make ios` / `make android` (this runbook).
