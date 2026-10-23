@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
 import { takeChallengeFinish } from '@/lib/challenge-finish-session';
+import { clearPendingSharePhoto, pendingSharePhotoFor } from '@/lib/share-card-session';
 import { LogEvidenceScreen } from './LogEvidenceScreen';
 
 const testSafeAreaMetrics: Metrics = {
@@ -100,6 +101,7 @@ describe('LogEvidenceScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     takeChallengeFinish();
+    clearPendingSharePhoto();
     mockedApi.listTodayChallenges.mockResolvedValue({
       dayKey: '2026-08-29',
       challenges: [gym],
@@ -128,6 +130,7 @@ describe('LogEvidenceScreen', () => {
       evidence: { mimeType: 'image/jpeg', imageBase64: 'gggg' },
     });
     expect(takeChallengeFinish()).toMatchObject({ outcome: { kind: 'photo' }, pointsAwarded: 200 });
+    expect(pendingSharePhotoFor('uc-gym')).toBe('file://gym.jpg');
   });
 
   it('says plainly when the photo did not pass, and lets you retake it', async () => {
@@ -143,5 +146,32 @@ describe('LogEvidenceScreen', () => {
     ).toBeOnTheScreen();
     expect(screen.getByTestId('camera-retake')).toBeOnTheScreen();
     expect(router.dismiss).not.toHaveBeenCalled();
+    expect(pendingSharePhotoFor('uc-gym')).toBeUndefined();
+  });
+
+  it('checks the retaken photo again instead of repeating the last rejection', async () => {
+    mockedApi.completeChallenge
+      .mockRejectedValueOnce(new Error('No gym equipment visible'))
+      .mockResolvedValueOnce({
+        challenge: { ...gym, status: 'completed' },
+        pointsBalance: 200,
+        currentStreakDays: 1,
+        pointsAwarded: 200,
+        evidenceRequest: null,
+        penaltyApplied: 0,
+      });
+    renderScreen();
+
+    await takeAndUsePhoto();
+    fireEvent.press(await screen.findByTestId('camera-retake'));
+    await takeAndUsePhoto();
+
+    await waitFor(() => expect(router.dismiss).toHaveBeenCalled());
+    expect(mockedApi.completeChallenge).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByText(
+        'We couldn’t see you at the gym in that one. Retake it with the gym behind you.',
+      ),
+    ).toBeNull();
   });
 });

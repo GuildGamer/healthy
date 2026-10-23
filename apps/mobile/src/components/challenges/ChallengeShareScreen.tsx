@@ -22,10 +22,13 @@ import type { SharePoster } from './types/share-poster';
 export function ChallengeShareScreen({
   poster,
   friend = null,
+  photoUri,
 }: {
   poster: SharePoster;
   /** Set when history opened this screen. Absent for a share that just finished. */
   friend?: ShareFriend | null;
+  /** The gym selfie, only while it is still on the phone from this finish. */
+  photoUri?: string;
 }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -84,6 +87,7 @@ export function ChallengeShareScreen({
       </View>
       <View collapsable={false} ref={posterRef} style={styles.posterWrap}>
         <SharePosterCard
+          photoUri={photoUri}
           poster={poster}
           runLine={posterRunLine(meQuery.data?.currentStreakDays ?? 0)}
         />

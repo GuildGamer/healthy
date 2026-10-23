@@ -2,6 +2,7 @@ import type { TodayChallenge } from '@product/client';
 import { useState } from 'react';
 import type { CapturedSelfie } from '@/lib/capture-selfie';
 import { goBackOrHome } from '@/lib/go-back';
+import { setPendingSharePhoto } from '@/lib/share-card-session';
 import { CaptureCameraScreen } from './CaptureCameraScreen';
 import { GYM_COPY, NOT_ON_TODAY } from './constants/doing-copy';
 import { finishAndLeave } from './finish-challenge';
@@ -37,7 +38,10 @@ function GymSelfie({ occurrence }: { occurrence: TodayChallenge }) {
         payload: { evidence: { mimeType: photo.mimeType, imageBase64: photo.imageBase64 } },
       },
       {
-        onSuccess: (result) => finishAndLeave(result, { kind: 'photo' }),
+        onSuccess: (result) => {
+          setPendingSharePhoto({ userChallengeId: occurrence.id, photoUri: photo.previewUri });
+          finishAndLeave(result, { kind: 'photo' });
+        },
         onError: (error) =>
           setCheckError(isOfflineError(error) ? saveFailedMessage(error) : GYM_COPY.rejected),
       },
@@ -51,6 +55,7 @@ function GymSelfie({ occurrence }: { occurrence: TodayChallenge }) {
       hint={GYM_COPY.hint}
       isChecking={complete.isPending}
       onClose={() => goBackOrHome()}
+      onRetake={() => setCheckError(null)}
       onUse={submitPhoto}
       pill={{ glyph: 'gym', label: GYM_COPY.pill }}
     />

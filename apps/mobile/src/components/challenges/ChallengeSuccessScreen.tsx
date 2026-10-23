@@ -14,7 +14,7 @@ import { markMembershipCtaShownThisSession, markSuccessWasPenalty } from '@/lib/
 import { getSessionData, isEmailVerified } from '@/lib/auth-client';
 import { hasDeferredOnboarding } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
-import { clearPendingShareCard } from '@/lib/share-card-session';
+import { clearPendingSharePhoto, pendingSharePhotoFor } from '@/lib/share-card-session';
 import { trackEvent } from '@/lib/track-event';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
@@ -202,12 +202,13 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   });
   const shareImage = useShareCardImage({ matchId, userChallengeId, practice });
   const { me, leave } = useLeaveSuccess(matchId);
+  const [photoUri] = useState(() => pendingSharePhotoFor(userChallengeId));
 
   useEffect(() => {
     markSuccessWasPenalty(penaltyApplied);
   }, [penaltyApplied]);
 
-  useEffect(() => clearPendingShareCard, []);
+  useEffect(() => clearPendingSharePhoto, []);
 
   const doneLabel =
     friend.isOffered || !friend.isReady
@@ -248,7 +249,11 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
       {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
       <View style={styles.body}>
         <View collapsable={false} ref={shareImage.shotRef} style={styles.posterWrap}>
-          <SharePosterCard poster={poster} runLine={posterRunLine(streakDays)} />
+          <SharePosterCard
+            photoUri={photoUri}
+            poster={poster}
+            runLine={posterRunLine(streakDays)}
+          />
         </View>
       </View>
       <View style={styles.actions}>

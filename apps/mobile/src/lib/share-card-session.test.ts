@@ -1,24 +1,26 @@
 import {
-  clearPendingShareCard,
-  peekPendingShareCard,
-  setPendingShareCard,
+  clearPendingSharePhoto,
+  pendingSharePhotoFor,
+  setPendingSharePhoto,
 } from './share-card-session';
 
 afterEach(() => {
-  clearPendingShareCard();
+  clearPendingSharePhoto();
 });
 
 describe('share-card-session', () => {
-  it('holds a payload until cleared', () => {
-    setPendingShareCard({
-      photoUri: 'file://gym.jpg',
-      title: 'Gym session',
-      pointsAwarded: 40,
-      currentStreakDays: 12,
-    });
+  it('holds the selfie for its own finish until cleared', () => {
+    setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
 
-    expect(peekPendingShareCard()?.photoUri).toBe('file://gym.jpg');
-    clearPendingShareCard();
-    expect(peekPendingShareCard()).toBeNull();
+    expect(pendingSharePhotoFor('uc-gym')).toBe('file://gym.jpg');
+    clearPendingSharePhoto();
+    expect(pendingSharePhotoFor('uc-gym')).toBeUndefined();
+  });
+
+  it('never hands the selfie to a different finish', () => {
+    setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
+
+    expect(pendingSharePhotoFor('uc-yesterday')).toBeUndefined();
+    expect(pendingSharePhotoFor(undefined)).toBeUndefined();
   });
 });

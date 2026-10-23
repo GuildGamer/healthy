@@ -25,6 +25,8 @@ interface CaptureCameraScreenProps {
   facing: CameraType;
   onClose: () => void;
   onUse: (photo: CapturedSelfie) => void;
+  /** The photo was thrown away; its check result no longer applies. */
+  onRetake: () => void;
   /** The chosen photo is being checked. */
   isChecking: boolean;
   /** Why the last photo was not accepted; it is retaken from here. */
@@ -56,7 +58,16 @@ export function CaptureCameraScreen(props: CaptureCameraScreenProps) {
   }
 
   if (photo) {
-    return <PhotoPreview {...props} onRetake={() => setPhoto(null)} photo={photo} />;
+    return (
+      <PhotoPreview
+        {...props}
+        onRetake={() => {
+          setPhoto(null);
+          props.onRetake();
+        }}
+        photo={photo}
+      />
+    );
   }
 
   return <LiveCamera {...props} onTaken={setPhoto} />;
@@ -150,7 +161,7 @@ function PhotoPreview({
   onUse,
   isChecking,
   checkError,
-}: CaptureCameraScreenProps & { photo: CapturedSelfie; onRetake: () => void }) {
+}: CaptureCameraScreenProps & { photo: CapturedSelfie }) {
   const { camera } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();

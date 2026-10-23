@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
-import { clearPendingShareCard, setPendingShareCard } from '@/lib/share-card-session';
+import { clearPendingSharePhoto, setPendingSharePhoto } from '@/lib/share-card-session';
 import { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
 
 jest.mock('@/lib/api', () => ({
@@ -64,7 +64,7 @@ function renderSuccess(props: Partial<ComponentProps<typeof ChallengeSuccessScre
 }
 
 afterEach(() => {
-  clearPendingShareCard();
+  clearPendingSharePhoto();
   jest.clearAllMocks();
 });
 
@@ -82,23 +82,31 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
   });
 
-  it('keeps a gym check-in on the same card, without a points poster', () => {
-    setPendingShareCard({
-      photoUri: 'file://gym.jpg',
-      title: 'Gym session',
-      pointsAwarded: 40,
-      currentStreakDays: 12,
-    });
+  it('puts the gym selfie behind the card, branded in the footer, without a points poster', async () => {
+    setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
 
-    renderSuccess({ face: 'gym', title: 'Gym session' });
+    renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
 
     expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-poster-photo')).toHaveProp('source', {
+      uri: 'file://gym.jpg',
+    });
     expect(screen.getByText('Gym session')).toBeOnTheScreen();
     expect(screen.getByText('at the gym')).toBeOnTheScreen();
     expect(screen.getByText('Healthy')).toBeOnTheScreen();
     expect(screen.getByText('12 days running')).toBeOnTheScreen();
     expect(screen.queryByText('+40')).toBeNull();
-    expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
+    expect(await screen.findByTestId('challenge-success-share')).toBeOnTheScreen();
+  });
+
+  it('keeps the plain card when the selfie belongs to a different finish', () => {
+    setPendingSharePhoto({ userChallengeId: 'uc-yesterday', photoUri: 'file://gym.jpg' });
+
+    renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
+
+    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-poster-photo')).toBeNull();
+    expect(screen.getByText('at the gym')).toBeOnTheScreen();
   });
 
   it('puts the push-up count on the share card', () => {

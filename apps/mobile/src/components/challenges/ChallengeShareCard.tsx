@@ -6,6 +6,7 @@ import { Image, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-nat
 import heroBanner from '@/assets/hero-banner.png';
 import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
 import { formatClockTime } from '@/lib/clock-time';
+import { PhotoFade } from './PhotoFade';
 
 /**
  * Share card art direction: an editorial result slip on a mint billboard.
@@ -63,7 +64,6 @@ const HERO_BANNER_ASPECT_RATIO = 512 / 341;
 const HERO_BANNER_NAVY = '#070E1E';
 /** Leaf sized to own the corner like an object, not wash the whole field. */
 const LEAF_WIDTH_RATIO = 1.1;
-const PHOTO_FADE_STOPS = 28;
 
 const designSize = {
   inset: 28,
@@ -428,7 +428,7 @@ function PhotoField({
         source={{ uri: photoUri }}
         style={styles.fill}
       />
-      <PhotoFade />
+      <PhotoFade edge="bottom" height="48%" maxOpacity={0.85} />
 
       <View
         style={[styles.photoStats, { left: inset, right: inset, bottom: inset, gap: 4 * scale }]}
@@ -622,22 +622,6 @@ function StreakFlame({ scale }: { scale: number }) {
   );
 }
 
-function PhotoFade() {
-  return (
-    <View pointerEvents="none" style={styles.photoFade}>
-      {Array.from({ length: PHOTO_FADE_STOPS }, (_, index) => {
-        const progress = index / (PHOTO_FADE_STOPS - 1);
-        return (
-          <View
-            key={index}
-            style={[styles.photoFadeStop, { opacity: progress * progress * 0.85 }]}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
 const overlayShadow = {
   textShadowColor: 'rgba(11, 18, 32, 0.75)',
   textShadowOffset: { width: 0, height: 1 },
@@ -739,18 +723,6 @@ const styles = StyleSheet.create({
   },
   flameCore: {
     position: 'absolute',
-  },
-  photoFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '48%',
-    justifyContent: 'flex-end',
-  },
-  photoFadeStop: {
-    flex: 1,
-    backgroundColor: colors.background,
   },
   photoStats: {
     position: 'absolute',

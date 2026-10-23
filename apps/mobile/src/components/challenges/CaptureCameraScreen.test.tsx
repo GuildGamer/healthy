@@ -41,6 +41,7 @@ jest.mock('expo-camera', () => {
 
 function renderCamera(overrides: Partial<Parameters<typeof CaptureCameraScreen>[0]> = {}) {
   const onUse = jest.fn();
+  const onRetake = jest.fn();
   render(
     <SafeAreaProvider initialMetrics={testSafeAreaMetrics}>
       <CaptureCameraScreen
@@ -49,13 +50,14 @@ function renderCamera(overrides: Partial<Parameters<typeof CaptureCameraScreen>[
         hint="Your face, with the gym behind you"
         isChecking={false}
         onClose={jest.fn()}
+        onRetake={onRetake}
         onUse={onUse}
         pill={{ glyph: 'gym', label: 'Gym check-in' }}
         {...overrides}
       />
     </SafeAreaProvider>,
   );
-  return { onUse };
+  return { onUse, onRetake };
 }
 
 describe('CaptureCameraScreen', () => {
@@ -77,13 +79,14 @@ describe('CaptureCameraScreen', () => {
     });
   });
 
-  it('goes back to the camera on Retake', async () => {
-    renderCamera();
+  it('goes back to the camera on Retake and drops the last check result', async () => {
+    const { onRetake } = renderCamera();
 
     fireEvent.press(screen.getByTestId('camera-shutter'));
     fireEvent.press(await screen.findByTestId('camera-retake'));
 
     expect(screen.getByTestId('camera-shutter')).toBeOnTheScreen();
+    expect(onRetake).toHaveBeenCalledTimes(1);
   });
 
   it('offers only Retake once a photo has not passed', async () => {

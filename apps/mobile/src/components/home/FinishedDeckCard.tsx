@@ -57,7 +57,11 @@ export function FinishedDeckCard({ item, onNext, onHold }: FinishedDeckCardProps
       onNext={onNext}
       onShare={
         poster
-          ? () => router.push({ pathname: '/challenge/share', params: sharePosterParams(poster) })
+          ? () =>
+              router.push({
+                pathname: '/challenge/share',
+                params: { ...sharePosterParams(poster), userChallengeId: finish.challenge.id },
+              })
           : null
       }
       proof={content.proof}
