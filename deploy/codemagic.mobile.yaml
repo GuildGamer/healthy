@@ -77,6 +77,101 @@ workflows:
           cd apps/mobile/ios && pod install
       - name: Set up code signing
         script: |
+          set -euo pipefail
+          # The lock-screen card is a second target, <bundle id>.LiveActivity.
+          # ios_signing only fetches profiles that already exist. Register the
+          # widget App ID and an App Store profile on the existing distribution
+          # certificate, then apply both profiles. Do not mint a new certificate.
+          extension_bundle_id="${IOS_BUNDLE_IDENTIFIER}.LiveActivity"
+          profiles_dir="${HOME}/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$profiles_dir"
+          python3 - "$extension_bundle_id" "$profiles_dir" <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          extension_bundle_id = sys.argv[1]
+          profiles_dir = sys.argv[2]
+
+          def run(args: list[str]) -> str:
+              completed = subprocess.run(args, capture_output=True, text=True)
+              if completed.returncode != 0:
+                  sys.stderr.write(completed.stderr)
+                  sys.stderr.write(completed.stdout)
+                  raise SystemExit(completed.returncode)
+              return completed.stdout
+
+          def resources(raw: str) -> list[dict]:
+              parsed = json.loads(raw or "[]")
+              if isinstance(parsed, list):
+                  return parsed
+              if isinstance(parsed, dict):
+                  data = parsed.get("data")
+                  if isinstance(data, list):
+                      return data
+                  if "id" in parsed:
+                      return [parsed]
+              return []
+
+          def asc(*args: str) -> str:
+              return run(["app-store-connect", "--profiles-dir", profiles_dir, *args])
+
+          listed = resources(asc(
+              "--json", "bundle-ids", "list",
+              "--bundle-id-identifier", extension_bundle_id,
+              "--strict-match-identifier",
+          ))
+          if listed:
+              bundle_resource_id = listed[0]["id"]
+          else:
+              created = resources(asc(
+                  "--json", "bundle-ids", "create", extension_bundle_id,
+                  "--name", "Healthy Live Activity",
+              ))
+              if not created:
+                  sys.exit(f"Apple did not return a Bundle ID for {extension_bundle_id}.")
+              bundle_resource_id = created[0]["id"]
+
+          existing = resources(asc(
+              "--json", "bundle-ids", "profiles",
+              "--bundle-ids", bundle_resource_id,
+              "--type", "IOS_APP_STORE",
+              "--state", "ACTIVE",
+          ))
+          if existing:
+              asc(
+                  "bundle-ids", "profiles",
+                  "--bundle-ids", bundle_resource_id,
+                  "--type", "IOS_APP_STORE",
+                  "--state", "ACTIVE",
+                  "--save",
+              )
+          else:
+              identity = run(["security", "find-identity", "-v", "-p", "codesigning"])
+              certificates = resources(asc("--json", "certificates", "list", "--type", "IOS_DISTRIBUTION"))
+              certificates += resources(asc("--json", "certificates", "list", "--type", "DISTRIBUTION"))
+              certificate_id = next(
+                  (
+                      certificate["id"]
+                      for certificate in certificates
+                      if (certificate.get("attributes") or {}).get("displayName")
+                      and certificate["attributes"]["displayName"] in identity
+                  ),
+                  None,
+              )
+              if not certificate_id:
+                  sys.exit(
+                      "No Apple Distribution certificate in the keychain matches the team. "
+                      "The Live Activity profile was not created."
+                  )
+              asc(
+                  "profiles", "create", bundle_resource_id,
+                  "--type", "IOS_APP_STORE",
+                  "--name", "Healthy Live Activity App Store",
+                  "--certificate-ids", certificate_id,
+                  "--save",
+              )
+          PY
           # Fail here if cert/profile do not match — do not soft-warn into a vague archive 65.
           xcode-project use-profiles \
             --project "$CM_BUILD_DIR/apps/mobile/ios/Healthy.xcodeproj"

@@ -77,5 +77,6 @@ Testers install via the TestFlight app.
 - **“No configuration file found”** — `codemagic.yaml` missing on `main`; run sync + refresh.
 - **Duplicate build 1** — a repeat of build 1 means the next archive must use a higher CFBundleVersion, which this workflow now sets before prebuild.
 - **Bundle ID mismatch** — profile / App ID / `IOS_BUNDLE_IDENTIFIER` must be identical.
+- **`LiveActivity` requires a provisioning profile** — the lock-screen widget is a second target, `com.healthyapp.tfpreview.LiveActivity`. The signing step registers that App ID and an App Store profile on the distribution certificate already in the keychain. The API key needs permission to create identifiers.
 - **Missing .p12** — ask friend for the distribution certificate export, or use API-key-based signing fetch.
 - Using `com.healthyapp.app` on the friend’s team will burn that ID — keep the throwaway `com.healthyapp.tfpreview` for this TestFlight.
