@@ -36,12 +36,7 @@ import {
   EVIDENCE_VALIDATOR,
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
-import {
-  PUSH_SENDER,
-  type PushMessage,
-  type PushSender,
-} from '../../shared-modules/push/push-sender.js';
+import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import { PracticeService } from '../practice/index.js';
 import type {
   ActivityItemDto,
@@ -192,10 +187,7 @@ export class ChallengesService {
     @Inject(SURPRISE_EVIDENCE_ROLL)
     surpriseRoll?: () => number,
     @Optional()
-    @Inject(PUSH_SENDER)
-    private readonly pushSender?: PushSender,
-    @Optional()
-    private readonly pushDevices?: PushDevicesService,
+    private readonly delivery?: EngagementDeliveryService,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }
@@ -670,34 +662,23 @@ export class ChallengesService {
     body: string,
     payload: NotificationPayload,
   ): Promise<void> {
-    if (!this.pushSender || !this.pushDevices) {
+    if (!this.delivery) {
       return;
     }
 
     try {
-      const devices = await this.prisma.pushDevice.findMany({
-        where: { userId, isActive: true },
-        select: { expoPushToken: true },
+      await this.delivery.send({
+        source: 'completion',
+        audience: 'all_devices',
+        pushes: [
+          {
+            userId,
+            title,
+            body,
+            data: pushDataFromPayload(payload),
+          },
+        ],
       });
-
-      if (devices.length === 0) {
-        return;
-      }
-
-      const data = pushDataFromPayload(payload);
-      const messages: PushMessage[] = devices.map((device) => ({
-        expoPushToken: device.expoPushToken,
-        title,
-        body,
-        data,
-      }));
-
-      const pushResult = await this.pushSender.send(messages);
-      await this.pushDevices.deactivateTokens(pushResult.rejectedTokens);
-
-      this.logger.log(
-        `Completion push sent ${pushResult.sentCount} of ${messages.length} messages`,
-      );
     } catch (error) {
       this.logger.warn(
         `Completion push failed for user ${userId}: ${

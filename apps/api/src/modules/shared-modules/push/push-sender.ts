@@ -9,6 +9,10 @@ export type PushMessage = {
   body: string;
   /** Payload the app reads when the notification is tapped. */
   data: Record<string, string>;
+  /** iOS notification thread — cadence pushes share `habits`. */
+  threadId?: string;
+  /** Android notification channel — cadence pushes share `habits`. */
+  channelId?: string;
 };
 
 /** Tokens the provider says are permanently invalid, so we can retire them. */

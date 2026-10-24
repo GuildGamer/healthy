@@ -58,6 +58,10 @@ export function useTodayQueries() {
     queryFn: () => apiClient.listTodayChallenges(),
   });
   const tipsQuery = useQuery({ queryKey: ['tips'], queryFn: () => apiClient.listTips() });
+  const catalogQuery = useQuery({
+    queryKey: ['challenges', 'catalog'],
+    queryFn: () => apiClient.listChallengeCatalog(),
+  });
   const notificationsQuery = useQuery({
     queryKey: ['notifications'],
     queryFn: () => apiClient.listNotifications(),
@@ -83,7 +87,14 @@ export function useTodayQueries() {
   const me = meQuery.data;
   const tips = tipsQuery.data?.tips ?? [];
   const categories = me?.categories ?? [];
-  const todayTip = selectDailyTip(tips, categories, dayKey);
+  const enrolled = (catalogQuery.data?.challenges ?? []).filter((item) => item.isEnrolled);
+  const tipEnrollment = {
+    challengeSlugs: enrolled.map((item) => item.slug),
+    activityKeys: enrolled
+      .map((item) => item.capture.metric)
+      .filter((metric): metric is NonNullable<typeof metric> => metric != null),
+  };
+  const todayTip = selectDailyTip(tips, categories, dayKey, tipEnrollment);
   const deck = buildTodayDeck({
     challenges: challengesQuery.data?.challenges ?? [],
     hasMembership: me?.hasMembership ?? false,
@@ -110,7 +121,9 @@ export function useTodayQueries() {
     deck,
     challengesQuery,
     categories,
-    tomorrowTip: dayKey ? selectDailyTip(tips, categories, nextDayKey(dayKey)) : null,
+    tomorrowTip: dayKey
+      ? selectDailyTip(tips, categories, nextDayKey(dayKey), tipEnrollment)
+      : null,
     unreadCount: notificationsQuery.data?.unreadCount ?? 0,
     weeklyRank: leaderboardQuery.data?.currentUserRank ?? null,
     weeklyRankAtDayStart: leaderboardQuery.data?.currentUserRankAtDayStart ?? null,

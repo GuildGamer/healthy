@@ -28,6 +28,12 @@ export const ANALYTICS_EVENT_NAMES = [
   /** Cold launch found a pending match token and will route challenge-first. */
   'invite_restored_on_launch',
   'user_active',
+  /** Member tapped a push that carried engagementDeliveryId. */
+  'push_opened',
+  /** Success screen offered the next push-up goal on the streak ladder. */
+  'goal_ladder_offered',
+  'goal_ladder_accepted',
+  'goal_ladder_declined',
 ] as const;
 
 export const analyticsEventNameSchema = z.enum(ANALYTICS_EVENT_NAMES);

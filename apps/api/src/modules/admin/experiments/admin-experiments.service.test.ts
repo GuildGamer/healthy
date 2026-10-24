@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ORPCError } from '@orpc/server';
-import { AdminExperimentsService } from './admin-experiments.service.js';
+import {
+  AdminExperimentsService,
+  experimentPropertyFilters,
+  propertiesMatchExperiment,
+} from './admin-experiments.service.js';
 
 const admin = {
   id: 'admin_1',
@@ -65,19 +69,12 @@ function createPrismaMock() {
       ]),
     },
     analyticsEvent: {
-      findMany: vi.fn().mockImplementation(async ({ where }: { where: { name: string } }) => {
+      count: vi.fn().mockImplementation(async ({ where }: { where: { name: string } }) => {
         if (where.name === 'challenge_created') {
-          return [
-            {
-              properties: {
-                experiment_id: experiment.id,
-                experiment_variant: 'treatment',
-              },
-            },
-          ];
+          return 1;
         }
 
-        return [];
+        return 0;
       }),
     },
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
@@ -129,5 +126,33 @@ describe('AdminExperimentsService', () => {
         variants: [{ variantKey: 'ghost', weight: 1 }],
       }),
     ).rejects.toBeInstanceOf(ORPCError);
+  });
+
+  it('builds DB filters for camelCase and snake_case property keys', () => {
+    const filters = experimentPropertyFilters('exp1', 'treatment');
+    expect(filters.length).toBe(6);
+    expect(filters[0]).toEqual({
+      AND: [
+        { properties: { path: ['experimentId'], equals: 'exp1' } },
+        { properties: { path: ['experimentVariantKey'], equals: 'treatment' } },
+      ],
+    });
+  });
+
+  it('matches in-memory properties for both key spellings', () => {
+    expect(
+      propertiesMatchExperiment(
+        { experiment_id: 'exp1', experiment_variant: 'treatment' },
+        'exp1',
+        'treatment',
+      ),
+    ).toBe(true);
+    expect(
+      propertiesMatchExperiment(
+        { experimentId: 'exp1', experimentVariantKey: 'control' },
+        'exp1',
+        'treatment',
+      ),
+    ).toBe(false);
   });
 });

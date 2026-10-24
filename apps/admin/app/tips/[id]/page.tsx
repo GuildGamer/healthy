@@ -37,7 +37,18 @@ export default function EditTipPage() {
         {tip ? (
           <div className="card">
             <TipForm
-              initial={tip}
+              initial={{
+                slug: tip.slug,
+                category: tip.category,
+                title: tip.title,
+                body: tip.body,
+                isActive: tip.isActive,
+                sortOrder: tip.sortOrder,
+                challengeSlug: tip.challengeSlug,
+                activityKey: tip.activityKey,
+                source: tip.source,
+                sourceUrl: tip.sourceUrl,
+              }}
               onSubmit={(input) => mutation.mutate({ ...input, id: tip.id })}
               pending={mutation.isPending}
             />

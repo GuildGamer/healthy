@@ -183,6 +183,30 @@ export const getAdminRemindersAnalyticsContract = oc
   .input(adminAnalyticsRangeInputSchema)
   .output(adminRemindersAnalyticsSchema);
 
+/** Push delivery baseline for Phases 3–6 (first-party engagement log). */
+export const adminPushDeliveriesAnalyticsSchema = z.object({
+  generatedAt: z.string().datetime(),
+  rangeDays: z.number().int(),
+  deliveriesSent: z.number().int().nonnegative(),
+  uniqueUsersSent: z.number().int().nonnegative(),
+  opens: z.number().int().nonnegative(),
+  openRate: z.number().min(0).max(1),
+  bySource: z.array(adminAnalyticsNamedCountSchema),
+  holdoutSends: z.number().int().nonnegative(),
+  treatmentSends: z.number().int().nonnegative(),
+  userActiveDistinct: z.number().int().nonnegative(),
+  /** Deliveries with leadChallengeId that saw a start within 2h. */
+  startedWithin2h: z.number().int().nonnegative(),
+  /** Deliveries with leadChallengeId that saw a complete within 2h. */
+  completedWithin2h: z.number().int().nonnegative(),
+  leadChallengeDeliveries: z.number().int().nonnegative(),
+});
+
+export const getAdminPushDeliveriesAnalyticsContract = oc
+  .route({ method: 'GET', path: '/admin/analytics/push-deliveries' })
+  .input(adminAnalyticsRangeInputSchema)
+  .output(adminPushDeliveriesAnalyticsSchema);
+
 export type AdminAnalyticsRangeInput = z.input<
   typeof adminAnalyticsRangeInputSchema
 >;
@@ -195,4 +219,7 @@ export type AdminEngagementAnalytics = z.infer<
 export type AdminCatalogAnalytics = z.infer<typeof adminCatalogAnalyticsSchema>;
 export type AdminRemindersAnalytics = z.infer<
   typeof adminRemindersAnalyticsSchema
+>;
+export type AdminPushDeliveriesAnalytics = z.infer<
+  typeof adminPushDeliveriesAnalyticsSchema
 >;

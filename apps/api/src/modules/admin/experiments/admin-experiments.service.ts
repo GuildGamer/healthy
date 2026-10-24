@@ -297,20 +297,55 @@ export class AdminExperimentsService {
     experimentId: string,
     variantKey: string,
   ): Promise<number> {
-    // Properties are JSON; filter in application when the volume is small.
-    // Index on name keeps this bounded for early experiment traffic.
-    const rows = await this.prisma.analyticsEvent.findMany({
-      where: { name },
-      select: { properties: true },
+    // JSON path filters in Postgres — support camelCase and snake_case keys
+    // that clients have emitted historically.
+    return this.prisma.analyticsEvent.count({
+      where: {
+        name,
+        OR: experimentPropertyFilters(experimentId, variantKey),
+      },
     });
-
-    return rows.filter((row) =>
-      propertiesMatchExperiment(row.properties, experimentId, variantKey),
-    ).length;
   }
 }
 
-function propertiesMatchExperiment(
+/** Exported for unit tests. */
+export function experimentPropertyFilters(
+  experimentId: string,
+  variantKey: string,
+): Array<{
+  AND: Array<{
+    properties: { path: string[]; equals: string };
+  }>;
+}> {
+  const experimentPaths = [['experimentId'], ['experiment_id']];
+  const variantPaths = [
+    ['experimentVariantKey'],
+    ['experiment_variant_key'],
+    ['experiment_variant'],
+  ];
+
+  const filters: Array<{
+    AND: Array<{
+      properties: { path: string[]; equals: string };
+    }>;
+  }> = [];
+
+  for (const experimentPath of experimentPaths) {
+    for (const variantPath of variantPaths) {
+      filters.push({
+        AND: [
+          { properties: { path: experimentPath, equals: experimentId } },
+          { properties: { path: variantPath, equals: variantKey } },
+        ],
+      });
+    }
+  }
+
+  return filters;
+}
+
+/** Kept for callers that still need in-memory matching of a single row. */
+export function propertiesMatchExperiment(
   properties: unknown,
   experimentId: string,
   variantKey: string,

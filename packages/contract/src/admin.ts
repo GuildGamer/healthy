@@ -6,6 +6,7 @@ import {
   getAdminGrowthAnalyticsContract,
   getAdminMarketsAnalyticsContract,
   getAdminOverviewAnalyticsContract,
+  getAdminPushDeliveriesAnalyticsContract,
   getAdminRemindersAnalyticsContract,
 } from './admin-analytics.js';
 import {
@@ -88,6 +89,10 @@ export const adminTipSchema = z.object({
   body: z.string().min(1).max(2_000),
   isActive: z.boolean(),
   sortOrder: z.number().int().min(0).max(10_000),
+  challengeSlug: z.string().min(1).max(80).nullable(),
+  activityKey: z.string().min(1).max(40).nullable(),
+  source: z.string().min(1).max(200).nullable(),
+  sourceUrl: z.string().url().max(500).nullable(),
   updatedAt: z.string().datetime(),
 });
 
@@ -241,6 +246,10 @@ export const publicTipSchema = z.object({
   category: healthCategorySchema,
   title: z.string(),
   body: z.string(),
+  challengeSlug: z.string().nullable().optional(),
+  activityKey: z.string().nullable().optional(),
+  source: z.string().nullable().optional(),
+  sourceUrl: z.string().nullable().optional(),
 });
 
 export const listPublicTipsOutputSchema = z.object({
@@ -435,6 +444,7 @@ export const adminContract = {
   getEngagementAnalytics: getAdminEngagementAnalyticsContract,
   getCatalogAnalytics: getAdminCatalogAnalyticsContract,
   getRemindersAnalytics: getAdminRemindersAnalyticsContract,
+  getPushDeliveriesAnalytics: getAdminPushDeliveriesAnalyticsContract,
   sendNotification: sendAdminNotificationContract,
   listMembershipPlans: listAdminMembershipPlansContract,
   createMembershipPlan: createAdminMembershipPlanContract,

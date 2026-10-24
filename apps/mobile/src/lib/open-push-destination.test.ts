@@ -5,6 +5,22 @@ describe('hrefForPushData', () => {
     expect(hrefForPushData({ destination: 'today' })).toBe('/(tabs)');
   });
 
+  it('ignores engagementDeliveryId when choosing a destination', () => {
+    expect(
+      hrefForPushData({
+        destination: 'today',
+        engagementDeliveryId: 'delivery-1',
+      }),
+    ).toBe('/(tabs)');
+    expect(
+      hrefForPushData({
+        destination: 'challenge',
+        challengeId: 'c1',
+        engagementDeliveryId: 'delivery-1',
+      }),
+    ).toEqual({ pathname: '/(tabs)', params: { focus: 'c1' } });
+  });
+
   it('opens Today on the card of the challenge a reminder names', () => {
     const onCard = { pathname: '/(tabs)', params: { focus: 'c1' } };
     expect(hrefForPushData({ destination: 'challenge', challengeId: 'c1' })).toEqual(onCard);

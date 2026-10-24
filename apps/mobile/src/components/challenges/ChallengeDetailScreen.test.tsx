@@ -23,6 +23,7 @@ jest.mock('@/lib/api', () => ({
     listTodayChallenges: jest.fn(),
     getTodayDetails: jest.fn(),
     listChallengeHistory: jest.fn(),
+    listTips: jest.fn(async () => ({ tips: [] })),
     setChallengeEnrollment: jest.fn(),
     addChallengeReminder: jest.fn(),
     removeChallengeReminder: jest.fn(),

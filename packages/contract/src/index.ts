@@ -254,6 +254,7 @@ export type {
   AdminGrowthAnalytics,
   AdminMarketsAnalytics,
   AdminOverviewAnalytics,
+  AdminPushDeliveriesAnalytics,
   AdminRemindersAnalytics,
 } from './admin-analytics.js';
 export {

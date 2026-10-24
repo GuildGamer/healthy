@@ -26,6 +26,7 @@ model User {
   pointLedger            PointLedgerEntry[]
   pushDevices            PushDevice[]
   notifications          Notification[]
+  engagementDeliveries   EngagementDelivery[]
   deviceActivityLogs     DeviceActivityLog[]
   hostedMatches          Match[]                @relation("MatchHost")
   wonMatches             Match[]                @relation("MatchWinner")
@@ -426,6 +427,38 @@ model Notification {
   @@map("notifications")
 }
 
+/// One Expo push the engagement module actually handed to the provider.
+/// Distinct from the inbox row: callers own Notification; this is the send log.
+model EngagementDelivery {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Matches EngagementSource in the API (habit_slot, invite_accepted, …).
+  source           String
+  /// `all_devices` or `group_opt_in`.
+  audience         String
+  title            String
+  body             String
+  /// Defaults to `source` until Phase 5 copy templates land.
+  templateKey      String
+  situation        String?
+  copyVersion      String    @default("v1")
+  experimentKey    String?
+  variantKey       String?
+  leadChallengeId  String?
+  notificationId   String?
+  /// Push `data` after `engagementDeliveryId` was injected.
+  payload          Json      @default("{}")
+  sentAt           DateTime  @default(now())
+  /// First tap open; later taps leave this alone.
+  openedAt         DateTime?
+
+  @@index([userId, sentAt])
+  @@index([source, sentAt])
+  @@index([experimentKey, variantKey, sentAt])
+  @@map("engagement_deliveries")
+}
+
 /// Client-attested movement sample or GPS session. One per occurrence.
 model DeviceActivityLog {
   id              String               @id @default(cuid())
@@ -531,10 +564,20 @@ model Tip {
   isActive  Boolean        @default(true)
   /// Stable rotation order within a category.
   sortOrder Int            @default(0)
+  /// Prefer this tip when viewing / completing the catalog challenge with this slug.
+  challengeSlug String?
+  /// Fallback match on deviceMetric or a free activity key (e.g. water, pushups).
+  activityKey   String?
+  /// Short citation label shown with "Why it matters" copy.
+  source        String?
+  /// Optional link for the citation.
+  sourceUrl     String?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
   @@index([isActive, category, sortOrder])
+  @@index([challengeSlug])
+  @@index([activityKey])
   @@map("tips")
 }
 

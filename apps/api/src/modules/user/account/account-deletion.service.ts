@@ -148,6 +148,7 @@ export class AccountDeletionService {
     await transaction.challengeEnrollment.deleteMany({ where: { userId } });
     await transaction.pushDevice.deleteMany({ where: { userId } });
     await transaction.notification.deleteMany({ where: { userId } });
+    await transaction.engagementDelivery.deleteMany({ where: { userId } });
     await transaction.entitlement.deleteMany({ where: { userId } });
   }
 

@@ -1,13 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ChallengeFrequency, PrismaClient } from '@product/db';
-import { dayKeyFor, localMinuteOfDay } from '../../../shared/utils/day-key.js';
-import { periodKeyFor } from '../../../shared/utils/period-key.js';
-import { PRISMA } from '../database/prisma.tokens.js';
-import type { PushMessage, PushSender } from '../push/push-sender.js';
-import { PUSH_SENDER } from '../push/push-sender.js';
-import { PushDevicesService } from '../push/push-devices.service.js';
-import { DISPATCH_CATCH_UP_MINUTES } from '../../../shared/constants/reminder-defaults.js';
-import { isTestingMembershipEnabled } from '../../../shared/membership/testing-membership.js';
+import { DISPATCH_CATCH_UP_MINUTES } from '../../../../shared/constants/reminder-defaults.js';
+import { isTestingMembershipEnabled } from '../../../../shared/membership/testing-membership.js';
+import { dayKeyFor, localMinuteOfDay } from '../../../../shared/utils/day-key.js';
+import { periodKeyFor } from '../../../../shared/utils/period-key.js';
+import { PRISMA } from '../../database/prisma.tokens.js';
 import {
   CHALLENGE_REMINDER_PUSH_TITLE,
   HABIT_SLOT_MINUTES,
@@ -15,8 +12,22 @@ import {
   habitSlotIdempotencyKey,
   IN_PROGRESS_NUDGE_PUSH_BODY,
   IN_PROGRESS_NUDGE_PUSH_TITLE,
-} from './constants/habit-slot-copy.js';
-import type { DispatchSummaryDto } from './dto/dispatch-summary.dto.js';
+} from '../constants/habit-slot-copy.js';
+import { composeReminderCopy } from '../copy/compose-reminder-copy.js';
+import {
+  contextKey,
+  ReminderContextLoaderService,
+  type ReminderContextRequest,
+} from '../copy/reminder-context-loader.service.js';
+import { moreOpenSuffix } from '../policy/pick-lead-challenge.js';
+import type { DispatchSummaryDto } from '../dto/dispatch-summary.dto.js';
+import { EngagementDeliveryService } from '../engagement-delivery.service.js';
+import {
+  EngagementPolicyService,
+  type CadencePlan,
+} from '../policy/engagement-policy.service.js';
+import { isTreatmentVariant } from '../policy/habit-slot-minutes-for.js';
+import type { EngagementPush } from '../types/engagement-push.js';
 
 /** A reminder whose minute has arrived, resolved against its period. */
 type DueReminder = {
@@ -46,6 +57,15 @@ type HabitSlotCandidate = {
   openChallengeIds: string[];
 };
 
+type HabitSlotPrepared = HabitSlotCandidate & {
+  title: string;
+  body: string;
+  leadChallengeId: string | undefined;
+  templateKey?: string;
+  situation?: string;
+  copyVersion?: string;
+};
+
 export type HabitSlotDispatchSummary = DispatchSummaryDto & {
   /** Users who received a habit slot this run — skip their same-minute reminders. */
   sentUserIds: string[];
@@ -57,8 +77,9 @@ export class ReminderDispatcherService {
 
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
-    private readonly pushDevices: PushDevicesService,
+    private readonly delivery: EngagementDeliveryService,
+    private readonly policy: EngagementPolicyService,
+    private readonly contexts: ReminderContextLoaderService,
   ) {}
 
   /**
@@ -88,44 +109,153 @@ export class ReminderDispatcherService {
       };
     }
 
-    const tokensByUserId = await this.activeTokensByUserId(
+    const plans = await this.policy.cadencePlanFor(
       undelivered.map((item) => item.userId),
+      now,
     );
-    const messages: PushMessage[] = [];
-    const deliverable: HabitSlotCandidate[] = [];
 
-    for (const item of undelivered) {
-      const copy = habitSlotCopy(item.minuteOfDay);
-      if (!copy) {
+    const allowed = undelivered.filter((item) => {
+      const plan = plans.get(item.userId);
+      if (!plan) {
+        return true;
+      }
+
+      if (!plan.habitMinutes.includes(item.minuteOfDay)) {
+        return false;
+      }
+
+      if (plan.quietNow || plan.remainingBudget < 1 || plan.skipHabitForActivity) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const budgeted: Array<{
+      item: HabitSlotCandidate;
+      plan: CadencePlan | undefined;
+      slotCopy: NonNullable<ReturnType<typeof habitSlotCopy>>;
+    }> = [];
+    const spentThisTick = new Map<string, number>();
+
+    for (const item of allowed) {
+      const slotCopy = habitSlotCopy(item.minuteOfDay);
+      if (!slotCopy) {
         continue;
       }
 
-      const tokens = tokensByUserId.get(item.userId) ?? [];
-      if (tokens.length === 0) {
+      const plan = plans.get(item.userId);
+      const alreadySpent = spentThisTick.get(item.userId) ?? 0;
+      const remaining =
+        (plan?.remainingBudget ?? Number.POSITIVE_INFINITY) - alreadySpent;
+      if (remaining < 1) {
         continue;
       }
 
-      deliverable.push(item);
-      const challengeId =
-        item.openChallengeIds.length === 1
-          ? item.openChallengeIds[0]
-          : undefined;
-      const data: Record<string, string> = { destination: 'today' };
-      if (challengeId) {
-        data.challengeId = challengeId;
-      }
-
-      for (const expoPushToken of tokens) {
-        messages.push({
-          expoPushToken,
-          title: copy.title,
-          body: copy.body,
-          data,
-        });
-      }
+      budgeted.push({ item, plan, slotCopy });
+      spentThisTick.set(item.userId, alreadySpent + 1);
     }
 
-    if (messages.length === 0) {
+    const leadByUser = new Map<string, string | undefined>();
+    for (const entry of budgeted) {
+      if (!isTreatmentVariant(entry.plan?.variantKey)) {
+        leadByUser.set(
+          entry.item.userId,
+          entry.item.openChallengeIds.length === 1
+            ? entry.item.openChallengeIds[0]
+            : undefined,
+        );
+        continue;
+      }
+
+      const { leadChallengeId } = await this.policy.pickLeadForOpenChallenges({
+        userId: entry.item.userId,
+        openChallengeIds: entry.item.openChallengeIds,
+        timeZone: entry.item.timeZone,
+        now,
+      });
+      leadByUser.set(entry.item.userId, leadChallengeId ?? undefined);
+    }
+
+    const treatmentRequests: ReminderContextRequest[] = budgeted
+      .filter((entry) => isTreatmentVariant(entry.plan?.variantKey))
+      .map((entry) => ({
+        userId: entry.item.userId,
+        dayKey: entry.item.dayKey,
+        localMinute: entry.item.minuteOfDay,
+        timeZone: entry.item.timeZone,
+        nudgeKind: 'habit_slot' as const,
+        openChallengeIds: entry.item.openChallengeIds,
+        leadChallengeId: leadByUser.get(entry.item.userId) ?? null,
+      }));
+
+    const treatmentContexts =
+      treatmentRequests.length === 0
+        ? new Map()
+        : await this.contexts.loadMany(treatmentRequests, now);
+
+    const prepared: HabitSlotPrepared[] = [];
+    const pushes: EngagementPush[] = [];
+
+    for (const entry of budgeted) {
+      const leadChallengeId = leadByUser.get(entry.item.userId);
+      const openSuffix = isTreatmentVariant(entry.plan?.variantKey)
+        ? moreOpenSuffix(entry.item.openChallengeIds.length)
+        : '';
+
+      let title = entry.slotCopy.title;
+      let body = `${entry.slotCopy.body}${openSuffix}`;
+      let templateKey: string | undefined;
+      let situation: string | undefined;
+      let copyVersion: string | undefined;
+
+      if (isTreatmentVariant(entry.plan?.variantKey)) {
+        const loaded = treatmentContexts.get(
+          contextKey({
+            userId: entry.item.userId,
+            nudgeKind: 'habit_slot',
+            leadChallengeId: leadChallengeId ?? null,
+            userChallengeId: null,
+          }),
+        );
+        if (loaded) {
+          const composed = composeReminderCopy(loaded);
+          title = composed.title;
+          body = `${composed.body}${openSuffix}`;
+          templateKey = composed.templateKey;
+          situation = composed.situation;
+          copyVersion = composed.copyVersion;
+        }
+      }
+
+      prepared.push({
+        ...entry.item,
+        title,
+        body,
+        leadChallengeId,
+        templateKey,
+        situation,
+        copyVersion,
+      });
+
+      const data: Record<string, string> = { destination: 'today' };
+      if (leadChallengeId) {
+        data.challengeId = leadChallengeId;
+      }
+
+      pushes.push({
+        userId: entry.item.userId,
+        title,
+        body,
+        data,
+        leadChallengeId,
+        templateKey,
+        situation,
+        copyVersion,
+      });
+    }
+
+    if (pushes.length === 0) {
       return {
         dueCount: candidates.length,
         sentCount: 0,
@@ -134,41 +264,37 @@ export class ReminderDispatcherService {
       };
     }
 
-    const result = await this.pushSender.send(messages);
+    const result = await this.delivery.send({
+      source: 'habit_slot',
+      audience: 'all_devices',
+      pushes,
+    });
+
+    const withDevice = new Set(result.usersWithDevice);
+    const deliverable = prepared.filter((item) => withDevice.has(item.userId));
 
     if (result.sentCount > 0) {
       await this.prisma.notification.createMany({
-        data: deliverable.map((item) => {
-          const copy = habitSlotCopy(item.minuteOfDay);
-          const challengeId =
-            item.openChallengeIds.length === 1
-              ? item.openChallengeIds[0]
-              : undefined;
-          return {
-            userId: item.userId,
-            kind: 'reminder' as const,
-            title: copy?.title ?? 'Do one now',
-            body: copy?.body ?? 'One challenge still open',
-            payload: {
-              destination: 'today' as const,
-              ...(challengeId ? { challengeId } : {}),
-            },
-            idempotencyKey: habitSlotIdempotencyKey(
-              item.userId,
-              item.dayKey,
-              item.minuteOfDay,
-            ),
-          };
-        }),
+        data: deliverable.map((item) => ({
+          userId: item.userId,
+          kind: 'reminder' as const,
+          title: item.title,
+          body: item.body,
+          payload: {
+            destination: 'today' as const,
+            ...(item.leadChallengeId
+              ? { challengeId: item.leadChallengeId }
+              : {}),
+          },
+          idempotencyKey: habitSlotIdempotencyKey(
+            item.userId,
+            item.dayKey,
+            item.minuteOfDay,
+          ),
+        })),
         skipDuplicates: true,
       });
     }
-
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
-    this.logger.log(
-      `Habit slot dispatch sent ${result.sentCount} of ${messages.length} messages`,
-    );
 
     return {
       dueCount: candidates.length,
@@ -203,15 +329,77 @@ export class ReminderDispatcherService {
 
     const undelivered = await this.excludeAlreadyDelivered(due);
     const outstanding = await this.excludeCompleted(undelivered);
-    const suppressedCount = undelivered.length - outstanding.length;
+    const policySuppressed = await this.applyCadenceBudget(
+      outstanding,
+      now,
+      (item) => item.userId,
+    );
+    const suppressedCount =
+      undelivered.length - outstanding.length + policySuppressed.suppressed;
 
-    if (outstanding.length === 0) {
+    if (policySuppressed.allowed.length === 0) {
       return { dueCount: due.length, sentCount: 0, suppressedCount };
     }
 
-    const sentCount = await this.send(outstanding);
+    const sentCount = await this.sendClockReminders(
+      policySuppressed.allowed,
+      policySuppressed.plans,
+      now,
+    );
 
     return { dueCount: due.length, sentCount, suppressedCount };
+  }
+
+  /**
+   * Treatment: quiet hours and remaining daily budget. Holdout / unassigned
+   * pass through unchanged. Caps each user to their remaining sends.
+   */
+  private async applyCadenceBudget<T>(
+    items: readonly T[],
+    now: Date,
+    userIdOf: (item: T) => string,
+  ): Promise<{
+    allowed: T[];
+    suppressed: number;
+    plans: Map<string, CadencePlan>;
+  }> {
+    if (items.length === 0) {
+      return { allowed: [], suppressed: 0, plans: new Map() };
+    }
+
+    const plans = await this.policy.cadencePlanFor(
+      items.map(userIdOf),
+      now,
+    );
+    const spentThisTick = new Map<string, number>();
+    const allowed: T[] = [];
+
+    for (const item of items) {
+      const userId = userIdOf(item);
+      const plan = plans.get(userId);
+      if (!plan || !isTreatmentVariant(plan.variantKey)) {
+        allowed.push(item);
+        continue;
+      }
+
+      if (plan.quietNow) {
+        continue;
+      }
+
+      const alreadySpent = spentThisTick.get(userId) ?? 0;
+      if (plan.remainingBudget - alreadySpent < 1) {
+        continue;
+      }
+
+      allowed.push(item);
+      spentThisTick.set(userId, alreadySpent + 1);
+    }
+
+    return {
+      allowed,
+      suppressed: items.length - allowed.length,
+      plans,
+    };
   }
 
   /**
@@ -453,72 +641,112 @@ export class ReminderDispatcherService {
     );
   }
 
-  private async send(due: readonly DueReminder[]): Promise<number> {
-    const tokensByUserId = await this.activeTokensByUserId(due.map((item) => item.userId));
+  private async sendClockReminders(
+    due: readonly DueReminder[],
+    plans: Map<string, CadencePlan>,
+    now: Date,
+  ): Promise<number> {
+    const treatmentRequests: ReminderContextRequest[] = due
+      .filter((item) => isTreatmentVariant(plans.get(item.userId)?.variantKey))
+      .map((item) => {
+        const plan = plans.get(item.userId);
+        return {
+          userId: item.userId,
+          dayKey: plan?.dayKey ?? dayKeyFor(plan?.timeZone ?? 'UTC', now),
+          localMinute: plan?.localMinute ?? localMinuteOfDay(plan?.timeZone ?? 'UTC', now),
+          timeZone: plan?.timeZone ?? 'UTC',
+          nudgeKind: 'clock_reminder' as const,
+          openChallengeIds: [item.challengeId],
+          leadChallengeId: item.challengeId,
+        };
+      });
 
-    const messages: PushMessage[] = [];
-    const deliverable: DueReminder[] = [];
+    const treatmentContexts =
+      treatmentRequests.length === 0
+        ? new Map()
+        : await this.contexts.loadMany(treatmentRequests, now);
 
-    for (const item of due) {
-      const tokens = tokensByUserId.get(item.userId) ?? [];
+    type PreparedClock = DueReminder & {
+      title: string;
+      body: string;
+      templateKey?: string;
+      situation?: string;
+      copyVersion?: string;
+    };
 
-      // No device means nothing to send. Leaving the delivery unrecorded lets
-      // it go out later the same period if the user registers one.
-      if (tokens.length === 0) {
-        continue;
-      }
-
-      deliverable.push(item);
-
-      for (const expoPushToken of tokens) {
-        messages.push({
-          expoPushToken,
+    const prepared: PreparedClock[] = due.map((item) => {
+      const plan = plans.get(item.userId);
+      if (!isTreatmentVariant(plan?.variantKey)) {
+        return {
+          ...item,
           title: CHALLENGE_REMINDER_PUSH_TITLE,
           body: item.challengeTitle,
-          data: {
-            destination: 'challenge',
-            challengeId: item.challengeId,
-            periodKey: item.periodKey,
-          },
-        });
+        };
       }
-    }
 
-    if (messages.length === 0) {
-      return 0;
-    }
+      const loaded = treatmentContexts.get(
+        contextKey({
+          userId: item.userId,
+          nudgeKind: 'clock_reminder',
+          leadChallengeId: item.challengeId,
+          userChallengeId: null,
+        }),
+      );
+      if (!loaded) {
+        return {
+          ...item,
+          title: CHALLENGE_REMINDER_PUSH_TITLE,
+          body: item.challengeTitle,
+        };
+      }
 
-    const result = await this.pushSender.send(messages);
+      const composed = composeReminderCopy(loaded);
+      return {
+        ...item,
+        title: composed.title,
+        body: composed.body,
+        templateKey: composed.templateKey,
+        situation: composed.situation,
+        copyVersion: composed.copyVersion,
+      };
+    });
+
+    const pushes: EngagementPush[] = prepared.map((item) => ({
+      userId: item.userId,
+      title: item.title,
+      body: item.body,
+      data: {
+        destination: 'challenge',
+        challengeId: item.challengeId,
+        periodKey: item.periodKey,
+      },
+      leadChallengeId: item.challengeId,
+      templateKey: item.templateKey,
+      situation: item.situation,
+      copyVersion: item.copyVersion,
+    }));
+
+    const result = await this.delivery.send({
+      source: 'clock_reminder',
+      audience: 'all_devices',
+      pushes,
+    });
+
+    const withDevice = new Set(result.usersWithDevice);
+    const deliverable = prepared.filter((item) => withDevice.has(item.userId));
 
     if (result.sentCount > 0) {
-      await this.recordDeliveries(deliverable);
+      await this.recordClockDeliveries(deliverable);
     }
-
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
-    this.logger.log(`Reminder dispatch sent ${result.sentCount} of ${messages.length} messages`);
 
     return result.sentCount;
   }
 
-  private async activeTokensByUserId(userIds: readonly string[]): Promise<Map<string, string[]>> {
-    const devices = await this.prisma.pushDevice.findMany({
-      where: { userId: { in: [...new Set(userIds)] }, isActive: true },
-      select: { userId: true, expoPushToken: true },
-    });
-
-    const byUserId = new Map<string, string[]>();
-
-    for (const device of devices) {
-      const tokens = byUserId.get(device.userId) ?? [];
-      tokens.push(device.expoPushToken);
-      byUserId.set(device.userId, tokens);
-    }
-
-    return byUserId;
-  }
-
-  private async recordDeliveries(due: readonly DueReminder[]): Promise<void> {
+  private async recordClockDeliveries(
+    due: ReadonlyArray<
+      DueReminder & { title: string; body: string }
+    >,
+  ): Promise<void> {
     await this.prisma.reminderDelivery.createMany({
       data: due.map((item) => ({
         reminderId: item.reminderId,
@@ -535,8 +763,8 @@ export class ReminderDispatcherService {
       data: due.map((item) => ({
         userId: item.userId,
         kind: 'reminder' as const,
-        title: CHALLENGE_REMINDER_PUSH_TITLE,
-        body: item.challengeTitle,
+        title: item.title,
+        body: item.body,
         payload: {
           destination: 'challenge' as const,
           challengeId: item.challengeId,
@@ -593,36 +821,107 @@ export class ReminderDispatcherService {
       return { dueCount: 0, sentCount: 0, suppressedCount: 0 };
     }
 
-    const tokensByUserId = await this.activeTokensByUserId(due.map((item) => item.userId));
-    const messages: PushMessage[] = [];
-    const deliverable: typeof due = [];
+    const budgeted = await this.applyCadenceBudget(due, now, (item) => item.userId);
+    if (budgeted.allowed.length === 0) {
+      return {
+        dueCount: due.length,
+        sentCount: 0,
+        suppressedCount: budgeted.suppressed,
+      };
+    }
 
-    for (const item of due) {
-      const tokens = tokensByUserId.get(item.userId) ?? [];
-      if (tokens.length === 0) {
-        continue;
-      }
+    const treatmentRequests: ReminderContextRequest[] = budgeted.allowed
+      .filter((item) =>
+        isTreatmentVariant(budgeted.plans.get(item.userId)?.variantKey),
+      )
+      .map((item) => {
+        const plan = budgeted.plans.get(item.userId);
+        return {
+          userId: item.userId,
+          dayKey: plan?.dayKey ?? dayKeyFor(plan?.timeZone ?? 'UTC', now),
+          localMinute:
+            plan?.localMinute ?? localMinuteOfDay(plan?.timeZone ?? 'UTC', now),
+          timeZone: plan?.timeZone ?? 'UTC',
+          nudgeKind: 'in_progress_nudge' as const,
+          openChallengeIds: [item.challengeId],
+          leadChallengeId: item.challengeId,
+          userChallengeId: item.id,
+        };
+      });
 
-      deliverable.push(item);
-      for (const expoPushToken of tokens) {
-        messages.push({
-          expoPushToken,
+    const treatmentContexts =
+      treatmentRequests.length === 0
+        ? new Map()
+        : await this.contexts.loadMany(treatmentRequests, now);
+
+    type PreparedNudge = (typeof budgeted.allowed)[number] & {
+      title: string;
+      body: string;
+      templateKey?: string;
+      situation?: string;
+      copyVersion?: string;
+    };
+
+    const prepared: PreparedNudge[] = budgeted.allowed.map((item) => {
+      const plan = budgeted.plans.get(item.userId);
+      if (!isTreatmentVariant(plan?.variantKey)) {
+        return {
+          ...item,
           title: IN_PROGRESS_NUDGE_PUSH_TITLE,
           body: IN_PROGRESS_NUDGE_PUSH_BODY,
-          data: {
-            destination: 'challenge',
-            challengeId: item.challengeId,
-            periodKey: item.periodKey,
-          },
-        });
+        };
       }
-    }
 
-    if (messages.length === 0) {
-      return { dueCount: due.length, sentCount: 0, suppressedCount: 0 };
-    }
+      const loaded = treatmentContexts.get(
+        contextKey({
+          userId: item.userId,
+          nudgeKind: 'in_progress_nudge',
+          leadChallengeId: item.challengeId,
+          userChallengeId: item.id,
+        }),
+      );
+      if (!loaded) {
+        return {
+          ...item,
+          title: IN_PROGRESS_NUDGE_PUSH_TITLE,
+          body: IN_PROGRESS_NUDGE_PUSH_BODY,
+        };
+      }
 
-    const result = await this.pushSender.send(messages);
+      const composed = composeReminderCopy(loaded);
+      return {
+        ...item,
+        title: composed.title,
+        body: composed.body,
+        templateKey: composed.templateKey,
+        situation: composed.situation,
+        copyVersion: composed.copyVersion,
+      };
+    });
+
+    const pushes: EngagementPush[] = prepared.map((item) => ({
+      userId: item.userId,
+      title: item.title,
+      body: item.body,
+      data: {
+        destination: 'challenge',
+        challengeId: item.challengeId,
+        periodKey: item.periodKey,
+      },
+      leadChallengeId: item.challengeId,
+      templateKey: item.templateKey,
+      situation: item.situation,
+      copyVersion: item.copyVersion,
+    }));
+
+    const result = await this.delivery.send({
+      source: 'in_progress_nudge',
+      audience: 'all_devices',
+      pushes,
+    });
+
+    const withDevice = new Set(result.usersWithDevice);
+    const deliverable = prepared.filter((item) => withDevice.has(item.userId));
 
     if (result.sentCount > 0) {
       await this.prisma.inProgressNudgeDelivery.createMany({
@@ -634,8 +933,8 @@ export class ReminderDispatcherService {
         data: deliverable.map((item) => ({
           userId: item.userId,
           kind: 'reminder' as const,
-          title: IN_PROGRESS_NUDGE_PUSH_TITLE,
-          body: IN_PROGRESS_NUDGE_PUSH_BODY,
+          title: item.title,
+          body: item.body,
           payload: {
             destination: 'challenge' as const,
             challengeId: item.challengeId,
@@ -646,12 +945,11 @@ export class ReminderDispatcherService {
       });
     }
 
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
     return {
       dueCount: due.length,
       sentCount: result.sentCount,
-      suppressedCount: due.length - deliverable.length,
+      suppressedCount:
+        budgeted.suppressed + (prepared.length - deliverable.length),
     };
   }
 }

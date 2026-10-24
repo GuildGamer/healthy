@@ -1,6 +1,6 @@
 import { Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { Public } from '@thallesp/nestjs-better-auth';
-import type { DispatchSummaryDto } from './dto/dispatch-summary.dto.js';
+import type { DispatchSummaryDto } from '../dto/dispatch-summary.dto.js';
 import { InternalSecretGuard } from './internal-secret.guard.js';
 import { ReminderDispatcherService } from './reminder-dispatcher.service.js';
 

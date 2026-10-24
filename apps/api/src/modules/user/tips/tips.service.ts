@@ -11,7 +11,16 @@ export class TipsService {
     const tips = await this.prisma.tip.findMany({
       where: { isActive: true },
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
-      select: { id: true, category: true, title: true, body: true },
+      select: {
+        id: true,
+        category: true,
+        title: true,
+        body: true,
+        challengeSlug: true,
+        activityKey: true,
+        source: true,
+        sourceUrl: true,
+      },
     });
 
     return { tips };

@@ -54,12 +54,15 @@ describe('finish handoff', () => {
   });
 
   it('opens the Well done page with the set, the streak and the day flag', () => {
-    expect(daySuccessParams(finish({}))).toEqual({
+    const done = finish({});
+    expect(daySuccessParams(done)).toEqual({
       title: 'Do 20 push-ups',
       points: '150',
       streak: '6',
       penalty: '0',
       userChallengeId: 'uc-push',
+      challengeId: done.challenge.challengeId,
+      activityKey: 'pushups',
       metric: 'pushups',
       face: 'reps',
       day: '1',

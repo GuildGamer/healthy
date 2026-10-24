@@ -21,7 +21,16 @@ export class AdminTipsService {
     const rows = await this.prisma.tip.findMany({
       where: { isActive: true },
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
-      select: { id: true, category: true, title: true, body: true },
+      select: {
+        id: true,
+        category: true,
+        title: true,
+        body: true,
+        challengeSlug: true,
+        activityKey: true,
+        source: true,
+        sourceUrl: true,
+      },
     });
 
     return { tips: rows };
@@ -54,6 +63,10 @@ export class AdminTipsService {
         body: input.body,
         isActive: input.isActive,
         sortOrder: input.sortOrder,
+        challengeSlug: input.challengeSlug,
+        activityKey: input.activityKey,
+        source: input.source,
+        sourceUrl: input.sourceUrl,
       },
     });
 
@@ -86,6 +99,10 @@ export class AdminTipsService {
         body: input.body,
         isActive: input.isActive,
         sortOrder: input.sortOrder,
+        challengeSlug: input.challengeSlug,
+        activityKey: input.activityKey,
+        source: input.source,
+        sourceUrl: input.sourceUrl,
       },
     });
 
@@ -112,6 +129,10 @@ export class AdminTipsService {
       body: row.body,
       isActive: row.isActive,
       sortOrder: row.sortOrder,
+      challengeSlug: row.challengeSlug,
+      activityKey: row.activityKey,
+      source: row.source,
+      sourceUrl: row.sourceUrl,
       updatedAt: row.updatedAt.toISOString(),
     };
   }

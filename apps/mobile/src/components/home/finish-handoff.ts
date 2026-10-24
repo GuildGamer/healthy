@@ -62,9 +62,11 @@ export function daySuccessParams(finish: ChallengeFinish): Record<string, string
     streak: String(finish.currentStreakDays),
     penalty: String(finish.penaltyApplied),
     userChallengeId: challenge.id,
+    challengeId: challenge.challengeId,
     metric: successMetric(finish),
     face: successFace(finish),
     day: '1',
+    ...(challenge.capture.metric ? { activityKey: challenge.capture.metric } : {}),
     ...(outcome.kind === 'reps' || outcome.kind === 'extraSet'
       ? { count: String(outcome.count) }
       : {}),

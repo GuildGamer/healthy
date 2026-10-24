@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { readEnvironment } from '../../shared-modules/config/index.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
+import { PushDevicesService } from '../../shared-modules/push/index.js';
 import { CrewsService } from '../crews/index.js';
 import { LeaderboardService } from '../leaderboard/leaderboard.service.js';
 import { MatchReactionsService } from '../matches/match-reactions.service.js';
@@ -139,6 +139,17 @@ async function seedAdaPersonalData(): Promise<void> {
       title: 'Time',
       body: 'Check your BP',
       idempotencyKey: 'n-ada',
+    },
+  });
+  await prisma.engagementDelivery.create({
+    data: {
+      userId: ada.id,
+      source: 'habit_slot',
+      audience: 'all_devices',
+      title: 'Do one now',
+      body: 'Got a few minutes?',
+      templateKey: 'habit_slot',
+      payload: { destination: 'today' },
     },
   });
   await prisma.analyticsEvent.create({ data: { name: 'challenge_completed', userId: ada.id } });
@@ -293,6 +304,7 @@ describe('AccountDeletionService against Postgres', () => {
       prisma.waitlistEntry.count({ where: { email: ada.email } }),
       prisma.pushDevice.count({ where: { userId: ada.id } }),
       prisma.notification.count({ where: { userId: ada.id } }),
+      prisma.engagementDelivery.count({ where: { userId: ada.id } }),
       prisma.challengeEnrollment.count({ where: { userId: ada.id } }),
       prisma.challengeReminder.count(),
       prisma.vitalReading.count(),

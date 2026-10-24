@@ -70,6 +70,8 @@ export default function ChallengeSuccessRoute() {
     target?: string | string[];
     matchId?: string | string[];
     userChallengeId?: string | string[];
+    challengeId?: string | string[];
+    activityKey?: string | string[];
     metric?: string | string[];
     practice?: string | string[];
     day?: string | string[];
@@ -109,6 +111,8 @@ export default function ChallengeSuccessRoute() {
       title={firstParam(params.title) || 'Challenge'}
       matchId={parseId(params.matchId)}
       userChallengeId={parseId(params.userChallengeId)}
+      challengeId={parseId(params.challengeId)}
+      activityKey={firstParam(params.activityKey)}
       matchMetric={matchMetric}
       face={successFace(firstParam(params.face))}
       minutes={firstParam(params.minutes) ? parseCount(params.minutes) : undefined}

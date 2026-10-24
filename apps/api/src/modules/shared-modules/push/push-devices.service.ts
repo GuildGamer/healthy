@@ -54,6 +54,26 @@ export class PushDevicesService {
   }
 
   /**
+   * Active devices for habit, reminder, completion, and admin pushes — no
+   * group-notification opt-out filter.
+   */
+  async activeDevicesFor(
+    userIds: readonly string[],
+  ): Promise<{ userId: string; expoPushToken: string }[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    return this.prisma.pushDevice.findMany({
+      where: {
+        userId: { in: [...userIds] },
+        isActive: true,
+      },
+      select: { userId: true, expoPushToken: true },
+    });
+  }
+
+  /**
    * Where group pushes (cheers, nudges, board moves, seats, joins) may go:
    * active devices of members who have not turned group notifications off.
    * A member with no profile yet keeps the default, which is on.

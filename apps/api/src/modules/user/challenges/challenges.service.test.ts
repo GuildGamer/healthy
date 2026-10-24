@@ -13,11 +13,14 @@ function createService(
   prisma: unknown,
   evidenceValidator?: unknown,
   practice: Partial<PracticeService> = { listRecent: async () => [] },
+  delivery?: { send: ReturnType<typeof vi.fn> },
 ): ChallengesService {
   return new ChallengesService(
     prisma as never,
     practice as PracticeService,
     evidenceValidator as never,
+    undefined,
+    delivery as never,
   );
 }
 
@@ -480,6 +483,27 @@ describe('ChallengesService.complete', () => {
       pointsAwarded: 20,
     });
     expect(challengeLogUpsert).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the completion when the push delivery throws', async () => {
+    const assignment = sleepAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const delivery = {
+      send: vi.fn().mockRejectedValue(new Error('Expo is down')),
+    };
+    const service = createService(
+      prisma,
+      undefined,
+      { listRecent: async () => [] },
+      delivery,
+    );
+
+    await expect(service.complete(user, 'uc1')).resolves.toMatchObject({
+      pointsAwarded: 20,
+    });
+    expect(delivery.send).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'completion', audience: 'all_devices' }),
+    );
   });
 
   it('stores a sleep log when the new app sends bedtime and wake time', async () => {

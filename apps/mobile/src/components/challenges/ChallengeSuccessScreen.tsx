@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck';
 import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
+import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { markMembershipCtaShownThisSession, markSuccessWasPenalty } from '@/lib/app-review-session';
 import { getSessionData, isEmailVerified } from '@/lib/auth-client';
@@ -20,11 +21,13 @@ import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { SUCCESS_COPY } from './constants/success-copy';
 import { friendChallengeSpec } from './friend-challenge';
+import { nextGoalLadderOffer, type GoalLadderOffer } from './goal-ladder';
 import { posterForSuccess, type SuccessFace } from './success-poster';
 import { posterRunLine } from './share-poster';
 import { SharePosterCard } from './SharePosterCard';
 import type { FriendChallengeSource } from './types/friend-challenge';
 import { useFriendChallenge } from './useFriendChallenge';
+import { useUpdateEnrollment } from './useChallengeMutations';
 
 type ChallengeSuccessScreenProps = {
   title: string;
@@ -36,6 +39,10 @@ type ChallengeSuccessScreenProps = {
   matchId?: string;
   /** Habit occurrence that was just completed — seeds a friend challenge. */
   userChallengeId?: string;
+  /** Catalog challenge id — used to resolve "Why it matters" via slug. */
+  challengeId?: string;
+  /** Device / activity key for tip matching when slug is unknown. */
+  activityKey?: string;
   /** What the contest is scored on, so the kicker names what was banked. */
   matchMetric?: MatchMetric;
   /** An extra set after the daily challenge: shareable, but worth nothing. */
@@ -180,8 +187,11 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     currentStreakDays,
     penaltyApplied = 0,
     completedCount,
+    targetCount,
     matchId,
     userChallengeId,
+    challengeId,
+    activityKey,
     matchMetric = MATCH_DEFAULT_METRIC,
     practice = false,
     isDayFinished = false,
@@ -202,7 +212,9 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   });
   const shareImage = useShareCardImage({ matchId, userChallengeId, practice });
   const { me, leave } = useLeaveSuccess(matchId);
+  const benefitTip = useSuccessBenefitTip({ challengeId, activityKey, practice, isMatch });
   const [photoUri] = useState(() => pendingSharePhotoFor(userChallengeId));
+  const [ladderDismissed, setLadderDismissed] = useState(false);
 
   useEffect(() => {
     markSuccessWasPenalty(penaltyApplied);
@@ -234,6 +246,14 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
 
   const streakDays =
     isMatch || practice ? (me?.currentStreakDays ?? currentStreakDays) : currentStreakDays;
+  const ladderOffer =
+    !practice && !isMatch && !ladderDismissed && challengeId
+      ? nextGoalLadderOffer({
+          metric: activityKey,
+          currentTarget: targetCount,
+          streakDays,
+        })
+      : null;
   const poster = posterForSuccess({
     title,
     face: successFace({ face, completedCount, matchMetric, minutes, glasses }),
@@ -255,11 +275,21 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
             runLine={posterRunLine(streakDays)}
           />
         </View>
+        <WhyItMatters tip={benefitTip} />
       </View>
       <View style={styles.actions}>
         {shareImage.error ? <DeckSheetMessage message={shareImage.error} /> : null}
         {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
         <SuccessActions friend={friend} shareImage={shareImage} />
+        {ladderOffer && challengeId ? (
+          <GoalLadderPrompt
+            challengeId={challengeId}
+            currentTarget={targetCount ?? 0}
+            offer={ladderOffer}
+            onDismiss={() => setLadderDismissed(true)}
+            streakDays={streakDays}
+          />
+        ) : null}
         <View style={[styles.quietRow, showMembershipLink ? styles.quietRowSplit : null]}>
           {showMembershipLink ? (
             <QuietAction
@@ -275,6 +305,78 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function GoalLadderPrompt({
+  challengeId,
+  currentTarget,
+  offer,
+  streakDays,
+  onDismiss,
+}: {
+  challengeId: string;
+  currentTarget: number;
+  offer: GoalLadderOffer;
+  streakDays: number;
+  onDismiss: () => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const updateEnrollment = useUpdateEnrollment();
+  const offeredTracked = useRef(false);
+
+  useEffect(() => {
+    if (offeredTracked.current) {
+      return;
+    }
+
+    offeredTracked.current = true;
+    trackEvent('goal_ladder_offered', {
+      challengeId,
+      currentTarget,
+      nextTarget: offer.nextTarget,
+      streakDays,
+    });
+  }, [challengeId, currentTarget, offer.nextTarget, streakDays]);
+
+  function accept() {
+    trackEvent('goal_ladder_accepted', {
+      challengeId,
+      currentTarget,
+      nextTarget: offer.nextTarget,
+      streakDays,
+    });
+    updateEnrollment.mutate(
+      { challengeId, targetCount: offer.nextTarget },
+      { onSettled: onDismiss },
+    );
+  }
+
+  function decline() {
+    trackEvent('goal_ladder_declined', {
+      challengeId,
+      currentTarget,
+      nextTarget: offer.nextTarget,
+      streakDays,
+    });
+    onDismiss();
+  }
+
+  return (
+    <View style={styles.ladderBlock} testID="goal-ladder-offer">
+      <Text style={styles.actionPrompt}>{SUCCESS_COPY.goalLadderPrompt(offer.nextTarget)}</Text>
+      <DeckButton
+        label={SUCCESS_COPY.goalLadderAccept(offer.nextTarget)}
+        loading={updateEnrollment.isPending}
+        onPress={accept}
+        testID="goal-ladder-accept"
+      />
+      <QuietAction
+        label={SUCCESS_COPY.goalLadderDecline}
+        onPress={decline}
+        testID="goal-ladder-decline"
+      />
+    </View>
   );
 }
 
@@ -333,6 +435,38 @@ function SuccessActions({
       </View>
     </>
   );
+}
+
+function useSuccessBenefitTip(input: {
+  challengeId?: string;
+  activityKey?: string;
+  practice: boolean;
+  isMatch: boolean;
+}) {
+  const canMatch = !input.practice && !input.isMatch && Boolean(input.challengeId || input.activityKey);
+  const tipsQuery = useQuery({
+    queryKey: ['tips'],
+    queryFn: () => apiClient.listTips(),
+    enabled: canMatch,
+  });
+  const catalogQuery = useQuery({
+    queryKey: ['challenges', 'catalog'],
+    queryFn: () => apiClient.listChallengeCatalog(),
+    enabled: canMatch && Boolean(input.challengeId),
+  });
+
+  if (!canMatch) {
+    return null;
+  }
+
+  const challengeSlug = catalogQuery.data?.challenges.find(
+    (item) => item.challengeId === input.challengeId,
+  )?.slug;
+
+  return findBenefitTip(tipsQuery.data?.tips ?? [], {
+    challengeSlug,
+    activityKey: input.activityKey,
+  });
 }
 
 function PenaltySummary({
@@ -421,6 +555,9 @@ const createStyles = (theme: Theme) =>
       paddingTop: spacing.lg,
       paddingBottom: spacing.sm,
       gap: spacing.md,
+    },
+    ladderBlock: {
+      gap: spacing.sm,
     },
     actionPrompt: {
       color: theme.colors.text,

@@ -14,6 +14,7 @@ import { useDisplayFont } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
 import { usePushResponse } from '@/lib/use-push-response';
+import { useUserActive } from '@/lib/use-user-active';
 import '@/lib/walk-background-location';
 import { dispatchWalkControlUrl } from '@/lib/walk-control';
 import { ThemeProvider, useTheme } from '@/theme';
@@ -30,6 +31,7 @@ export default function RootLayout() {
   const hasLeftLaunchRoute = useHasLeftLaunchRoute();
   const [hasSplashExited, setHasSplashExited] = useState(false);
   usePushResponse();
+  useUserActive();
 
   // `index` resolves the session and redirects; a deep link that never
   // visits it is ready as soon as the font is.

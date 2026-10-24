@@ -28,6 +28,7 @@ export function createTestPrismaClient(): PrismaClient {
 /** Order matters: children before parents, since these are hard FK links. */
 const TABLES_IN_DELETE_ORDER = [
   'notifications',
+  'engagement_deliveries',
   'reminder_deliveries',
   'challenge_reminders',
   'push_devices',

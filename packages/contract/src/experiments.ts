@@ -1,7 +1,10 @@
 import { oc } from '@orpc/contract';
 import { z } from 'zod';
 
-export const EXPERIMENT_KEYS = ['challenge_referral_v1'] as const;
+export const EXPERIMENT_KEYS = [
+  'challenge_referral_v1',
+  'engagement_holdout_v1',
+] as const;
 
 export const experimentKeySchema = z.enum(EXPERIMENT_KEYS);
 

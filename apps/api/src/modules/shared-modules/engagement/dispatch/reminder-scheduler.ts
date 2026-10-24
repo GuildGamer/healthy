@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { ENVIRONMENT } from '../config/config.tokens.js';
-import type { Environment } from '../config/environment.js';
+import { ENVIRONMENT } from '../../config/config.tokens.js';
+import type { Environment } from '../../config/environment.js';
 import { ReminderDispatcherService } from './reminder-dispatcher.service.js';
 
 /**

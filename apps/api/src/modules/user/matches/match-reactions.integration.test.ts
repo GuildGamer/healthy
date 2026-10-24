@@ -2,7 +2,6 @@ import type { PrismaClient } from '@product/db';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
 import { MatchReactionNotifierService } from './match-reaction-notifier.service.js';
 import { MatchReactionsService } from './match-reactions.service.js';
 
@@ -12,7 +11,7 @@ const people = ['ada', 'bee', 'cam'] as const;
 let prisma: PrismaClient;
 let reactions: MatchReactionsService;
 let notifier: MatchReactionNotifierService;
-const pushSender = { send: vi.fn() };
+const delivery = { send: vi.fn() };
 
 const group = {
   scoringMode: 'cumulative_total' as const,
@@ -44,7 +43,7 @@ async function seedGroup(): Promise<void> {
 beforeAll(() => {
   prisma = createTestPrismaClient();
   reactions = new MatchReactionsService(prisma);
-  notifier = new MatchReactionNotifierService(prisma, pushSender, new PushDevicesService(prisma));
+  notifier = new MatchReactionNotifierService(prisma, delivery as never);
 });
 
 afterAll(async () => {
@@ -53,7 +52,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await resetDatabase(prisma);
-  pushSender.send.mockReset().mockResolvedValue({ sentCount: 1, rejectedTokens: [] });
+  delivery.send.mockReset().mockResolvedValue({
+    sentCount: 1,
+    messageCount: 1,
+    usersWithDevice: ['cam'],
+    usersWithoutDevice: [],
+  });
   await seedGroup();
 });
 
@@ -87,6 +91,6 @@ describe('MatchReactionNotifierService against Postgres', () => {
     });
     expect(inbox.map((row) => row.title)).toEqual(['Ada cheered you on', 'Ada nudged you']);
     expect(inbox[1]?.body).toBe('4 days left in your walking group.');
-    expect(pushSender.send).toHaveBeenCalledTimes(2);
+    expect(delivery.send).toHaveBeenCalledTimes(2);
   });
 });

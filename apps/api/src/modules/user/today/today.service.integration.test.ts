@@ -39,13 +39,13 @@ async function seedChallenges(): Promise<{ readingId: string; pushupsId: string 
   const pushups = await prisma.challenge.create({
     data: {
       slug: 'twenty-push-ups',
-      title: 'Do 20 push-ups',
+      title: 'Do 5 push-ups',
       description: 'Counted on-device.',
       category: 'general',
       rewardPoints: 150,
       captureKind: 'device_session',
       deviceMetric: 'pushups',
-      targetCount: 20,
+      targetCount: 5,
     },
   });
 

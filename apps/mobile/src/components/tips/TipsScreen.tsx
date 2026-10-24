@@ -118,6 +118,7 @@ function TodayTipCard({ tip }: { tip: HealthTip }) {
       </Text>
       <Text style={styles.quote}>{tip.title}</Text>
       <Text style={styles.body}>{tip.body}</Text>
+      {tip.source ? <Text style={styles.source}>{tip.source}</Text> : null}
     </View>
   );
 }
@@ -172,6 +173,11 @@ const createStyles = (theme: Theme) =>
       fontSize: fontSize.sm,
       lineHeight: 21,
       marginTop: 10,
+    },
+    source: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      marginTop: 8,
     },
     firstTip: {
       color: theme.colors.muted,

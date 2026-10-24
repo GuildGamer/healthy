@@ -238,7 +238,7 @@ const challengeSeeds: ChallengeSeed[] = [
   },
   {
     slug: 'twenty-push-ups',
-    title: 'Do 20 push-ups',
+    title: 'Do 5 push-ups',
     description:
       'Prop your phone, get your whole body in frame, and complete your set of push-ups counted on-device.',
     category: 'general',
@@ -249,7 +249,7 @@ const challengeSeeds: ChallengeSeed[] = [
     sortOrder: 0,
     captureKind: 'device_session',
     deviceMetric: 'pushups',
-    targetCount: 20,
+    targetCount: 5,
     instruction:
       'Prop your phone so your whole body is in the frame: head to feet, both arms visible. Start your first push-up. Counting begins automatically. Video stays on this device.',
   },
@@ -329,13 +329,26 @@ function assertLeanStarterDefaults(seeds: readonly ChallengeSeed[]): void {
   }
 }
 
-const tipSeeds: Array<{
+const WHO_PHYSICAL_ACTIVITY_SOURCE = 'WHO physical activity';
+const WHO_PHYSICAL_ACTIVITY_URL =
+  'https://www.who.int/news-room/fact-sheets/detail/physical-activity';
+const WHO_SLEEP_SOURCE = 'WHO sleep recommendations';
+const WHO_SLEEP_URL =
+  'https://www.who.int/tools/your-life-your-health/life-phases/adulthood-ages-18-65-/move-for-health';
+
+type TipSeed = {
   slug: string;
   category: ChallengeSeed['category'];
   title: string;
   body: string;
   sortOrder: number;
-}> = [
+  challengeSlug?: string | null;
+  activityKey?: string | null;
+  source?: string | null;
+  sourceUrl?: string | null;
+};
+
+const tipSeeds: TipSeed[] = [
   {
     slug: 'salt',
     category: 'hypertension',
@@ -405,6 +418,7 @@ const tipSeeds: Array<{
     title: 'Drink a glass of water before each meal',
     body: 'It is the easiest hydration habit to remember, because the reminder is already built into your day.',
     sortOrder: 0,
+    activityKey: 'water',
   },
   {
     slug: 'hourly-movement',
@@ -412,6 +426,9 @@ const tipSeeds: Array<{
     title: 'Stand up and move for two minutes every hour',
     body: 'Breaking up long stretches of sitting does more for circulation and stiffness than any single workout.',
     sortOrder: 1,
+    activityKey: 'hourly-move',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
   },
   {
     slug: 'sleep-schedule',
@@ -419,6 +436,60 @@ const tipSeeds: Array<{
     title: 'Keep your sleep and wake times consistent',
     body: 'A steady schedule does more for how rested you feel than the total number of hours you spend in bed.',
     sortOrder: 2,
+  },
+  {
+    slug: 'benefit-pushups',
+    category: 'general',
+    title: 'Why a short strength set matters',
+    body: 'Muscle-strengthening on two or more days a week is part of what adults need for health — a short set today counts toward that.',
+    sortOrder: 10,
+    challengeSlug: 'twenty-push-ups',
+    activityKey: 'pushups',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-walk',
+    category: 'general',
+    title: 'Why a ten-minute walk matters',
+    body: 'Adults need regular aerobic activity. Even a short brisk walk adds minutes toward the weekly goal.',
+    sortOrder: 11,
+    challengeSlug: 'ten-minute-walk',
+    activityKey: 'walk',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-steps',
+    category: 'general',
+    title: 'Why daily steps matter',
+    body: 'Accumulating movement through the day helps meet recommended activity levels — steps are a simple way to track that.',
+    sortOrder: 12,
+    challengeSlug: 'five-thousand-steps',
+    activityKey: 'steps',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-sleep',
+    category: 'general',
+    title: 'Why logging sleep matters',
+    body: 'Noticing how long you slept and how rested you feel makes patterns visible — and good sleep supports everyday health.',
+    sortOrder: 13,
+    challengeSlug: 'sleep-log',
+    activityKey: 'sleep',
+    source: WHO_SLEEP_SOURCE,
+    sourceUrl: WHO_SLEEP_URL,
+  },
+  {
+    slug: 'benefit-asthma-activity',
+    category: 'asthma',
+    title: 'Why gentle activity still matters',
+    body: 'Staying active, at a pace that feels safe for you, supports lung health and everyday fitness — warm up and follow your care plan.',
+    sortOrder: 10,
+    activityKey: 'asthma-activity',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
   },
 ];
 
@@ -490,15 +561,34 @@ async function main(): Promise<void> {
   }
 
   for (const tip of tipSeeds) {
+    const challengeSlug = tip.challengeSlug ?? null;
+    const activityKey = tip.activityKey ?? null;
+    const source = tip.source ?? null;
+    const sourceUrl = tip.sourceUrl ?? null;
+
     await prisma.tip.upsert({
       where: { slug: tip.slug },
-      create: tip,
+      create: {
+        slug: tip.slug,
+        category: tip.category,
+        title: tip.title,
+        body: tip.body,
+        sortOrder: tip.sortOrder,
+        challengeSlug,
+        activityKey,
+        source,
+        sourceUrl,
+      },
       update: {
         category: tip.category,
         title: tip.title,
         body: tip.body,
         sortOrder: tip.sortOrder,
         isActive: true,
+        challengeSlug,
+        activityKey,
+        source,
+        sourceUrl,
       },
     });
   }
@@ -590,9 +680,86 @@ async function main(): Promise<void> {
     });
   }
 
+  await prisma.experiment.upsert({
+    where: { key: 'engagement_holdout_v1' },
+    create: {
+      id: 'exp_engagement_holdout_v1',
+      key: 'engagement_holdout_v1',
+      name: 'Engagement holdout',
+      description:
+        'Permanent baseline: holdout keeps current notification behaviour while treatment gets Phases 4–6 changes.',
+      status: 'running',
+      primaryMetric: 'completion_rate',
+      startAt: new Date(),
+      variants: {
+        create: [
+          {
+            id: 'var_engagement_holdout_v1_holdout',
+            key: 'holdout',
+            name: 'Holdout',
+            weight: 1,
+          },
+          {
+            id: 'var_engagement_holdout_v1_treatment',
+            key: 'treatment',
+            name: 'Treatment',
+            weight: 9,
+          },
+        ],
+      },
+    },
+    update: {
+      name: 'Engagement holdout',
+      description:
+        'Permanent baseline: holdout keeps current notification behaviour while treatment gets Phases 4–6 changes.',
+      status: 'running',
+      primaryMetric: 'completion_rate',
+    },
+  });
+
+  const holdoutExperiment = await prisma.experiment.findUnique({
+    where: { key: 'engagement_holdout_v1' },
+    select: { id: true },
+  });
+
+  if (holdoutExperiment) {
+    await prisma.experimentVariant.upsert({
+      where: {
+        experimentId_key: {
+          experimentId: holdoutExperiment.id,
+          key: 'holdout',
+        },
+      },
+      create: {
+        id: 'var_engagement_holdout_v1_holdout',
+        experimentId: holdoutExperiment.id,
+        key: 'holdout',
+        name: 'Holdout',
+        weight: 1,
+      },
+      update: { name: 'Holdout', weight: 1 },
+    });
+    await prisma.experimentVariant.upsert({
+      where: {
+        experimentId_key: {
+          experimentId: holdoutExperiment.id,
+          key: 'treatment',
+        },
+      },
+      create: {
+        id: 'var_engagement_holdout_v1_treatment',
+        experimentId: holdoutExperiment.id,
+        key: 'treatment',
+        name: 'Treatment',
+        weight: 9,
+      },
+      update: { name: 'Treatment', weight: 9 },
+    });
+  }
+
   // eslint-disable-next-line no-console
   console.log(
-    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips, membership starter`,
+    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips, membership starter, engagement holdout`,
   );
 }
 

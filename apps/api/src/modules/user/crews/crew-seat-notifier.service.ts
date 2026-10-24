@@ -1,9 +1,7 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@product/db';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
-import type { PushMessage, PushSender } from '../../shared-modules/push/push-sender.js';
-import { PUSH_SENDER } from '../../shared-modules/push/push-sender.js';
+import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import {
   CREW_SEAT_PUSH_BODY,
   CREW_SEAT_PUSH_TITLE,
@@ -16,12 +14,9 @@ import {
  */
 @Injectable()
 export class CrewSeatNotifierService {
-  private readonly logger = new Logger(CrewSeatNotifierService.name);
-
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
-    private readonly pushDevices: PushDevicesService,
+    private readonly delivery: EngagementDeliveryService,
   ) {}
 
   /**
@@ -54,7 +49,16 @@ export class CrewSeatNotifierService {
       skipDuplicates: true,
     });
 
-    await this.push(matchId, unnotified);
+    await this.delivery.send({
+      source: 'crew_seat',
+      audience: 'group_opt_in',
+      pushes: unnotified.map((userId) => ({
+        userId,
+        title: CREW_SEAT_PUSH_TITLE,
+        body: CREW_SEAT_PUSH_BODY,
+        data: { matchId },
+      })),
+    });
   }
 
   private async excludeAlreadyNotified(
@@ -74,31 +78,6 @@ export class CrewSeatNotifierService {
 
     return userIds.filter(
       (userId) => !notified.has(this.seatKey(matchId, userId)),
-    );
-  }
-
-  private async push(
-    matchId: string,
-    userIds: readonly string[],
-  ): Promise<void> {
-    const devices = await this.pushDevices.groupPushDevicesFor(userIds);
-
-    if (devices.length === 0) {
-      return;
-    }
-
-    const messages: PushMessage[] = devices.map((device) => ({
-      expoPushToken: device.expoPushToken,
-      title: CREW_SEAT_PUSH_TITLE,
-      body: CREW_SEAT_PUSH_BODY,
-      data: { matchId },
-    }));
-
-    const result = await this.pushSender.send(messages);
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
-    this.logger.log(
-      `Crew seat push sent ${result.sentCount} of ${messages.length} messages`,
     );
   }
 

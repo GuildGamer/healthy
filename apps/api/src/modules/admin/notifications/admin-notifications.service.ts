@@ -10,11 +10,9 @@ import {
   requireAdminPermission,
 } from '../../../shared/types/authenticated-admin.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import type { Mailer } from '../../shared-modules/mail/mailer.js';
 import { MAILER } from '../../shared-modules/mail/mail.tokens.js';
-import type { PushMessage, PushSender } from '../../shared-modules/push/push-sender.js';
-import { PUSH_SENDER } from '../../shared-modules/push/push-sender.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
 
 type AudienceMember = {
   id: string;
@@ -27,9 +25,8 @@ export class AdminNotificationsService {
 
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
     @Inject(MAILER) private readonly mailer: Mailer,
-    private readonly pushDevices: PushDevicesService,
+    private readonly delivery: EngagementDeliveryService,
   ) {}
 
   async send(
@@ -171,35 +168,22 @@ export class AdminNotificationsService {
     audience: readonly AudienceMember[],
     input: SendAdminNotificationInput,
   ): Promise<{ sentCount: number; skippedNoDeviceCount: number }> {
-    const devices = await this.prisma.pushDevice.findMany({
-      where: {
-        userId: { in: audience.map((member) => member.id) },
-        isActive: true,
-      },
-      select: { userId: true, expoPushToken: true },
+    const data = this.pushData(input);
+    const result = await this.delivery.send({
+      source: 'admin_broadcast',
+      audience: 'all_devices',
+      pushes: audience.map((member) => ({
+        userId: member.id,
+        title: input.title,
+        body: input.body,
+        data,
+      })),
     });
 
-    const usersWithDevice = new Set(devices.map((device) => device.userId));
-    const skippedNoDeviceCount = audience.filter(
-      (member) => !usersWithDevice.has(member.id),
-    ).length;
-
-    if (devices.length === 0) {
-      return { sentCount: 0, skippedNoDeviceCount };
-    }
-
-    const data = this.pushData(input);
-    const messages: PushMessage[] = devices.map((device) => ({
-      expoPushToken: device.expoPushToken,
-      title: input.title,
-      body: input.body,
-      data,
-    }));
-
-    const result = await this.pushSender.send(messages);
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
-    return { sentCount: result.sentCount, skippedNoDeviceCount };
+    return {
+      sentCount: result.sentCount,
+      skippedNoDeviceCount: result.usersWithoutDevice.length,
+    };
   }
 
   private pushData(input: SendAdminNotificationInput): Record<string, string> {

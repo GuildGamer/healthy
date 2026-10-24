@@ -6,8 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
-import { ENVIRONMENT } from '../config/config.tokens.js';
-import type { Environment } from '../config/environment.js';
+import { ENVIRONMENT } from '../../config/config.tokens.js';
+import type { Environment } from '../../config/environment.js';
 
 export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
 

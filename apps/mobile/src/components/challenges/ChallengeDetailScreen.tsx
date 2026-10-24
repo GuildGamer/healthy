@@ -16,6 +16,7 @@ import { DeckNoteCard, DeckPageNav, DeckSheetMessage } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { weekDayKeys } from '@/components/home/day-keys';
 import { WeekStrip } from '@/components/home/WeekStrip';
+import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { useLiveTodaySteps } from '@/lib/use-live-today-steps';
@@ -101,11 +102,13 @@ type SettingsBodyProps = {
 function ChallengeSettingsBody(props: SettingsBodyProps) {
   const router = useRouter();
   const { challenge } = props;
+  const benefit = useChallengeBenefitTip(challenge);
 
   if (!challenge.isEnrolled) {
     return (
       <>
         <DetailHero {...props} />
+        <WhyItMatters tip={benefit} />
         <DeckNoteCard
           action={{
             label: ROUTINE_COPY.addLabel,
@@ -125,6 +128,7 @@ function ChallengeSettingsBody(props: SettingsBodyProps) {
     return (
       <>
         <DetailHero {...props} />
+        <WhyItMatters tip={benefit} />
         <DeckNoteCard
           action={{
             label: ROUTINE_COPY.pausedSheetMembership,
@@ -141,12 +145,20 @@ function ChallengeSettingsBody(props: SettingsBodyProps) {
     );
   }
 
-  return <EnrolledSettings {...props} />;
+  return <EnrolledSettings {...props} benefit={benefit} />;
 }
 
-function EnrolledSettings(props: SettingsBodyProps) {
+function useChallengeBenefitTip(challenge: CatalogChallenge) {
+  const tipsQuery = useQuery({ queryKey: ['tips'], queryFn: () => apiClient.listTips() });
+  return findBenefitTip(tipsQuery.data?.tips ?? [], {
+    challengeSlug: challenge.slug,
+    activityKey: challenge.capture.metric,
+  });
+}
+
+function EnrolledSettings(props: SettingsBodyProps & { benefit: ReturnType<typeof findBenefitTip> }) {
   const router = useRouter();
-  const { challenge, catalog, occurrence, detail } = props;
+  const { challenge, catalog, occurrence, detail, benefit } = props;
   const [sheet, setSheet] = useState<SettingsSheet | null>(null);
   const [frequency, setFrequency] = useState<ChallengeFrequency>(challenge.frequency);
   const updateEnrollment = useUpdateEnrollment();
@@ -175,6 +187,7 @@ function EnrolledSettings(props: SettingsBodyProps) {
   return (
     <>
       <DetailHero {...props} frequency={frequency} />
+      <WhyItMatters tip={benefit} />
       {hasSaveError ? <DeckSheetMessage message={SETTINGS_COPY.saveFailed} /> : null}
       <ScheduleSettings
         challenge={challenge}

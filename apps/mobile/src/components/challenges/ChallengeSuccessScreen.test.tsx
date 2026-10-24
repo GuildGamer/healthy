@@ -17,8 +17,21 @@ jest.mock('@/lib/api', () => ({
       countryCode: 'US',
       categories: ['general'],
     })),
+    listTips: jest.fn(async () => ({ tips: [] })),
+    listChallengeCatalog: jest.fn(async () => ({
+      challenges: [],
+      enrolledCount: 0,
+      hasMembership: true,
+      maxRemindersPerChallenge: 3,
+    })),
     getExperimentAssignment: jest.fn(async () => null),
     createMatch: jest.fn(),
+    setChallengeEnrollment: jest.fn(async () => ({
+      challenges: [],
+      enrolledCount: 0,
+      hasMembership: true,
+      maxRemindersPerChallenge: 3,
+    })),
     trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
   },
   apiQuery: {},
@@ -292,6 +305,98 @@ describe('ChallengeSuccessScreen share card', () => {
         'file://share-card.jpg',
         expect.objectContaining({ mimeType: 'image/png' }),
       );
+    });
+  });
+});
+
+describe('ChallengeSuccessScreen goal ladder', () => {
+  it('offers the next push-up goal at streak 3 with goal 5', async () => {
+    renderSuccess({
+      activityKey: 'pushups',
+      challengeId: 'c-push',
+      currentStreakDays: 3,
+      targetCount: 5,
+      completedCount: 5,
+      title: 'Do 5 push-ups',
+      userChallengeId: 'uc-push',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('goal-ladder-offer')).toBeOnTheScreen();
+    });
+    expect(screen.getByText('Ready for 8 push-ups?')).toBeOnTheScreen();
+  });
+
+  it('hides the ladder for practice, matches, custom goals, and off-gate streaks', () => {
+    const { unmount: unmountPractice } = renderSuccess({
+      activityKey: 'pushups',
+      challengeId: 'c-push',
+      currentStreakDays: 3,
+      targetCount: 5,
+      practice: true,
+    });
+    expect(screen.queryByTestId('goal-ladder-offer')).toBeNull();
+    unmountPractice();
+
+    const { unmount: unmountMatch } = renderSuccess({
+      activityKey: 'pushups',
+      challengeId: 'c-push',
+      currentStreakDays: 3,
+      targetCount: 5,
+      matchId: 'm1',
+    });
+    expect(screen.queryByTestId('goal-ladder-offer')).toBeNull();
+    unmountMatch();
+
+    const { unmount: unmountCustom } = renderSuccess({
+      activityKey: 'pushups',
+      challengeId: 'c-push',
+      currentStreakDays: 3,
+      targetCount: 20,
+    });
+    expect(screen.queryByTestId('goal-ladder-offer')).toBeNull();
+    unmountCustom();
+
+    renderSuccess({
+      activityKey: 'pushups',
+      challengeId: 'c-push',
+      currentStreakDays: 4,
+      targetCount: 5,
+    });
+    expect(screen.queryByTestId('goal-ladder-offer')).toBeNull();
+  });
+
+  it('accepts the ladder bump via enrollment', async () => {
+    const { apiClient } = jest.requireMock('@/lib/api') as {
+      apiClient: { setChallengeEnrollment: jest.Mock };
+    };
+
+    renderSuccess({
+      activityKey: 'pushups',
+      challengeId: 'c-push',
+      currentStreakDays: 3,
+      targetCount: 5,
+      completedCount: 5,
+      title: 'Do 5 push-ups',
+      userChallengeId: 'uc-push',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('goal-ladder-accept')).toBeOnTheScreen();
+    });
+
+    fireEvent.press(screen.getByTestId('goal-ladder-accept'));
+
+    await waitFor(() => {
+      expect(apiClient.setChallengeEnrollment).toHaveBeenCalledWith({
+        challengeId: 'c-push',
+        isEnrolled: true,
+        targetCount: 8,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('goal-ladder-offer')).toBeNull();
     });
   });
 });

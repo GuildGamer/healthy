@@ -6,8 +6,14 @@ import type {
   AdminGrowthAnalytics,
   AdminMarketsAnalytics,
   AdminOverviewAnalytics,
+  AdminPushDeliveriesAnalytics,
   AdminRemindersAnalytics,
 } from '@product/contract';
+import {
+  ENGAGEMENT_HOLDOUT_EXPERIMENT_KEY,
+  ENGAGEMENT_HOLDOUT_VARIANT_HOLDOUT,
+  ENGAGEMENT_HOLDOUT_VARIANT_TREATMENT,
+} from '../../shared-modules/engagement/index.js';
 import type { PrismaClient } from '@product/db';
 import {
   type AuthenticatedAdmin,
@@ -501,6 +507,148 @@ export class AdminAnalyticsService {
         label: row.status,
         count: row._count._all,
       })),
+    };
+  }
+
+  async pushDeliveries(
+    currentAdmin: AuthenticatedAdmin | null | undefined,
+    input: AdminAnalyticsRangeInput,
+  ): Promise<AdminPushDeliveriesAnalytics> {
+    requireAdmin(currentAdmin);
+    const { days, rangeStart, now } = resolveRange(input.days);
+    const twoHoursMs = 2 * 60 * 60 * 1000;
+
+    const [
+      deliveriesSent,
+      uniqueUsers,
+      opens,
+      bySourceRows,
+      holdoutSends,
+      treatmentSends,
+      userActiveDistinct,
+      leadDeliveries,
+    ] = await Promise.all([
+      this.prisma.engagementDelivery.count({
+        where: { sentAt: { gte: rangeStart } },
+      }),
+      this.prisma.engagementDelivery.findMany({
+        where: { sentAt: { gte: rangeStart } },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      this.prisma.engagementDelivery.count({
+        where: { sentAt: { gte: rangeStart }, openedAt: { not: null } },
+      }),
+      this.prisma.engagementDelivery.groupBy({
+        by: ['source'],
+        where: { sentAt: { gte: rangeStart } },
+        _count: { _all: true },
+      }),
+      this.prisma.engagementDelivery.count({
+        where: {
+          sentAt: { gte: rangeStart },
+          experimentKey: ENGAGEMENT_HOLDOUT_EXPERIMENT_KEY,
+          variantKey: ENGAGEMENT_HOLDOUT_VARIANT_HOLDOUT,
+        },
+      }),
+      this.prisma.engagementDelivery.count({
+        where: {
+          sentAt: { gte: rangeStart },
+          experimentKey: ENGAGEMENT_HOLDOUT_EXPERIMENT_KEY,
+          variantKey: ENGAGEMENT_HOLDOUT_VARIANT_TREATMENT,
+        },
+      }),
+      this.prisma.analyticsEvent.findMany({
+        where: {
+          name: 'user_active',
+          occurredAt: { gte: rangeStart },
+          userId: { not: null },
+        },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      this.prisma.engagementDelivery.findMany({
+        where: {
+          sentAt: { gte: rangeStart },
+          leadChallengeId: { not: null },
+        },
+        select: {
+          userId: true,
+          leadChallengeId: true,
+          sentAt: true,
+        },
+      }),
+    ]);
+
+    let startedWithin2h = 0;
+    let completedWithin2h = 0;
+
+    if (leadDeliveries.length > 0) {
+      const outcomes = await this.prisma.userChallenge.findMany({
+        where: {
+          OR: leadDeliveries.map((delivery) => ({
+            userId: delivery.userId,
+            challengeId: delivery.leadChallengeId!,
+          })),
+        },
+        select: {
+          userId: true,
+          challengeId: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      });
+
+      const byKey = new Map(
+        outcomes.map((row) => [`${row.userId}:${row.challengeId}`, row]),
+      );
+
+      for (const delivery of leadDeliveries) {
+        const row = byKey.get(
+          `${delivery.userId}:${delivery.leadChallengeId}`,
+        );
+        if (!row) {
+          continue;
+        }
+
+        const windowEnd = delivery.sentAt.getTime() + twoHoursMs;
+        if (
+          row.startedAt &&
+          row.startedAt.getTime() >= delivery.sentAt.getTime() &&
+          row.startedAt.getTime() <= windowEnd
+        ) {
+          startedWithin2h += 1;
+        }
+        if (
+          row.completedAt &&
+          row.completedAt.getTime() >= delivery.sentAt.getTime() &&
+          row.completedAt.getTime() <= windowEnd
+        ) {
+          completedWithin2h += 1;
+        }
+      }
+    }
+
+    return {
+      generatedAt: now.toISOString(),
+      rangeDays: days,
+      deliveriesSent,
+      uniqueUsersSent: uniqueUsers.length,
+      opens,
+      openRate: rate(opens, deliveriesSent),
+      bySource: bySourceRows
+        .map((row) => ({
+          key: row.source,
+          label: row.source,
+          count: row._count._all,
+        }))
+        .sort((left, right) => right.count - left.count),
+      holdoutSends,
+      treatmentSends,
+      userActiveDistinct: userActiveDistinct.length,
+      startedWithin2h,
+      completedWithin2h,
+      leadChallengeDeliveries: leadDeliveries.length,
     };
   }
 

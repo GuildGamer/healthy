@@ -1,9 +1,7 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@product/db';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
-import type { PushMessage, PushSender } from '../../shared-modules/push/push-sender.js';
-import { PUSH_SENDER } from '../../shared-modules/push/push-sender.js';
+import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import {
   boardMoveIdempotencyKey,
   boardMovePushBody,
@@ -37,12 +35,9 @@ export type BoardMoveNotice = {
  */
 @Injectable()
 export class BoardMoveNotifierService {
-  private readonly logger = new Logger(BoardMoveNotifierService.name);
-
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
-    private readonly pushDevices: PushDevicesService,
+    private readonly delivery: EngagementDeliveryService,
   ) {}
 
   async notifyParticipants(notice: BoardMoveNotice): Promise<void> {
@@ -91,7 +86,16 @@ export class BoardMoveNotifierService {
       skipDuplicates: true,
     });
 
-    await this.push(notice.matchId, rows);
+    await this.delivery.send({
+      source: 'board_move',
+      audience: 'group_opt_in',
+      pushes: rows.map((row) => ({
+        userId: row.userId,
+        title: row.title,
+        body: row.body,
+        data: { matchId: notice.matchId },
+      })),
+    });
   }
 
   private async excludeAlreadyNotified(
@@ -116,42 +120,5 @@ export class BoardMoveNotifierService {
       (recipient) =>
         !notified.has(boardMoveIdempotencyKey(matchId, attemptOrEventId, recipient.userId)),
     );
-  }
-
-  private async push(
-    matchId: string,
-    rows: readonly { userId: string; title: string; body: string }[],
-  ): Promise<void> {
-    const devices = await this.pushDevices.groupPushDevicesFor(rows.map((row) => row.userId));
-
-    if (devices.length === 0) {
-      return;
-    }
-
-    const copyByUser = new Map(rows.map((row) => [row.userId, row]));
-    const messages: PushMessage[] = [];
-
-    for (const device of devices) {
-      const copy = copyByUser.get(device.userId);
-      if (!copy) {
-        continue;
-      }
-
-      messages.push({
-        expoPushToken: device.expoPushToken,
-        title: copy.title,
-        body: copy.body,
-        data: { matchId },
-      });
-    }
-
-    if (messages.length === 0) {
-      return;
-    }
-
-    const result = await this.pushSender.send(messages);
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
-    this.logger.log(`Board move push sent ${result.sentCount} of ${messages.length} messages`);
   }
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   matchNudgePush,
   type MatchDailyScope,
@@ -8,9 +8,7 @@ import {
 } from '@product/contract';
 import type { PrismaClient } from '@product/db';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
-import type { PushMessage, PushSender } from '../../shared-modules/push/push-sender.js';
-import { PUSH_SENDER } from '../../shared-modules/push/push-sender.js';
+import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import {
   matchCheerIdempotencyKey,
   matchCheerPush,
@@ -35,12 +33,9 @@ export type MatchReactionNotice = NewMatchReaction & {
  */
 @Injectable()
 export class MatchReactionNotifierService {
-  private readonly logger = new Logger(MatchReactionNotifierService.name);
-
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
-    private readonly pushDevices: PushDevicesService,
+    private readonly delivery: EngagementDeliveryService,
   ) {}
 
   async notify(notice: MatchReactionNotice): Promise<void> {
@@ -63,7 +58,18 @@ export class MatchReactionNotifierService {
       return;
     }
 
-    await this.push(notice.matchId, notice.toUserId, copy);
+    await this.delivery.send({
+      source: 'match_reaction',
+      audience: 'group_opt_in',
+      pushes: [
+        {
+          userId: notice.toUserId,
+          title: copy.title,
+          body: copy.body,
+          data: { matchId: notice.matchId },
+        },
+      ],
+    });
   }
 
   private copyFor(notice: MatchReactionNotice): MatchPushCopy {
@@ -82,25 +88,5 @@ export class MatchReactionNotifierService {
       notice.toUserId,
       notice.dayKey,
     );
-  }
-
-  private async push(matchId: string, userId: string, copy: MatchPushCopy): Promise<void> {
-    const devices = await this.pushDevices.groupPushDevicesFor([userId]);
-
-    if (devices.length === 0) {
-      return;
-    }
-
-    const messages: PushMessage[] = devices.map((device) => ({
-      expoPushToken: device.expoPushToken,
-      title: copy.title,
-      body: copy.body,
-      data: { matchId },
-    }));
-
-    const result = await this.pushSender.send(messages);
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
-    this.logger.log(`Match reaction push sent ${result.sentCount} of ${messages.length} messages`);
   }
 }

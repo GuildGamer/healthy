@@ -10,7 +10,7 @@ import {
   requireUser,
 } from '../../../shared/types/authenticated-user.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
-import { pickVariantId } from './variant-assignment.js';
+import { pickVariantId } from '../../../shared/utils/variant-assignment.js';
 
 function configurationAsRecord(
   value: Prisma.JsonValue | null,

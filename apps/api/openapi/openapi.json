@@ -9333,7 +9333,8 @@
                 "properties": {
                   "experimentKey": {
                     "enum": [
-                      "challenge_referral_v1"
+                      "challenge_referral_v1",
+                      "engagement_holdout_v1"
                     ],
                     "type": "string"
                   }
@@ -9361,7 +9362,8 @@
                         },
                         "experimentKey": {
                           "enum": [
-                            "challenge_referral_v1"
+                            "challenge_referral_v1",
+                            "engagement_holdout_v1"
                           ],
                           "type": "string"
                         },
@@ -9440,7 +9442,8 @@
                       "deferred_invite_stashed",
                       "deferred_invite_claimed",
                       "invite_restored_on_launch",
-                      "user_active"
+                      "user_active",
+                      "push_opened"
                     ],
                     "type": "string"
                   },
@@ -14332,6 +14335,125 @@
         }
       }
     },
+    "/admin/analytics/push-deliveries": {
+      "get": {
+        "operationId": "getPushDeliveriesAnalytics",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "default": 28,
+              "type": "integer",
+              "minimum": 7,
+              "maximum": 90
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "rangeDays": {
+                      "type": "integer"
+                    },
+                    "deliveriesSent": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "uniqueUsersSent": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "opens": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "openRate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "bySource": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "count"
+                        ]
+                      }
+                    },
+                    "holdoutSends": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "treatmentSends": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "userActiveDistinct": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "startedWithin2h": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "completedWithin2h": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "leadChallengeDeliveries": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "generatedAt",
+                    "rangeDays",
+                    "deliveriesSent",
+                    "uniqueUsersSent",
+                    "opens",
+                    "openRate",
+                    "bySource",
+                    "holdoutSends",
+                    "treatmentSends",
+                    "userActiveDistinct",
+                    "startedWithin2h",
+                    "completedWithin2h",
+                    "leadChallengeDeliveries"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/notifications/send": {
       "post": {
         "operationId": "sendNotification",
@@ -15235,7 +15357,8 @@
                           },
                           "key": {
                             "enum": [
-                              "challenge_referral_v1"
+                              "challenge_referral_v1",
+                              "engagement_holdout_v1"
                             ],
                             "type": "string"
                           },
@@ -15335,7 +15458,8 @@
                     },
                     "key": {
                       "enum": [
-                        "challenge_referral_v1"
+                        "challenge_referral_v1",
+                        "engagement_holdout_v1"
                       ],
                       "type": "string"
                     },
@@ -15578,7 +15702,8 @@
                     },
                     "key": {
                       "enum": [
-                        "challenge_referral_v1"
+                        "challenge_referral_v1",
+                        "engagement_holdout_v1"
                       ],
                       "type": "string"
                     },

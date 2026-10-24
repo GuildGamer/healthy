@@ -10,7 +10,16 @@ const empty: UpsertAdminTipInput = {
   body: '',
   isActive: true,
   sortOrder: 0,
+  challengeSlug: null,
+  activityKey: null,
+  source: null,
+  sourceUrl: null,
 };
+
+function optionalText(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export function TipForm({
   initial,
@@ -56,6 +65,58 @@ export function TipForm({
             setValue((current) => ({ ...current, body: event.target.value }))
           }
           value={value.body}
+        />
+      </label>
+      <label>
+        Challenge slug
+        <input
+          onChange={(event) =>
+            setValue((current) => ({
+              ...current,
+              challengeSlug: optionalText(event.target.value),
+            }))
+          }
+          placeholder="twenty-push-ups"
+          value={value.challengeSlug ?? ''}
+        />
+      </label>
+      <label>
+        Activity key
+        <input
+          onChange={(event) =>
+            setValue((current) => ({
+              ...current,
+              activityKey: optionalText(event.target.value),
+            }))
+          }
+          placeholder="pushups"
+          value={value.activityKey ?? ''}
+        />
+      </label>
+      <label>
+        Source
+        <input
+          onChange={(event) =>
+            setValue((current) => ({
+              ...current,
+              source: optionalText(event.target.value),
+            }))
+          }
+          placeholder="WHO physical activity"
+          value={value.source ?? ''}
+        />
+      </label>
+      <label>
+        Source URL
+        <input
+          onChange={(event) =>
+            setValue((current) => ({
+              ...current,
+              sourceUrl: optionalText(event.target.value),
+            }))
+          }
+          placeholder="https://…"
+          value={value.sourceUrl ?? ''}
         />
       </label>
       <div className="row">

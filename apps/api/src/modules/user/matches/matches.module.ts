@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PushInfrastructureModule } from '../../shared-modules/push/index.js';
+import { EngagementModule } from '../../shared-modules/engagement/index.js';
 import { AnalyticsModule } from '../analytics/index.js';
 import { CrewsModule } from '../crews/index.js';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
@@ -10,7 +10,7 @@ import { MatchesController } from './matches.controller.js';
 import { MatchesService } from './matches.service.js';
 
 @Module({
-  imports: [CrewsModule, AnalyticsModule, PushInfrastructureModule],
+  imports: [CrewsModule, AnalyticsModule, EngagementModule],
   controllers: [MatchesController],
   providers: [
     MatchesService,

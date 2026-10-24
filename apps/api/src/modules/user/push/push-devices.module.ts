@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PushInfrastructureModule } from '../../shared-modules/push/push.module.js';
+import { PushInfrastructureModule } from '../../shared-modules/push/index.js';
 import { PushDevicesController } from './push-devices.controller.js';
 
 @Module({

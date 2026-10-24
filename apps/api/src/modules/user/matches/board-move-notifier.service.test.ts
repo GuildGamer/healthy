@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
 
 const notice = {
@@ -22,36 +21,33 @@ function createPrismaMock() {
       findMany: vi.fn().mockResolvedValue([]),
       createMany: vi.fn().mockResolvedValue({ count: 2 }),
     },
-    pushDevice: {
-      findMany: vi.fn().mockResolvedValue([
-        { userId: 'host', expoPushToken: 'ExponentPushToken[host]' },
-        { userId: 'cam', expoPushToken: 'ExponentPushToken[cam]' },
-      ]),
-    },
   };
 }
 
-function createPushSender() {
+function createDelivery() {
   return {
-    send: vi.fn().mockResolvedValue({ sentCount: 2, rejectedTokens: [] }),
+    send: vi.fn().mockResolvedValue({
+      sentCount: 2,
+      messageCount: 2,
+      usersWithDevice: ['host', 'cam'],
+      usersWithoutDevice: [],
+    }),
   };
 }
 
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
-  pushSender = createPushSender(),
+  delivery = createDelivery(),
 ) {
-  const pushDevices = new PushDevicesService(prisma as never);
-  vi.spyOn(pushDevices, 'deactivateTokens').mockResolvedValue(undefined);
-  const service = new BoardMoveNotifierService(prisma as never, pushSender, pushDevices as never);
+  const service = new BoardMoveNotifierService(prisma as never, delivery as never);
 
-  return { service, pushSender, pushDevices };
+  return { service, delivery };
 }
 
 describe('BoardMoveNotifierService', () => {
   it('skips the actor and uses urgent copy when they passed a mate', async () => {
     const prisma = createPrismaMock();
-    const { service, pushSender } = createService(prisma);
+    const { service, delivery } = createService(prisma);
 
     await service.notifyParticipants(notice);
 
@@ -76,20 +72,24 @@ describe('BoardMoveNotifierService', () => {
       ],
       skipDuplicates: true,
     });
-    expect(pushSender.send).toHaveBeenCalledWith([
-      {
-        expoPushToken: 'ExponentPushToken[host]',
-        title: 'Stay ahead',
-        body: 'Bee just passed you.',
-        data: { matchId: 'm1' },
-      },
-      {
-        expoPushToken: 'ExponentPushToken[cam]',
-        title: 'See the board',
-        body: 'Bee just scored.',
-        data: { matchId: 'm1' },
-      },
-    ]);
+    expect(delivery.send).toHaveBeenCalledWith({
+      source: 'board_move',
+      audience: 'group_opt_in',
+      pushes: [
+        {
+          userId: 'host',
+          title: 'Stay ahead',
+          body: 'Bee just passed you.',
+          data: { matchId: 'm1' },
+        },
+        {
+          userId: 'cam',
+          title: 'See the board',
+          body: 'Bee just scored.',
+          data: { matchId: 'm1' },
+        },
+      ],
+    });
   });
 
   it('uses on-your-heels copy when the actor is close behind', async () => {
@@ -139,7 +139,7 @@ describe('BoardMoveNotifierService', () => {
 
   it('does not notify when the only recipient is the actor', async () => {
     const prisma = createPrismaMock();
-    const { service, pushSender } = createService(prisma);
+    const { service, delivery } = createService(prisma);
 
     await service.notifyParticipants({
       ...notice,
@@ -147,7 +147,7 @@ describe('BoardMoveNotifierService', () => {
     });
 
     expect(prisma.notification.createMany).not.toHaveBeenCalled();
-    expect(pushSender.send).not.toHaveBeenCalled();
+    expect(delivery.send).not.toHaveBeenCalled();
   });
 
   it('is idempotent so a retried attempt does not spam', async () => {
@@ -156,18 +156,24 @@ describe('BoardMoveNotifierService', () => {
       { idempotencyKey: 'match_board_move:m1:a1:host' },
       { idempotencyKey: 'match_board_move:m1:a1:cam' },
     ]);
-    const { service, pushSender } = createService(prisma);
+    const { service, delivery } = createService(prisma);
 
     await service.notifyParticipants(notice);
 
     expect(prisma.notification.createMany).not.toHaveBeenCalled();
-    expect(pushSender.send).not.toHaveBeenCalled();
+    expect(delivery.send).not.toHaveBeenCalled();
   });
 
-  it('keeps the inbox row when a recipient has no device', async () => {
+  it('keeps the inbox row even when delivery finds no device', async () => {
     const prisma = createPrismaMock();
-    prisma.pushDevice.findMany.mockResolvedValue([]);
-    const { service, pushSender } = createService(prisma);
+    const delivery = createDelivery();
+    delivery.send.mockResolvedValue({
+      sentCount: 0,
+      messageCount: 0,
+      usersWithDevice: [],
+      usersWithoutDevice: ['host'],
+    });
+    const { service } = createService(prisma, delivery);
 
     await service.notifyParticipants({
       ...notice,
@@ -175,24 +181,6 @@ describe('BoardMoveNotifierService', () => {
     });
 
     expect(prisma.notification.createMany).toHaveBeenCalled();
-    expect(pushSender.send).not.toHaveBeenCalled();
-  });
-
-  it('retires tokens the provider rejected', async () => {
-    const prisma = createPrismaMock();
-    const pushSender = {
-      send: vi.fn().mockResolvedValue({
-        sentCount: 0,
-        rejectedTokens: ['ExponentPushToken[host]'],
-      }),
-    };
-    const { service, pushDevices } = createService(prisma, pushSender);
-
-    await service.notifyParticipants({
-      ...notice,
-      recipients: [{ userId: 'host', score: 30 }],
-    });
-
-    expect(pushDevices.deactivateTokens).toHaveBeenCalledWith(['ExponentPushToken[host]']);
+    expect(delivery.send).toHaveBeenCalled();
   });
 });

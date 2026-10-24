@@ -1,9 +1,7 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@product/db';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
-import type { PushMessage, PushSender } from '../../shared-modules/push/push-sender.js';
-import { PUSH_SENDER } from '../../shared-modules/push/push-sender.js';
+import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import {
   INVITE_ACCEPTED_PUSH_TITLE,
   inviteAcceptedPushBody,
@@ -22,12 +20,9 @@ export type InviteAcceptedNotice = {
  */
 @Injectable()
 export class InviteAcceptedNotifierService {
-  private readonly logger = new Logger(InviteAcceptedNotifierService.name);
-
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    @Inject(PUSH_SENDER) private readonly pushSender: PushSender,
-    private readonly pushDevices: PushDevicesService,
+    private readonly delivery: EngagementDeliveryService,
   ) {}
 
   async notifyHost(notice: InviteAcceptedNotice): Promise<void> {
@@ -61,27 +56,18 @@ export class InviteAcceptedNotifierService {
       skipDuplicates: true,
     });
 
-    await this.push(notice.matchId, notice.hostUserId, body);
-  }
-
-  private async push(matchId: string, hostUserId: string, body: string): Promise<void> {
-    const devices = await this.pushDevices.groupPushDevicesFor([hostUserId]);
-
-    if (devices.length === 0) {
-      return;
-    }
-
-    const messages: PushMessage[] = devices.map((device) => ({
-      expoPushToken: device.expoPushToken,
-      title: INVITE_ACCEPTED_PUSH_TITLE,
-      body,
-      data: { matchId },
-    }));
-
-    const result = await this.pushSender.send(messages);
-    await this.pushDevices.deactivateTokens(result.rejectedTokens);
-
-    this.logger.log(`Invite accepted push sent ${result.sentCount} of ${messages.length} messages`);
+    await this.delivery.send({
+      source: 'invite_accepted',
+      audience: 'group_opt_in',
+      pushes: [
+        {
+          userId: notice.hostUserId,
+          title: INVITE_ACCEPTED_PUSH_TITLE,
+          body,
+          data: { matchId: notice.matchId },
+        },
+      ],
+    });
   }
 
   private acceptanceKey(matchId: string, acceptedUserId: string): string {
