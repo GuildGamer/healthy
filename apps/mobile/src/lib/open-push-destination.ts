@@ -29,6 +29,14 @@ export function hrefForPushData(data: unknown): Href {
     return `/matches/${matchId}`;
   }
 
+  if (destination === 'match_create') {
+    const withUserId = readTrimmedString(payload, 'withUserId');
+    return {
+      pathname: '/matches/create',
+      params: withUserId.length > 0 ? { participantUserIds: withUserId } : {},
+    };
+  }
+
   if (userChallengeId.length > 0) {
     const params: Record<string, string> = { userChallengeId };
     for (const key of SUCCESS_PARAM_KEYS) {
@@ -70,6 +78,10 @@ export function isNavigablePushData(data: unknown): boolean {
   const destination = typeof payload.destination === 'string' ? payload.destination : '';
 
   if (matchId.length > 0) {
+    return true;
+  }
+
+  if (destination === 'match_create') {
     return true;
   }
 

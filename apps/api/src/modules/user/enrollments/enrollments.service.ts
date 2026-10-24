@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
   displayChallengeTitle,
@@ -17,6 +17,10 @@ import {
 } from '../../../shared/membership/entitlements.js';
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import {
+  FRIEND_LADDER_MILESTONE_KEY,
+  FriendMilestoneNotifierService,
+} from '../friend-milestones/index.js';
 import { RemindersService } from '../reminders/reminders.service.js';
 import type { CatalogChallengeDto, ChallengeCatalogDto } from './dto/challenge-catalog.dto.js';
 import type { EnrollmentGoalDto } from './dto/enrollment-goal.dto.js';
@@ -29,9 +33,13 @@ const ALL_CATEGORIES: HealthCategory[] = ['hypertension', 'diabetes', 'asthma', 
 
 @Injectable()
 export class EnrollmentsService {
+  private readonly logger = new Logger(EnrollmentsService.name);
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly reminders: RemindersService,
+    @Optional()
+    private readonly friendMilestones?: FriendMilestoneNotifierService,
   ) {}
 
   /**
@@ -155,7 +163,7 @@ export class EnrollmentsService {
         where: {
           userId_challengeId: { userId: user.id, challengeId: challenge.id },
         },
-        select: { id: true, isActive: true },
+        select: { id: true, isActive: true, targetCount: true },
       }),
     ]);
 
@@ -202,7 +210,35 @@ export class EnrollmentsService {
       await this.reminders.seedDefaultReminders(user.id, [enrollment.id]);
     }
 
+    const previousTarget = existing?.targetCount ?? null;
+    const nextTarget = goal.targetCount;
+    const ladderBump =
+      existing?.isActive === true &&
+      isEnrolled &&
+      typeof nextTarget === 'number' &&
+      nextTarget > 0 &&
+      (previousTarget == null || nextTarget > previousTarget);
+
+    if (ladderBump) {
+      await this.notifyFriendLadderMilestone(user.id);
+    }
+
     return this.listCatalog(user);
+  }
+
+  private async notifyFriendLadderMilestone(actorUserId: string): Promise<void> {
+    if (!this.friendMilestones) {
+      return;
+    }
+
+    try {
+      await this.friendMilestones.notifyAcquaintances({
+        actorUserId,
+        milestoneKey: FRIEND_LADDER_MILESTONE_KEY,
+      });
+    } catch (error) {
+      this.logger.error('Could not notify acquaintances of a goal ladder bump', error);
+    }
   }
 
   /**

@@ -7,6 +7,7 @@ export const ENGAGEMENT_SOURCES = [
   'board_move',
   'match_reaction',
   'crew_seat',
+  'friend_milestone',
   'completion',
   'admin_broadcast',
 ] as const;

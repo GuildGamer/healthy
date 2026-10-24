@@ -913,6 +913,8 @@ model Match {
   hostUserId            String
   hostUser              User               @relation("MatchHost", fields: [hostUserId], references: [id], onDelete: Cascade)
   inviteToken           String             @unique
+  /// Optional host-authored label. Null means derive title from participants.
+  title                 String?
   metric                MatchMetric        @default(pushups)
   scoringMode           MatchScoringMode   @default(best_single)
   dailyScope            MatchDailyScope    @default(any_challenge)

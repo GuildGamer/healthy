@@ -26,12 +26,24 @@ export const listCrewsOutputSchema = z.object({
   crews: z.array(crewSchema),
 });
 
+/** Someone the caller has already shared a private contest with. */
+export const acquaintanceSchema = z.object({
+  userId: z.string().min(1),
+  displayName: z.string().min(1),
+});
+
+export const listAcquaintancesOutputSchema = z.object({
+  people: z.array(acquaintanceSchema),
+});
+
 /**
  * Crews are saved from a contest that already happened, never assembled from a
  * member picker — so the only input is which contest to keep.
+ * Optional name keeps one-tap save (derived label) while companies can label.
  */
 export const saveCrewInputSchema = z.object({
   matchId: z.string().min(1),
+  name: crewNameSchema.optional(),
 });
 
 export const saveCrewOutputSchema = z.object({
@@ -56,6 +68,10 @@ export const listCrewsContract = oc
   .route({ method: 'GET', path: '/crews' })
   .output(listCrewsOutputSchema);
 
+export const listAcquaintancesContract = oc
+  .route({ method: 'GET', path: '/crews/people' })
+  .output(listAcquaintancesOutputSchema);
+
 export const saveCrewContract = oc
   .route({ method: 'POST', path: '/crews' })
   .input(saveCrewInputSchema)
@@ -72,6 +88,8 @@ export const leaveCrewContract = oc
   .output(listCrewsOutputSchema);
 
 export type ListCrewsOutput = z.infer<typeof listCrewsOutputSchema>;
+export type Acquaintance = z.infer<typeof acquaintanceSchema>;
+export type ListAcquaintancesOutput = z.infer<typeof listAcquaintancesOutputSchema>;
 export type SaveCrewInput = z.infer<typeof saveCrewInputSchema>;
 export type SaveCrewOutput = z.infer<typeof saveCrewOutputSchema>;
 export type RenameCrewInput = z.infer<typeof renameCrewInputSchema>;

@@ -5,6 +5,9 @@ import { apiClient } from '@/lib/api';
 import { createPrefillParams, rerunCreateInput } from './group-rerun';
 import { shareMatchLink } from './share-match-link';
 
+/** Keep in sync with `CREW_NAME_MAX` in `@product/contract`. */
+const CREW_NAME_MAX = 40;
+
 /**
  * Saving the crew is how the same people come back: it dedupes against one
  * already saved, and a member who left that crew stays out of the next group.
@@ -16,7 +19,13 @@ export function useRunItBack(board: MatchBoard) {
   const hasOthers = board.participantCount > 1;
 
   const saveCrew = useMutation({
-    mutationFn: () => apiClient.saveCrew({ matchId: board.id }),
+    mutationFn: (name?: string) => {
+      const trimmed = name?.trim().slice(0, CREW_NAME_MAX);
+      return apiClient.saveCrew({
+        matchId: board.id,
+        ...(trimmed ? { name: trimmed } : {}),
+      });
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['crews'] });
     },
@@ -27,7 +36,7 @@ export function useRunItBack(board: MatchBoard) {
       return null;
     }
 
-    const saved = await saveCrew.mutateAsync();
+    const saved = await saveCrew.mutateAsync(undefined);
     return saved.crew.id;
   }
 
@@ -54,7 +63,7 @@ export function useRunItBack(board: MatchBoard) {
   });
 
   return {
-    saveCrew: () => saveCrew.mutate(),
+    saveCrew: (name?: string) => saveCrew.mutate(name),
     isCrewSaved: saveCrew.isSuccess,
     hasCrewSaveFailed: saveCrew.isError && !start.isPending && !change.isPending,
     start: () => start.mutate(),

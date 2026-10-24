@@ -59,6 +59,7 @@ type MockMatch = {
   id: string;
   hostUserId: string;
   inviteToken: string;
+  title: string | null;
   metric: string;
   scoringMode: string;
   dailyScope: string;
@@ -86,6 +87,7 @@ function loadedMatch(overrides: Partial<MockMatch> = {}): MockMatch {
     id: 'm1',
     hostUserId: host.id,
     inviteToken: 'invite_token_1',
+    title: null,
     metric: 'pushups',
     scoringMode: 'best_single',
     dailyScope: 'any_challenge',
@@ -143,6 +145,10 @@ function createPrismaMock(match = loadedMatch()) {
     },
     crew: {
       findUnique: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    crewMember: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
     matchParticipant: {
       createMany: vi.fn().mockImplementation(async ({ data }: { data: { userId: string }[] }) => {
@@ -1146,6 +1152,70 @@ describe('MatchesService', () => {
 
     expect(created.match.inviteUrl).toBe(`${websiteUrl}/match/invite_token_1`);
     expect(created.invite.url).toBe(created.match.inviteUrl);
+  });
+
+  it('seats selected acquaintances pending and keeps the invite link', async () => {
+    const prisma = createPrismaMock();
+    prisma.matchParticipant.findMany
+      .mockResolvedValueOnce([{ matchId: 'm1' }])
+      .mockResolvedValueOnce([
+        {
+          userId: 'cam',
+          joinedAt: new Date(),
+          user: userWithProfile('cam', 'Cam'),
+        },
+      ]);
+    const notifier = createNotifierSpy();
+    const service = createService(prisma, notifier);
+
+    const created = await service.create(host, {
+      window: 'week',
+      metric: 'pushups',
+      scoringMode: 'best_single',
+      dailyScope: 'any_challenge',
+      participantUserIds: ['cam'],
+    });
+
+    expect(prisma.matchParticipant.createMany).toHaveBeenCalledWith({
+      data: [{ matchId: 'm1', userId: 'cam', acceptedAt: null }],
+    });
+    expect(notifier.notifySeated).toHaveBeenCalledWith('m1', ['cam']);
+    expect(created.invite.url).toContain('/match/');
+  });
+
+  it('rejects seating a stranger who was never in a contest with the host', async () => {
+    const prisma = createPrismaMock();
+    prisma.matchParticipant.findMany.mockResolvedValue([]);
+    const service = createService(prisma);
+
+    await expect(
+      service.create(host, {
+        window: 'week',
+        metric: 'pushups',
+        scoringMode: 'best_single',
+        dailyScope: 'any_challenge',
+        participantUserIds: ['stranger'],
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('uses a host title on the board when provided', async () => {
+    const prisma = createPrismaMock(loadedMatch({ title: 'Acme March challenge' }));
+    prisma.match.create.mockImplementation(async ({ data }: { data: { title?: string | null } }) => {
+      prisma.current.match = { ...prisma.current.match, title: data.title ?? null };
+      return { id: 'm1', inviteToken: 'invite_token_1' };
+    });
+    const service = createService(prisma);
+
+    const created = await service.create(host, {
+      window: 'week',
+      metric: 'pushups',
+      scoringMode: 'best_single',
+      dailyScope: 'any_challenge',
+      title: 'Acme March challenge',
+    });
+
+    expect(created.match.title).toBe('Acme March challenge');
   });
 
   it('seats a saved crew pending, so nobody is scored before accepting', async () => {

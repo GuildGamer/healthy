@@ -37,6 +37,11 @@ import {
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
+import {
+  FriendMilestoneNotifierService,
+  friendStreakMilestoneKey,
+  isFriendStreakMilestone,
+} from '../friend-milestones/index.js';
 import { PracticeService } from '../practice/index.js';
 import type {
   ActivityItemDto,
@@ -188,6 +193,8 @@ export class ChallengesService {
     surpriseRoll?: () => number,
     @Optional()
     private readonly delivery?: EngagementDeliveryService,
+    @Optional()
+    private readonly friendMilestones?: FriendMilestoneNotifierService,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }
@@ -642,14 +649,40 @@ export class ChallengesService {
         fresh: true as const,
         dto: this.toCompleteDto(completed, profile, rewardPoints, 0),
         payload,
+        currentStreakDays: nextStreak,
       };
     });
 
     if (result.fresh) {
       await this.sendCompletionPush(user.id, pushTitle, pushBody, result.payload);
+      await this.notifyFriendStreakMilestone(user.id, result.currentStreakDays);
     }
 
     return result.dto;
+  }
+
+  /**
+   * Rare streak gates only. A failed nudge must never undo a completion.
+   */
+  private async notifyFriendStreakMilestone(
+    actorUserId: string,
+    currentStreakDays: number,
+  ): Promise<void> {
+    if (!this.friendMilestones || !isFriendStreakMilestone(currentStreakDays)) {
+      return;
+    }
+
+    try {
+      await this.friendMilestones.notifyAcquaintances({
+        actorUserId,
+        milestoneKey: friendStreakMilestoneKey(currentStreakDays),
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not notify acquaintances of streak ${currentStreakDays}`,
+        error,
+      );
+    }
   }
 
   /**

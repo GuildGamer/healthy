@@ -17,6 +17,7 @@ interface SheetChoiceProps {
   /** Shown dimmed with its reason rather than hidden, so nobody wonders where it went. */
   isDisabled?: boolean;
   onPress: () => void;
+  onLongPress?: () => void;
   testID?: string;
 }
 
@@ -29,6 +30,7 @@ export function SheetChoice({
   isSelected,
   isDisabled = false,
   onPress,
+  onLongPress,
   testID,
 }: SheetChoiceProps) {
   const { colors } = useTheme();
@@ -39,6 +41,7 @@ export function SheetChoice({
       accessibilityRole="button"
       accessibilityState={{ selected: isSelected, disabled: isDisabled }}
       disabled={isDisabled}
+      onLongPress={onLongPress}
       onPress={onPress}
       style={[
         styles.choice,

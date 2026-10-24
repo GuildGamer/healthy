@@ -3,6 +3,8 @@ import { z } from 'zod';
 import {
   isLengthAllowedForScoringMode,
   isScoringModeAllowedForMetric,
+  MATCH_PARTICIPANT_CAP,
+  MATCH_TITLE_MAX,
   matchAttemptSourceSchema,
   matchDailyScopeSchema,
   matchDayStripSchema,
@@ -30,6 +32,7 @@ export {
   MATCH_MIN_DAYS_BY_SCORING_MODE,
   MATCH_MODES_BY_METRIC,
   MATCH_PARTICIPANT_CAP,
+  MATCH_TITLE_MAX,
   MATCH_PRESET_DAYS,
   MATCH_WINDOWS_BY_SCORING_MODE,
   isLengthAllowedForScoringMode,
@@ -92,6 +95,20 @@ export const createMatchInputSchema = z
      * host shares a link, which stays the default path.
      */
     crewId: z.string().min(1).optional(),
+    /**
+     * Seats specific people the host already competed with (or share a crew
+     * with). Combined with `crewId` seats, capped by MATCH_PARTICIPANT_CAP
+     * including the host. Strangers are rejected server-side.
+     */
+    participantUserIds: z
+      .array(z.string().min(1))
+      .max(MATCH_PARTICIPANT_CAP - 1)
+      .optional(),
+    /**
+     * Optional host label for the contest. When omitted, the board derives a
+     * title from participant names.
+     */
+    title: z.string().trim().min(1).max(MATCH_TITLE_MAX).optional(),
     /**
      * Habit occurrence that motivated this contest (distribution flywheel).
      * When set, the server may seed the host's first attempt from that
@@ -156,6 +173,11 @@ export const matchBoardSchema = z.object({
    * which origin this deployment serves links from.
    */
   inviteUrl: z.string().url(),
+  /**
+   * Host label when set; otherwise a name derived from other participants.
+   * Optional for older API builds that omitted it.
+   */
+  title: z.string().min(1).optional(),
   metric: matchMetricSchema,
   scoringMode: matchScoringModeSchema,
   /** Which finished days count. Only meaningful under `days_completed`. */

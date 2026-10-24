@@ -18,11 +18,19 @@ export class CrewsController {
     });
   }
 
+  @Implement(appContract.listAcquaintances)
+  listAcquaintances(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.listAcquaintances).handler(async () => {
+      return this.crewsService.listAcquaintances(user);
+    });
+  }
+
   @Implement(appContract.saveCrew)
   saveCrew(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;
     return implement(appContract.saveCrew).handler(async ({ input }) => {
-      return this.crewsService.save(user, input.matchId);
+      return this.crewsService.save(user, input.matchId, input.name);
     });
   }
 

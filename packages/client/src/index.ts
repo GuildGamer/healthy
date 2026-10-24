@@ -113,6 +113,7 @@ export type {
   ChallengeVitals,
   ChallengeWater,
   CountryCode,
+  Acquaintance,
   Crew,
   GlucoseContext,
   SaveChallengeDraftInput,

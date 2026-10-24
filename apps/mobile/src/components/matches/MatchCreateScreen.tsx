@@ -1,11 +1,21 @@
 import type { Crew } from '@product/client';
+import { MATCH_TITLE_MAX } from '@product/contract/match-board';
 import { spacing } from '@product/brand';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckPageNav, DeckSheetMessage } from '@/components/deck';
+import {
+  DeckButton,
+  DeckPageNav,
+  DeckSheetMessage,
+  DeckSheetModal,
+  DeckSheetTitle,
+} from '@/components/deck';
+import { TextField } from '@/components/forms/TextField';
 import { goBackOrHome } from '@/lib/go-back';
+import { apiClient } from '@/lib/api';
 import { type Theme, useThemedStyles } from '@/theme';
-import { ActivitySheet, HowYouWinSheet } from './CreateRuleSheets';
+import { ActivitySheet, HowYouWinSheet, SheetDone } from './CreateRuleSheets';
 import { CreateSettingRow } from './CreateSettingRow';
 import { GroupCard, GroupCardLine } from './GroupCard';
 import { GroupPage } from './GroupPage';
@@ -21,9 +31,9 @@ import {
   type MatchActivityChoice,
 } from './match-metric';
 import { useCreateGroup } from './useCreateGroup';
-import { WhosInSheet } from './WhosInSheet';
+import { WhosInSheet, type WhosInSelection } from './WhosInSheet';
 
-type CreateSheet = 'mode' | 'activity' | 'length' | 'crew';
+type CreateSheet = 'mode' | 'activity' | 'length' | 'crew' | 'rename';
 
 const PRESET_LABEL = {
   today: CREATE_COPY.today,
@@ -41,8 +51,22 @@ function activityLabel(choice: MatchActivityChoice): string {
   return choice === MATCH_ANY_DAILY_CHOICE ? MATCH_ANY_DAILY_LABEL : MATCH_METRIC_LABEL[choice];
 }
 
-function whosInLabel(crews: readonly Crew[], crewId: string | null): string {
-  return crews.find((crew) => crew.id === crewId)?.name ?? CREATE_COPY.newGroupByLink;
+function whosInLabel(
+  crews: readonly Crew[],
+  selection: WhosInSelection,
+): string {
+  const crewName = crews.find((crew) => crew.id === selection.crewId)?.name;
+  const people = selection.participantUserIds.length;
+  if (crewName && people > 0) {
+    return CREATE_COPY.peopleAndCrew(people, crewName);
+  }
+  if (crewName) {
+    return crewName;
+  }
+  if (people > 0) {
+    return CREATE_COPY.peoplePicked(people);
+  }
+  return CREATE_COPY.newGroupByLink;
 }
 
 /**
@@ -52,9 +76,35 @@ function whosInLabel(crews: readonly Crew[], crewId: string | null): string {
 export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
   const styles = useThemedStyles(createStyles);
   const group = useCreateGroup(prefill);
+  const queryClient = useQueryClient();
   const [openSheet, setOpenSheet] = useState<CreateSheet | null>(null);
+  const [renameCrew, setRenameCrew] = useState<Crew | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const close = () => setOpenSheet(null);
   const lengthText = lengthLabel(group.length);
+
+  const rename = useMutation({
+    mutationFn: () => {
+      if (!renameCrew) {
+        throw new Error('No crew');
+      }
+      return apiClient.renameCrew({
+        crewId: renameCrew.id,
+        name: renameValue.trim(),
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['crews'] });
+      setRenameCrew(null);
+      setOpenSheet(null);
+    },
+  });
+
+  function openRename(crew: Crew) {
+    setRenameCrew(crew);
+    setRenameValue(crew.name);
+    setOpenSheet('rename');
+  }
 
   return (
     <>
@@ -65,8 +115,8 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
               <DeckSheetMessage message={CREATE_COPY.failed} testID="match-create-failed" />
             ) : null}
             <DeckButton
-              glyph={group.crewId ? undefined : 'share'}
-              label={group.crewId ? CREATE_COPY.ctaCrew : CREATE_COPY.cta}
+              glyph={group.hasSeated ? undefined : 'share'}
+              label={group.hasSeated ? CREATE_COPY.ctaSeated : CREATE_COPY.cta}
               loading={group.isStarting}
               onPress={group.start}
               testID="match-create-submit"
@@ -87,10 +137,20 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
           rules={group.rules}
           size="rule"
           testID="match-create-card"
-          title={groupRuleTitle(group.rules)}
+          title={group.title.trim() || groupRuleTitle(group.rules)}
         >
           <GroupCardLine>{groupRuleBody(group.rules)}</GroupCardLine>
         </GroupCard>
+        <View style={styles.titleField}>
+          <Text style={styles.titleLabel}>{CREATE_COPY.contestTitle}</Text>
+          <TextField
+            maxLength={MATCH_TITLE_MAX}
+            onChangeText={group.setTitle}
+            placeholder={CREATE_COPY.contestTitlePlaceholder}
+            testID="match-create-title"
+            value={group.title}
+          />
+        </View>
         <View style={styles.rows}>
           <CreateSettingRow
             isFirst
@@ -113,9 +173,13 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
           />
           <CreateSettingRow
             label={CREATE_COPY.whosIn}
-            onPress={group.crews.length > 0 ? () => setOpenSheet('crew') : undefined}
+            onPress={
+              group.crews.length > 0 || group.people.length > 0
+                ? () => setOpenSheet('crew')
+                : undefined
+            }
             testID="match-create-crew"
-            value={whosInLabel(group.crews, group.crewId)}
+            value={whosInLabel(group.crews, group.whosIn)}
           />
         </View>
         <Text style={styles.note}>{CREATE_COPY.note}</Text>
@@ -142,18 +206,52 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
         visible={openSheet === 'length'}
       />
       <WhosInSheet
-        crewId={group.crewId}
         crews={group.crews}
-        onChoose={group.chooseCrew}
+        onChange={group.chooseWhosIn}
         onClose={close}
+        onRenameCrew={openRename}
+        people={group.people}
+        selection={group.whosIn}
         visible={openSheet === 'crew'}
       />
+      <DeckSheetModal
+        onDismiss={close}
+        testID="match-rename-crew-sheet"
+        visible={openSheet === 'rename' && renameCrew !== null}
+      >
+        <DeckSheetTitle>{CREATE_COPY.renameCrewTitle}</DeckSheetTitle>
+        <TextField
+          maxLength={40}
+          onChangeText={setRenameValue}
+          placeholder={CREATE_COPY.renameCrewPlaceholder}
+          testID="match-rename-crew-input"
+          value={renameValue}
+        />
+        <DeckButton
+          disabled={renameValue.trim().length === 0}
+          label={CREATE_COPY.renameCrewSave}
+          loading={rename.isPending}
+          onPress={() => rename.mutate()}
+          testID="match-rename-crew-save"
+        />
+        <SheetDone onClose={close} />
+      </DeckSheetModal>
     </>
   );
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
+    titleField: {
+      marginTop: 14,
+      gap: 8,
+      paddingHorizontal: spacing.xs,
+    },
+    titleLabel: {
+      color: theme.colors.muted,
+      fontSize: 13.5,
+      fontWeight: '600',
+    },
     rows: {
       marginTop: 12,
     },

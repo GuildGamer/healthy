@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const MATCH_PARTICIPANT_CAP = 8;
 
+/** Host-authored contest label. Short enough to stay a title, not a bio. */
+export const MATCH_TITLE_MAX = 60;
+
 export const matchMetricSchema = z.enum(['pushups', 'walk']);
 export const matchScoringModeSchema = z.enum(['best_single', 'cumulative_total', 'days_completed']);
 /**

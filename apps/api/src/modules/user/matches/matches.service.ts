@@ -153,6 +153,48 @@ export class MatchesService {
     return memberIds.filter((userId) => userId !== hostUserId).slice(0, MATCH_PARTICIPANT_CAP - 1);
   }
 
+  /**
+   * Union of crew seats and explicit people picks, host excluded, capped.
+   * Strangers are rejected before this runs.
+   */
+  private async resolveSeatedUserIds(
+    hostUserId: string,
+    input: CreateMatchInputDto,
+  ): Promise<string[]> {
+    const fromCrew = await this.crewSeats(hostUserId, input.crewId);
+    const fromPeople = (input.participantUserIds ?? []).filter(
+      (userId) => userId !== hostUserId,
+    );
+    await this.crewsService.assertInviteesAllowed(hostUserId, fromPeople);
+
+    const seated: string[] = [];
+    const seen = new Set<string>();
+    for (const userId of [...fromPeople, ...fromCrew]) {
+      if (seen.has(userId)) {
+        continue;
+      }
+      seen.add(userId);
+      seated.push(userId);
+      if (seated.length >= MATCH_PARTICIPANT_CAP - 1) {
+        break;
+      }
+    }
+
+    return seated;
+  }
+
+  private contestTitleFor(
+    match: { title: string | null },
+    opponentNames: string[],
+  ): string {
+    const custom = match.title?.trim();
+    if (custom) {
+      return custom;
+    }
+
+    return matchContestTitle(opponentNames);
+  }
+
   async create(
     currentUser: AuthenticatedUser | null | undefined,
     input: CreateMatchInputDto,
@@ -168,7 +210,7 @@ export class MatchesService {
       now,
     );
 
-    const seatedUserIds = await this.crewSeats(user.id, input.crewId);
+    const seatedUserIds = await this.resolveSeatedUserIds(user.id, input);
     const seedAttempt = await this.resolveHostSeedAttempt(user.id, input);
 
     if (input.parentMatchId) {
@@ -180,6 +222,7 @@ export class MatchesService {
         data: {
           hostUserId: user.id,
           inviteToken: createInviteToken(),
+          title: input.title?.trim() || null,
           metric: input.metric,
           scoringMode: input.scoringMode,
           dailyScope: input.dailyScope,
@@ -433,7 +476,8 @@ export class MatchesService {
 
     return {
       id: board.id,
-      title: matchContestTitle(
+      title: this.contestTitleFor(
+        match,
         board.standings
           .filter((standing) => !standing.isYou)
           .map((standing) => standing.displayName),
@@ -1097,10 +1141,15 @@ export class MatchesService {
     const { standings } = result;
     const yourScore = standings.find((row) => row.userId === viewerId)?.score ?? 0;
 
+    const opponentNames = standings
+      .filter((row) => row.userId !== viewerId)
+      .map((row) => row.displayName);
+
     return {
       id: match.id,
       token: match.inviteToken,
       inviteUrl: this.inviteUrlFor(match.inviteToken),
+      title: this.contestTitleFor(match, opponentNames),
       metric: match.metric,
       scoringMode: match.scoringMode,
       dailyScope: match.dailyScope,

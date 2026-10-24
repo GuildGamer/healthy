@@ -4,13 +4,22 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckNoteCard, DeckPageNav, DeckSheetMessage } from '@/components/deck';
+import {
+  DeckButton,
+  DeckNoteCard,
+  DeckPageNav,
+  DeckSheetMessage,
+  DeckSheetModal,
+  DeckSheetTitle,
+} from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
+import { TextField } from '@/components/forms/TextField';
 import { useShareDay } from '@/components/home/useShareDay';
 import { ProfilePhotoPreviewModal } from '@/components/profile/ProfilePhotoPreviewModal';
 import { apiClient } from '@/lib/api';
 import { markMatchResultSeen } from '@/lib/seen-match-results';
 import { type Theme, useThemedStyles } from '@/theme';
+import { SheetDone } from './CreateRuleSheets';
 import { GroupPage } from './GroupPage';
 import { GroupPodium } from './GroupPodium';
 import { GROUP_RECAP_CARD_WIDTH, GroupRecapCard } from './GroupRecapCard';
@@ -21,6 +30,8 @@ import { RunItBackSheet } from './RunItBackSheet';
 import { useRunItBack } from './useRunItBack';
 
 const PODIUM_PLACES = 3;
+/** Keep in sync with `CREW_NAME_MAX` in `@product/contract`. */
+const CREW_NAME_MAX = 40;
 
 /** Plays once, the first time a finished group is opened. Closing it leaves the board as the record. */
 export function MatchResultScreen({ matchId }: { matchId: string }) {
@@ -64,6 +75,8 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
   const rerun = useRunItBack(board);
   const recap = useShareDay(resultShareLine(board), RESULT_COPY.shareDialog);
   const [isRerunOpen, setIsRerunOpen] = useState(false);
+  const [isNameCrewOpen, setIsNameCrewOpen] = useState(false);
+  const [crewName, setCrewName] = useState('');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const summary = resultSummary(board);
   const hasPodium = board.winnerUserId !== null;
@@ -76,8 +89,9 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
             canSaveCrew={board.canSaveCrew}
             hasCrewSaveFailed={rerun.hasCrewSaveFailed}
             isCrewSaved={rerun.isCrewSaved}
+            onNameAndSave={() => setIsNameCrewOpen(true)}
             onRunItBack={() => setIsRerunOpen(true)}
-            onSaveCrew={rerun.saveCrew}
+            onSaveCrew={() => rerun.saveCrew()}
             isSharing={recap.isSharing}
             onShare={() => void recap.share()}
           />
@@ -110,6 +124,31 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
         onStart={rerun.start}
         visible={isRerunOpen}
       />
+      <DeckSheetModal
+        onDismiss={() => setIsNameCrewOpen(false)}
+        testID="match-name-crew-sheet"
+        visible={isNameCrewOpen}
+      >
+        <DeckSheetTitle>{RESULT_COPY.nameAndSaveCrew}</DeckSheetTitle>
+        <TextField
+          maxLength={CREW_NAME_MAX}
+          onChangeText={setCrewName}
+          placeholder={RESULT_COPY.crewNamePlaceholder}
+          testID="match-name-crew-input"
+          value={crewName}
+        />
+        <DeckButton
+          disabled={crewName.trim().length === 0}
+          label={RESULT_COPY.saveCrew}
+          onPress={() => {
+            rerun.saveCrew(crewName);
+            setIsNameCrewOpen(false);
+            setCrewName('');
+          }}
+          testID="match-name-crew-save"
+        />
+        <SheetDone onClose={() => setIsNameCrewOpen(false)} />
+      </DeckSheetModal>
       {previewUri ? (
         <ProfilePhotoPreviewModal
           imageUri={previewUri}
@@ -138,6 +177,7 @@ function ResultDock({
   isSharing,
   onRunItBack,
   onSaveCrew,
+  onNameAndSave,
   onShare,
 }: {
   canSaveCrew: boolean;
@@ -146,6 +186,7 @@ function ResultDock({
   isSharing: boolean;
   onRunItBack: () => void;
   onSaveCrew: () => void;
+  onNameAndSave: () => void;
   onShare: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -181,6 +222,14 @@ function ResultDock({
           variant="tonal"
         />
       </View>
+      {canSaveCrew && !isCrewSaved ? (
+        <DeckButton
+          label={RESULT_COPY.nameAndSaveCrew}
+          onPress={onNameAndSave}
+          testID="match-name-save-crew"
+          variant="quiet"
+        />
+      ) : null}
     </>
   );
 }

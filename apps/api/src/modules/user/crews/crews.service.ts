@@ -8,13 +8,19 @@ import {
 } from '../../../shared/types/authenticated-user.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
-import type { CrewDto, ListCrewsDto, SaveCrewDto } from './dto/crew.dto.js';
+import type {
+  CrewDto,
+  ListAcquaintancesDto,
+  ListCrewsDto,
+  SaveCrewDto,
+} from './dto/crew.dto.js';
 import {
   CREW_MATCH_NOT_FINISHED,
   CREW_MATCH_TOO_SMALL,
   CREW_NOT_FOUND,
   CREW_NOT_MEMBER,
   CREW_NOT_OWNER,
+  CREW_STRANGER,
 } from './errors/crew.errors.js';
 
 const crewInclude = {
@@ -64,12 +70,137 @@ export class CrewsService {
   }
 
   /**
+   * People the caller has already shared a private contest with — picker
+   * source only, never a friends graph or directory.
+   */
+  async listAcquaintances(
+    currentUser: AuthenticatedUser | null | undefined,
+  ): Promise<ListAcquaintancesDto> {
+    const user = requireUser(currentUser);
+    return { people: await this.acquaintancesFor(user.id) };
+  }
+
+  /**
+   * True when every id is someone the host competed with or shares an active
+   * crew with. Used before seating strangers into a new contest.
+   */
+  async assertInviteesAllowed(
+    hostUserId: string,
+    userIds: readonly string[],
+  ): Promise<void> {
+    if (userIds.length === 0) {
+      return;
+    }
+
+    const allowed = await this.allowedInviteeIds(hostUserId);
+    for (const userId of userIds) {
+      if (userId === hostUserId) {
+        continue;
+      }
+      if (!allowed.has(userId)) {
+        throw new ORPCError('FORBIDDEN', { message: CREW_STRANGER });
+      }
+    }
+  }
+
+  async allowedInviteeIds(hostUserId: string): Promise<Set<string>> {
+    const people = await this.acquaintancesFor(hostUserId);
+    const allowed = new Set(people.map((person) => person.userId));
+
+    const ownedCrews = await this.prisma.crew.findMany({
+      where: { ownerUserId: hostUserId },
+      select: {
+        members: {
+          where: { leftAt: null },
+          select: { userId: true },
+        },
+      },
+    });
+    for (const crew of ownedCrews) {
+      for (const member of crew.members) {
+        if (member.userId !== hostUserId) {
+          allowed.add(member.userId);
+        }
+      }
+    }
+
+    const memberCrews = await this.prisma.crewMember.findMany({
+      where: { userId: hostUserId, leftAt: null },
+      select: {
+        crew: {
+          select: {
+            ownerUserId: true,
+            members: {
+              where: { leftAt: null },
+              select: { userId: true },
+            },
+          },
+        },
+      },
+    });
+    for (const row of memberCrews) {
+      if (row.crew.ownerUserId !== hostUserId) {
+        allowed.add(row.crew.ownerUserId);
+      }
+      for (const member of row.crew.members) {
+        if (member.userId !== hostUserId) {
+          allowed.add(member.userId);
+        }
+      }
+    }
+
+    return allowed;
+  }
+
+  private async acquaintancesFor(
+    userId: string,
+  ): Promise<ListAcquaintancesDto['people']> {
+    const participations = await this.prisma.matchParticipant.findMany({
+      where: { userId },
+      select: { matchId: true },
+    });
+    const matchIds = [...new Set(participations.map((row) => row.matchId))];
+    if (matchIds.length === 0) {
+      return [];
+    }
+
+    const others = await this.prisma.matchParticipant.findMany({
+      where: {
+        matchId: { in: matchIds },
+        userId: { not: userId },
+      },
+      select: {
+        userId: true,
+        joinedAt: true,
+        user: { include: { profile: true } },
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
+
+    const seen = new Set<string>();
+    const people: ListAcquaintancesDto['people'] = [];
+    for (const row of others) {
+      if (seen.has(row.userId)) {
+        continue;
+      }
+      seen.add(row.userId);
+      people.push({
+        userId: row.userId,
+        displayName: publicNameFor(row.userId, row.user.profile?.displayName),
+      });
+    }
+
+    return people;
+  }
+
+  /**
    * Keeps the roster of a finished contest. One tap: the members are already
-   * known, and the name is derived from them.
+   * known, and the name is derived from them unless the host supplies one.
    */
   async save(
     currentUser: AuthenticatedUser | null | undefined,
     matchId: string,
+    name?: string,
   ): Promise<SaveCrewDto> {
     const user = requireUser(currentUser);
     const match = await this.prisma.match.findUnique({
@@ -98,14 +229,16 @@ export class CrewsService {
       return { crew: this.present(existing, user.id), alreadyExisted: true };
     }
 
+    const derived = crewLabel(
+      others.map((row) =>
+        publicNameFor(row.userId, row.user.profile?.displayName),
+      ),
+    );
+
     const created = await this.prisma.crew.create({
       data: {
         ownerUserId: user.id,
-        name: crewLabel(
-          others.map((row) =>
-            publicNameFor(row.userId, row.user.profile?.displayName),
-          ),
-        ),
+        name: name?.trim() || derived,
         members: {
           create: memberUserIds.map((userId) => ({ userId })),
         },

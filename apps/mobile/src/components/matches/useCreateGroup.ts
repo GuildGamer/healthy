@@ -1,4 +1,5 @@
 import type { MatchScoringMode } from '@product/client';
+import { MATCH_TITLE_MAX } from '@product/contract/match-board';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -14,6 +15,11 @@ import {
   matchActivityInput,
 } from './match-metric';
 import { shareMatchLink } from './share-match-link';
+import type { WhosInSelection } from './WhosInSheet';
+
+function emptyWhosIn(crewId: string | null, participantUserIds: string[]): WhosInSelection {
+  return { crewId, participantUserIds };
+}
 
 /** Everything the start screen chooses, and the one call that starts the group. */
 export function useCreateGroup(prefill: CreatePrefill) {
@@ -24,9 +30,19 @@ export function useCreateGroup(prefill: CreatePrefill) {
   );
   const [scoringMode, setScoringMode] = useState<MatchScoringMode>(prefill.scoringMode);
   const [length, setLength] = useState<MatchLengthChoice>(prefill.length);
-  const [crewId, setCrewId] = useState<string | null>(prefill.crewId);
+  const [title, setTitle] = useState(prefill.title ?? '');
+  const [whosIn, setWhosIn] = useState<WhosInSelection>(() =>
+    emptyWhosIn(prefill.crewId, prefill.participantUserIds),
+  );
   const crewsQuery = useQuery({ queryKey: ['crews'], queryFn: () => apiClient.listCrews() });
+  const peopleQuery = useQuery({
+    queryKey: ['crews', 'people'],
+    queryFn: () => apiClient.listAcquaintances(),
+  });
   const { metric, dailyScope } = matchActivityInput(activityChoice, scoringMode);
+  const hasSeated =
+    whosIn.crewId !== null || whosIn.participantUserIds.length > 0;
+  const trimmedTitle = title.trim().slice(0, MATCH_TITLE_MAX);
 
   const create = useMutation({
     mutationFn: () =>
@@ -35,13 +51,18 @@ export function useCreateGroup(prefill: CreatePrefill) {
         metric,
         scoringMode,
         dailyScope,
-        ...(crewId ? { crewId } : {}),
+        ...(whosIn.crewId ? { crewId: whosIn.crewId } : {}),
+        ...(whosIn.participantUserIds.length > 0
+          ? { participantUserIds: whosIn.participantUserIds }
+          : {}),
+        ...(trimmedTitle ? { title: trimmedTitle } : {}),
         ...(prefill.parentMatchId ? { parentMatchId: prefill.parentMatchId } : {}),
       }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
-      // A crew is already seated, so there is no link to hand anyone.
-      if (!crewId) {
+      // Link-first when nobody was seated. Seated contests still keep Share on
+      // the board for anyone joining from outside.
+      if (!hasSeated) {
         await shareMatchLink(result.match.inviteUrl);
       }
       router.replace(`/matches/${result.match.id}`);
@@ -72,12 +93,16 @@ export function useCreateGroup(prefill: CreatePrefill) {
     rules: { metric, scoringMode, dailyScope },
     activityChoice,
     length,
-    crewId,
+    title,
+    setTitle,
+    whosIn,
     crews: crewsQuery.data?.crews ?? [],
+    people: peopleQuery.data?.people ?? [],
+    hasSeated,
     chooseMode,
     chooseActivity,
     chooseLength: setLength,
-    chooseCrew: setCrewId,
+    chooseWhosIn: setWhosIn,
     start: () => create.mutate(),
     isStarting: create.isPending,
     hasFailed: create.isError,

@@ -41,6 +41,7 @@ function createPrismaMock() {
     },
     crewMember: {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     match: {
       findUnique: vi.fn().mockResolvedValue({
@@ -51,6 +52,28 @@ function createPrismaMock() {
           participant('bee', 'Bee'),
           participant('cam', 'Cam'),
         ],
+      }),
+    },
+    matchParticipant: {
+      findMany: vi.fn().mockImplementation(async ({ where }: { where: Record<string, unknown> }) => {
+        if (where.userId === owner.id) {
+          return [{ matchId: 'm1' }];
+        }
+        if (where.matchId && typeof where.matchId === 'object') {
+          return [
+            {
+              userId: 'bee',
+              joinedAt: new Date('2026-10-20T10:00:00.000Z'),
+              user: person('Bee'),
+            },
+            {
+              userId: 'cam',
+              joinedAt: new Date('2026-10-19T10:00:00.000Z'),
+              user: person('Cam'),
+            },
+          ];
+        }
+        return [];
       }),
     },
   };
@@ -107,6 +130,37 @@ describe('CrewsService.list', () => {
   });
 });
 
+describe('CrewsService.listAcquaintances', () => {
+  it('returns distinct past opponents, most recent first', async () => {
+    const people = await createService(createPrismaMock()).listAcquaintances(owner);
+
+    expect(people.people).toEqual([
+      { userId: 'bee', displayName: 'Bee' },
+      { userId: 'cam', displayName: 'Cam' },
+    ]);
+  });
+
+  it('returns nobody when the caller has never competed', async () => {
+    const prisma = createPrismaMock();
+    prisma.matchParticipant.findMany.mockResolvedValue([]);
+
+    await expect(
+      createService(prisma).listAcquaintances(owner),
+    ).resolves.toEqual({ people: [] });
+  });
+});
+
+describe('CrewsService.assertInviteesAllowed', () => {
+  it('allows acquaintances and rejects strangers', async () => {
+    const service = createService(createPrismaMock());
+
+    await expect(service.assertInviteesAllowed(owner.id, ['bee'])).resolves.toBeUndefined();
+    await expect(service.assertInviteesAllowed(owner.id, ['stranger'])).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+});
+
 describe('CrewsService.save', () => {
   it('names the crew after the other people in it', async () => {
     const prisma = createPrismaMock();
@@ -125,6 +179,30 @@ describe('CrewsService.save', () => {
         }),
       }),
     );
+  });
+
+  it('keeps a host-supplied name on first save', async () => {
+    const prisma = createPrismaMock();
+    prisma.crew.findMany.mockResolvedValue([]);
+    prisma.crew.create.mockResolvedValue(crew({ name: 'Acme walkers' }));
+
+    await createService(prisma).save(owner, 'm1', 'Acme walkers');
+
+    expect(prisma.crew.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: 'Acme walkers' }),
+      }),
+    );
+  });
+
+  it('does not overwrite the name when the roster already existed', async () => {
+    const prisma = createPrismaMock();
+
+    const saved = await createService(prisma).save(owner, 'm1', 'New name');
+
+    expect(saved.alreadyExisted).toBe(true);
+    expect(prisma.crew.create).not.toHaveBeenCalled();
+    expect(prisma.crew.update).not.toHaveBeenCalled();
   });
 
   it('hands back an identical roster instead of saving it twice', async () => {

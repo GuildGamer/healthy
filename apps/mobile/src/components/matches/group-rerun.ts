@@ -63,6 +63,9 @@ export type CreatePrefillParams = {
   length?: string;
   crewId?: string;
   parentMatchId?: string;
+  title?: string;
+  /** Comma-separated user ids from a milestone push or deep link. */
+  participantUserIds?: string;
 };
 
 export function createPrefillParams(board: MatchBoard, crewId: string | null): CreatePrefillParams {
@@ -81,6 +84,8 @@ export type CreatePrefill = GroupRules & {
   length: MatchLengthChoice;
   crewId: string | null;
   parentMatchId: string | null;
+  title: string | null;
+  participantUserIds: string[];
 };
 
 const DEFAULT_PREFILL: CreatePrefill = {
@@ -90,7 +95,24 @@ const DEFAULT_PREFILL: CreatePrefill = {
   length: { kind: 'preset', window: 'week' },
   crewId: null,
   parentMatchId: null,
+  title: null,
+  participantUserIds: [],
 };
+
+function parseParticipantUserIds(raw: string | undefined): string[] {
+  if (!raw?.trim()) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      raw
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    ),
+  ];
+}
 
 function parseLength(raw: string | undefined, rules: GroupRules): MatchLengthChoice {
   const preset = matchWindowSchema.safeParse(raw);
@@ -129,5 +151,7 @@ export function createPrefillFrom(params: CreatePrefillParams): CreatePrefill {
     length: parseLength(params.length, rules),
     crewId: params.crewId ?? null,
     parentMatchId: params.parentMatchId ?? null,
+    title: params.title?.trim() || null,
+    participantUserIds: parseParticipantUserIds(params.participantUserIds),
   };
 }

@@ -36,6 +36,15 @@ describe('hrefForPushData', () => {
     expect(hrefForPushData({ matchId: 'm1' })).toBe('/matches/m1');
   });
 
+  it('opens create with a seated acquaintance from a friend milestone', () => {
+    expect(
+      hrefForPushData({ destination: 'match_create', withUserId: 'bee' }),
+    ).toEqual({
+      pathname: '/matches/create',
+      params: { participantUserIds: 'bee' },
+    });
+  });
+
   it('opens the completion screen from a success payload', () => {
     expect(
       hrefForPushData({
@@ -74,6 +83,7 @@ describe('isNavigablePushData', () => {
 
   it('is true for match, challenge, today, and completion destinations', () => {
     expect(isNavigablePushData({ matchId: 'm1' })).toBe(true);
+    expect(isNavigablePushData({ destination: 'match_create' })).toBe(true);
     expect(isNavigablePushData({ destination: 'challenge', challengeId: 'c1' })).toBe(true);
     expect(isNavigablePushData({ destination: 'today' })).toBe(true);
     expect(isNavigablePushData({ destination: 'challenges' })).toBe(true);

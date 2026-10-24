@@ -21,4 +21,5 @@ export type {
   EngagementSendInput,
   EngagementSendResult,
 } from './types/engagement-push.js';
+export { isQuietLocalMinute } from './policy/is-quiet-local-minute.js';
 

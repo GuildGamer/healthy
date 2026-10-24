@@ -7,7 +7,12 @@ import { liveBoard, renderWithClient } from './testing/match-fixtures';
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
-  apiClient: { createMatch: jest.fn(), listCrews: jest.fn() },
+  apiClient: {
+    createMatch: jest.fn(),
+    listCrews: jest.fn(),
+    listAcquaintances: jest.fn(),
+    renameCrew: jest.fn(),
+  },
   apiQuery: {},
 }));
 
@@ -17,12 +22,18 @@ jest.mock('expo-router', () => ({
   router: { replace: jest.fn(), canDismiss: () => false, dismiss: jest.fn() },
 }));
 
-const mockedApi = apiClient as unknown as { createMatch: jest.Mock; listCrews: jest.Mock };
+const mockedApi = apiClient as unknown as {
+  createMatch: jest.Mock;
+  listCrews: jest.Mock;
+  listAcquaintances: jest.Mock;
+  renameCrew: jest.Mock;
+};
 
 describe('MatchCreateScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedApi.listCrews.mockResolvedValue({ crews: [] });
+    mockedApi.listAcquaintances.mockResolvedValue({ people: [] });
   });
 
   it('shows the invite friends will see, starting on a 7-day walking total', async () => {
@@ -84,7 +95,7 @@ describe('MatchCreateScreen', () => {
     await view.cleanup();
   });
 
-  it('seats a saved crew without a link', async () => {
+  it('seats a saved crew without auto-sharing a link', async () => {
     mockedApi.listCrews.mockResolvedValue({
       crews: [
         {
@@ -102,7 +113,41 @@ describe('MatchCreateScreen', () => {
     fireEvent.press(screen.getByTestId('match-create-crew'));
     fireEvent.press(await screen.findByTestId('match-crew-crew-1'));
 
-    expect(screen.getByText('Start with this crew')).toBeOnTheScreen();
+    expect(screen.getByText('Start group')).toBeOnTheScreen();
+    await view.cleanup();
+  });
+
+  it('includes selected people and an optional title when creating', async () => {
+    mockedApi.listAcquaintances.mockResolvedValue({
+      people: [
+        { userId: 'bee', displayName: 'Bee' },
+        { userId: 'cam', displayName: 'Cam' },
+      ],
+    });
+    mockedApi.createMatch.mockResolvedValue({
+      match: liveBoard({ id: 'new' }),
+      invite: { token: 't', url: 'u' },
+    });
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    const view = renderWithClient(<MatchCreateScreen prefill={createPrefillFrom({})} />);
+
+    fireEvent.changeText(screen.getByTestId('match-create-title'), 'Acme March challenge');
+    await waitFor(() => expect(screen.getByTestId('match-create-crew')).toBeEnabled());
+    fireEvent.press(screen.getByTestId('match-create-crew'));
+    fireEvent.press(await screen.findByTestId('match-person-bee'));
+    fireEvent.press(screen.getByTestId('match-person-cam'));
+    fireEvent.press(screen.getByTestId('match-create-submit'));
+
+    await waitFor(() =>
+      expect(mockedApi.createMatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          participantUserIds: ['bee', 'cam'],
+          title: 'Acme March challenge',
+        }),
+      ),
+    );
+    expect(share).not.toHaveBeenCalled();
+    share.mockRestore();
     await view.cleanup();
   });
 });

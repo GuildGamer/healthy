@@ -5721,6 +5721,46 @@
                           },
                           "body": {
                             "type": "string"
+                          },
+                          "challengeSlug": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "activityKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "source": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "sourceUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -6188,6 +6228,19 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "participantUserIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "maxItems": 7
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
                   "sourceUserChallengeId": {
                     "type": "string",
                     "minLength": 1
@@ -6237,6 +6290,10 @@
                         "inviteUrl": {
                           "type": "string",
                           "format": "uri"
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1
                         },
                         "metric": {
                           "enum": [
@@ -7407,6 +7464,10 @@
                       "type": "string",
                       "format": "uri"
                     },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
                     "metric": {
                       "enum": [
                         "pushups",
@@ -7655,6 +7716,10 @@
                     "inviteUrl": {
                       "type": "string",
                       "format": "uri"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
                     },
                     "metric": {
                       "enum": [
@@ -7931,6 +7996,10 @@
                       "type": "string",
                       "format": "uri"
                     },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
                     "metric": {
                       "enum": [
                         "pushups",
@@ -8185,6 +8254,10 @@
                     "inviteUrl": {
                       "type": "string",
                       "format": "uri"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
                     },
                     "metric": {
                       "enum": [
@@ -8453,6 +8526,10 @@
                     "inviteUrl": {
                       "type": "string",
                       "format": "uri"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
                     },
                     "metric": {
                       "enum": [
@@ -9443,7 +9520,10 @@
                       "deferred_invite_claimed",
                       "invite_restored_on_launch",
                       "user_active",
-                      "push_opened"
+                      "push_opened",
+                      "goal_ladder_offered",
+                      "goal_ladder_accepted",
+                      "goal_ladder_declined"
                     ],
                     "type": "string"
                   },
@@ -9561,6 +9641,11 @@
                   "matchId": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
                   }
                 },
                 "required": [
@@ -9619,6 +9704,48 @@
                   "required": [
                     "crew",
                     "alreadyExisted"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/crews/people": {
+      "get": {
+        "operationId": "listAcquaintances",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "displayName"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "people"
                   ]
                 }
               }
@@ -11912,6 +12039,54 @@
                             "minimum": 0,
                             "maximum": 10000
                           },
+                          "challengeSlug": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 80
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "activityKey": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 40
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "source": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "sourceUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
@@ -11925,6 +12100,10 @@
                           "body",
                           "isActive",
                           "sortOrder",
+                          "challengeSlug",
+                          "activityKey",
+                          "source",
+                          "sourceUrl",
                           "updatedAt"
                         ]
                       }
@@ -11980,6 +12159,54 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 10000
+                  },
+                  "challengeSlug": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "activityKey": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sourceUrl": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -11988,7 +12215,11 @@
                   "title",
                   "body",
                   "isActive",
-                  "sortOrder"
+                  "sortOrder",
+                  "challengeSlug",
+                  "activityKey",
+                  "source",
+                  "sourceUrl"
                 ]
               }
             }
@@ -12041,6 +12272,54 @@
                           "minimum": 0,
                           "maximum": 10000
                         },
+                        "challengeSlug": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "activityKey": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "sourceUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uri",
+                              "maxLength": 500
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "updatedAt": {
                           "type": "string",
                           "format": "date-time"
@@ -12054,6 +12333,10 @@
                         "body",
                         "isActive",
                         "sortOrder",
+                        "challengeSlug",
+                        "activityKey",
+                        "source",
+                        "sourceUrl",
                         "updatedAt"
                       ]
                     }
@@ -12109,6 +12392,54 @@
                     "minimum": 0,
                     "maximum": 10000
                   },
+                  "challengeSlug": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "activityKey": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sourceUrl": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -12121,6 +12452,10 @@
                   "body",
                   "isActive",
                   "sortOrder",
+                  "challengeSlug",
+                  "activityKey",
+                  "source",
+                  "sourceUrl",
                   "id"
                 ]
               }
@@ -12174,6 +12509,54 @@
                           "minimum": 0,
                           "maximum": 10000
                         },
+                        "challengeSlug": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "activityKey": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "sourceUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uri",
+                              "maxLength": 500
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "updatedAt": {
                           "type": "string",
                           "format": "date-time"
@@ -12187,6 +12570,10 @@
                         "body",
                         "isActive",
                         "sortOrder",
+                        "challengeSlug",
+                        "activityKey",
+                        "source",
+                        "sourceUrl",
                         "updatedAt"
                       ]
                     }

@@ -32,6 +32,7 @@ import { countryCodeSchema } from './country-code.js';
 import { displayNameSchema } from './display-name.js';
 import {
   leaveCrewContract,
+  listAcquaintancesContract,
   listCrewsContract,
   renameCrewContract,
   saveCrewContract,
@@ -925,6 +926,7 @@ export const appContract = {
   getExperimentAssignment: getExperimentAssignmentContract,
   trackAnalyticsEvent: trackAnalyticsEventContract,
   listCrews: listCrewsContract,
+  listAcquaintances: listAcquaintancesContract,
   saveCrew: saveCrewContract,
   renameCrew: renameCrewContract,
   leaveCrew: leaveCrewContract,
@@ -1055,10 +1057,19 @@ export {
 } from './experiments.js';
 export type { ExperimentAssignment, ExperimentKey, ExperimentStatus } from './experiments.js';
 
-export { CREW_NAME_MAX, crewLabel, crewNameSchema, crewSchema } from './crews.js';
+export {
+  CREW_NAME_MAX,
+  acquaintanceSchema,
+  crewLabel,
+  crewNameSchema,
+  crewSchema,
+  listAcquaintancesContract,
+} from './crews.js';
 export type {
+  Acquaintance,
   Crew,
   CrewIdInput,
+  ListAcquaintancesOutput,
   ListCrewsOutput,
   RenameCrewInput,
   SaveCrewInput,
