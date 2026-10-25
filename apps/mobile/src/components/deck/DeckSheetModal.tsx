@@ -7,11 +7,19 @@ interface DeckSheetModalProps {
   /** Back, or a tap on the dimmed page; omit while the sheet must stay, such as mid-save. */
   onDismiss?: () => void;
   children: ReactNode;
+  /** Pinned under the content, so it stays reachable when a long list scrolls. */
+  footer?: ReactNode;
   testID?: string;
 }
 
 /** A deck sheet over the screen it was opened from, for a choice that has no route of its own. */
-export function DeckSheetModal({ visible, onDismiss, children, testID }: DeckSheetModalProps) {
+export function DeckSheetModal({
+  visible,
+  onDismiss,
+  children,
+  footer,
+  testID,
+}: DeckSheetModalProps) {
   return (
     <Modal
       animationType="none"
@@ -20,7 +28,7 @@ export function DeckSheetModal({ visible, onDismiss, children, testID }: DeckShe
       transparent
       visible={visible}
     >
-      <DeckSheet onDismiss={onDismiss} testID={testID}>
+      <DeckSheet footer={footer} onDismiss={onDismiss} testID={testID}>
         {children}
       </DeckSheet>
     </Modal>

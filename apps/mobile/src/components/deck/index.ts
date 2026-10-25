@@ -29,6 +29,7 @@ export { DeckRingShutter } from './DeckRingShutter';
 export { DeckRoundButton } from './DeckRoundButton';
 export { DeckSectionTitle } from './DeckSectionTitle';
 export { DeckSegmented, type DeckSegmentOption } from './DeckSegmented';
+export { DeckSelectRow } from './DeckSelectRow';
 export { DeckSheet } from './DeckSheet';
 export { DeckSheetEyebrow } from './DeckSheetEyebrow';
 export { DeckSheetMessage } from './DeckSheetMessage';

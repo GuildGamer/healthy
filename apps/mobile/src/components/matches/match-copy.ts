@@ -54,9 +54,10 @@ export const CREATE_COPY = {
   newGroupHint: 'Send a link to anyone',
   peopleSection: 'People you’ve competed with',
   crewsSection: 'Saved crews',
-  personHint: 'Past contest',
-  crewHint: (people: number) => `Saved crew · ${people} people`,
-  crewHintRename: (people: number) => `Saved crew · ${people} · hold to rename`,
+  crewHint: (people: number) => `${people} people`,
+  crewRenameHint: 'Hold to rename',
+  showAll: (count: number) => `Show all ${count}`,
+  showFewer: 'Show fewer',
   peoplePicked: (count: number) =>
     count === 1 ? '1 person' : `${count} people`,
   peopleAndCrew: (people: number, crew: string) =>

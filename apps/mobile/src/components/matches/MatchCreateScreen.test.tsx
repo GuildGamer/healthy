@@ -117,6 +117,29 @@ describe('MatchCreateScreen', () => {
     await view.cleanup();
   });
 
+  it('shows the most recent people until asked for all, keeping picks in view', async () => {
+    mockedApi.listAcquaintances.mockResolvedValue({
+      people: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((userId) => ({
+        userId,
+        displayName: userId.toUpperCase(),
+      })),
+    });
+    const view = renderWithClient(<MatchCreateScreen prefill={createPrefillFrom({})} />);
+
+    await waitFor(() => expect(screen.getByTestId('match-create-crew')).toBeEnabled());
+    fireEvent.press(screen.getByTestId('match-create-crew'));
+    expect(await screen.findByTestId('match-person-e')).toBeOnTheScreen();
+    expect(screen.queryByTestId('match-person-f')).toBeNull();
+
+    fireEvent.press(screen.getByText('Show all 7'));
+    fireEvent.press(screen.getByTestId('match-person-g'));
+    fireEvent.press(screen.getByText('Show fewer'));
+
+    expect(screen.queryByTestId('match-person-f')).toBeNull();
+    expect(screen.getByTestId('match-person-g')).toBeOnTheScreen();
+    await view.cleanup();
+  });
+
   it('includes selected people and an optional title when creating', async () => {
     mockedApi.listAcquaintances.mockResolvedValue({
       people: [
