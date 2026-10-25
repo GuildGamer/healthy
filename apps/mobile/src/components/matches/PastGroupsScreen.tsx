@@ -13,7 +13,7 @@ import { GroupToneDisc } from './GroupToneDisc';
 import { finishLabel, pastGroupMeta, pastGroupSections } from './group-history';
 import { groupTitle } from './group-today';
 import { GROUPS_COPY } from './match-copy';
-import { matchScoreUnitFor } from './match-metric';
+import { formatBoardScore } from './match-metric';
 
 /** A plain record of ended groups, newest first. Each opens its final board. */
 export function PastGroupsScreen() {
@@ -54,6 +54,11 @@ export function PastGroupsScreen() {
   );
 }
 
+function pastScoreLabel(item: MatchListItem): string {
+  const formatted = formatBoardScore(item.scoringMode, item.metric, item.yourScore);
+  return formatted.unit ? `${formatted.value} ${formatted.unit}` : formatted.value;
+}
+
 function PastGroupRow({ item, isFirst }: { item: MatchListItem; isFirst: boolean }) {
   const router = useRouter();
   const { colors } = useTheme();
@@ -82,9 +87,7 @@ function PastGroupRow({ item, isFirst }: { item: MatchListItem; isFirst: boolean
       </View>
       <View style={styles.side}>
         <Text style={styles.place}>{finishLabel(item)}</Text>
-        <Text
-          style={styles.meta}
-        >{`${item.yourScore} ${matchScoreUnitFor(item.scoringMode, item.metric, item.yourScore)}`}</Text>
+        <Text style={styles.meta}>{pastScoreLabel(item)}</Text>
       </View>
       <Glyph color={colors.muted} name="forward" size={16} strokeWidth={2} />
     </Pressable>

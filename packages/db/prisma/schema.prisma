@@ -199,6 +199,13 @@ enum DeviceMetric {
   heart_rate
   /// On-device pose session (e.g. push-up counting from camera landmarks).
   pushups
+  squats
+  plank
+  jumping_jacks
+  burpees
+  sit_ups
+  mountain_climbers
+  lunges
 }
 
 enum DeviceActivitySource {
@@ -879,6 +886,13 @@ model AdminAuditEvent {
 enum MatchMetric {
   pushups
   walk
+  squats
+  plank
+  jumping_jacks
+  burpees
+  sit_ups
+  mountain_climbers
+  lunges
 }
 
 enum MatchScoringMode {

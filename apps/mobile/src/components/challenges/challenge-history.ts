@@ -22,6 +22,13 @@ const DEVICE_METRIC: Record<string, string> = {
   weight: 'Weight',
   heart_rate: 'Heart rate',
   pushups: 'Push-ups',
+  squats: 'Squats',
+  plank: 'Plank',
+  jumping_jacks: 'Jumping jacks',
+  burpees: 'Burpees',
+  sit_ups: 'Sit-ups',
+  mountain_climbers: 'Mountain climbers',
+  lunges: 'Lunges',
 };
 
 export function formatHistoryWhen(completedAt: string): string {
@@ -151,8 +158,9 @@ function deviceLogCopy(log: Extract<ChallengeHistoryLog, { kind: 'device' }>): s
   }
 
   if (log.count != null) {
-    if (log.metric === 'pushups') {
-      return `${log.count} push-ups`;
+    if (log.metric && DEVICE_METRIC[log.metric]) {
+      const unit = log.metric === 'plank' ? 'seconds' : DEVICE_METRIC[log.metric].toLowerCase();
+      return `${log.count} ${unit}`;
     }
 
     return `${log.count} · ${metric}`;

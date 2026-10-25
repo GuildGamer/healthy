@@ -2030,7 +2030,14 @@
                                       "sleep",
                                       "weight",
                                       "heart_rate",
-                                      "pushups"
+                                      "pushups",
+                                      "squats",
+                                      "plank",
+                                      "jumping_jacks",
+                                      "burpees",
+                                      "sit_ups",
+                                      "mountain_climbers",
+                                      "lunges"
                                     ],
                                     "type": "string"
                                   },
@@ -2261,7 +2268,14 @@
                                       "sleep",
                                       "weight",
                                       "heart_rate",
-                                      "pushups"
+                                      "pushups",
+                                      "squats",
+                                      "plank",
+                                      "jumping_jacks",
+                                      "burpees",
+                                      "sit_ups",
+                                      "mountain_climbers",
+                                      "lunges"
                                     ],
                                     "type": "string"
                                   },
@@ -2439,7 +2453,14 @@
                                       "sleep",
                                       "weight",
                                       "heart_rate",
-                                      "pushups"
+                                      "pushups",
+                                      "squats",
+                                      "plank",
+                                      "jumping_jacks",
+                                      "burpees",
+                                      "sit_ups",
+                                      "mountain_climbers",
+                                      "lunges"
                                     ],
                                     "type": "string"
                                   },
@@ -2690,7 +2711,14 @@
                                       "sleep",
                                       "weight",
                                       "heart_rate",
-                                      "pushups"
+                                      "pushups",
+                                      "squats",
+                                      "plank",
+                                      "jumping_jacks",
+                                      "burpees",
+                                      "sit_ups",
+                                      "mountain_climbers",
+                                      "lunges"
                                     ],
                                     "type": "string"
                                   },
@@ -3374,7 +3402,14 @@
                                     "sleep",
                                     "weight",
                                     "heart_rate",
-                                    "pushups"
+                                    "pushups",
+                                    "squats",
+                                    "plank",
+                                    "jumping_jacks",
+                                    "burpees",
+                                    "sit_ups",
+                                    "mountain_climbers",
+                                    "lunges"
                                   ],
                                   "type": "string"
                                 },
@@ -3644,7 +3679,14 @@
                           "sleep",
                           "weight",
                           "heart_rate",
-                          "pushups"
+                          "pushups",
+                          "squats",
+                          "plank",
+                          "jumping_jacks",
+                          "burpees",
+                          "sit_ups",
+                          "mountain_climbers",
+                          "lunges"
                         ],
                         "type": "string"
                       },
@@ -4005,7 +4047,14 @@
                                     "sleep",
                                     "weight",
                                     "heart_rate",
-                                    "pushups"
+                                    "pushups",
+                                    "squats",
+                                    "plank",
+                                    "jumping_jacks",
+                                    "burpees",
+                                    "sit_ups",
+                                    "mountain_climbers",
+                                    "lunges"
                                   ],
                                   "type": "string"
                                 },
@@ -4483,7 +4532,14 @@
                                     "sleep",
                                     "weight",
                                     "heart_rate",
-                                    "pushups"
+                                    "pushups",
+                                    "squats",
+                                    "plank",
+                                    "jumping_jacks",
+                                    "burpees",
+                                    "sit_ups",
+                                    "mountain_climbers",
+                                    "lunges"
                                   ],
                                   "type": "string"
                                 },
@@ -5118,7 +5174,14 @@
                                     "sleep",
                                     "weight",
                                     "heart_rate",
-                                    "pushups"
+                                    "pushups",
+                                    "squats",
+                                    "plank",
+                                    "jumping_jacks",
+                                    "burpees",
+                                    "sit_ups",
+                                    "mountain_climbers",
+                                    "lunges"
                                   ],
                                   "type": "string"
                                 },
@@ -5546,7 +5609,14 @@
                                           "sleep",
                                           "weight",
                                           "heart_rate",
-                                          "pushups"
+                                          "pushups",
+                                          "squats",
+                                          "plank",
+                                          "jumping_jacks",
+                                          "burpees",
+                                          "sit_ups",
+                                          "mountain_climbers",
+                                          "lunges"
                                         ],
                                         "type": "string"
                                       },
@@ -6203,7 +6273,14 @@
                     "default": "pushups",
                     "enum": [
                       "pushups",
-                      "walk"
+                      "walk",
+                      "squats",
+                      "plank",
+                      "jumping_jacks",
+                      "burpees",
+                      "sit_ups",
+                      "mountain_climbers",
+                      "lunges"
                     ],
                     "type": "string"
                   },
@@ -6298,7 +6375,14 @@
                         "metric": {
                           "enum": [
                             "pushups",
-                            "walk"
+                            "walk",
+                            "squats",
+                            "plank",
+                            "jumping_jacks",
+                            "burpees",
+                            "sit_ups",
+                            "mountain_climbers",
+                            "lunges"
                           ],
                           "type": "string"
                         },
@@ -6556,7 +6640,14 @@
                           "metric": {
                             "enum": [
                               "pushups",
-                              "walk"
+                              "walk",
+                              "squats",
+                              "plank",
+                              "jumping_jacks",
+                              "burpees",
+                              "sit_ups",
+                              "mountain_climbers",
+                              "lunges"
                             ],
                             "type": "string"
                           },
@@ -6862,7 +6953,14 @@
                           "metric": {
                             "enum": [
                               "pushups",
-                              "walk"
+                              "walk",
+                              "squats",
+                              "plank",
+                              "jumping_jacks",
+                              "burpees",
+                              "sit_ups",
+                              "mountain_climbers",
+                              "lunges"
                             ],
                             "type": "string"
                           },
@@ -7216,7 +7314,14 @@
                     "metric": {
                       "enum": [
                         "pushups",
-                        "walk"
+                        "walk",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
                       ],
                       "type": "string"
                     },
@@ -7347,6 +7452,21 @@
             },
             "allowEmptyValue": true,
             "allowReserved": true
+          },
+          {
+            "name": "purpose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "enum": [
+                "open",
+                "link_preview"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
           }
         ],
         "responses": {
@@ -7368,7 +7488,14 @@
                     "metric": {
                       "enum": [
                         "pushups",
-                        "walk"
+                        "walk",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
                       ],
                       "type": "string"
                     },
@@ -7471,7 +7598,14 @@
                     "metric": {
                       "enum": [
                         "pushups",
-                        "walk"
+                        "walk",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
                       ],
                       "type": "string"
                     },
@@ -7724,7 +7858,14 @@
                     "metric": {
                       "enum": [
                         "pushups",
-                        "walk"
+                        "walk",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
                       ],
                       "type": "string"
                     },
@@ -8003,7 +8144,14 @@
                     "metric": {
                       "enum": [
                         "pushups",
-                        "walk"
+                        "walk",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
                       ],
                       "type": "string"
                     },
@@ -8262,7 +8410,14 @@
                     "metric": {
                       "enum": [
                         "pushups",
-                        "walk"
+                        "walk",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
                       ],
                       "type": "string"
                     },
@@ -8534,7 +8689,14 @@
                     "metric": {
                       "enum": [
                         "pushups",
-                        "walk"
+                        "walk",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
                       ],
                       "type": "string"
                     },
@@ -8790,7 +8952,14 @@
                           "metric": {
                             "enum": [
                               "pushups",
-                              "walk"
+                              "walk",
+                              "squats",
+                              "plank",
+                              "jumping_jacks",
+                              "burpees",
+                              "sit_ups",
+                              "mountain_climbers",
+                              "lunges"
                             ],
                             "type": "string"
                           },
@@ -9096,7 +9265,14 @@
                           "metric": {
                             "enum": [
                               "pushups",
-                              "walk"
+                              "walk",
+                              "squats",
+                              "plank",
+                              "jumping_jacks",
+                              "burpees",
+                              "sit_ups",
+                              "mountain_climbers",
+                              "lunges"
                             ],
                             "type": "string"
                           },
@@ -9519,6 +9695,10 @@
                       "deferred_invite_stashed",
                       "deferred_invite_claimed",
                       "invite_restored_on_launch",
+                      "invite_testflight_clicked",
+                      "invite_app_opened",
+                      "invite_auto_joined",
+                      "invite_first_attempt",
                       "user_active",
                       "push_opened",
                       "goal_ladder_offered",
@@ -9918,7 +10098,14 @@
                   "metric": {
                     "enum": [
                       "pushups",
-                      "walk"
+                      "walk",
+                      "squats",
+                      "plank",
+                      "jumping_jacks",
+                      "burpees",
+                      "sit_ups",
+                      "mountain_climbers",
+                      "lunges"
                     ],
                     "type": "string"
                   },
@@ -9994,7 +10181,14 @@
                             "sleep",
                             "weight",
                             "heart_rate",
-                            "pushups"
+                            "pushups",
+                            "squats",
+                            "plank",
+                            "jumping_jacks",
+                            "burpees",
+                            "sit_ups",
+                            "mountain_climbers",
+                            "lunges"
                           ],
                           "type": "string"
                         },
@@ -10065,7 +10259,14 @@
                 "sleep",
                 "weight",
                 "heart_rate",
-                "pushups"
+                "pushups",
+                "squats",
+                "plank",
+                "jumping_jacks",
+                "burpees",
+                "sit_ups",
+                "mountain_climbers",
+                "lunges"
               ],
               "type": "string"
             },
@@ -10277,7 +10478,14 @@
                                             "sleep",
                                             "weight",
                                             "heart_rate",
-                                            "pushups"
+                                            "pushups",
+                                            "squats",
+                                            "plank",
+                                            "jumping_jacks",
+                                            "burpees",
+                                            "sit_ups",
+                                            "mountain_climbers",
+                                            "lunges"
                                           ],
                                           "type": "string"
                                         },
@@ -10480,7 +10688,14 @@
                                       "sleep",
                                       "weight",
                                       "heart_rate",
-                                      "pushups"
+                                      "pushups",
+                                      "squats",
+                                      "plank",
+                                      "jumping_jacks",
+                                      "burpees",
+                                      "sit_ups",
+                                      "mountain_climbers",
+                                      "lunges"
                                     ],
                                     "type": "string"
                                   },
@@ -10690,7 +10905,14 @@
                                       "sleep",
                                       "weight",
                                       "heart_rate",
-                                      "pushups"
+                                      "pushups",
+                                      "squats",
+                                      "plank",
+                                      "jumping_jacks",
+                                      "burpees",
+                                      "sit_ups",
+                                      "mountain_climbers",
+                                      "lunges"
                                     ],
                                     "type": "string"
                                   },
@@ -10809,7 +11031,14 @@
                               "sleep",
                               "weight",
                               "heart_rate",
-                              "pushups"
+                              "pushups",
+                              "squats",
+                              "plank",
+                              "jumping_jacks",
+                              "burpees",
+                              "sit_ups",
+                              "mountain_climbers",
+                              "lunges"
                             ],
                             "type": "string"
                           },
@@ -11055,7 +11284,14 @@
                                   "sleep",
                                   "weight",
                                   "heart_rate",
-                                  "pushups"
+                                  "pushups",
+                                  "squats",
+                                  "plank",
+                                  "jumping_jacks",
+                                  "burpees",
+                                  "sit_ups",
+                                  "mountain_climbers",
+                                  "lunges"
                                 ],
                                 "type": "string"
                               },
@@ -11266,7 +11502,14 @@
                           "sleep",
                           "weight",
                           "heart_rate",
-                          "pushups"
+                          "pushups",
+                          "squats",
+                          "plank",
+                          "jumping_jacks",
+                          "burpees",
+                          "sit_ups",
+                          "mountain_climbers",
+                          "lunges"
                         ],
                         "type": "string"
                       },
@@ -11463,7 +11706,14 @@
                                 "sleep",
                                 "weight",
                                 "heart_rate",
-                                "pushups"
+                                "pushups",
+                                "squats",
+                                "plank",
+                                "jumping_jacks",
+                                "burpees",
+                                "sit_ups",
+                                "mountain_climbers",
+                                "lunges"
                               ],
                               "type": "string"
                             },
@@ -11673,7 +11923,14 @@
                           "sleep",
                           "weight",
                           "heart_rate",
-                          "pushups"
+                          "pushups",
+                          "squats",
+                          "plank",
+                          "jumping_jacks",
+                          "burpees",
+                          "sit_ups",
+                          "mountain_climbers",
+                          "lunges"
                         ],
                         "type": "string"
                       },
@@ -11875,7 +12132,14 @@
                                 "sleep",
                                 "weight",
                                 "heart_rate",
-                                "pushups"
+                                "pushups",
+                                "squats",
+                                "plank",
+                                "jumping_jacks",
+                                "burpees",
+                                "sit_ups",
+                                "mountain_climbers",
+                                "lunges"
                               ],
                               "type": "string"
                             },

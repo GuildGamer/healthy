@@ -3,9 +3,16 @@ import type { PrismaClient } from '@product/db';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import {
-  CREW_SEAT_PUSH_BODY,
   CREW_SEAT_PUSH_TITLE,
+  crewSeatPushBody,
 } from './constants/crew-seat-notification.js';
+
+export type CrewSeatNotice = {
+  matchId: string;
+  hostName: string;
+  activityNoun: string;
+  userIds: readonly string[];
+};
 
 /**
  * The one push a crew-seated member gets. Exactly one: being added to someone
@@ -23,7 +30,8 @@ export class CrewSeatNotifierService {
    * Idempotent: the inbox row is keyed on the seat, so a retried creation
    * cannot notify the same person about the same contest twice.
    */
-  async notifySeated(matchId: string, userIds: readonly string[]): Promise<void> {
+  async notifySeated(notice: CrewSeatNotice): Promise<void> {
+    const { matchId, hostName, activityNoun, userIds } = notice;
     if (userIds.length === 0) {
       return;
     }
@@ -34,6 +42,8 @@ export class CrewSeatNotifierService {
       return;
     }
 
+    const body = crewSeatPushBody(hostName, activityNoun);
+
     // The inbox row is written first and is the idempotency record. A push
     // that fails is not retried: a stale "you were added" is worse than none,
     // and the contest is waiting in the app either way.
@@ -42,7 +52,7 @@ export class CrewSeatNotifierService {
         userId,
         kind: 'social' as const,
         title: CREW_SEAT_PUSH_TITLE,
-        body: CREW_SEAT_PUSH_BODY,
+        body,
         payload: { matchId },
         idempotencyKey: this.seatKey(matchId, userId),
       })),
@@ -55,7 +65,7 @@ export class CrewSeatNotifierService {
       pushes: unnotified.map((userId) => ({
         userId,
         title: CREW_SEAT_PUSH_TITLE,
-        body: CREW_SEAT_PUSH_BODY,
+        body,
         data: { matchId },
       })),
     });

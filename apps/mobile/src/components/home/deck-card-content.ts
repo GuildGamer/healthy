@@ -4,6 +4,7 @@ import type {
   TodayChallenge,
   TodayOccurrenceDetail,
 } from '@product/client';
+import { isPoseMetric } from '@product/contract/match-board';
 import { challengeProgress } from '@/components/challenges/challenge-progress';
 import { waterGlassCount, waterGlassGoal } from '@/components/challenges/water-glasses';
 import { TODAY_COPY } from './constants/today-copy';
@@ -72,8 +73,14 @@ function isSleepChallenge(challenge: DeckChallenge): boolean {
 
 /** How the card is proved: Healthy's honest edge, so it gets its own line. */
 export function deckCardProof(challenge: DeckChallenge): DeckProof {
-  if (challenge.capture.metric === 'pushups') {
-    return { glyph: 'camera', line: 'Counted by your camera' };
+  if (challenge.capture.metric && isPoseMetric(challenge.capture.metric)) {
+    return {
+      glyph: 'camera',
+      line:
+        challenge.capture.metric === 'plank'
+          ? 'Timed by your camera'
+          : 'Counted by your camera',
+    };
   }
 
   if (isDeviceCapture(challenge)) {
@@ -110,8 +117,8 @@ export function deckCardVerb(challenge: DeckChallenge): string {
     return 'Resume';
   }
 
-  if (challenge.capture.metric === 'pushups') {
-    return 'Start set';
+  if (challenge.capture.metric && isPoseMetric(challenge.capture.metric)) {
+    return challenge.capture.metric === 'plank' ? 'Start hold' : 'Start set';
   }
 
   if (isDeviceCapture(challenge)) {
@@ -126,8 +133,8 @@ export function deckCardVerb(challenge: DeckChallenge): string {
 }
 
 function countUnit(metric: DeckChallenge['capture']['metric']): string {
-  if (metric === 'pushups') {
-    return 'reps';
+  if (metric && isPoseMetric(metric)) {
+    return metric === 'plank' ? 'seconds' : 'reps';
   }
 
   return metric === 'steps' ? 'steps' : '';

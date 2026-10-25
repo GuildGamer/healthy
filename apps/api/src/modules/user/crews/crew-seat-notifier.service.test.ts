@@ -33,18 +33,36 @@ function createService(
   return { service, delivery };
 }
 
+function notice(
+  overrides: Partial<{
+    matchId: string;
+    hostName: string;
+    activityNoun: string;
+    userIds: readonly string[];
+  }> = {},
+) {
+  return {
+    matchId: 'm1',
+    hostName: 'Ada',
+    activityNoun: 'push-up',
+    userIds: ['bee', 'cam'] as readonly string[],
+    ...overrides,
+  };
+}
+
 describe('CrewSeatNotifierService', () => {
   it('writes one inbox row per seat and pushes to their devices', async () => {
     const prisma = createPrismaMock();
     const { service, delivery } = createService(prisma);
 
-    await service.notifySeated('m1', ['bee', 'cam']);
+    await service.notifySeated(notice());
 
     expect(prisma.notification.createMany).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({
           userId: 'bee',
           kind: 'social',
+          body: 'Ada added you to a push-up contest. Open it to take part.',
           payload: { matchId: 'm1' },
           idempotencyKey: 'crew_seat:m1:bee',
         }),
@@ -66,17 +84,18 @@ describe('CrewSeatNotifierService', () => {
     });
   });
 
-  it('does not name the host or the crew in what it sends', async () => {
+  it('names the host and the exercise in what it sends', async () => {
     const prisma = createPrismaMock();
     const { service, delivery } = createService(prisma);
 
-    await service.notifySeated('m1', ['bee']);
+    await service.notifySeated(notice({ userIds: ['bee'] }));
 
     const [input] = delivery.send.mock.calls[0] as [
       { pushes: { title: string; body: string }[] },
     ];
     const text = `${input.pushes[0]?.title} ${input.pushes[0]?.body}`;
-    expect(text).not.toMatch(/Ada|crew/i);
+    expect(text).toMatch(/Ada/);
+    expect(text).toMatch(/push-up/);
     expect(text).toMatch(/group challenge/i);
   });
 
@@ -87,7 +106,7 @@ describe('CrewSeatNotifierService', () => {
     ]);
     const { service, delivery } = createService(prisma);
 
-    await service.notifySeated('m1', ['bee', 'cam']);
+    await service.notifySeated(notice());
 
     // Bee already knows; only Cam is new.
     expect(prisma.notification.createMany).toHaveBeenCalledWith({
@@ -108,7 +127,7 @@ describe('CrewSeatNotifierService', () => {
     ]);
     const { service, delivery } = createService(prisma);
 
-    await service.notifySeated('m1', ['bee']);
+    await service.notifySeated(notice({ userIds: ['bee'] }));
 
     expect(prisma.notification.createMany).not.toHaveBeenCalled();
     expect(delivery.send).not.toHaveBeenCalled();
@@ -125,7 +144,7 @@ describe('CrewSeatNotifierService', () => {
     });
     const { service } = createService(prisma, delivery);
 
-    await service.notifySeated('m1', ['bee']);
+    await service.notifySeated(notice({ userIds: ['bee'] }));
 
     expect(prisma.notification.createMany).toHaveBeenCalled();
     expect(delivery.send).toHaveBeenCalled();
@@ -135,7 +154,7 @@ describe('CrewSeatNotifierService', () => {
     const prisma = createPrismaMock();
     const { service } = createService(prisma);
 
-    await service.notifySeated('m1', []);
+    await service.notifySeated(notice({ userIds: [] }));
 
     expect(prisma.notification.findMany).not.toHaveBeenCalled();
     expect(prisma.notification.createMany).not.toHaveBeenCalled();

@@ -3,7 +3,7 @@ import {
   isScoringModeAllowedForMetric,
   matchScoringModeSchema,
 } from '@product/contract/match-board';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { DeckButton, DeckSheetModal, DeckSheetTitle } from '@/components/deck';
 import type { GlyphName } from '@/components/icons';
 import { type GroupRules, scoringModeHint } from './group-rule-copy';
@@ -12,6 +12,7 @@ import {
   MATCH_ANY_DAILY_CHOICE,
   MATCH_ANY_DAILY_LABEL,
   MATCH_METRIC_LABEL,
+  MATCH_POSE_METRICS,
   type MatchActivityChoice,
 } from './match-metric';
 import { SheetChoice } from './SheetChoice';
@@ -58,14 +59,31 @@ export function HowYouWinSheet({
 const ACTIVITY_HINT: Record<MatchActivityChoice, string> = {
   walk: 'Walks you already track count',
   pushups: 'Sets counted by the camera',
+  squats: 'Sets counted by the camera',
+  plank: 'Hold timed by the camera',
+  jumping_jacks: 'Sets counted by the camera',
+  burpees: 'Sets counted by the camera',
+  sit_ups: 'Sets counted by the camera',
+  mountain_climbers: 'Sets counted by the camera',
+  lunges: 'Left and right counted together',
   any_daily: 'Whatever each person is working on',
 };
 
 const ACTIVITY_GLYPH: Record<MatchActivityChoice, GlyphName> = {
   walk: 'walk',
   pushups: 'strength',
+  squats: 'strength',
+  plank: 'strength',
+  jumping_jacks: 'strength',
+  burpees: 'strength',
+  sit_ups: 'strength',
+  mountain_climbers: 'strength',
+  lunges: 'strength',
   any_daily: 'calendar',
 };
+
+const POSE_UNAVAILABLE_HINT =
+  Platform.OS === 'android' ? 'iPhone only for now' : 'Sets counted by the camera';
 
 /** What counts. An open streak is only on offer when the group is won on days. */
 export function ActivitySheet({
@@ -78,27 +96,41 @@ export function ActivitySheet({
   activityChoice: MatchActivityChoice;
   onChoose: (choice: MatchActivityChoice) => void;
 }) {
+  const poseChoices: MatchActivityChoice[] = [...MATCH_POSE_METRICS];
   const choices: MatchActivityChoice[] =
     rules.scoringMode === 'days_completed'
-      ? [MATCH_ANY_DAILY_CHOICE, 'walk', 'pushups']
-      : ['walk', 'pushups'];
+      ? [MATCH_ANY_DAILY_CHOICE, 'walk', ...poseChoices]
+      : ['walk', ...poseChoices];
 
   return (
     <DeckSheetModal onDismiss={onClose} testID="match-create-activity-sheet" visible={visible}>
       <DeckSheetTitle>{CREATE_COPY.activityTitle}</DeckSheetTitle>
-      {choices.map((choice) => (
-        <SheetChoice
-          glyph={ACTIVITY_GLYPH[choice]}
-          hint={ACTIVITY_HINT[choice]}
-          isSelected={choice === activityChoice}
-          key={choice}
-          onPress={() => onChoose(choice)}
-          testID={`match-metric-${choice === MATCH_ANY_DAILY_CHOICE ? 'any' : choice}`}
-          title={
-            choice === MATCH_ANY_DAILY_CHOICE ? MATCH_ANY_DAILY_LABEL : MATCH_METRIC_LABEL[choice]
-          }
-        />
-      ))}
+      {choices.map((choice) => {
+        const isPose = choice !== 'walk' && choice !== MATCH_ANY_DAILY_CHOICE;
+        const hint = isPose
+          ? choice === 'plank'
+            ? Platform.OS === 'android'
+              ? 'iPhone only for now'
+              : ACTIVITY_HINT.plank
+            : POSE_UNAVAILABLE_HINT
+          : ACTIVITY_HINT[choice];
+        const isDisabled = isPose && Platform.OS === 'android';
+
+        return (
+          <SheetChoice
+            glyph={ACTIVITY_GLYPH[choice]}
+            hint={hint}
+            isDisabled={isDisabled}
+            isSelected={activityChoice === choice}
+            key={choice}
+            onPress={() => onChoose(choice)}
+            testID={`match-metric-${choice === MATCH_ANY_DAILY_CHOICE ? 'any' : choice}`}
+            title={
+              choice === MATCH_ANY_DAILY_CHOICE ? MATCH_ANY_DAILY_LABEL : MATCH_METRIC_LABEL[choice]
+            }
+          />
+        );
+      })}
       <SheetDone onClose={onClose} />
     </DeckSheetModal>
   );

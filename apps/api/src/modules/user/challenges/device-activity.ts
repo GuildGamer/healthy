@@ -3,6 +3,7 @@ import {
   activityMeetsTarget,
   deviceActivitySchema,
   isDeviceCapture,
+  isPoseMetric,
   type ChallengeCapture,
   type DeviceActivity,
 } from '@product/contract';
@@ -34,15 +35,15 @@ export function requireDeviceActivityFor(
     });
   }
 
-  if (capture.metric === 'pushups' && parsed.data.source === 'manual') {
+  if (capture.metric && isPoseMetric(capture.metric) && parsed.data.source === 'manual') {
     throw new ORPCError('BAD_REQUEST', {
-      message: 'Push-ups must be counted in a camera session',
+      message: 'This exercise must be counted in a camera session',
     });
   }
 
-  if (capture.metric === 'pushups' && parsed.data.source !== 'in_app_pose') {
+  if (capture.metric && isPoseMetric(capture.metric) && parsed.data.source !== 'in_app_pose') {
     throw new ORPCError('BAD_REQUEST', {
-      message: 'Push-ups must be counted in a camera session',
+      message: 'This exercise must be counted in a camera session',
     });
   }
 

@@ -1,4 +1,5 @@
 import type { CatalogChallenge, ChallengeCompletionKind } from '@product/client';
+import { isPoseMetric } from '@product/contract/match-board';
 import type { GlyphName } from '@/components/icons';
 
 export type ChallengeProof = {
@@ -62,7 +63,7 @@ export function challengeProof(
   challenge: Pick<CatalogChallenge, 'completionKind' | 'capture'>,
 ): ChallengeProof {
   const { kind, metric } = challenge.capture;
-  if (metric === 'pushups') {
+  if (metric && isPoseMetric(metric)) {
     return CAMERA;
   }
 

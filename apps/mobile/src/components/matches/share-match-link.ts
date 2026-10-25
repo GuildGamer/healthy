@@ -1,27 +1,18 @@
+import type { MatchMetric, MatchScoringMode } from '@product/contract/match-board';
 import { Platform, Share, type ShareContent } from 'react-native';
+import { inviteShareMessage } from './invite-message';
 
-type ShareMatchLinkOptions = {
+export type ShareMatchLinkOptions = {
   url: string;
-  /** Competition framing for the distribution experiment. */
   hostScore?: number | null;
-  metricLabel?: string;
+  metric: MatchMetric;
+  scoringMode: MatchScoringMode;
+  endsAt?: string | Date | null;
 };
 
-export async function shareMatchLink(urlOrOptions: string | ShareMatchLinkOptions): Promise<void> {
-  const inviteUrl = typeof urlOrOptions === 'string' ? urlOrOptions : urlOrOptions.url;
-  const message = typeof urlOrOptions === 'string' ? inviteUrl : shareMessage(urlOrOptions);
-
-  await Share.share(inviteShareContent(message, inviteUrl));
-}
-
-function shareMessage(options: ShareMatchLinkOptions): string {
-  const { url, hostScore, metricLabel } = options;
-  const scoreLine =
-    hostScore != null && hostScore > 0
-      ? `I did ${hostScore}${metricLabel ? ` ${metricLabel}` : ''}. Think you can beat me?\n`
-      : 'Think you can beat me?\n';
-
-  return `${scoreLine}${url}`;
+export async function shareMatchLink(options: ShareMatchLinkOptions): Promise<void> {
+  const message = `${inviteShareMessage(options)}\n${options.url}`;
+  await Share.share(inviteShareContent(message, options.url));
 }
 
 /**

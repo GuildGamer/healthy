@@ -27,6 +27,14 @@ export const ANALYTICS_EVENT_NAMES = [
   'deferred_invite_claimed',
   /** Cold launch found a pending match token and will route challenge-first. */
   'invite_restored_on_launch',
+  /** Web invite page: recipient tapped Get Healthy (TestFlight). */
+  'invite_testflight_clicked',
+  /** Web invite page: recipient tapped Open / Join in the app. */
+  'invite_app_opened',
+  /** Mobile auto-joined a contest after invite sign-up. */
+  'invite_auto_joined',
+  /** First scored attempt by an invite recipient in that contest. */
+  'invite_first_attempt',
   'user_active',
   /** Member tapped a push that carried engagementDeliveryId. */
   'push_opened',

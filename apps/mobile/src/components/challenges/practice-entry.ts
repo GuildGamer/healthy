@@ -1,6 +1,7 @@
 import type { ChallengeCaptureKind, UserChallengeStatus } from '@product/client';
+import { isPoseMetric } from '@product/contract/match-board';
 
-export const PRACTICE_AGAIN_LABEL = 'Push-ups again';
+export const PRACTICE_AGAIN_LABEL = 'Another set';
 
 /** Short enough for the 88pt pill on a challenge row. */
 export const PRACTICE_AGAIN_SHORT_LABEL = 'Again';
@@ -11,8 +12,8 @@ type PracticeCandidate = {
 };
 
 /**
- * Finishing the daily push-up challenge ends the scoring, not the exercise.
- * A completed push-up occurrence keeps offering free sets, which are recorded
+ * Finishing the daily pose challenge ends the scoring, not the exercise.
+ * A completed pose occurrence keeps offering free sets, which are recorded
  * as activity but earn no points and no streak.
  */
 export function canPracticeAgain(occurrence: PracticeCandidate | null | undefined): boolean {
@@ -20,7 +21,7 @@ export function canPracticeAgain(occurrence: PracticeCandidate | null | undefine
     return false;
   }
 
-  return occurrence.capture?.metric === 'pushups';
+  return Boolean(occurrence.capture?.metric && isPoseMetric(occurrence.capture.metric));
 }
 
 export function practiceRoute(challengeId: string): `/challenge/${string}/practice` {

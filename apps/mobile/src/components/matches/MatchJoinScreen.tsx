@@ -3,6 +3,7 @@ import { fontWeight, spacing } from '@product/brand';
 import { matchTimeLeft } from '@product/contract/match-board';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckNoteCard, DeckPageNav, DeckSheetMessage } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
@@ -11,6 +12,7 @@ import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { stashDeferredInviteToken } from '@/lib/deferred-invite';
 import { goBackOrHome } from '@/lib/go-back';
+import { trackEvent } from '@/lib/track-event';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { GroupCard, GroupCardLine } from './GroupCard';
 import { GroupFace } from './GroupFace';
@@ -25,8 +27,16 @@ const LEAVE_HREF = '/(tabs)/challenges';
  * Opening an invite should feel like being handed something: the host's face,
  * the contest in plain words, and how many are in. Nobody but the host is
  * named, because the link holder has not agreed to anything yet.
+ *
+ * After invite sign-up, `autoJoin` joins once without an extra tap.
  */
-export function MatchJoinScreen({ token }: { token: string }) {
+export function MatchJoinScreen({
+  token,
+  autoJoin = false,
+}: {
+  token: string;
+  autoJoin?: boolean;
+}) {
   const { data: session, isPending: isSessionPending } = useSession();
   const previewQuery = useQuery({
     queryKey: ['matches', 'preview', token],
@@ -57,17 +67,32 @@ export function MatchJoinScreen({ token }: { token: string }) {
     return <Redirect href={`/matches/${preview.matchId}`} />;
   }
 
-  return <Invite preview={preview} token={token} />;
+  return <Invite autoJoin={autoJoin} preview={preview} token={token} />;
 }
 
-function Invite({ preview, token }: { preview: MatchPreview; token: string }) {
+function Invite({
+  preview,
+  token,
+  autoJoin,
+}: {
+  preview: MatchPreview;
+  token: string;
+  autoJoin: boolean;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { deckCards } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const autoJoinStarted = useRef(false);
   const join = useMutation({
     mutationFn: () => apiClient.joinMatch({ token }),
     onSuccess: async (board) => {
+      if (autoJoin) {
+        trackEvent('invite_auto_joined', {
+          matchId: board.id,
+          inviteToken: token,
+        });
+      }
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       router.replace(`/matches/${board.id}`);
     },
@@ -76,6 +101,26 @@ function Invite({ preview, token }: { preview: MatchPreview; token: string }) {
   const isFull = preview.participantCount >= preview.participantCap;
   const canJoin = !isEnded && !isFull;
   const host = preview.hostDisplayName;
+
+  useEffect(() => {
+    if (!autoJoin || !canJoin || autoJoinStarted.current) {
+      return;
+    }
+
+    autoJoinStarted.current = true;
+    join.mutate();
+    // Intentionally once when the invite is joinable after sign-up.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoJoin, canJoin]);
+
+  if (autoJoin && canJoin && (join.isPending || !join.isError)) {
+    return (
+      <GroupPage testID="match-join-auto">
+        <ScreenLoader />
+        <Text style={styles.autoJoinLine}>{`Joining ${host}’s contest…`}</Text>
+      </GroupPage>
+    );
+  }
 
   return (
     <GroupPage
@@ -193,6 +238,12 @@ const createStyles = (theme: Theme) =>
       fontSize: 14.5,
       lineHeight: 21,
       marginTop: 14,
+      textAlign: 'center',
+    },
+    autoJoinLine: {
+      color: theme.colors.muted,
+      fontSize: 15,
+      marginTop: spacing.md,
       textAlign: 'center',
     },
   });

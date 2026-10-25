@@ -29,13 +29,17 @@ export {
   MATCH_DAY_STRIP_MAX_DAYS,
   MATCH_LENGTH_MAX_DAYS,
   MATCH_LENGTH_MIN_DAYS,
+  MATCH_METRIC_MEASURE,
   MATCH_MIN_DAYS_BY_SCORING_MODE,
   MATCH_MODES_BY_METRIC,
   MATCH_PARTICIPANT_CAP,
   MATCH_TITLE_MAX,
   MATCH_PRESET_DAYS,
   MATCH_WINDOWS_BY_SCORING_MODE,
+  POSE_METRICS,
+  formatMatchMetricScore,
   isLengthAllowedForScoringMode,
+  isPoseMetric,
   isScoringModeAllowedForMetric,
   isWindowAllowedForScoringMode,
   matchAttemptSourceSchema,
@@ -221,6 +225,17 @@ export const matchTokenInputSchema = z.object({
   token: matchInviteTokenSchema,
 });
 
+/**
+ * Optional purpose for the public invite preview. Link-preview bots must not
+ * stamp firstOpenedAt or fire challenge_link_opened.
+ */
+export const publicMatchInvitePurposeSchema = z.enum(['open', 'link_preview']).default('open');
+
+export const publicMatchInviteInputSchema = z.object({
+  token: matchInviteTokenSchema,
+  purpose: publicMatchInvitePurposeSchema.optional(),
+});
+
 export const matchPreviewSchema = z.object({
   token: z.string().min(1),
   matchId: z.string().min(1),
@@ -340,7 +355,7 @@ export const previewMatchContract = oc
 
 export const publicPreviewMatchContract = oc
   .route({ method: 'GET', path: '/matches/invite/public' })
-  .input(matchTokenInputSchema)
+  .input(publicMatchInviteInputSchema)
   .output(publicMatchInvitePreviewSchema);
 
 export const joinMatchContract = oc

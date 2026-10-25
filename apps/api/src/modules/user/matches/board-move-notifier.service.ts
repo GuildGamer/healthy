@@ -69,7 +69,10 @@ export class BoardMoveNotifierService {
         userId: recipient.userId,
         kind: 'social' as const,
         title: boardMovePushTitle(urgency),
-        body: boardMovePushBody(notice.actorDisplayName, urgency),
+        body: boardMovePushBody(notice.actorDisplayName, urgency, {
+          actorScore: notice.actorScoreAfter,
+          recipientScore: recipient.score,
+        }),
         payload: { matchId: notice.matchId },
         idempotencyKey: boardMoveIdempotencyKey(
           notice.matchId,

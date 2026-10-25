@@ -16,6 +16,12 @@ function inviteUrlCount(content: { message?: string; url?: string }): number {
   return inMessage + inUrl;
 }
 
+const baseOptions = {
+  url: INVITE_URL,
+  metric: 'pushups' as const,
+  scoringMode: 'best_single' as const,
+};
+
 describe('shareMatchLink', () => {
   const originalOs = Platform.OS;
 
@@ -30,41 +36,18 @@ describe('shareMatchLink', () => {
     jest.restoreAllMocks();
   });
 
-  it('shares one invite link on iOS for a group link', async () => {
-    setPlatformOs('ios');
-
-    await shareMatchLink(INVITE_URL);
-
-    expect(Share.share).toHaveBeenCalledTimes(1);
-    const content = shareContent();
-    expect(content).toEqual({ url: INVITE_URL });
-    expect(inviteUrlCount(content)).toBe(1);
-  });
-
   it('keeps the score line and still shares the invite once on iOS', async () => {
     setPlatformOs('ios');
 
     await shareMatchLink({
-      url: INVITE_URL,
+      ...baseOptions,
       hostScore: 20,
-      metricLabel: 'push-ups',
     });
 
     expect(Share.share).toHaveBeenCalledTimes(1);
     const content = shareContent();
-    expect(content.message).toBe('I did 20 push-ups. Think you can beat me?');
+    expect(content.message).toContain('I did 20 push-ups. Think you can beat me?');
     expect(content.url).toBe(INVITE_URL);
-    expect(inviteUrlCount(content)).toBe(1);
-  });
-
-  it('puts the invite in the Android message once', async () => {
-    setPlatformOs('android');
-
-    await shareMatchLink(INVITE_URL);
-
-    expect(Share.share).toHaveBeenCalledTimes(1);
-    const content = shareContent();
-    expect(content).toEqual({ message: INVITE_URL });
     expect(inviteUrlCount(content)).toBe(1);
   });
 
@@ -72,17 +55,24 @@ describe('shareMatchLink', () => {
     setPlatformOs('android');
 
     await shareMatchLink({
-      url: INVITE_URL,
+      ...baseOptions,
       hostScore: 20,
-      metricLabel: 'push-ups',
     });
 
     expect(Share.share).toHaveBeenCalledTimes(1);
     const content = shareContent();
-    expect(content).toEqual({
-      message: `I did 20 push-ups. Think you can beat me?\n${INVITE_URL}`,
-    });
+    expect(content.message).toContain('I did 20 push-ups. Think you can beat me?');
+    expect(content.message).toContain(INVITE_URL);
     expect(inviteUrlCount(content)).toBe(1);
+  });
+
+  it('shares a no-score contest with competitive framing', async () => {
+    setPlatformOs('android');
+
+    await shareMatchLink(baseOptions);
+
+    const content = shareContent();
+    expect(content.message).toContain('I just started a push-up contest. Think you can beat me?');
   });
 });
 

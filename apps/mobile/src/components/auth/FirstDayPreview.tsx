@@ -3,12 +3,12 @@ import { firstDayFor } from './first-day';
 import { FirstDayPlaceholder, FirstDayTimeline } from './FirstDayTimeline';
 import { useStarterChallenges } from './use-starter-challenges';
 
-const NOTHING_PICKED_MESSAGE = 'Tick what you’re looking after and your first day appears here.';
+const NOTHING_PICKED_MESSAGE = 'Your first contests appear here once you’re in.';
 const OFFLINE_MESSAGE =
-  'You’re offline. Your first day appears once you’re connected, and your picks are kept.';
+  'You’re offline. Your first day appears once you’re connected.';
 const LOADING_MESSAGE = 'Putting your first day together…';
 
-/** The day the picked conditions would start, changing as they are ticked. */
+/** Preview of day-one fitness challenges. Kept for dormant condition-picker UI. */
 export function FirstDayPreview({ picked }: { picked: readonly HealthCategory[] }) {
   const starters = useStarterChallenges();
 

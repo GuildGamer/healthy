@@ -52,7 +52,9 @@ export function ChallengeShareScreen({
   );
   const meQuery = useQuery({ queryKey: ['me'], queryFn: () => apiClient.me() });
   const invite = useFriendChallenge({
-    spec: friendChallengeSpec(friend?.source ?? { kind: 'day' }),
+    spec: friendChallengeSpec(
+      friend?.source ?? { kind: 'day' },
+    ),
     isEligible: friend?.isEligible ?? false,
     userChallengeId: friend?.userChallengeId,
   });

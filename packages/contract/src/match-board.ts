@@ -5,7 +5,17 @@ export const MATCH_PARTICIPANT_CAP = 8;
 /** Host-authored contest label. Short enough to stay a title, not a bio. */
 export const MATCH_TITLE_MAX = 60;
 
-export const matchMetricSchema = z.enum(['pushups', 'walk']);
+export const matchMetricSchema = z.enum([
+  'pushups',
+  'walk',
+  'squats',
+  'plank',
+  'jumping_jacks',
+  'burpees',
+  'sit_ups',
+  'mountain_climbers',
+  'lunges',
+]);
 export const matchScoringModeSchema = z.enum(['best_single', 'cumulative_total', 'days_completed']);
 /**
  * How an attempt was captured. Bound to the metric rather than trusted from
@@ -149,6 +159,13 @@ export function matchTimeLeft(endsAt: string, now: Date = new Date()): string {
 const GROUP_ACTIVITY_WORD: Record<MatchMetric, string> = {
   pushups: 'push-up',
   walk: 'walking',
+  squats: 'squat',
+  plank: 'plank',
+  jumping_jacks: 'jumping-jack',
+  burpees: 'burpee',
+  sit_ups: 'sit-up',
+  mountain_climbers: 'mountain-climber',
+  lunges: 'lunge',
 };
 
 /**
@@ -215,6 +232,13 @@ export function matchScoreUnit(scoringMode: MatchScoringMode): string {
 export const MATCH_MODES_BY_METRIC = {
   pushups: ['best_single', 'cumulative_total', 'days_completed'],
   walk: ['cumulative_total', 'days_completed'],
+  squats: ['best_single', 'cumulative_total', 'days_completed'],
+  plank: ['best_single', 'cumulative_total', 'days_completed'],
+  jumping_jacks: ['best_single', 'cumulative_total', 'days_completed'],
+  burpees: ['best_single', 'cumulative_total', 'days_completed'],
+  sit_ups: ['best_single', 'cumulative_total', 'days_completed'],
+  mountain_climbers: ['best_single', 'cumulative_total', 'days_completed'],
+  lunges: ['best_single', 'cumulative_total', 'days_completed'],
 } as const satisfies Record<MatchMetric, readonly MatchScoringMode[]>;
 
 export function isScoringModeAllowedForMetric(
@@ -237,6 +261,13 @@ export function isScoringModeAllowedForMetric(
 export const MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC = {
   pushups: 300,
   walk: 120,
+  squats: 400,
+  plank: 1_200,
+  jumping_jacks: 1_000,
+  burpees: 200,
+  sit_ups: 300,
+  mountain_climbers: 1_000,
+  lunges: 300,
 } as const satisfies Record<MatchMetric, number>;
 
 /**
@@ -254,13 +285,70 @@ export const MATCH_ATTEMPT_MAX_BY_METRIC = {
   pushups: 2_000,
   /** Minutes. A walk cannot outlast the day it happened in. */
   walk: 1_440,
+  squats: 2_000,
+  /** Seconds held. */
+  plank: 3_600,
+  jumping_jacks: 3_000,
+  burpees: 1_000,
+  sit_ups: 2_000,
+  mountain_climbers: 3_000,
+  lunges: 2_000,
 } as const satisfies Record<MatchMetric, number>;
 
 /** The only capture each metric trusts. */
 export const MATCH_ATTEMPT_SOURCE_BY_METRIC = {
   pushups: 'in_app_pose',
   walk: 'in_app_walk',
+  squats: 'in_app_pose',
+  plank: 'in_app_pose',
+  jumping_jacks: 'in_app_pose',
+  burpees: 'in_app_pose',
+  sit_ups: 'in_app_pose',
+  mountain_climbers: 'in_app_pose',
+  lunges: 'in_app_pose',
 } as const satisfies Record<MatchMetric, MatchAttemptSource>;
+
+/** How a metric's `count` is measured. */
+export const MATCH_METRIC_MEASURE = {
+  pushups: 'reps',
+  walk: 'minutes',
+  squats: 'reps',
+  plank: 'seconds',
+  jumping_jacks: 'reps',
+  burpees: 'reps',
+  sit_ups: 'reps',
+  mountain_climbers: 'reps',
+  lunges: 'reps',
+} as const satisfies Record<MatchMetric, 'reps' | 'seconds' | 'minutes'>;
+
+export type MatchMetricMeasure = (typeof MATCH_METRIC_MEASURE)[MatchMetric];
+
+/** Camera-counted exercises (everything except walk). */
+export const POSE_METRICS = [
+  'pushups',
+  'squats',
+  'plank',
+  'jumping_jacks',
+  'burpees',
+  'sit_ups',
+  'mountain_climbers',
+  'lunges',
+] as const satisfies readonly MatchMetric[];
+
+export function isPoseMetric(metric: string): metric is (typeof POSE_METRICS)[number] {
+  return (POSE_METRICS as readonly string[]).includes(metric);
+}
+
+/** Format a score for display: plank shows m:ss, others are plain integers. */
+export function formatMatchMetricScore(metric: MatchMetric, score: number): string {
+  if (MATCH_METRIC_MEASURE[metric] !== 'seconds') {
+    return String(score);
+  }
+
+  const minutes = Math.floor(score / 60);
+  const seconds = score % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
 
 /**
  * How long a contest runs. `today` is calendar-bounded — it ends at the host's

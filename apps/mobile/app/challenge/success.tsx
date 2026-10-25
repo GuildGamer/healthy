@@ -1,3 +1,4 @@
+import { isPoseMetric } from '@product/contract/match-board';
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import { ScreenLoader } from '@/components/feedback';
 import { ChallengeSuccessScreen } from '@/components/challenges';
@@ -56,7 +57,9 @@ function friendSourceFor(metric: string | undefined, count: number): FriendChall
     return { kind: 'day' };
   }
 
-  return { kind: 'reps', count };
+  const poseMetric =
+    metric && isPoseMetric(metric) ? metric : ('pushups' as const);
+  return { kind: 'reps', count, metric: poseMetric };
 }
 
 export default function ChallengeSuccessRoute() {

@@ -44,12 +44,12 @@ export interface SplashFanCard {
 /** Back to front, like a hand of cards; the icon stays in front of all three. */
 export const SPLASH_FAN: readonly SplashFanCard[] = [
   {
-    kind: 'bloodPressure',
-    glyph: 'bloodPressure',
+    kind: 'strength',
+    glyph: 'everydayHealth',
     translateX: -34,
     translateY: -46,
     rotateDeg: -12,
   },
-  { kind: 'walk', glyph: 'walk', translateX: 0, translateY: -58, rotateDeg: 0 },
-  { kind: 'water', glyph: 'water', translateX: 34, translateY: -46, rotateDeg: 12 },
+  { kind: 'strength', glyph: 'check', translateX: 0, translateY: -58, rotateDeg: 0 },
+  { kind: 'strength', glyph: 'everydayHealth', translateX: 34, translateY: -46, rotateDeg: 12 },
 ];

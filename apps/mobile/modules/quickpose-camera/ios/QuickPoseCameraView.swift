@@ -171,6 +171,20 @@ final class HealthyQuickPoseView: ExpoView {
     switch key {
     case "fitness.pushUps":
       return .fitness(.pushUps, style: style)
+    case "fitness.squats":
+      return .fitness(.squats, style: style)
+    case "fitness.plank":
+      return .fitness(.plank, style: style)
+    case "fitness.jumpingJacks":
+      return .fitness(.jumpingJacks, style: style)
+    case "fitness.burpees":
+      return .fitness(.burpees, style: style)
+    case "fitness.sitUps":
+      return .fitness(.sitUps, style: style)
+    case "fitness.mountainClimbers":
+      return .fitness(.mountainClimbers, style: style)
+    case "fitness.lunges":
+      return .fitness(.lunges, style: style)
     case "overlay.wholeBody":
       return .overlay(.wholeBody, style: style)
     case "inside.wholeBody":

@@ -47,7 +47,7 @@ const pushups: SharePoster = {
 };
 
 const pushupFriend: ShareFriend = {
-  source: { kind: 'reps', count: 22 },
+  source: { kind: 'reps', count: 22, metric: 'pushups' },
   userChallengeId: 'uc-push',
   isEligible: true,
 };
@@ -165,17 +165,12 @@ describe('ChallengeShareScreen friend invite', () => {
     await view.settle();
   });
 
-  it('hides the invite from the control arm and still leaves Share in place', async () => {
+  it('still offers challenge-a-friend when the assignment is control', async () => {
     mockedApi.getExperimentAssignment.mockResolvedValue(assignment('control'));
     const view = renderShare(pushups, pushupFriend);
 
     expect(await screen.findByTestId('share-poster')).toBeOnTheScreen();
-    await waitFor(() => expect(mockedApi.getExperimentAssignment).toHaveBeenCalled());
-    expect(screen.queryByTestId('share-challenge-friend')).toBeNull();
-    expect(mockedApi.createMatch).not.toHaveBeenCalled();
-    expect(mockedApi.trackAnalyticsEvent).not.toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'challenge_cta_viewed' }),
-    );
+    expect(await screen.findByTestId('share-challenge-friend')).toBeOnTheScreen();
     await view.settle();
   });
 

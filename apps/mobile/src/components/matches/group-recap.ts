@@ -3,7 +3,7 @@ import { ordinal } from '@/components/home/today-labels';
 import { contestDays } from './group-rerun';
 import { groupKindLabel } from './group-rule-copy';
 import { RESULT_COPY } from './match-copy';
-import { matchScoreUnitFor } from './match-metric';
+import { formatBoardScore } from './match-metric';
 
 export type GroupRecapFact = { label: string; value: string };
 
@@ -17,10 +17,17 @@ export type GroupRecapContent = {
   claim: string | null;
 };
 
-const MEASURED_CLAIM = {
+const MEASURED_CLAIM: Record<MatchBoard['metric'], string> = {
   walk: 'Every minute sensor-measured',
   pushups: 'Every rep counted by the camera',
-} as const;
+  squats: 'Every rep counted by the camera',
+  plank: 'Every second timed by the camera',
+  jumping_jacks: 'Every rep counted by the camera',
+  burpees: 'Every rep counted by the camera',
+  sit_ups: 'Every rep counted by the camera',
+  mountain_climbers: 'Every rep counted by the camera',
+  lunges: 'Every rep counted by the camera',
+};
 
 function lengthLabel(board: MatchBoard): string {
   const days = contestDays(board);
@@ -46,10 +53,14 @@ export function groupRecapContent(board: MatchBoard): GroupRecapContent {
   const you = board.standings.find((row) => row.isYou);
   const place = you && you.score > 0 ? you.rank : null;
   const score = you?.score ?? 0;
+  const formatted = formatBoardScore(board.scoringMode, board.metric, score);
+  const scoreLine = formatted.unit
+    ? `${formatted.value} ${formatted.unit}`
+    : formatted.value;
   const facts = [
     {
       label: RESULT_COPY.recapScore,
-      value: `${score} ${matchScoreUnitFor(board.scoringMode, board.metric, score)}`,
+      value: scoreLine,
     },
     { label: RESULT_COPY.recapLength, value: lengthLabel(board) },
   ];
@@ -60,7 +71,7 @@ export function groupRecapContent(board: MatchBoard): GroupRecapContent {
     headline: headlineFor(board, place),
     hero: place
       ? { value: ordinal(place), unit: RESULT_COPY.recapOfGroup(board.participantCount) }
-      : { value: String(score), unit: matchScoreUnitFor(board.scoringMode, board.metric, score) },
+      : { value: formatted.value, unit: formatted.unit },
     facts,
     claim: board.scoringMode === 'days_completed' ? null : MEASURED_CLAIM[board.metric],
   };

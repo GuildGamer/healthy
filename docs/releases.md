@@ -38,6 +38,14 @@ eas submit --platform android  # Play internal / production track
 
 Smoke-test release candidates on real devices before promoting.
 
+### Friend TestFlight invites
+
+Invite links open the TestFlight build when `IOS_APP_ID` on the website lists
+both the store bundle (`TEAM.com.healthyapp.app`) and the friend preview
+(`TEAM.com.healthyapp.tfpreview`). Set `PUBLIC_TESTFLIGHT_URL` to the public
+TestFlight link so the invite page can walk recipients through install when the
+App Store listing is not live yet.
+
 ## API
 
 - Prefer `render.yaml` early.

@@ -9,6 +9,7 @@ import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { POSE_COPY, SAVE_FAILED_MESSAGE } from './constants/doing-copy';
 import { PoseCountHud } from './PoseCountHud';
 import {
+  poseCameraPlacement,
   poseCoachBanner,
   poseReviewTitle,
   poseShortLine,
@@ -71,6 +72,7 @@ function PoseCamera({ session }: { session: PoseSession }) {
       {isLive && QuickPoseCamera ? (
         <QuickPoseCamera
           key={session.cameraSessionKey}
+          metric={session.metric}
           onUpdate={session.handleQuickPoseUpdate}
           sdkKey={QUICKPOSE_SDK_KEY}
         />
@@ -149,13 +151,14 @@ function PoseBottom({ session, mode }: { session: PoseSession; mode: PoseSession
 
 function PoseSetupHint({ session }: { session: PoseSession }) {
   const styles = useThemedStyles(createStyles);
+  const placement = poseCameraPlacement(session.metric);
   const sub =
     session.sessionError ??
     (session.camera.isReady ? POSE_COPY.startsByItself : session.camera.detail);
 
   return (
     <>
-      <Text style={styles.hint}>{POSE_COPY.stepBack}</Text>
+      <Text style={styles.hint}>{placement}</Text>
       <Text style={styles.hintSub} testID="pose-status">
         {sub}
       </Text>

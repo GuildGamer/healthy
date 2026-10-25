@@ -19,11 +19,12 @@ import {
   otherMembersOnlyCount,
   pickCatalogSuggestions,
 } from './catalog-layout';
-import { CategoryChips } from './CategoryChips';
+import { CONDITION_FEATURES_ENABLED } from '@/constants/product-scope';
 import { ChallengePreviewSheet } from './ChallengePreviewSheet';
 import { challengeProof } from './challenge-proof';
 import { ChallengeRow } from './ChallengeRow';
 import { CATALOG_COPY } from './constants/routine-copy';
+import { CategoryChips } from './CategoryChips';
 import { ListSectionTitle } from './ListSectionTitle';
 import { RoutineSkeleton } from './RoutineSkeleton';
 import { SuggestionTile } from './SuggestionTile';
@@ -128,7 +129,9 @@ function CatalogBody({
     <View>
       {suggestions.length > 0 ? <Suggestions onOpen={onOpen} suggestions={suggestions} /> : null}
       {filter === 'all' ? <ListSectionTitle label={CATALOG_COPY.everythingTitle} /> : null}
-      <CategoryChips categories={order} onSelect={setFilter} selected={filter} />
+      {CONDITION_FEATURES_ENABLED ? (
+        <CategoryChips categories={order} onSelect={setFilter} selected={filter} />
+      ) : null}
       {sections.length === 0 && suggestions.length === 0 ? (
         <EverythingAdded filter={filter} />
       ) : (

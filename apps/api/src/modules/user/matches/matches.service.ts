@@ -24,7 +24,7 @@ import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { AnalyticsService } from '../analytics/index.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
-import { publicNameFor } from '../leaderboard/pseudonym.js';
+import { groupNameFor } from '../../../shared/utils/group-name.js';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
 import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
 import type {
@@ -83,6 +83,13 @@ const TRACKED_WALK_SOURCES: DeviceActivitySource[] = [
 const DEVICE_METRIC_BY_MATCH_METRIC: Record<MatchMetric, DeviceMetric> = {
   pushups: 'pushups',
   walk: 'walk',
+  squats: 'squats',
+  plank: 'plank',
+  jumping_jacks: 'jumping_jacks',
+  burpees: 'burpees',
+  sit_ups: 'sit_ups',
+  mountain_climbers: 'mountain_climbers',
+  lunges: 'lunges',
 };
 
 const matchInclude = {
@@ -113,7 +120,8 @@ export class MatchesService {
       | 'challenge_accepted'
       | 'challenge_recipient_signed_up'
       | 'challenge_started_by_recipient'
-      | 'challenge_completed_by_recipient',
+      | 'challenge_completed_by_recipient'
+      | 'invite_first_attempt',
     match: Pick<
       LoadedMatch,
       'id' | 'inviteToken' | 'experimentId' | 'experimentVariantKey' | 'parentMatchId'
@@ -274,7 +282,7 @@ export class MatchesService {
     // After the commit, and never fatal: a contest that exists is worth more
     // than a push that landed. A failed send is not retried, because a late
     // "you were added" is worse than none.
-    await this.notifySeated(created.id, seatedUserIds);
+    await this.notifySeated(created, seatedUserIds);
 
     return {
       match: await this.buildBoard(created, user.id),
@@ -285,11 +293,19 @@ export class MatchesService {
     };
   }
 
-  private async notifySeated(matchId: string, seatedUserIds: readonly string[]): Promise<void> {
+  private async notifySeated(
+    match: LoadedMatch,
+    seatedUserIds: readonly string[],
+  ): Promise<void> {
     try {
-      await this.crewSeatNotifier.notifySeated(matchId, seatedUserIds);
+      await this.crewSeatNotifier.notifySeated({
+        matchId: match.id,
+        hostName: groupNameFor(match.hostUser),
+        activityNoun: match.metric === 'walk' ? 'walking' : 'push-up',
+        userIds: seatedUserIds,
+      });
     } catch (error) {
-      this.logger.error(`Could not notify crew seats for match ${matchId}`, error);
+      this.logger.error(`Could not notify crew seats for match ${match.id}`, error);
     }
   }
 
@@ -309,7 +325,9 @@ export class MatchesService {
         matchId: match.id,
         hostUserId: match.hostUserId,
         acceptedUserId,
-        acceptedDisplayName: publicNameFor(acceptedUserId, participant?.user.profile?.displayName),
+        acceptedDisplayName: participant
+          ? groupNameFor(participant.user)
+          : groupNameFor({ id: acceptedUserId }),
       });
     } catch (error) {
       this.logger.error(`Could not notify host of an accepted invite for match ${match.id}`, error);
@@ -327,7 +345,7 @@ export class MatchesService {
     return {
       token: live.inviteToken,
       matchId: live.id,
-      hostDisplayName: publicNameFor(live.hostUserId, live.hostUser.profile?.displayName),
+      hostDisplayName: groupNameFor(live.hostUser),
       hostImage: live.hostUser.image?.trim() ? live.hostUser.image : null,
       metric: live.metric,
       scoringMode: live.scoringMode,
@@ -348,37 +366,43 @@ export class MatchesService {
   /**
    * Unauthenticated invite card for the marketing site / deferred install.
    * Skips settlement so a public hit cannot race host settlement side effects.
+   * Link-preview bots pass purpose=link_preview so they do not stamp opens.
    */
-  async publicPreview(token: string): Promise<PublicMatchInvitePreviewDto> {
+  async publicPreview(
+    token: string,
+    purpose: 'open' | 'link_preview' = 'open',
+  ): Promise<PublicMatchInvitePreviewDto> {
     const match = await this.loadByToken(token);
+    const isLinkPreview = purpose === 'link_preview';
 
-    if (match.firstOpenedAt === null) {
+    if (!isLinkPreview && match.firstOpenedAt === null) {
       await this.prisma.match.updateMany({
         where: { id: match.id, firstOpenedAt: null },
         data: { firstOpenedAt: new Date() },
       });
     }
 
-    try {
-      await this.analyticsService.track(null, {
-        name: 'challenge_link_opened',
-        properties: {
-          matchId: match.id,
-          inviteToken: match.inviteToken,
-          experimentId: match.experimentId,
-          experimentVariantKey: match.experimentVariantKey,
-        },
-      });
-    } catch (error) {
-      this.logger.error(`Could not track challenge_link_opened for match ${match.id}`, error);
+    if (!isLinkPreview) {
+      try {
+        await this.analyticsService.track(null, {
+          name: 'challenge_link_opened',
+          properties: {
+            matchId: match.id,
+            inviteToken: match.inviteToken,
+            experimentId: match.experimentId,
+            experimentVariantKey: match.experimentVariantKey,
+          },
+        });
+      } catch (error) {
+        this.logger.error(`Could not track challenge_link_opened for match ${match.id}`, error);
+      }
     }
 
     return {
       token: match.inviteToken,
-      hostDisplayName: publicNameFor(match.hostUserId, match.hostUser.profile?.displayName),
+      hostDisplayName: groupNameFor(match.hostUser),
       metric: match.metric,
-      scoringMode: match.scoringMode,
-      hostScore: this.hostScoreFor(match),
+      scoringMode: match.scoringMode,      hostScore: this.hostScoreFor(match),
       status: match.status,
       endsAt: match.endsAt.toISOString(),
     };
@@ -539,6 +563,7 @@ export class MatchesService {
     if (isRecipient && priorRecipientAttempts === 0) {
       await this.trackMatchEvent(user, 'challenge_started_by_recipient', match);
       await this.trackMatchEvent(user, 'challenge_completed_by_recipient', match);
+      await this.trackMatchEvent(user, 'invite_first_attempt', match);
     }
 
     const fresh = await this.loadById(match.id);
@@ -639,7 +664,9 @@ export class MatchesService {
     try {
       await this.matchReactionNotifier.notify({
         ...reaction,
-        senderName: publicNameFor(reaction.fromUserId, sender?.user.profile?.displayName),
+        senderName: sender
+          ? groupNameFor(sender.user)
+          : groupNameFor({ id: reaction.fromUserId }),
         group: {
           scoringMode: match.scoringMode,
           metric: match.metric,
@@ -866,8 +893,9 @@ export class MatchesService {
       });
     }
 
-    if (input.metric === 'pushups') {
-      if (log.metric !== 'pushups' || log.count == null || log.count <= 0) {
+    if (input.metric !== 'walk') {
+      const deviceMetric = DEVICE_METRIC_BY_MATCH_METRIC[input.metric];
+      if (log.metric !== deviceMetric || log.count == null || log.count <= 0) {
         throw new ORPCError('BAD_REQUEST', {
           message: MATCH_INVALID_SOURCE_CHALLENGE,
         });
@@ -876,7 +904,7 @@ export class MatchesService {
       return {
         count: log.count,
         durationSeconds: log.durationSeconds ?? 0,
-        source: MATCH_ATTEMPT_SOURCE_BY_METRIC.pushups,
+        source: MATCH_ATTEMPT_SOURCE_BY_METRIC[input.metric],
       };
     }
 
@@ -902,8 +930,8 @@ export class MatchesService {
   private standingParticipants(match: LoadedMatch) {
     return match.participants.map((row) => ({
       userId: row.userId,
-      // Live profile name on every board read — never a join-time snapshot.
-      displayName: publicNameFor(row.userId, row.user.profile?.displayName),
+      // Live first name on every board read — never a join-time snapshot.
+      displayName: groupNameFor(row.user),
       image: row.user.image?.trim() ? row.user.image : null,
       isHost: row.userId === match.hostUserId,
       isPending: row.acceptedAt === null,

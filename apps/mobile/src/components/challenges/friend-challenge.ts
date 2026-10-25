@@ -1,26 +1,30 @@
-import type { DeviceMetric, ProgressShareResult } from '@product/client';
+import type { DeviceMetric, MatchMetric, ProgressShareResult } from '@product/client';
+import { isPoseMetric, matchMetricSchema } from '@product/contract/match-board';
+import { MATCH_METRIC_UNIT } from '@/components/matches/match-metric';
 import type {
   FriendChallengeSource,
   FriendChallengeSpec,
   ShareFriend,
 } from './types/friend-challenge';
 
+const DEFAULT_REP_METRIC: MatchMetric = 'pushups';
+
 /**
  * The contest each kind of finish invites a friend into. Reps become a
- * best-set duel today, as the first referral flow did; a walk becomes a day's
- * total; anything else becomes a week of finished days, which counts any
- * daily challenge and so never names a condition.
+ * best-set duel today; a walk becomes a day's total; anything else becomes a
+ * week of finished days.
  */
 export function friendChallengeSpec(source: FriendChallengeSource): FriendChallengeSpec {
   if (source.kind === 'reps') {
+    const metric = source.metric;
     return {
       match: {
-        metric: 'pushups',
+        metric,
         scoringMode: 'best_single',
         window: 'today',
         seedCount: source.count > 0 ? source.count : undefined,
       },
-      metricLabel: 'push-ups',
+      metricLabel: MATCH_METRIC_UNIT[metric],
     };
   }
 
@@ -52,7 +56,9 @@ export function friendSourceForCompletion(input: {
   metric: DeviceMetric | null;
 }): FriendChallengeSource {
   if (input.share?.kind === 'reps') {
-    return { kind: 'reps', count: input.share.count };
+    const metric =
+      input.metric && isPoseMetric(input.metric) ? input.metric : DEFAULT_REP_METRIC;
+    return { kind: 'reps', count: input.share.count, metric };
   }
 
   if (input.share?.kind === 'minutes' && input.metric === 'walk') {
@@ -71,7 +77,9 @@ export function shareFriendParams(input: {
   return {
     friend: input.source.kind,
     userChallengeId: input.userChallengeId,
-    ...(input.source.kind === 'reps' ? { count: String(input.source.count) } : {}),
+    ...(input.source.kind === 'reps'
+      ? { count: String(input.source.count), metric: input.source.metric }
+      : {}),
     ...(input.isEligible ? {} : { eligible: '0' }),
   };
 }
@@ -80,6 +88,7 @@ export function shareFriendParams(input: {
 export function parseShareFriend(params: {
   friend?: string;
   count?: string;
+  metric?: string;
   userChallengeId?: string;
   eligible?: string;
 }): ShareFriend | null {
@@ -102,7 +111,11 @@ export function parseShareFriend(params: {
     return { source: { kind: 'day' }, userChallengeId, isEligible };
   }
 
-  return { source: { kind: 'reps', count }, userChallengeId, isEligible };
+  const parsed = matchMetricSchema.safeParse(params.metric);
+  const metric =
+    parsed.success && isPoseMetric(parsed.data) ? parsed.data : DEFAULT_REP_METRIC;
+
+  return { source: { kind: 'reps', count, metric }, userChallengeId, isEligible };
 }
 
 function isFriendKind(value: string | undefined): value is FriendChallengeSource['kind'] {

@@ -5,7 +5,6 @@ describe('postAuthRoute', () => {
     emailVerified: true,
     name: 'Ada',
     countryCode: 'KE',
-    categoryCount: 1,
     hasPendingInvite: false,
     remindersAsked: true,
   };
@@ -14,13 +13,13 @@ describe('postAuthRoute', () => {
     expect(postAuthRoute(complete)).toBe('/(tabs)');
   });
 
-  it('asks for name and country once verified, before categories', () => {
+  it('asks for name and country once verified', () => {
     expect(postAuthRoute({ ...complete, countryCode: null })).toBe('/complete-country');
     expect(postAuthRoute({ ...complete, name: '  ' })).toBe('/complete-country');
   });
 
-  it('asks for health categories once country is set', () => {
-    expect(postAuthRoute({ ...complete, categoryCount: 0 })).toBe('/category-selection');
+  it('does not gate on health categories', () => {
+    expect(postAuthRoute(complete)).toBe('/(tabs)');
   });
 
   it('verifies an email sign-up first, before the profile steps', () => {
@@ -31,7 +30,6 @@ describe('postAuthRoute', () => {
         emailVerified: false,
         name: '',
         countryCode: null,
-        categoryCount: 0,
       }),
     ).toBe('/verify-email');
   });
@@ -43,12 +41,11 @@ describe('postAuthRoute', () => {
     );
   });
 
-  it('skips country, categories, and verify when an invite is pending', () => {
+  it('skips country and verify when an invite is pending', () => {
     expect(
       postAuthRoute({
         ...complete,
         countryCode: null,
-        categoryCount: 0,
         emailVerified: false,
         hasPendingInvite: true,
         remindersAsked: false,
@@ -74,8 +71,17 @@ describe('hasDeferredOnboarding', () => {
         emailVerified: true,
         name: 'Ada',
         countryCode: null,
-        categoryCount: 0,
       }),
     ).toBe(true);
+  });
+
+  it('does not treat missing categories as deferred', () => {
+    expect(
+      hasDeferredOnboarding({
+        emailVerified: true,
+        name: 'Ada',
+        countryCode: 'KE',
+      }),
+    ).toBe(false);
   });
 });

@@ -5,11 +5,35 @@ import {
   MATCH_METRIC_LABEL,
   MATCH_STREAK_CTA,
   activityChoiceForMode,
+  formatBoardScore,
   legalScoringModeFor,
   matchActivity,
   matchActivityInput,
   matchBoardAction,
 } from './match-metric';
+
+describe('formatBoardScore', () => {
+  it('formats plank holds as m:ss without a unit', () => {
+    expect(formatBoardScore('best_single', 'plank', 92)).toEqual({
+      value: '1:32',
+      unit: '',
+    });
+  });
+
+  it('keeps push-up scores as a count with a unit', () => {
+    expect(formatBoardScore('best_single', 'pushups', 40)).toEqual({
+      value: '40',
+      unit: 'push-ups',
+    });
+  });
+
+  it('keeps streak scores in days', () => {
+    expect(formatBoardScore('days_completed', 'plank', 3)).toEqual({
+      value: '3',
+      unit: 'days',
+    });
+  });
+});
 
 describe('legalScoringModeFor', () => {
   it('keeps a mode the activity can run', () => {

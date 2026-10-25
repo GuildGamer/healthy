@@ -1,5 +1,6 @@
 import type { PublicMatchInvitePreview } from '@product/contract';
 import type { MatchMetric, MatchScoringMode } from '@product/contract/match-board';
+import { MATCH_METRIC_MEASURE } from '@product/contract/match-board';
 import type { DeckCardContent } from './constants/welcome-deck';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -14,11 +15,37 @@ export type InviteRules = Pick<PublicMatchInvitePreview, 'metric' | 'scoringMode
 const ACTIVITY_ADJECTIVE: Record<MatchMetric, string> = {
   pushups: 'Push-up',
   walk: 'Walking',
+  squats: 'Squat',
+  plank: 'Plank',
+  jumping_jacks: 'Jumping-jack',
+  burpees: 'Burpee',
+  sit_ups: 'Sit-up',
+  mountain_climbers: 'Mountain-climber',
+  lunges: 'Lunge',
 };
 
 const ACTIVITY_NOUN: Record<MatchMetric, string> = {
   pushups: 'push-up',
   walk: 'walking',
+  squats: 'squat',
+  plank: 'plank',
+  jumping_jacks: 'jumping-jack',
+  burpees: 'burpee',
+  sit_ups: 'sit-up',
+  mountain_climbers: 'mountain-climber',
+  lunges: 'lunge',
+};
+
+const ACTIVITY_UNIT: Record<MatchMetric, string> = {
+  pushups: 'push-ups',
+  walk: 'minutes',
+  squats: 'squats',
+  plank: 'seconds',
+  jumping_jacks: 'jumping jacks',
+  burpees: 'burpees',
+  sit_ups: 'sit-ups',
+  mountain_climbers: 'mountain climbers',
+  lunges: 'lunges',
 };
 
 const MODE_WORD: Record<MatchScoringMode, string> = {
@@ -43,6 +70,48 @@ const ACTIVITY_CARD: Record<
     categoryGlyph: 'walk',
     proofGlyph: 'walk',
     proof: 'Walks you already track count',
+  },
+  squats: {
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
+  },
+  plank: {
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    proofGlyph: 'check',
+    proof: 'Timed by your camera',
+  },
+  jumping_jacks: {
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
+  },
+  burpees: {
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
+  },
+  sit_ups: {
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
+  },
+  mountain_climbers: {
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
+  },
+  lunges: {
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
   },
 };
 
@@ -74,10 +143,21 @@ export function inviteRuleHeadline(rules: InviteRules): string {
   }
 
   if (rules.scoringMode === 'best_single') {
-    return 'Most push-ups in one go wins.';
+    if (MATCH_METRIC_MEASURE[rules.metric] === 'seconds') {
+      return 'Longest hold wins.';
+    }
+    return `Most ${ACTIVITY_UNIT[rules.metric]} in one go wins.`;
   }
 
-  return rules.metric === 'walk' ? 'Most minutes walked wins.' : 'Most push-ups in total wins.';
+  if (rules.metric === 'walk') {
+    return 'Most minutes walked wins.';
+  }
+
+  if (MATCH_METRIC_MEASURE[rules.metric] === 'seconds') {
+    return 'Most seconds held wins.';
+  }
+
+  return `Most ${ACTIVITY_UNIT[rules.metric]} in total wins.`;
 }
 
 export function inviteDaysLeft(endsAt: string, now: Date): string {
@@ -95,7 +175,12 @@ export function invitePrivacyNote(rules: InviteRules): string {
     return 'Others see your name and how many days you’ve done. Nothing else.';
   }
 
-  const measure = rules.metric === 'walk' ? 'minutes walked' : 'push-ups';
+  const measure =
+    rules.metric === 'walk'
+      ? 'minutes walked'
+      : MATCH_METRIC_MEASURE[rules.metric] === 'seconds'
+        ? 'seconds held'
+        : ACTIVITY_UNIT[rules.metric];
   return `Others see your name and ${measure}. Nothing else.`;
 }
 

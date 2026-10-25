@@ -163,6 +163,7 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess({
       completedCount: 25,
       matchId: 'm1',
+      matchMetric: 'pushups',
       pointsAwarded: 0,
       title: 'Best single set',
     });
@@ -172,8 +173,9 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByText('push-ups')).toBeOnTheScreen();
     expect(screen.queryByText('Group set.')).toBeNull();
     await waitFor(() => {
-      expect(screen.getByText('Back to group')).toBeOnTheScreen();
+      expect(screen.getByTestId('challenge-success-challenge-friend')).toBeOnTheScreen();
     });
+    expect(screen.getByText('Not now')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('challenge-success-done'));
     const { useRouter } = jest.requireMock('expo-router') as {
@@ -219,14 +221,17 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByText('Not now')).toBeOnTheScreen();
   });
 
-  it('keeps share as the only solid action outside the treatment', async () => {
+  it('offers challenge-a-friend whenever a counted set is eligible', async () => {
     renderSuccess({ completedCount: 20, title: 'Do 20 push-ups' });
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Share')).toBeOnTheScreen();
+      expect(screen.getByTestId('challenge-success-challenge-friend')).toBeOnTheScreen();
     });
-    expect(screen.queryByTestId('challenge-success-challenge-friend')).toBeNull();
-    expect(screen.getByText('See what’s next')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-success-share')).toHaveProp(
+      'accessibilityLabel',
+      'Share result',
+    );
+    expect(screen.getByText('Not now')).toBeOnTheScreen();
   });
 
   it('pairs the membership link with dismiss for non-members', async () => {

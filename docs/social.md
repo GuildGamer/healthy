@@ -49,11 +49,11 @@ before it can start.
    which also means no moderation queue and no report flow.
 6. **Notification budget.** At most one group push per group per day, plus the
    settlement result.
-7. **Identity is scoped.** Display name inside a group you were invited to,
+7. **Identity is scoped.** First name inside a group you were invited to,
    pseudonym on the global leaderboard. This replaces a privacy matrix with one
    rule.
-8. **Activity, never condition.** Nothing about a group may imply hypertension,
-   diabetes, or asthma.
+8. **A group is about an exercise.** Standings name the activity and the score.
+   Nothing about a group may imply a health condition or a diagnosis.
 9. **Private by invite.** Nothing discoverable, nothing public. Fail closed.
 10. **Every group challenge ends.** Time-boxed, with one-tap "Run it back" on
     the result. Crews persist; contests never do. That split is what lets the
@@ -132,47 +132,35 @@ there is no precedence rule: the contract rejects a request carrying each.
 A year is the ceiling because settlement stays lazy-on-read, and a contest
 nobody finishes is a club with extra steps.
 
-### Health guardrail on cumulative
+### Fair play cap on cumulative
 
-`cumulative_total` is the one mode that rewards volume, which in an app used by
-people managing chronic conditions can pull toward overexertion. Cumulative
-groups cap how much a single day can contribute to the total, so the winning
-strategy is returning daily rather than grinding one session. The cap is a
-constant, not a host setting — it is a safety floor, not a preference.
+`cumulative_total` is the one mode that rewards volume. Cumulative groups cap
+how much a single day can contribute to the total, so the winning strategy is
+returning daily rather than grinding one session. The cap is a constant, not a
+host setting — it is a fair-play floor, not a preference.
 
 The cap is per metric (`MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC`), because a day's
 reasonable effort is 300 push-ups or 120 minutes of walking and one number
 cannot mean both. A walk is scored in **minutes**, not distance: distance
-rewards pace, which is the wrong pull for someone managing hypertension, and
-minutes still count on a treadmill where there is no route to measure.
+rewards pace, and minutes still count on a treadmill where there is no route to
+measure.
 
 `team_total`, where members pool toward one shared target rather than compete,
 remains deferred. It is a different relationship to the score (co-operative, not
 ranked) and can wait until groups are shown to stick.
 
-## Condition safety
+## Activity-only standings
 
 `days_completed` counts **any** finished daily occurrence by default rather than
-binding a group to one chosen challenge. That was originally planned as an admin
-allowlist (`Challenge.isGroupEligible`), and counting anything turned out to be
-both simpler and safer:
+binding a group to one chosen challenge. A host who wants a one-habit race can
+narrow a streak to the contest's activity (`dailyScope: chosen_activity`), which
+filters completions by `Challenge.deviceMetric`. The scope is an **activity**,
+never a category or a named challenge. `any_challenge` stays the default, and
+the Activity tile the host picks is what the board and the rule sentence then
+name.
 
-- Nothing in the standings hints at what a member actually did, so no group can
-  imply a diagnosis.
-- People managing different conditions can compete on the same board, because
-  the contest is about showing up rather than about a shared activity.
-- There is no challenge picker in the create flow and no admin curation step
-  before groups can launch.
-
-A host who wants a one-habit race can narrow a streak to the contest's activity
-(`dailyScope: chosen_activity`), which filters completions by
-`Challenge.deviceMetric`. The scope is an **activity**, never a category or a
-named challenge, so the safety above holds: a walking streak says the group
-walks, not what anyone is managing. `any_challenge` stays the default, and the
-Activity tile the host picks is what the board and the rule sentence then name.
-
-Standings expose a name and a score. They never expose a category, a vital, or a
-challenge a member did outside the group.
+Standings expose a first name and a score. They never expose a category, a
+vital, or a challenge a member did outside the group.
 
 ## Crews
 
@@ -246,23 +234,24 @@ is worth doing first and shipping on its own.
 
 ### The cost of adding handles
 
-A person already carries `User.name` from Better Auth, an optional
-`UserProfile.displayName` (2–24 chars, **not unique**), and a derived pseudonym
-from `publicNameFor`. A username is a fourth identity string, and the first one
-that must be globally unique — which brings normalisation, case folding,
-confusable characters, a reserved-word list, squatting, and a rename policy.
+A person already carries `User.name` from Better Auth (first name inside a
+group), an optional `UserProfile.displayName` (2–24 chars, **not unique**, used
+on the global leaderboard), and a derived pseudonym from `publicNameFor`. A
+username is a fourth identity string, and the first one that must be globally
+unique — which brings normalisation, case folding, confusable characters, a
+reserved-word list, squatting, and a rename policy.
 
-The sharper problem is discovery. A searchable handle directory means anyone can
-find and add a person who is in this app to manage hypertension, diabetes, or
-asthma. Tenet 9 is private by invite, and a directory is the opposite of that.
+The sharper problem is discovery. A searchable handle directory is the opposite
+of tenet 9 (private by invite).
 
 ### If handles ship, the shape
 
 Two constraints keep them from undoing the privacy model:
 
 - **A username is an address, not a name.** It is a lookup key and is displayed
-  nowhere. Standings keep showing `displayName`, the global leaderboard keeps
-  showing the pseudonym. This sidesteps "which name appears where" entirely.
+  nowhere. Standings keep showing the first name; the global leaderboard keeps
+  showing the display name or pseudonym. This sidesteps "which name appears
+  where" entirely.
 - **Exact match only.** No search, no autocomplete, no browsing, no "did you
   mean". You add someone by knowing their handle already, the way you add a
   contact by knowing their phone number. Lookups are rate-limited against

@@ -415,6 +415,22 @@ describe('MatchesService', () => {
     );
   });
 
+  it('link_preview does not stamp firstOpenedAt or track an open', async () => {
+    const prisma = createPrismaMock();
+    const analytics = createAnalyticsSpy();
+    const service = createService(prisma, createNotifierSpy(), analytics);
+
+    await expect(
+      service.publicPreview('invite_token_1', 'link_preview'),
+    ).resolves.toMatchObject({
+      token: 'invite_token_1',
+      status: 'open',
+    });
+
+    expect(prisma.match.updateMany).not.toHaveBeenCalled();
+    expect(analytics.track).not.toHaveBeenCalled();
+  });
+
   it('lets a guest join an open match under the cap', async () => {
     const prisma = createPrismaMock();
     const analytics = createAnalyticsSpy();
@@ -1179,7 +1195,9 @@ describe('MatchesService', () => {
     expect(prisma.matchParticipant.createMany).toHaveBeenCalledWith({
       data: [{ matchId: 'm1', userId: 'cam', acceptedAt: null }],
     });
-    expect(notifier.notifySeated).toHaveBeenCalledWith('m1', ['cam']);
+    expect(notifier.notifySeated).toHaveBeenCalledWith(
+      expect.objectContaining({ matchId: 'm1', userIds: ['cam'] }),
+    );
     expect(created.invite.url).toContain('/match/');
   });
 
@@ -1273,7 +1291,9 @@ describe('MatchesService', () => {
     });
 
     // The host set it up; only the seated member is told.
-    expect(notifier.notifySeated).toHaveBeenCalledWith('m1', ['cam']);
+    expect(notifier.notifySeated).toHaveBeenCalledWith(
+      expect.objectContaining({ matchId: 'm1', userIds: ['cam'] }),
+    );
   });
 
   it('still creates the contest when the push fails', async () => {

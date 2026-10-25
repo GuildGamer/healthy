@@ -28,6 +28,7 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 ## Human docs
 
 - `README.md` — quick start
+- `docs/product.md` — north star, core loop, voice guide
 - `docs/social.md` — group challenges, invite loop, anti-complexity tenets
 - `docs/testing.md` — device + CI testing loop
 - `docs/releases.md` — EAS Update vs store

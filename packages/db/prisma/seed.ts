@@ -32,7 +32,22 @@ type ChallengeSeed = {
   surpriseEvidenceWindowSeconds?: number;
   surpriseEvidencePenaltyPoints?: number;
   captureKind?: 'self_report' | 'structured_log' | 'photo' | 'device_sample' | 'device_session';
-  deviceMetric?: 'walk' | 'run' | 'cycle' | 'steps' | 'sleep' | 'weight' | 'heart_rate' | 'pushups';
+  deviceMetric?:
+    | 'walk'
+    | 'run'
+    | 'cycle'
+    | 'steps'
+    | 'sleep'
+    | 'weight'
+    | 'heart_rate'
+    | 'pushups'
+    | 'squats'
+    | 'plank'
+    | 'jumping_jacks'
+    | 'burpees'
+    | 'sit_ups'
+    | 'mountain_climbers'
+    | 'lunges';
   targetDurationMinutes?: number;
   targetDistanceMeters?: number;
   targetCount?: number;
@@ -195,7 +210,7 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 100,
     defaultFrequency: 'daily',
-    isDefault: true,
+    isDefault: false,
     completionKind: 'water',
     /** Glasses a day; admins can change it in the catalog. */
     targetCount: 8,
@@ -211,9 +226,9 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 150,
     defaultFrequency: 'daily',
-    isDefault: true,
+    isDefault: false,
     icon: 'walk',
-    sortOrder: 2,
+    sortOrder: 5,
     captureKind: 'device_session',
     deviceMetric: 'walk',
     targetDurationMinutes: 10,
@@ -244,14 +259,128 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 150,
     defaultFrequency: 'daily',
-    isDefault: false,
+    isDefault: true,
     icon: 'arm-flex',
     sortOrder: 0,
     captureKind: 'device_session',
     deviceMetric: 'pushups',
     targetCount: 5,
     instruction:
-      'Prop your phone so your whole body is in the frame: head to feet, both arms visible. Start your first push-up. Counting begins automatically. Video stays on this device.',
+      'Prop your phone side-on so your whole body is in the frame: head to feet, both arms visible. Start your first push-up. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'twenty-squats',
+    title: 'Do 20 squats',
+    description:
+      'Prop your phone, face the camera, and complete your set of squats counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'arm-flex',
+    sortOrder: 1,
+    captureKind: 'device_session',
+    deviceMetric: 'squats',
+    targetCount: 20,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Start your first squat. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'sixty-second-plank',
+    title: 'Hold a 60-second plank',
+    description:
+      'Prop your phone side-on and hold a plank while the camera times it.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'arm-flex',
+    sortOrder: 2,
+    captureKind: 'device_session',
+    deviceMetric: 'plank',
+    targetCount: 60,
+    instruction:
+      'Prop your phone side-on so your whole body is in the frame. Get into a plank; the timer runs while you hold it. Video stays on this device.',
+  },
+  {
+    slug: 'thirty-jumping-jacks',
+    title: 'Do 30 jumping jacks',
+    description: 'Face the camera and complete jumping jacks counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 3,
+    captureKind: 'device_session',
+    deviceMetric: 'jumping_jacks',
+    targetCount: 30,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'ten-burpees',
+    title: 'Do 10 burpees',
+    description: 'Face the camera and complete burpees counted on-device.',
+    category: 'general',
+    rewardPoints: 200,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 4,
+    captureKind: 'device_session',
+    deviceMetric: 'burpees',
+    targetCount: 10,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'twenty-sit-ups',
+    title: 'Do 20 sit-ups',
+    description: 'Prop your phone side-on and complete sit-ups counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 6,
+    captureKind: 'device_session',
+    deviceMetric: 'sit_ups',
+    targetCount: 20,
+    instruction:
+      'Prop your phone side-on so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'forty-mountain-climbers',
+    title: 'Do 40 mountain climbers',
+    description: 'Face the camera and complete mountain climbers counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 7,
+    captureKind: 'device_session',
+    deviceMetric: 'mountain_climbers',
+    targetCount: 40,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'twenty-lunges',
+    title: 'Do 20 lunges',
+    description: 'Face the camera and complete lunges counted on-device (left plus right).',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 8,
+    captureKind: 'device_session',
+    deviceMetric: 'lunges',
+    targetCount: 20,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Left and right lunges count together. Video stays on this device.',
   },
   {
     slug: 'gym-session',
@@ -317,8 +446,8 @@ function assertLeanStarterDefaults(seeds: readonly ChallengeSeed[]): void {
   }
 
   const general = defaultsByCategory.get('general') ?? [];
-  if (general.length > 2) {
-    throw new Error(`General defaults must stay ≤2 (got ${general.length}: ${general.join(', ')})`);
+  if (general.length > 3) {
+    throw new Error(`General defaults must stay ≤3 (got ${general.length}: ${general.join(', ')})`);
   }
 
   for (const category of ['hypertension', 'diabetes', 'asthma'] as const) {
@@ -347,6 +476,29 @@ type TipSeed = {
   source?: string | null;
   sourceUrl?: string | null;
 };
+
+/** Non-fitness general slugs hidden by the competitive fitness pivot. */
+const HIDDEN_GENERAL_SLUGS = new Set([
+  'log-water-intake',
+  'sleep-log',
+  'weekly-weigh-in',
+  'medication-refill',
+]);
+
+function challengeIsActive(challenge: {
+  category: ChallengeSeed['category'];
+  slug: string;
+}): boolean {
+  if (challenge.category !== 'general') {
+    return false;
+  }
+
+  return !HIDDEN_GENERAL_SLUGS.has(challenge.slug);
+}
+
+function tipIsActive(tip: { category: TipSeed['category'] }): boolean {
+  return tip.category === 'general';
+}
 
 const tipSeeds: TipSeed[] = [
   {
@@ -440,11 +592,33 @@ const tipSeeds: TipSeed[] = [
   {
     slug: 'benefit-pushups',
     category: 'general',
-    title: 'Why a short strength set matters',
-    body: 'Muscle-strengthening on two or more days a week is part of what adults need for health — a short set today counts toward that.',
+    title: 'A short set still counts',
+    body: 'Muscle-strengthening on two or more days a week keeps you in the fight — a short set today counts toward that.',
     sortOrder: 10,
     challengeSlug: 'twenty-push-ups',
     activityKey: 'pushups',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-squats',
+    category: 'general',
+    title: 'Legs win contests too',
+    body: 'Squats build the strength you use every day — and they are an easy contest to settle with friends.',
+    sortOrder: 10,
+    challengeSlug: 'twenty-squats',
+    activityKey: 'squats',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-plank',
+    category: 'general',
+    title: 'Hold longer, climb the board',
+    body: 'Core endurance is a fair contest: longest hold wins, timed by your camera.',
+    sortOrder: 10,
+    challengeSlug: 'sixty-second-plank',
+    activityKey: 'plank',
     source: WHO_PHYSICAL_ACTIVITY_SOURCE,
     sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
   },
@@ -522,6 +696,8 @@ async function main(): Promise<void> {
           ? 'self_report'
           : 'structured_log');
 
+    const isActive = challengeIsActive(challenge);
+
     await prisma.challenge.upsert({
       where: { slug: challenge.slug },
       create: {
@@ -530,6 +706,7 @@ async function main(): Promise<void> {
         completionKind,
         captureKind,
         instruction,
+        isActive,
         surpriseEvidenceChancePercent: challenge.surpriseEvidenceChancePercent ?? 0,
         surpriseEvidenceWindowSeconds: challenge.surpriseEvidenceWindowSeconds ?? 60,
         surpriseEvidencePenaltyPoints: challenge.surpriseEvidencePenaltyPoints ?? 25,
@@ -543,7 +720,7 @@ async function main(): Promise<void> {
         defaultFrequency: challenge.defaultFrequency,
         isDefault: challenge.isDefault,
         requiresMembership: challenge.requiresMembership ?? !challenge.isDefault,
-        isActive: true,
+        isActive,
         sortOrder: challenge.sortOrder ?? 100,
         completionKind,
         captureKind,
@@ -565,6 +742,7 @@ async function main(): Promise<void> {
     const activityKey = tip.activityKey ?? null;
     const source = tip.source ?? null;
     const sourceUrl = tip.sourceUrl ?? null;
+    const isActive = tipIsActive(tip);
 
     await prisma.tip.upsert({
       where: { slug: tip.slug },
@@ -574,6 +752,7 @@ async function main(): Promise<void> {
         title: tip.title,
         body: tip.body,
         sortOrder: tip.sortOrder,
+        isActive,
         challengeSlug,
         activityKey,
         source,
@@ -584,7 +763,7 @@ async function main(): Promise<void> {
         title: tip.title,
         body: tip.body,
         sortOrder: tip.sortOrder,
-        isActive: true,
+        isActive,
         challengeSlug,
         activityKey,
         source,
@@ -600,7 +779,7 @@ async function main(): Promise<void> {
       name: 'Healthy',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
-        'Full challenge catalog for your conditions',
+        'Full fitness challenge catalog',
         'Pose, steps, and gym challenges',
         'Up to five reminders per challenge',
         'Finish-what-you-started nudges',
@@ -622,7 +801,7 @@ async function main(): Promise<void> {
       name: 'Healthy',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
-        'Full challenge catalog for your conditions',
+        'Full fitness challenge catalog',
         'Pose, steps, and gym challenges',
         'Up to five reminders per challenge',
         'Finish-what-you-started nudges',

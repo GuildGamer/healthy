@@ -17,6 +17,13 @@ export const deviceMetricSchema = z.enum([
   'weight',
   'heart_rate',
   'pushups',
+  'squats',
+  'plank',
+  'jumping_jacks',
+  'burpees',
+  'sit_ups',
+  'mountain_climbers',
+  'lunges',
 ]);
 
 export const deviceActivitySourceSchema = z.enum([

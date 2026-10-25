@@ -163,7 +163,6 @@ function useLeaveSuccess(matchId: string | undefined) {
         emailVerified: isEmailVerified(session),
         name: me.name,
         countryCode: me.countryCode,
-        categoryCount: me.categories.length,
       });
 
     if (owesOnboarding) {
@@ -204,7 +203,14 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   const isMatch = Boolean(matchId);
   const wasPenalized = penaltyApplied > 0;
   const friend = useFriendChallenge({
-    spec: friendChallengeSpec(props.friendSource ?? { kind: 'reps', count: completedCount ?? 0 }),
+    spec: friendChallengeSpec(
+      props.friendSource ?? {
+        kind: 'reps',
+        count: completedCount ?? 0,
+        metric:
+          props.matchMetric && props.matchMetric !== 'walk' ? props.matchMetric : 'pushups',
+      },
+    ),
     isEligible: canInviteFriend(props, wasPenalized),
     userChallengeId,
     parentMatchId: matchId,

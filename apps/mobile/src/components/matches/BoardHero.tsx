@@ -12,12 +12,34 @@ import { groupRuleTitle } from './group-rule-copy';
 import { groupToneFor } from './group-tone';
 import { groupTitle, placeLabel } from './group-today';
 import { BOARD_COPY, GROUPS_COPY } from './match-copy';
-import { matchScoreUnitFor } from './match-metric';
+import { formatBoardScore } from './match-metric';
 
 const STATUS_CORNER = { completed: 'Ended', cancelled: 'Cancelled' } as const;
 
 function cornerFor(match: MatchBoard): string {
   return match.status === 'open' ? matchTimeLeft(match.endsAt) : STATUS_CORNER[match.status];
+}
+
+function BoardScoreMeasure({
+  match,
+  place,
+  toneColor,
+}: {
+  match: MatchBoard;
+  place: string;
+  toneColor?: string;
+}) {
+  const formatted = formatBoardScore(match.scoringMode, match.metric, match.yourScore);
+  const unit = match.dayStrip ? dayStripUnit(match.dayStrip) : formatted.unit;
+
+  return (
+    <GroupMeasure
+      numeralColor={toneColor}
+      place={place === GROUPS_COPY.noPlace ? null : place}
+      score={match.dayStrip ? match.yourScore : formatted.value}
+      unit={unit}
+    />
+  );
 }
 
 /**
@@ -48,16 +70,7 @@ export function BoardHero({ match, isWaiting }: { match: MatchBoard; isWaiting: 
         </View>
       ) : (
         <>
-          <GroupMeasure
-            numeralColor={tone.railColor ?? undefined}
-            place={place === GROUPS_COPY.noPlace ? null : place}
-            score={match.yourScore}
-            unit={
-              match.dayStrip
-                ? dayStripUnit(match.dayStrip)
-                : matchScoreUnitFor(match.scoringMode, match.metric, match.yourScore)
-            }
-          />
+          <BoardScoreMeasure match={match} place={place} toneColor={tone.railColor ?? undefined} />
           {match.dayStrip ? (
             <GroupDaySquares
               movedDayKeys={you?.movedDayKeys ?? []}

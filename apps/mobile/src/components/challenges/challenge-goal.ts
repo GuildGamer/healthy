@@ -1,5 +1,6 @@
 import type { CatalogChallenge, DeviceMetric } from '@product/client';
 import { durationGoalBounds } from '@product/contract/challenge-capture';
+import { isPoseMetric } from '@product/contract/match-board';
 import { DURATION_GOAL_COPY, PUSHUP_GOAL_COPY, WALK_GOAL_COPY } from './constants/routine-copy';
 import { PUSHUP_TARGET_MAX, PUSHUP_TARGET_MIN } from './pushup-target';
 
@@ -26,6 +27,13 @@ export type ChallengeGoal = {
 
 const COUNT_UNIT: Partial<Record<DeviceMetric, string>> = {
   pushups: 'push-ups',
+  squats: 'squats',
+  plank: 'seconds',
+  jumping_jacks: 'jumping jacks',
+  burpees: 'burpees',
+  sit_ups: 'sit-ups',
+  mountain_climbers: 'mountain climbers',
+  lunges: 'lunges',
   steps: 'steps',
 };
 
@@ -70,7 +78,7 @@ export function challengeGoal(challenge: GoalChallenge): ChallengeGoal | null {
     field: 'targetCount',
     unit: countUnit,
     shortUnit: countUnit,
-    editor: metric === 'pushups' ? pushupEditor : null,
+    editor: metric != null && isPoseMetric(metric) ? pushupEditor : null,
   };
 }
 

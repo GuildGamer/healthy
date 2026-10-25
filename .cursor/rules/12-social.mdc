@@ -37,9 +37,9 @@ challenge rows.
 
 ## Identity
 
-`User.name`, `UserProfile.displayName`, and the `publicNameFor` pseudonym are
-the identity strings that exist. Do not add a fourth without an explicit product
-decision.
+`User.name` (first name inside a group via `groupNameFor`),
+`UserProfile.displayName`, and the `publicNameFor` pseudonym are the identity
+strings that exist. Do not add a fourth without an explicit product decision.
 
 If usernames ever ship they are a **lookup key, displayed nowhere**, resolved by
 exact match only — no search, no autocomplete, no directory — rate-limited, and
@@ -92,15 +92,14 @@ New scoring modes need a product decision, not a convenient addition.
 
 ## Privacy
 
-- Display name inside a group; pseudonym on the global leaderboard
-  (`publicNameFor`). Do not leak one into the other.
-- A group is defined by an activity, never a health category. `days_completed`
-  counts any finished daily occurrence by default (`dailyScope: any_challenge`),
-  so a board cannot imply a diagnosis. A host may narrow it to the contest's own
-  activity (`chosen_activity`), which scopes by `Challenge.deviceMetric` — an
-  activity, still never a category. Do not bind a group to one named challenge
-  without revisiting that.
-- Standings carry a name and a score. No category, no vitals, no challenge
+- First name inside a group (`groupNameFor`); display name or pseudonym on the
+  global leaderboard (`publicNameFor`). Do not leak one into the other.
+- A group is defined by an exercise, never a health category. `days_completed`
+  counts any finished daily occurrence by default (`dailyScope: any_challenge`).
+  A host may narrow it to the contest's own activity (`chosen_activity`), which
+  scopes by `Challenge.deviceMetric` — an activity, still never a category. Do
+  not bind a group to one named challenge without revisiting that.
+- Standings carry a first name and a score. No category, no vitals, no challenge
   history from outside the group.
 - Invite-only. No discovery, no public listing.
 

@@ -1,17 +1,25 @@
-import type { HealthCategory } from '@product/client';
-import { useRouter } from 'expo-router';
-import { ConditionPickerScreen } from '@/components/auth';
-import { apiClient } from '@/lib/api';
+import { Redirect } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ScreenLoader } from '@/components/feedback';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
+import type { PostAuthHref } from '@/lib/post-auth-route';
 
+/**
+ * Condition picker is retired for the fitness pivot. Anyone who still lands
+ * here (deep link, deferred onboarding) is sent to the next real step.
+ */
 export default function CategorySelection() {
-  const router = useRouter();
+  const [href, setHref] = useState<PostAuthHref | null>(null);
 
-  async function saveCategories(categories: readonly HealthCategory[]) {
-    await apiClient.updateCategories({ categories: [...categories] });
-    const href = await resolvePostAuthHref();
-    router.replace(href ?? '/(tabs)');
+  useEffect(() => {
+    void resolvePostAuthHref().then((next) => {
+      setHref(next ?? '/(tabs)');
+    });
+  }, []);
+
+  if (!href) {
+    return <ScreenLoader />;
   }
 
-  return <ConditionPickerScreen onSubmit={saveCategories} submitLabel="Continue" />;
+  return <Redirect href={href} />;
 }

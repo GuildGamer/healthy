@@ -80,10 +80,7 @@ export function ChallengeForm({
             }
             value={value.category}
           >
-            <option value="hypertension">Blood pressure</option>
-            <option value="diabetes">Blood sugar</option>
-            <option value="asthma">Breathing</option>
-            <option value="general">Everyday</option>
+            <option value="general">Fitness</option>
           </select>
         </label>
         <label>
@@ -178,6 +175,13 @@ export function ChallengeForm({
             <option value="weight">Weight</option>
             <option value="heart_rate">Heart rate</option>
             <option value="pushups">Push-ups</option>
+            <option value="squats">Squats</option>
+            <option value="plank">Plank</option>
+            <option value="jumping_jacks">Jumping jacks</option>
+            <option value="burpees">Burpees</option>
+            <option value="sit_ups">Sit-ups</option>
+            <option value="mountain_climbers">Mountain climbers</option>
+            <option value="lunges">Lunges</option>
           </select>
         </label>
       </div>

@@ -63,7 +63,13 @@ export function useCreateGroup(prefill: CreatePrefill) {
       // Link-first when nobody was seated. Seated contests still keep Share on
       // the board for anyone joining from outside.
       if (!hasSeated) {
-        await shareMatchLink(result.match.inviteUrl);
+        await shareMatchLink({
+          url: result.match.inviteUrl,
+          hostScore: result.match.yourScore,
+          metric: result.match.metric,
+          scoringMode: result.match.scoringMode,
+          endsAt: result.match.endsAt,
+        });
       }
       router.replace(`/matches/${result.match.id}`);
     },

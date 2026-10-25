@@ -1,4 +1,5 @@
 export { LOCAL_DAY_LAG_MS, LOCAL_DAY_LEAD_MS } from './local-day.js';
+export { CONDITION_FEATURES_ENABLED } from './product-scope.js';
 export {
   DEFAULT_REMINDER_MINUTE,
   DISPATCH_CATCH_UP_MINUTES,

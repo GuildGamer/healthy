@@ -7,7 +7,7 @@ import {
   requireUser,
 } from '../../../shared/types/authenticated-user.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
-import { publicNameFor } from '../leaderboard/pseudonym.js';
+import { groupNameFor } from '../../../shared/utils/group-name.js';
 import type {
   CrewDto,
   ListAcquaintancesDto,
@@ -186,7 +186,7 @@ export class CrewsService {
       seen.add(row.userId);
       people.push({
         userId: row.userId,
-        displayName: publicNameFor(row.userId, row.user.profile?.displayName),
+        displayName: groupNameFor(row.user),
       });
     }
 
@@ -230,9 +230,7 @@ export class CrewsService {
     }
 
     const derived = crewLabel(
-      others.map((row) =>
-        publicNameFor(row.userId, row.user.profile?.displayName),
-      ),
+      others.map((row) => groupNameFor(row.user)),
     );
 
     const created = await this.prisma.crew.create({
@@ -387,14 +385,11 @@ export class CrewsService {
     const roster = [
       {
         userId: crew.ownerUserId,
-        displayName: publicNameFor(
-          crew.ownerUserId,
-          crew.ownerUser.profile?.displayName,
-        ),
+        displayName: groupNameFor(crew.ownerUser),
       },
       ...this.activeMembers(crew).map((row) => ({
         userId: row.userId,
-        displayName: publicNameFor(row.userId, row.user.profile?.displayName),
+        displayName: groupNameFor(row.user),
       })),
     ].filter((person) => person.userId !== viewerId);
 

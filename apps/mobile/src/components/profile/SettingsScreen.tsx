@@ -68,13 +68,6 @@ export function SettingsScreen() {
       </SettingsGroup>
       <SettingsGroup>
         <SettingsLinkRow
-          glyph="heart"
-          label="Conditions"
-          onPress={() => router.push('/settings/conditions')}
-          testID="open-health-categories"
-          value={me ? String(me.categories.length) : null}
-        />
-        <SettingsLinkRow
           glyph="watch"
           label="Movement & sleep"
           onPress={() => router.push('/settings/movement')}

@@ -25,10 +25,10 @@ import {
   PUBLIC_NAME_RULE,
 } from '@/lib/public-name';
 
-const NAME_USE_NOTE = 'Shown with your photo on the leaderboard and in groups.';
+const NAME_USE_NOTE = 'Friends in your contests see this.';
 const INVITE_NAME_USE: Record<PublicMatchInvitePreview['metric'], string> = {
-  pushups: 'Shown with your push-ups. Nothing else about you is shown.',
-  walk: 'Shown with your minutes walked. Nothing else about you is shown.',
+  pushups: 'Friends see this with your push-ups. Nothing else about you is shown.',
+  walk: 'Friends see this with your minutes walked. Nothing else about you is shown.',
 };
 
 interface TwoQuickThingsScreenProps {
@@ -120,11 +120,11 @@ export function TwoQuickThingsScreen({
         containerStyle={styles.field}
         counter={showNameError ? `${trimmedName.length} of ${PUBLIC_NAME_MAX_LENGTH}` : undefined}
         hasError={showNameError}
-        label="Name"
+        label="First name"
         maxLength={PUBLIC_NAME_MAX_LENGTH}
         onBlur={() => setHasLeftName(true)}
         onChangeText={setName}
-        placeholder="First name or nickname"
+        placeholder="First name"
         testID="complete-country-name"
         textContentType="givenName"
         value={name}

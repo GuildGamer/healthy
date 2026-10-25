@@ -1,4 +1,4 @@
-import type { CreateMatchInput } from '@product/client';
+import type { CreateMatchInput, MatchMetric } from '@product/client';
 
 /** The contest a "Challenge a friend" tap creates, and how its invite reads. */
 export type FriendChallengeSpec = {
@@ -9,7 +9,9 @@ export type FriendChallengeSpec = {
 
 /** What was just done, in the terms a friend challenge is built from. */
 export type FriendChallengeSource =
-  { kind: 'reps'; count: number } | { kind: 'walk' } | { kind: 'day' };
+  | { kind: 'reps'; count: number; metric: MatchMetric }
+  | { kind: 'walk' }
+  | { kind: 'day' };
 
 /** The parts of an experiment assignment that decide which arm someone is in. */
 export type ExperimentArm = {

@@ -1,13 +1,15 @@
-import type { TodayChallenge } from '@product/client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { MatchMetric, TodayChallenge } from '@product/client';
+import { isPoseMetric } from '@product/contract/match-board';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ComponentType, useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { MATCH_DEFAULT_METRIC, MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
 import { announceChallengeFinish } from '@/lib/challenge-finish-session';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
 import { goBackOrHome } from '@/lib/go-back';
-import type { QuickPosePushupUpdate } from '@/lib/pose/quickpose-pushup';
+import type { QuickPoseExerciseUpdate } from '@/lib/pose/quickpose-exercise';
 import { trackEvent } from '@/lib/track-event';
 import { finishAndLeave } from './finish-challenge';
 import { partialSetSession, setSessionId } from './partial-session';
@@ -20,7 +22,8 @@ export type PoseSessionPhase = 'setup' | 'counting' | 'review';
 
 export type QuickPoseCameraProps = {
   sdkKey: string;
-  onUpdate: (update: QuickPosePushupUpdate) => void;
+  metric: MatchMetric;
+  onUpdate: (update: QuickPoseExerciseUpdate) => void;
 };
 
 export type PoseSessionProps =
@@ -32,22 +35,28 @@ export type PoseSessionProps =
   | { mode: 'practice'; challengeId: string };
 
 const LIVE_CAMERA_NOT_READY = 'Live camera is not ready yet. Wait a moment and try again.';
+const IPHONE_ONLY = 'Camera counting is iPhone only for now.';
 
 function useQuickPoseCamera() {
   const [camera, setCamera] = useState<ComponentType<QuickPoseCameraProps> | null>(null);
   const [detail, setDetail] = useState('Checking pose camera…');
 
   useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      setDetail(IPHONE_ONLY);
+      return;
+    }
+
     if (!QUICKPOSE_SDK_KEY) {
       setDetail('Live counting needs a QuickPose SDK key configured for this build.');
       return;
     }
 
     let isCancelled = false;
-    void import('@/components/challenges/QuickPosePushupCamera')
+    void import('@/components/challenges/QuickPoseExerciseCamera')
       .then((module) => {
         if (!isCancelled) {
-          setCamera(() => module.QuickPosePushupCamera);
+          setCamera(() => module.QuickPoseExerciseCamera);
           setDetail('Camera ready');
         }
       })
@@ -65,9 +74,21 @@ function useQuickPoseCamera() {
   return { QuickPoseCamera: camera, isReady: camera !== null, detail };
 }
 
+function poseMetricFromCapture(metric: string | null | undefined): MatchMetric {
+  if (metric && isPoseMetric(metric)) {
+    return metric;
+  }
+
+  return MATCH_DEFAULT_METRIC;
+}
+
 type SubmitSet = { reps: number; durationSeconds: number; startedAt: string };
 
-function useSubmitSet(props: PoseSessionProps, occurrence: TodayChallenge | undefined) {
+function useSubmitSet(
+  props: PoseSessionProps,
+  occurrence: TodayChallenge | undefined,
+  metric: MatchMetric,
+) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -79,6 +100,7 @@ function useSubmitSet(props: PoseSessionProps, occurrence: TodayChallenge | unde
         return {
           mode: 'match' as const,
           reps,
+          metric,
           result: await apiClient.submitMatchAttempt({
             matchId: props.matchId,
             count: reps,
@@ -89,8 +111,9 @@ function useSubmitSet(props: PoseSessionProps, occurrence: TodayChallenge | unde
       }
 
       if (props.mode === 'practice') {
+        const practiceMetric = poseMetricFromCapture(occurrence?.capture.metric);
         await apiClient.recordPracticeSession({
-          metric: 'pushups',
+          metric: practiceMetric,
           source: 'in_app_pose',
           count: reps,
           durationSeconds,
@@ -109,11 +132,12 @@ function useSubmitSet(props: PoseSessionProps, occurrence: TodayChallenge | unde
         await apiClient.startChallenge({ userChallengeId: occurrence.id });
       }
 
+      const challengeMetric = poseMetricFromCapture(occurrence.capture.metric);
       const result = await apiClient.completeChallenge({
         userChallengeId: occurrence.id,
         deviceActivity: {
           source: 'in_app_pose',
-          metric: 'pushups',
+          metric: challengeMetric,
           count: reps,
           durationSeconds,
           startedAt,
@@ -129,7 +153,7 @@ function useSubmitSet(props: PoseSessionProps, occurrence: TodayChallenge | unde
         router.replace({
           pathname: '/challenge/success',
           params: {
-            title: MATCH_METRIC_LABEL[MATCH_DEFAULT_METRIC],
+            title: MATCH_METRIC_LABEL[submitted.metric],
             count: String(submitted.reps),
             matchId: props.matchId,
           },
@@ -161,7 +185,7 @@ function useSubmitSet(props: PoseSessionProps, occurrence: TodayChallenge | unde
       trackEvent('challenge_completed', {
         user_challenge_id: occurrence?.id,
         challenge_goal: submitted.reps,
-        challenge_type: 'pushups',
+        challenge_type: poseMetricFromCapture(occurrence?.capture.metric),
       });
       finishAndLeave(submitted.result, {
         kind: 'reps',
@@ -180,16 +204,26 @@ export function usePoseSession(props: PoseSessionProps) {
   const isMatch = props.mode === 'match';
   const isUnscored = props.mode !== 'challenge';
   const { occurrence, isPending } = useTodayOccurrence(isMatch ? undefined : props.challengeId);
+  const matchQuery = useQuery({
+    queryKey: ['matches', 'detail', isMatch ? props.matchId : null],
+    queryFn: () => apiClient.getMatch({ matchId: props.matchId }),
+    enabled: isMatch,
+  });
+  const metric: MatchMetric = isMatch
+    ? (matchQuery.data?.metric ?? MATCH_DEFAULT_METRIC)
+    : poseMetricFromCapture(occurrence?.capture.metric);
   const queryClient = useQueryClient();
   const camera = useQuickPoseCamera();
-  const { snapshot, elapsedSeconds, start, stop, ingestQuickPose } = usePoseSessionCounter();
+  const { snapshot, elapsedSeconds, start, stop, ingestQuickPose } = usePoseSessionCounter({
+    metric,
+  });
   const [phase, setPhase] = useState<PoseSessionPhase>('setup');
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [cameraSessionKey, setCameraSessionKey] = useState(0);
   const phaseRef = useRef<PoseSessionPhase>('setup');
   const startedAtRef = useRef<string | null>(null);
   const autoStartLockRef = useRef(false);
-  const submitSet = useSubmitSet(props, occurrence);
+  const submitSet = useSubmitSet(props, occurrence, metric);
   const { savePartial } = useSavePartialSession();
   const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
   const meetsTarget = isUnscored ? snapshot.count > 0 : target > 0 && snapshot.count >= target;
@@ -305,7 +339,10 @@ export function usePoseSession(props: PoseSessionProps) {
 
   return {
     occurrence,
-    isLoading: props.mode === 'challenge' && (isPending || !occurrence),
+    metric,
+    isLoading:
+      (props.mode === 'challenge' && (isPending || !occurrence)) ||
+      (isMatch && matchQuery.isPending),
     camera,
     cameraSessionKey,
     handleQuickPoseUpdate,

@@ -11,6 +11,8 @@ import { hasAnsweredRemindersIntro } from './reminders-intro';
  *
  * Always attempts deferred-invite claim first (fail-soft) so Store installs
  * that land on onboarding still keep the Match token in SecureStore.
+ *
+ * Enrolls fitness defaults once when the profile has no categories yet.
  */
 export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
   await claimDeferredInviteToken();
@@ -21,16 +23,25 @@ export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
   }
 
   const session = await getSessionData();
-  const me = await apiClient.me();
+  let me = await apiClient.me();
+  const name = me.name ?? session?.user.name;
+
+  if (me.categories.length === 0 && Boolean(name?.trim())) {
+    try {
+      me = await apiClient.updateCategories({ categories: ['general'] });
+    } catch {
+      // Fail soft: Today can still show FirstRunCard until the next launch.
+    }
+  }
+
   const pendingToken = await peekPendingMatchToken();
   const hasPendingInvite = isMatchInviteToken(pendingToken);
   const remindersAsked = await hasAnsweredRemindersIntro(me.reminderEnabled);
 
   const route = postAuthRoute({
     emailVerified: isEmailVerified(session),
-    name: me.name ?? session?.user.name,
+    name,
     countryCode: me.countryCode,
-    categoryCount: me.categories.length,
     hasPendingInvite,
     remindersAsked,
   });
@@ -42,7 +53,7 @@ export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
   if (pendingToken) {
     const token = await takePendingMatchToken();
     if (token) {
-      return `/match/${token}`;
+      return `/match/${token}?join=auto`;
     }
   }
 

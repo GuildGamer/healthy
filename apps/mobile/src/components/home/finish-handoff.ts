@@ -1,3 +1,4 @@
+import { isPoseMetric } from '@product/contract/match-board';
 import type { FriendChallengeSource } from '@/components/challenges/types/friend-challenge';
 import type { ChallengeFinish } from '@/lib/challenge-finish-session';
 import type { DeckItem } from './types/today-deck';
@@ -6,7 +7,10 @@ import type { DeckItem } from './types/today-deck';
 export function friendSourceForFinish(finish: ChallengeFinish): FriendChallengeSource {
   const { outcome } = finish;
   if (outcome.kind === 'reps' || outcome.kind === 'extraSet') {
-    return { kind: 'reps', count: outcome.count };
+    const captureMetric = finish.challenge.capture.metric;
+    const metric =
+      captureMetric && isPoseMetric(captureMetric) ? captureMetric : 'pushups';
+    return { kind: 'reps', count: outcome.count, metric };
   }
 
   return outcome.kind === 'walk' ? { kind: 'walk' } : { kind: 'day' };
@@ -23,9 +27,10 @@ export function isDayFinishedBy(finish: ChallengeFinish, items: readonly DeckIte
   );
 }
 
-function successMetric(finish: ChallengeFinish): 'pushups' | 'walk' | 'other' {
+function successMetric(finish: ChallengeFinish): string {
   if (finish.outcome.kind === 'reps' || finish.outcome.kind === 'extraSet') {
-    return 'pushups';
+    const captureMetric = finish.challenge.capture.metric;
+    return captureMetric && isPoseMetric(captureMetric) ? captureMetric : 'pushups';
   }
 
   return finish.outcome.kind === 'walk' ? 'walk' : 'other';

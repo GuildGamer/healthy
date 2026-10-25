@@ -10,5 +10,5 @@ export const TIPS_COPY = {
   failedBody: 'Check your connection and try again.',
   tryAgain: 'Try again',
   emptyTitle: 'No tips yet',
-  emptyBody: 'Pick a condition in Settings and a tip for it will arrive each day.',
+  emptyBody: 'A tip for your contests will arrive each day.',
 } as const;

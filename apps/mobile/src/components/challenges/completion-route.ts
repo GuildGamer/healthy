@@ -3,6 +3,7 @@ import type {
   ChallengeCompletionKind,
   UserChallengeStatus,
 } from '@product/client';
+import { isPoseMetric } from '@product/contract/match-board';
 import { canPracticeAgain, practiceRoute } from './practice-entry';
 
 const LOG_KINDS = new Set<ChallengeCompletionKind>([
@@ -43,7 +44,7 @@ export function completionRoute(challenge: {
     return `/challenge/${challenge.challengeId}/verify`;
   }
 
-  if (challenge.capture?.metric === 'pushups') {
+  if (challenge.capture?.metric && isPoseMetric(challenge.capture.metric)) {
     return `/challenge/${challenge.challengeId}/pose`;
   }
 

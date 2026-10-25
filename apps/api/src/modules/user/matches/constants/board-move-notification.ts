@@ -1,13 +1,18 @@
 /**
  * Copy for when a group mate's score moves the board. Urgent voice when they
  * are close to, tied with, or ahead of the recipient; lighter otherwise.
- * Titles stay action verbs; bodies name the actor. No "log" wording.
+ * Titles stay action verbs; bodies name the actor and scores when known.
  */
 
 export const BOARD_MOVE_URGENT_TITLE = 'Stay ahead';
 export const BOARD_MOVE_ROUTINE_TITLE = 'See the board';
 
 export type BoardMoveUrgency = 'ahead' | 'tied' | 'close' | 'routine';
+
+export type BoardMoveScores = {
+  actorScore: number;
+  recipientScore: number;
+};
 
 /**
  * How near the actor is to the recipient after this scoring event.
@@ -50,18 +55,33 @@ export function boardMovePushTitle(urgency: BoardMoveUrgency): string {
   return urgency === 'routine' ? BOARD_MOVE_ROUTINE_TITLE : BOARD_MOVE_URGENT_TITLE;
 }
 
-export function boardMovePushBody(actorDisplayName: string, urgency: BoardMoveUrgency): string {
+function scoreTail(scores: BoardMoveScores | undefined): string {
+  if (!scores || scores.actorScore <= 0) {
+    return '';
+  }
+
+  return `, ${scores.actorScore} to your ${scores.recipientScore}`;
+}
+
+export function boardMovePushBody(
+  actorDisplayName: string,
+  urgency: BoardMoveUrgency,
+  scores?: BoardMoveScores,
+): string {
+  const tail = scoreTail(scores);
+
   switch (urgency) {
     case 'ahead':
-      return `${actorDisplayName} just passed you.`;
+      return `${actorDisplayName} just passed you${tail}.`;
     case 'tied':
-      return `${actorDisplayName} matched you.`;
+      return `${actorDisplayName} matched you${tail}.`;
     case 'close':
-      return `${actorDisplayName} is on your heels.`;
+      return `${actorDisplayName} is on your heels${tail}.`;
     case 'routine':
-      return `${actorDisplayName} just scored.`;
+      return `${actorDisplayName} just scored${tail}.`;
   }
 }
+
 export function boardMoveIdempotencyKey(
   matchId: string,
   attemptOrEventId: string,

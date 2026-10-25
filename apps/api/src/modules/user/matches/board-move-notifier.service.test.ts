@@ -57,7 +57,7 @@ describe('BoardMoveNotifierService', () => {
           userId: 'host',
           kind: 'social',
           title: 'Stay ahead',
-          body: 'Bee just passed you.',
+          body: 'Bee just passed you, 40 to your 30.',
           payload: { matchId: 'm1' },
           idempotencyKey: 'match_board_move:m1:a1:host',
         },
@@ -65,7 +65,7 @@ describe('BoardMoveNotifierService', () => {
           userId: 'cam',
           kind: 'social',
           title: 'See the board',
-          body: 'Bee just scored.',
+          body: 'Bee just scored, 40 to your 100.',
           payload: { matchId: 'm1' },
           idempotencyKey: 'match_board_move:m1:a1:cam',
         },
@@ -79,13 +79,13 @@ describe('BoardMoveNotifierService', () => {
         {
           userId: 'host',
           title: 'Stay ahead',
-          body: 'Bee just passed you.',
+          body: 'Bee just passed you, 40 to your 30.',
           data: { matchId: 'm1' },
         },
         {
           userId: 'cam',
           title: 'See the board',
-          body: 'Bee just scored.',
+          body: 'Bee just scored, 40 to your 100.',
           data: { matchId: 'm1' },
         },
       ],
@@ -108,7 +108,7 @@ describe('BoardMoveNotifierService', () => {
         expect.objectContaining({
           userId: 'host',
           title: 'Stay ahead',
-          body: 'Bee is on your heels.',
+          body: 'Bee is on your heels, 28 to your 30.',
         }),
       ],
       skipDuplicates: true,
@@ -130,7 +130,7 @@ describe('BoardMoveNotifierService', () => {
       data: [
         expect.objectContaining({
           title: 'Stay ahead',
-          body: 'Bee matched you.',
+          body: 'Bee matched you, 30 to your 30.',
         }),
       ],
       skipDuplicates: true,

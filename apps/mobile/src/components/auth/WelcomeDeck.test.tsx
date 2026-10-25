@@ -41,9 +41,9 @@ describe('WelcomeDeck', () => {
     const deck = await renderDeck();
 
     expect(deck).toHaveAccessibleName(
-      'Examples of daily challenges: Check your blood pressure, Ten-minute walk, Log your water',
+      'Examples of daily challenges: Most push-ups by Sunday, Longest plank wins, Gym vs office: squats',
     );
-    expect(deck.props.accessibilityValue).toEqual({ text: 'Check your blood pressure, 1 of 3' });
+    expect(deck.props.accessibilityValue).toEqual({ text: 'Most push-ups by Sunday, 1 of 3' });
   });
 
   it('deals the next example after the dwell', async () => {
@@ -51,7 +51,7 @@ describe('WelcomeDeck', () => {
 
     advance(WELCOME_DECK_DWELL_MS + DEAL_SETTLED_MS);
 
-    expect(deck.props.accessibilityValue).toEqual({ text: 'Ten-minute walk, 2 of 3' });
+    expect(deck.props.accessibilityValue).toEqual({ text: 'Longest plank wins, 2 of 3' });
   });
 
   it('holds the top card while it is touched', async () => {
@@ -62,7 +62,7 @@ describe('WelcomeDeck', () => {
     });
     advance(WELCOME_DECK_DWELL_MS * 2);
 
-    expect(deck.props.accessibilityValue).toEqual({ text: 'Check your blood pressure, 1 of 3' });
+    expect(deck.props.accessibilityValue).toEqual({ text: 'Most push-ups by Sunday, 1 of 3' });
   });
 
   it('deals on the Next example action', async () => {
@@ -73,7 +73,7 @@ describe('WelcomeDeck', () => {
     });
     advance(DEAL_SETTLED_MS);
 
-    expect(deck.props.accessibilityValue).toEqual({ text: 'Ten-minute walk, 2 of 3' });
+    expect(deck.props.accessibilityValue).toEqual({ text: 'Longest plank wins, 2 of 3' });
   });
 
   it('does not advance by itself with Reduce Motion on', async () => {
@@ -82,6 +82,6 @@ describe('WelcomeDeck', () => {
 
     advance(WELCOME_DECK_DWELL_MS * 2);
 
-    expect(deck.props.accessibilityValue).toEqual({ text: 'Check your blood pressure, 1 of 3' });
+    expect(deck.props.accessibilityValue).toEqual({ text: 'Most push-ups by Sunday, 1 of 3' });
   });
 });

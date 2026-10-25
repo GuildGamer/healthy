@@ -20,7 +20,7 @@ const REMINDER_TITLE = 'Do one now';
  */
 export function RemindersIntroScreen({ onAnswered }: { onAnswered: () => void }) {
   const styles = useThemedStyles(createStyles);
-  const { conditionTones } = useTheme();
+  const { colors } = useTheme();
   const preview = useReminderPreview();
   const answer = useAnswerRemindersIntro(preview.reminderMinute, onAnswered);
 
@@ -56,10 +56,10 @@ export function RemindersIntroScreen({ onAnswered }: { onAnswered: () => void })
         <View
           style={[
             styles.bellArt,
-            { backgroundColor: withAlpha(conditionTones.hypertension, 0.14) },
+            { backgroundColor: withAlpha(colors.accent, 0.14) },
           ]}
         >
-          <Glyph color={conditionTones.hypertension} name="bell" size={40} strokeWidth={2} />
+          <Glyph color={colors.accent} name="bell" size={40} strokeWidth={2} />
         </View>
         <FrontDoorTitle
           centered

@@ -8,7 +8,7 @@ import { type GroupRules } from './group-rule-copy';
 import { groupToneFor } from './group-tone';
 import { displayNameFor } from './group-today';
 import { BOARD_COPY, GROUPS_COPY } from './match-copy';
-import { matchScoreUnitFor } from './match-metric';
+import { formatBoardScore } from './match-metric';
 import { standingProgress } from './standing-progress';
 
 const LANE_FACE_SIZE = 36;
@@ -61,11 +61,12 @@ function laneScoreText(row: MatchStanding, rules: GroupRules): string {
     return GROUPS_COPY.noPlace;
   }
 
-  if (rules.scoringMode !== 'days_completed') {
-    return String(row.score);
+  const formatted = formatBoardScore(rules.scoringMode, rules.metric, row.score);
+  if (!formatted.unit) {
+    return formatted.value;
   }
 
-  return `${row.score} ${matchScoreUnitFor(rules.scoringMode, rules.metric, row.score)}`;
+  return `${formatted.value} ${formatted.unit}`;
 }
 
 function StandingLane({

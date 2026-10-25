@@ -6,6 +6,13 @@ import { deviceMetricSchema } from './challenge-capture.js';
 const PRACTICE_SOURCE_BY_METRIC = {
   pushups: 'in_app_pose',
   walk: 'in_app_gps',
+  squats: 'in_app_pose',
+  plank: 'in_app_pose',
+  jumping_jacks: 'in_app_pose',
+  burpees: 'in_app_pose',
+  sit_ups: 'in_app_pose',
+  mountain_climbers: 'in_app_pose',
+  lunges: 'in_app_pose',
 } as const;
 
 /**
@@ -16,7 +23,17 @@ const PRACTICE_SOURCE_BY_METRIC = {
  */
 export const recordPracticeSessionInputSchema = z
   .object({
-    metric: z.enum(['pushups', 'walk']),
+    metric: z.enum([
+      'pushups',
+      'walk',
+      'squats',
+      'plank',
+      'jumping_jacks',
+      'burpees',
+      'sit_ups',
+      'mountain_climbers',
+      'lunges',
+    ]),
     source: z.enum(['in_app_pose', 'in_app_gps']),
     /** Reps; required for push-ups, absent for a walk. */
     count: z.number().int().positive().max(200_000).optional(),
@@ -40,11 +57,11 @@ export const recordPracticeSessionInputSchema = z
       });
     }
 
-    if (session.metric === 'pushups' && session.count === undefined) {
+    if (session.metric !== 'walk' && session.count === undefined) {
       context.addIssue({
         code: 'custom',
         path: ['count'],
-        message: 'A push-up set needs its reps',
+        message: 'A set needs its count',
       });
     }
 

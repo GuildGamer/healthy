@@ -41,8 +41,10 @@ export function FullNameSheet({
       testID="full-name-sheet"
       visible={visible}
     >
-      <DeckSheetTitle>Full name</DeckSheetTitle>
-      <DeckSheetSub>Only you see this.</DeckSheetSub>
+      <DeckSheetTitle>Account name</DeckSheetTitle>
+      <DeckSheetSub>
+        Contests show your first name to friends. The rest stays private.
+      </DeckSheetSub>
       {save.isError ? (
         <InlineNotice icon="offline" message={SETTINGS_SAVE_FAILED_MESSAGE} tone="error" />
       ) : null}

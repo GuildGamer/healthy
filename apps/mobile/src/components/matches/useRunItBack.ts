@@ -49,7 +49,13 @@ export function useRunItBack(board: MatchBoard) {
     onSuccess: async ({ created, crewId }) => {
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       if (!crewId) {
-        await shareMatchLink(created.match.inviteUrl);
+        await shareMatchLink({
+          url: created.match.inviteUrl,
+          hostScore: created.match.yourScore,
+          metric: created.match.metric,
+          scoringMode: created.match.scoringMode,
+          endsAt: created.match.endsAt,
+        });
       }
       router.replace(`/matches/${created.match.id}`);
     },

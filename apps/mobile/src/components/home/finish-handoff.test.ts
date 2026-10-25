@@ -27,7 +27,11 @@ function challengeItem(id: string): DeckItem {
 
 describe('finish handoff', () => {
   it('challenges a friend to the reps, the walk, or a week of finished days', () => {
-    expect(friendSourceForFinish(finish({}))).toEqual({ kind: 'reps', count: 22 });
+    expect(friendSourceForFinish(finish({}))).toEqual({
+      kind: 'reps',
+      count: 22,
+      metric: 'pushups',
+    });
     expect(
       friendSourceForFinish(
         finish({ outcome: { kind: 'walk', durationSeconds: 600, distanceMeters: 900 } }),

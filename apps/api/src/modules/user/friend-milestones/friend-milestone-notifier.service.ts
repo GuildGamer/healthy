@@ -11,7 +11,7 @@ import {
   isQuietLocalMinute,
 } from '../../shared-modules/engagement/index.js';
 import { CrewsService } from '../crews/index.js';
-import { publicNameFor } from '../leaderboard/pseudonym.js';
+import { groupNameFor } from '../../../shared/utils/group-name.js';
 import {
   FRIEND_MILESTONE_INACTIVE_MS,
   FRIEND_MILESTONE_PUSH_TITLE,
@@ -50,6 +50,7 @@ export class FriendMilestoneNotifierService {
       where: { id: notice.actorUserId },
       select: {
         id: true,
+        name: true,
         profile: { select: { displayName: true } },
       },
     });
@@ -57,7 +58,7 @@ export class FriendMilestoneNotifierService {
       return;
     }
 
-    const actorName = publicNameFor(actor.id, actor.profile?.displayName);
+    const actorName = groupNameFor(actor);
     const body = friendMilestonePushBody(actorName, notice.milestoneKey);
     const candidates = [...recipientIds];
 

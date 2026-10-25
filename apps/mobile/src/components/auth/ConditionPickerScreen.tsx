@@ -17,8 +17,8 @@ interface ConditionPickerScreenProps {
 }
 
 /**
- * The first screen: what you are looking after, with the first day it builds
- * right underneath, so the choice shows its consequence as it is made.
+ * Dormant condition picker (fitness pivot hides this path). Kept for a
+ * possible re-enable; onboarding routes redirect away from it.
  */
 export function ConditionPickerScreen({
   initialPicked = [],

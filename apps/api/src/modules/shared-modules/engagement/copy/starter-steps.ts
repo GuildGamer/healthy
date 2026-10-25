@@ -1,3 +1,7 @@
+import { firstNameFromDisplay } from '../../../../shared/utils/first-name.js';
+
+export { firstNameFromDisplay };
+
 /** Small first step for copy — independent of the member’s goal. */
 export function starterStepLabel(input: {
   deviceMetric: string | null;
@@ -5,6 +9,24 @@ export function starterStepLabel(input: {
 }): string {
   if (input.deviceMetric === 'pushups') {
     return '5 push-ups';
+  }
+
+  if (input.deviceMetric === 'squats') {
+    return '10 squats';
+  }
+
+  if (input.deviceMetric === 'plank') {
+    return '20 seconds';
+  }
+
+  if (
+    input.deviceMetric === 'jumping_jacks' ||
+    input.deviceMetric === 'burpees' ||
+    input.deviceMetric === 'sit_ups' ||
+    input.deviceMetric === 'mountain_climbers' ||
+    input.deviceMetric === 'lunges'
+  ) {
+    return 'a short set';
   }
 
   if (
@@ -21,22 +43,4 @@ export function starterStepLabel(input: {
   }
 
   return 'one quick one';
-}
-
-export function firstNameFromDisplay(displayName: string | null | undefined): string | null {
-  if (!displayName) {
-    return null;
-  }
-
-  const trimmed = displayName.trim();
-  if (!trimmed || trimmed.includes('@')) {
-    return null;
-  }
-
-  const first = trimmed.split(/\s+/)[0];
-  if (!first || first.length < 2) {
-    return null;
-  }
-
-  return first;
 }

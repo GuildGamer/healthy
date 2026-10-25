@@ -8,6 +8,7 @@ import type {
 } from '@product/client';
 import { emptyChallengeTarget } from '@product/contract/challenge-capture';
 import { displayChallengeTitle } from '@product/contract/challenge-title';
+import { isPoseMetric } from '@product/contract/match-board';
 import { deckCardKindFor } from '@/components/deck';
 import { formatClockTime } from '@/lib/clock-time';
 import { friendSourceForCompletion, shareFriendParams } from './friend-challenge';
@@ -235,7 +236,7 @@ function shareFromHistoryLog(log: ChallengeHistoryLog | null): ProgressShareResu
     return null;
   }
 
-  if (log.metric === 'pushups' && log.count != null) {
+  if (log.metric && isPoseMetric(log.metric) && log.count != null) {
     return { kind: 'reps', count: log.count };
   }
 

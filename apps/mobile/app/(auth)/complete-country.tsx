@@ -23,7 +23,7 @@ export default function CompleteCountry() {
       invite={pendingInvite.invite}
       onCompleted={async () => {
         const href = await resolvePostAuthHref();
-        router.replace(href ?? '/category-selection');
+        router.replace(href ?? '/reminders-intro');
       }}
     />
   );

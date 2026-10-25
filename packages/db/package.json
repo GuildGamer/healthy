@@ -18,6 +18,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "migrate:status": "prisma migrate status",
     "seed": "tsx prisma/seed.ts",
+    "enroll:fitness-defaults": "tsx scripts/enroll-fitness-defaults.ts",
     "studio": "prisma studio",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"lint: db skipped\""

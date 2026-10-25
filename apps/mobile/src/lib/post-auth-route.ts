@@ -1,16 +1,15 @@
 /**
  * After sign-in / launch, finish profile gaps before the main app.
  * Order: email OTP (email sign-ups, while the code is fresh) → name and
- * country → categories → the one-time reminders ask.
+ * country → the one-time reminders ask.
  *
  * Challenge-first (distribution): a pending invite only requires a name so the
- * recipient can accept and act; country / categories / verify resume afterward.
+ * recipient can accept and act; country / verify resume afterward.
  */
 export type PostAuthState = {
   emailVerified: boolean;
   name: string | null | undefined;
   countryCode: string | null | undefined;
-  categoryCount: number;
   /** SecureStore still holds a match invite token. */
   hasPendingInvite: boolean;
   /** Reminders are on, the phone already answered, or this person said Not now. */
@@ -44,10 +43,6 @@ export function postAuthRoute(state: PostAuthState): PostAuthHref {
     return '/complete-country';
   }
 
-  if (state.categoryCount < 1) {
-    return '/category-selection';
-  }
-
   if (!state.remindersAsked) {
     return '/reminders-intro';
   }
@@ -61,10 +56,6 @@ export function hasDeferredOnboarding(
 ): boolean {
   const hasName = Boolean(state.name?.trim());
   if (!hasName || !state.countryCode) {
-    return true;
-  }
-
-  if (state.categoryCount < 1) {
     return true;
   }
 

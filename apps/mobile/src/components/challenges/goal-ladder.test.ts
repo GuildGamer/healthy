@@ -22,12 +22,21 @@ describe('nextGoalLadderOffer', () => {
     ).toBeNull();
   });
 
-  it('ignores custom goals and non-push-up metrics', () => {
+  it('offers the same ladder for other pose count goals', () => {
+    expect(
+      nextGoalLadderOffer({ metric: 'squats', currentTarget: 5, streakDays: 3 }),
+    ).toEqual({ nextTarget: 8 });
+  });
+
+  it('ignores custom goals, walks, and hold targets off the ladder', () => {
     expect(
       nextGoalLadderOffer({ metric: 'pushups', currentTarget: 20, streakDays: 3 }),
     ).toBeNull();
     expect(
       nextGoalLadderOffer({ metric: 'walk', currentTarget: 5, streakDays: 3 }),
+    ).toBeNull();
+    expect(
+      nextGoalLadderOffer({ metric: 'plank', currentTarget: 60, streakDays: 3 }),
     ).toBeNull();
     expect(
       nextGoalLadderOffer({ metric: 'pushups', currentTarget: 10, streakDays: 7 }),

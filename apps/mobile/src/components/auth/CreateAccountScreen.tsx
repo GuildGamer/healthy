@@ -58,7 +58,7 @@ export function CreateAccountScreen({
       ) : (
         <>
           <FrontDoorTitle
-            subtitle="Small daily challenges for blood pressure, blood sugar, breathing and everyday health. Next, you pick yours."
+            subtitle="Camera-counted contests with friends. Push-ups, planks, squats — settle who’s stronger."
             title="Welcome to Healthy"
           />
           <WelcomeDeck />

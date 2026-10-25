@@ -10,21 +10,21 @@ export type TipEnrollmentPreference = {
 };
 
 /**
- * Condition-specific tips first, then general ones, mirroring how the API picks
- * challenges: a user's categories plus `general`, or everything when they have
- * not chosen yet.
+ * Fitness tips (`general`) first. When condition features are on, also include
+ * tips matching the user's categories.
  */
 export function tipsForCategories(
   tips: readonly HealthTip[],
   categories: readonly HealthCategory[],
 ): HealthTip[] {
+  const general = tips.filter((tip) => tip.category === 'general');
+
   if (categories.length === 0) {
-    return [...tips];
+    return general.length > 0 ? general : [...tips];
   }
 
-  const chosen = tips.filter((tip) => categories.includes(tip.category));
-  const general = tips.filter(
-    (tip) => tip.category === 'general' && !categories.includes('general'),
+  const chosen = tips.filter(
+    (tip) => tip.category !== 'general' && categories.includes(tip.category),
   );
 
   return [...chosen, ...general];

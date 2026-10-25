@@ -77,7 +77,7 @@ export function ProfileDetailsScreen() {
         autoCorrect={false}
         counter={isNameFocused || publicName.isInvalid ? publicName.counter : undefined}
         hasError={publicName.isInvalid}
-        label="Name"
+        label="Leaderboard name"
         maxLength={PUBLIC_NAME_MAX_LENGTH}
         onBlur={() => setIsNameFocused(false)}
         onChangeText={publicName.setValue}
@@ -98,7 +98,7 @@ export function ProfileDetailsScreen() {
       <SettingsSectionTitle>Private</SettingsSectionTitle>
       <SettingsGroup isSpaced={false}>
         <SettingsLinkRow
-          label="Full name"
+          label="Account name"
           onPress={() => setIsFullNameOpen(true)}
           testID="open-full-name"
           value={fullName}

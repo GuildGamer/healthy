@@ -94,7 +94,14 @@ function LiveBoard({
   const isWaiting = isOpen && match.participantCount === 1;
   const canShare = isOpen && match.participantCount < match.participantCap;
   const you = match.standings.find((row) => row.isYou);
-  const share = () => void shareMatchLink(match.inviteUrl);
+  const share = () =>
+    void shareMatchLink({
+      url: match.inviteUrl,
+      hostScore: you?.score ?? match.yourScore,
+      metric: match.metric,
+      scoringMode: match.scoringMode,
+      endsAt: match.endsAt,
+    });
 
   function stepAway(isHost: boolean) {
     const onError = () =>

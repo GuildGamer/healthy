@@ -6,7 +6,18 @@ export const POSE_MOVE_INTO_FRAME =
 
 export const POSE_TARGET_BADGE = 'Target hit';
 
-export const PRACTICE_SESSION_TITLE = 'Push-ups';
+export const PRACTICE_SESSION_TITLE = 'Extra set';
+
+/** Side-on for push-ups, plank, sit-ups; front-on for the rest. */
+export function poseCameraPlacement(
+  metric: 'pushups' | 'squats' | 'plank' | 'jumping_jacks' | 'burpees' | 'sit_ups' | 'mountain_climbers' | 'lunges' | string,
+): string {
+  if (metric === 'pushups' || metric === 'plank' || metric === 'sit_ups') {
+    return 'Prop the phone side-on so your whole body fits.';
+  }
+
+  return 'Prop the phone facing you so your whole body fits.';
+}
 
 export type PoseSessionMode = 'challenge' | 'match' | 'practice';
 

@@ -17,16 +17,14 @@ type FriendChallengeInput = {
   practice?: boolean;
 };
 
-/** Only the treatment arm is offered the challenge; control keeps the plain share. */
-export function isFriendChallengeTreatment(assignment: ExperimentArm | null | undefined): boolean {
-  if (!assignment) {
-    return false;
-  }
-
-  return (
-    assignment.variantKey === 'treatment' ||
-    assignment.configuration?.completionCta === 'challenge_friend_primary'
-  );
+/**
+ * Competitive fitness pivot: everyone who is eligible gets "Challenge a friend".
+ * The experiment assignment is still fetched for analytics attribution.
+ */
+export function isFriendChallengeTreatment(
+  _assignment: ExperimentArm | null | undefined,
+): boolean {
+  return true;
 }
 
 /**
@@ -83,10 +81,10 @@ export function useFriendChallenge(input: FriendChallengeInput) {
       });
       await shareMatchLink({
         url: result.invite.url,
-        hostScore: input.spec.metricLabel
-          ? (input.spec.match.seedCount ?? result.match.yourScore)
-          : null,
-        metricLabel: input.spec.metricLabel ?? undefined,
+        hostScore: input.spec.match.seedCount ?? result.match.yourScore,
+        metric: result.match.metric,
+        scoringMode: result.match.scoringMode,
+        endsAt: result.match.endsAt,
       });
       router.push(`/matches/${result.match.id}`);
     },

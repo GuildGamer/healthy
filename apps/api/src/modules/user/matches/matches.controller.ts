@@ -37,7 +37,7 @@ export class MatchesController {
   @Implement(appContract.publicPreviewMatch)
   publicPreviewMatch() {
     return implement(appContract.publicPreviewMatch).handler(async ({ input }) => {
-      return this.matchesService.publicPreview(input.token);
+      return this.matchesService.publicPreview(input.token, input.purpose ?? 'open');
     });
   }
 

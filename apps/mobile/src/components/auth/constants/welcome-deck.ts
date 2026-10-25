@@ -16,38 +16,38 @@ export interface DeckCardContent {
 
 /**
  * Fixed examples, not anyone's data: nothing is known before an account
- * exists, and they must show offline.
+ * exists, and they must show offline. Competitive fitness framing.
  */
 export const WELCOME_DECK_CARDS: readonly DeckCardContent[] = [
   {
-    id: 'blood-pressure',
-    kind: 'bloodPressure',
-    categoryGlyph: 'bloodPressure',
-    category: 'Blood pressure',
-    when: 'Morning',
-    title: 'Check your blood pressure',
-    proofGlyph: 'bloodPressure',
-    proof: 'From your cuff reading',
-  },
-  {
-    id: 'walk',
-    kind: 'walk',
-    categoryGlyph: 'walk',
-    category: 'Everyday health',
-    when: 'Any time',
-    title: 'Ten-minute walk',
-    proofGlyph: 'walk',
-    proof: 'Measured by your phone',
-  },
-  {
-    id: 'water',
-    kind: 'water',
-    categoryGlyph: 'water',
-    category: 'Everyday health',
-    when: 'Any time',
-    title: 'Log your water',
+    id: 'pushups-contest',
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    category: 'Push-ups',
+    when: 'By Sunday',
+    title: 'Most push-ups by Sunday',
     proofGlyph: 'check',
-    proof: 'Tap to confirm',
+    proof: 'Counted by your camera',
+  },
+  {
+    id: 'plank-contest',
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    category: 'Plank',
+    when: 'Any time',
+    title: 'Longest plank wins',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
+  },
+  {
+    id: 'squats-contest',
+    kind: 'strength',
+    categoryGlyph: 'everydayHealth',
+    category: 'Squats',
+    when: 'This week',
+    title: 'Gym vs office: squats',
+    proofGlyph: 'check',
+    proof: 'Counted by your camera',
   },
 ];
 

@@ -5,7 +5,8 @@ import { type Theme, useThemedStyles } from '@/theme';
 const MEASURE_SIZE = 72;
 
 interface GroupMeasureProps {
-  score: number;
+  /** Plain count, or a hold formatted as m:ss. */
+  score: string | number;
   unit: string;
   /** "2nd", or null while there is no place to hold. */
   place: string | null;
@@ -20,7 +21,7 @@ export function GroupMeasure({ score, unit, place, numeralColor }: GroupMeasureP
   return (
     <View style={styles.row} testID="match-board-measure">
       <Text style={[styles.numeral, numeralColor ? { color: numeralColor } : null]}>{score}</Text>
-      <Text style={styles.unit}>{unit}</Text>
+      {unit ? <Text style={styles.unit}>{unit}</Text> : null}
       {place ? (
         <Text style={styles.place} testID="match-board-place">
           {place}

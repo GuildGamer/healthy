@@ -4,7 +4,7 @@ import { formatDayMonth } from '@/lib/format-day';
 import { GROUPS_COPY, RESULT_COPY } from './match-copy';
 import { groupKindLabel, groupNoun } from './group-rule-copy';
 import { contestDays } from './group-rerun';
-import { matchScoreUnitFor } from './match-metric';
+import { formatBoardScore } from './match-metric';
 
 export type PastGroupSection = { label: string; items: MatchListItem[] };
 
@@ -77,7 +77,10 @@ function lengthLine(board: MatchBoard): string {
 export function resultSummary(board: MatchBoard): ResultSummary {
   const winner = board.standings.find((row) => row.userId === board.winnerUserId);
   const you = board.standings.find((row) => row.isYou);
-  const unit = (score: number) => matchScoreUnitFor(board.scoringMode, board.metric, score);
+  const scoreLabel = (score: number) => {
+    const formatted = formatBoardScore(board.scoringMode, board.metric, score);
+    return formatted.unit ? `${formatted.value} ${formatted.unit}` : formatted.value;
+  };
 
   if (!winner) {
     return { headline: RESULT_COPY.nobodyWon, sentence: '', lengthLine: lengthLine(board) };
@@ -86,7 +89,7 @@ export function resultSummary(board: MatchBoard): ResultSummary {
   if (!winner.isYou) {
     const sentence =
       you && you.score > 0
-        ? `You came ${ordinal(you.rank)} with ${you.score} ${unit(you.score)}.`
+        ? `You came ${ordinal(you.rank)} with ${scoreLabel(you.score)}.`
         : 'You didn’t score this time.';
     return {
       headline: RESULT_COPY.theyWon(winner.displayName),
@@ -96,7 +99,7 @@ export function resultSummary(board: MatchBoard): ResultSummary {
   }
 
   const runnerUp = board.standings.find((row) => !row.isYou && row.score > 0) ?? null;
-  const sentence = winningSentence(`${winner.score} ${unit(winner.score)}`, winner, runnerUp);
+  const sentence = winningSentence(scoreLabel(winner.score), winner, runnerUp);
   return { headline: RESULT_COPY.youWon, sentence, lengthLine: lengthLine(board) };
 }
 

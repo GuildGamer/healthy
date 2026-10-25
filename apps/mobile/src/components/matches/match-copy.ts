@@ -20,14 +20,14 @@ export const GROUPS_COPY = {
   loadFailedTitle: 'Your groups didn’t load.',
   loadFailedBody: 'Check your connection and try again.',
   tryAgain: 'Try again',
-  emptyTitle: 'Make a challenge a contest.',
-  emptyBody: 'Scores come from what you already log, so there’s nothing extra to track.',
+  emptyTitle: 'Challenge your friends.',
+  emptyBody: 'Camera counts the reps. One link. Whoever does the most wins.',
   emptySteps: [
     { title: 'Pick how you win', hint: 'Best set, total, or streak' },
     { title: 'Send one link', hint: `Up to ${MATCH_PARTICIPANT_CAP} people` },
     { title: 'Play it out', hint: 'Then run it back' },
   ],
-  startGroup: 'Start a group',
+  startGroup: 'Start a contest',
   cancelled: 'cancelled',
   noPlace: '–',
 } as const;

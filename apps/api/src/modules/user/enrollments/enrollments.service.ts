@@ -15,6 +15,7 @@ import {
   isCatalogChallengeLocked,
   maxRemindersForMembership,
 } from '../../../shared/membership/entitlements.js';
+import { CONDITION_FEATURES_ENABLED } from '../../../shared/constants/product-scope.js';
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
@@ -26,10 +27,12 @@ import type { CatalogChallengeDto, ChallengeCatalogDto } from './dto/challenge-c
 import type { EnrollmentGoalDto } from './dto/enrollment-goal.dto.js';
 import type { StarterChallengeDto, StarterChallengesDto } from './dto/starter-challenge.dto.js';
 
-/** Everyone sees general-health challenges alongside their own conditions. */
+/** Everyone sees general fitness challenges alongside their own conditions. */
 const UNIVERSAL_CATEGORY: HealthCategory = 'general';
 
 const ALL_CATEGORIES: HealthCategory[] = ['hypertension', 'diabetes', 'asthma', 'general'];
+
+const FITNESS_CATEGORIES: HealthCategory[] = [UNIVERSAL_CATEGORY];
 
 @Injectable()
 export class EnrollmentsService {
@@ -364,6 +367,10 @@ export class EnrollmentsService {
   }
 
   private async categoriesFor(userId: string): Promise<HealthCategory[]> {
+    if (!CONDITION_FEATURES_ENABLED) {
+      return FITNESS_CATEGORIES;
+    }
+
     const profile = await this.prisma.userProfile.findUnique({
       where: { userId },
       select: { healthCategories: true },
@@ -381,6 +388,10 @@ export class EnrollmentsService {
   }
 
   private withUniversalCategory(categories: readonly HealthCategory[]): HealthCategory[] {
+    if (!CONDITION_FEATURES_ENABLED) {
+      return FITNESS_CATEGORIES;
+    }
+
     return [...new Set<HealthCategory>([...categories, UNIVERSAL_CATEGORY])];
   }
 }

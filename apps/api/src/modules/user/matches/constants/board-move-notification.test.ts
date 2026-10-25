@@ -42,6 +42,9 @@ describe('boardMovePush copy', () => {
   it('uses urgent Stay ahead copy when they passed you', () => {
     expect(boardMovePushTitle('ahead')).toBe(BOARD_MOVE_URGENT_TITLE);
     expect(boardMovePushBody('Bee', 'ahead')).toBe('Bee just passed you.');
+    expect(
+      boardMovePushBody('Bee', 'ahead', { actorScore: 42, recipientScore: 40 }),
+    ).toBe('Bee just passed you, 42 to your 40.');
   });
 
   it('uses urgent Stay ahead copy when they matched you', () => {

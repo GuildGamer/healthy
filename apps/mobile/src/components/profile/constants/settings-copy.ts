@@ -3,10 +3,10 @@ export const SETTINGS_SAVE_FAILED_MESSAGE =
   'Couldn’t save that. Check your connection and try again.';
 
 export const PUBLIC_NAME_NOTE =
-  'Shown with your photo on the leaderboard and in your groups. Nothing else about you is shown.';
+  'Shown with your photo on the global leaderboard. Contests use your account first name instead.';
 
 export const PRIVATE_DETAILS_NOTE =
-  'Only you see this. Email, password and country are under Account.';
+  'Contests show your first name to friends. Email, password and country are under Account.';
 
 export const SIGN_OUT_CONFIRM_BODY =
   'Your progress is saved. Reminders stop on this phone until you sign in again.';

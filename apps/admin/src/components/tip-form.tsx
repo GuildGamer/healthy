@@ -131,10 +131,7 @@ export function TipForm({
             }
             value={value.category}
           >
-            <option value="hypertension">Blood pressure</option>
-            <option value="diabetes">Blood sugar</option>
-            <option value="asthma">Breathing</option>
-            <option value="general">Everyday</option>
+            <option value="general">Fitness</option>
           </select>
         </label>
         <label>

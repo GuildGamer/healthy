@@ -1,5 +1,6 @@
-import { ConditionsScreen } from '@/components/profile';
+import { Redirect } from 'expo-router';
 
-export default function ConditionsRoute() {
-  return <ConditionsScreen />;
+/** Condition picker is hidden while CONDITION_FEATURES_ENABLED is false. */
+export default function ConditionsSettingsRoute() {
+  return <Redirect href="/settings" />;
 }
