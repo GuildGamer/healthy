@@ -93,7 +93,8 @@ final class HealthyQuickPoseView: ExpoView {
       DispatchQueue.main.async {
         guard let self else { return }
         self.overlayView.image = image
-        guard case .success = status else { return }
+        // `.success` carries associated values (camera frame + metadata).
+        guard case .success(_, _) = status else { return }
 
         var results: [String: Double] = [:]
         var feedbacks: [String: String] = [:]

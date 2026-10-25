@@ -74,6 +74,7 @@ Testers install via the TestFlight app.
 
 ## Common blockers
 
+- **Archive failed with only Pods notes** — search the artifact `/tmp/xcodebuild_logs/*.log` (or the “compile / link errors” dump) for `error:`; the trailing script-phase notes are not the failure.
 - **“No configuration file found”** — `codemagic.yaml` missing on `main`; run sync + refresh.
 - **Duplicate build 1** — a repeat of build 1 means the next archive must use a higher CFBundleVersion, which this workflow now sets before prebuild.
 - **Bundle ID mismatch** — profile / App ID / `IOS_BUNDLE_IDENTIFIER` must be identical.

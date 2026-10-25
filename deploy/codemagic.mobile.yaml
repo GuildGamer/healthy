@@ -193,8 +193,12 @@ workflows:
             --export-options-plist=/Users/builder/export_options.plist \
             -v \
             --log-stream=stdout; then
-            echo "===== xcodebuild log (last 150 lines) ====="
-            tail -n 150 /tmp/xcodebuild_logs/*.log 2>/dev/null || true
+            # Tail alone hides Swift errors that appear earlier in the log.
+            echo "===== compile / link errors ====="
+            grep -nE 'error:|fatal error:|Undefined symbols|ARCHIVE FAILED|The following build commands failed' \
+              /tmp/xcodebuild_logs/*.log 2>/dev/null | head -n 120 || true
+            echo "===== xcodebuild log (last 80 lines) ====="
+            tail -n 80 /tmp/xcodebuild_logs/*.log 2>/dev/null || true
             exit 1
           fi
     artifacts:
