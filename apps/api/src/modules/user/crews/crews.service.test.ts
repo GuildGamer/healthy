@@ -5,12 +5,12 @@ import { CrewsService } from './crews.service.js';
 const owner = { id: 'owner', email: 'owner@a.co', name: 'Ada' };
 const member = { id: 'bee', email: 'bee@a.co', name: 'Bee' };
 
-function person(displayName: string) {
-  return { profile: { displayName } };
+function person(id: string, name: string) {
+  return { id, name, profile: { displayName: name } };
 }
 
 function crewMember(userId: string, displayName: string, leftAt: Date | null = null) {
-  return { userId, leftAt, user: person(displayName) };
+  return { userId, leftAt, user: person(userId, displayName) };
 }
 
 function crew(overrides: Record<string, unknown> = {}) {
@@ -18,14 +18,14 @@ function crew(overrides: Record<string, unknown> = {}) {
     id: 'crew-1',
     ownerUserId: owner.id,
     name: 'Bee, Cam',
-    ownerUser: person('Ada'),
+    ownerUser: person(owner.id, 'Ada'),
     members: [crewMember('bee', 'Bee'), crewMember('cam', 'Cam')],
     ...overrides,
   };
 }
 
 function participant(userId: string, displayName: string) {
-  return { userId, user: person(displayName) };
+  return { userId, user: person(userId, displayName) };
 }
 
 function createPrismaMock() {
@@ -64,12 +64,12 @@ function createPrismaMock() {
             {
               userId: 'bee',
               joinedAt: new Date('2026-10-20T10:00:00.000Z'),
-              user: person('Bee'),
+              user: person('bee', 'Bee'),
             },
             {
               userId: 'cam',
               joinedAt: new Date('2026-10-19T10:00:00.000Z'),
-              user: person('Cam'),
+              user: person('cam', 'Cam'),
             },
           ];
         }

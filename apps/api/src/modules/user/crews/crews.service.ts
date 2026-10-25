@@ -28,7 +28,11 @@ const crewInclude = {
   members: { include: { user: { include: { profile: true } } } },
 } as const;
 
-type CrewPerson = { profile: { displayName: string | null } | null };
+type CrewPerson = {
+  id: string;
+  name: string | null;
+  profile: { displayName: string | null } | null;
+};
 
 type LoadedCrew = {
   id: string;
