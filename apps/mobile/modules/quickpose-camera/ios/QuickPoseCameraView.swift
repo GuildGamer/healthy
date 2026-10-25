@@ -26,9 +26,10 @@ final class HealthyQuickPoseView: ExpoView {
   private var quickPose: QuickPose?
   private var camera: QuickPoseCamera?
   private var previewLayer: AVCaptureVideoPreviewLayer?
-  private let overlayView = UIImageView()
+  /// fileprivate so escaping callbacks that recover `HealthyQuickPoseView` can set the image.
+  fileprivate let overlayView = UIImageView()
   private var hasStarted = false
-  private var currentFeatures: [(String, QuickPose.Feature)] = []
+  fileprivate var currentFeatures: [(String, QuickPose.Feature)] = []
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -67,7 +68,7 @@ final class HealthyQuickPoseView: ExpoView {
       AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
         DispatchQueue.main.async {
           guard granted else { return }
-          self?.tryStart()
+          (self as? HealthyQuickPoseView)?.tryStart()
         }
       }
       return
@@ -89,10 +90,11 @@ final class HealthyQuickPoseView: ExpoView {
     camera = cam
     attachPreview(from: cam)
 
+    // Escaping QuickPose callbacks type `[weak self]` as ExpoView (ObjC base).
+    // Cast back before touching subclass members like `overlayView`.
     qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, _ in
       DispatchQueue.main.async {
-        // Name the capture so Swift keeps HealthyQuickPoseView, not ExpoView.
-        guard let view = self else { return }
+        guard let view = self as? HealthyQuickPoseView else { return }
         view.overlayView.image = image
         // `.success` carries associated values (camera frame + metadata).
         guard case .success(_, _) = status else { return }
@@ -127,7 +129,7 @@ final class HealthyQuickPoseView: ExpoView {
 
     guard attempt < 40 else { return }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-      guard let view = self, view.camera === cam else { return }
+      guard let view = self as? HealthyQuickPoseView, view.camera === cam else { return }
       view.attachPreview(from: cam, attempt: attempt + 1)
     }
   }
