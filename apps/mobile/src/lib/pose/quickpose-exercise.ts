@@ -18,8 +18,14 @@ export const QUICKPOSE_FEATURE_BY_METRIC: Record<
   burpees: 'fitness.burpees',
   sit_ups: 'fitness.sitUps',
   mountain_climbers: 'fitness.mountainClimbers',
-  lunges: 'fitness.lunges',
+  /** Left/right are separate SDK features; see quickPoseFeaturesFor. */
+  lunges: 'fitness.lunges.left',
 };
+
+const QUICKPOSE_LUNGES_FEATURES = [
+  'fitness.lunges.left',
+  'fitness.lunges.right',
+] as const;
 
 /** Matches the green inside-box style: nearly every joint must sit in frame. */
 export const QUICKPOSE_INSIDE_IN_FRAME = 0.95;
@@ -34,11 +40,20 @@ export function quickPoseFeaturesFor(metric: MatchMetric): readonly string[] {
     return [QUICKPOSE_OVERLAY_FEATURE, QUICKPOSE_INSIDE_FEATURE];
   }
 
+  if (metric === 'lunges') {
+    return [...QUICKPOSE_LUNGES_FEATURES, QUICKPOSE_OVERLAY_FEATURE, QUICKPOSE_INSIDE_FEATURE];
+  }
+
   return [
     QUICKPOSE_FEATURE_BY_METRIC[metric],
     QUICKPOSE_OVERLAY_FEATURE,
     QUICKPOSE_INSIDE_FEATURE,
   ];
+}
+
+function finiteResult(results: Record<string, number>, key: string): number | null {
+  const value = results[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 export function exerciseMeasureFromResults(
@@ -49,8 +64,17 @@ export function exerciseMeasureFromResults(
     return null;
   }
 
-  const value = results[QUICKPOSE_FEATURE_BY_METRIC[metric]];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  if (metric === 'lunges') {
+    const sides = QUICKPOSE_LUNGES_FEATURES.map((key) => finiteResult(results, key)).filter(
+      (value): value is number => value != null,
+    );
+    if (sides.length === 0) {
+      return null;
+    }
+    return Math.max(...sides);
+  }
+
+  return finiteResult(results, QUICKPOSE_FEATURE_BY_METRIC[metric]);
 }
 
 export function exerciseFormFeedback(
@@ -58,6 +82,16 @@ export function exerciseFormFeedback(
   feedbacks: Record<string, string>,
 ): string | null {
   if (!isPoseMetric(metric)) {
+    return null;
+  }
+
+  if (metric === 'lunges') {
+    for (const key of QUICKPOSE_LUNGES_FEATURES) {
+      const prompt = feedbacks[key];
+      if (typeof prompt === 'string' && prompt.length > 0) {
+        return prompt;
+      }
+    }
     return null;
   }
 

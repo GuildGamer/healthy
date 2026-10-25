@@ -91,14 +91,15 @@ final class HealthyQuickPoseView: ExpoView {
 
     qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, _ in
       DispatchQueue.main.async {
-        guard let self else { return }
-        self.overlayView.image = image
+        // Name the capture so Swift keeps HealthyQuickPoseView, not ExpoView.
+        guard let view = self else { return }
+        view.overlayView.image = image
         // `.success` carries associated values (camera frame + metadata).
         guard case .success(_, _) = status else { return }
 
         var results: [String: Double] = [:]
         var feedbacks: [String: String] = [:]
-        for (key, feature) in self.currentFeatures {
+        for (key, feature) in view.currentFeatures {
           if let value = featureResults[feature]?.value {
             results[key] = value
           }
@@ -106,7 +107,7 @@ final class HealthyQuickPoseView: ExpoView {
             feedbacks[key] = prompt
           }
         }
-        self.onUpdate([
+        view.onUpdate([
           "results": results,
           "feedbacks": feedbacks,
         ])
@@ -126,8 +127,8 @@ final class HealthyQuickPoseView: ExpoView {
 
     guard attempt < 40 else { return }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-      guard let self, self.camera === cam else { return }
-      self.attachPreview(from: cam, attempt: attempt + 1)
+      guard let view = self, view.camera === cam else { return }
+      view.attachPreview(from: cam, attempt: attempt + 1)
     }
   }
 
@@ -184,8 +185,10 @@ final class HealthyQuickPoseView: ExpoView {
       return .fitness(.sitUps, style: style)
     case "fitness.mountainClimbers":
       return .fitness(.mountainClimbers, style: style)
-    case "fitness.lunges":
-      return .fitness(.lunges, style: style)
+    case "fitness.lunges", "fitness.lunges.left":
+      return .fitness(.lunges(side: .left), style: style)
+    case "fitness.lunges.right":
+      return .fitness(.lunges(side: .right), style: style)
     case "overlay.wholeBody":
       return .overlay(.wholeBody, style: style)
     case "inside.wholeBody":
