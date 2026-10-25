@@ -1,6 +1,6 @@
 -- Competitive fitness pivot: hide chronic-condition and non-fitness catalog
 -- items. Code paths stay; isActive gates Today, catalog, and tips.
-UPDATE "Challenge"
+UPDATE "challenges"
 SET "isActive" = false
 WHERE "category" IN ('hypertension', 'diabetes', 'asthma')
    OR "slug" IN (
@@ -10,6 +10,6 @@ WHERE "category" IN ('hypertension', 'diabetes', 'asthma')
      'medication-refill'
    );
 
-UPDATE "Tip"
+UPDATE "tips"
 SET "isActive" = false
 WHERE "category" IN ('hypertension', 'diabetes', 'asthma');
