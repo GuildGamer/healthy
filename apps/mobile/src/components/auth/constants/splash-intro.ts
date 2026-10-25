@@ -45,11 +45,11 @@ export interface SplashFanCard {
 export const SPLASH_FAN: readonly SplashFanCard[] = [
   {
     kind: 'strength',
-    glyph: 'everydayHealth',
+    glyph: 'strength',
     translateX: -34,
     translateY: -46,
     rotateDeg: -12,
   },
-  { kind: 'strength', glyph: 'check', translateX: 0, translateY: -58, rotateDeg: 0 },
-  { kind: 'strength', glyph: 'everydayHealth', translateX: 34, translateY: -46, rotateDeg: 12 },
+  { kind: 'mobility', glyph: 'mobility', translateX: 0, translateY: -58, rotateDeg: 0 },
+  { kind: 'gym', glyph: 'gym', translateX: 34, translateY: -46, rotateDeg: 12 },
 ];

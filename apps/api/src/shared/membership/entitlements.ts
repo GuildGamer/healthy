@@ -51,10 +51,15 @@ export function isCatalogChallengeLocked(options: {
 
 /**
  * The access rule as a `challenge` query filter, so reads can never return a
- * challenge that `canAccessChallenge` would refuse. Members filter on nothing.
+ * challenge that `canAccessChallenge` would refuse. Always require an active
+ * catalog row so deactivated condition/fitness items never stay on Today after
+ * a pivot migration. Members filter only on that; non-members also exclude
+ * membership-gated challenges.
  */
 export function challengeAccessFilter(
   membershipActive: boolean,
-): { requiresMembership?: false } {
-  return membershipActive ? {} : { requiresMembership: false };
+): { isActive: true; requiresMembership?: false } {
+  return membershipActive
+    ? { isActive: true }
+    : { isActive: true, requiresMembership: false };
 }

@@ -13,6 +13,16 @@ const pushups = {
   metric: 'pushups',
   target: { ...noTarget, count: 20 },
 } as const;
+const squats = {
+  kind: 'device_session',
+  metric: 'squats',
+  target: { ...noTarget, count: 20 },
+} as const;
+const plank = {
+  kind: 'device_session',
+  metric: 'plank',
+  target: { ...noTarget, count: 60 },
+} as const;
 const reading = { kind: 'structured_log', metric: null, target: noTarget } as const;
 const sleep = { kind: 'structured_log', metric: 'sleep', target: noTarget } as const;
 const photo = { kind: 'photo', metric: null, target: noTarget } as const;
@@ -23,6 +33,8 @@ describe('deckCardKindFor', () => {
       'walk',
     );
     expect(deckCardKindFor(todayChallenge({ capture: pushups }))).toBe('strength');
+    expect(deckCardKindFor(todayChallenge({ capture: squats }))).toBe('gym');
+    expect(deckCardKindFor(todayChallenge({ capture: plank }))).toBe('mobility');
   });
 
   it('falls back from the completion kind to the condition', () => {

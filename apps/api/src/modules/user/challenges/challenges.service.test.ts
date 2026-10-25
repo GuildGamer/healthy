@@ -256,7 +256,10 @@ describe('ChallengesService.listToday', () => {
     const [argument] = prisma.userChallenge.findMany.mock.calls.at(-1) as [
       { where: { challenge: Record<string, unknown> } },
     ];
-    expect(argument.where.challenge).toEqual({ requiresMembership: false });
+    expect(argument.where.challenge).toEqual({
+      isActive: true,
+      requiresMembership: false,
+    });
   });
 
   it('leaves membership challenges in place for an active member', async () => {
@@ -271,7 +274,18 @@ describe('ChallengesService.listToday', () => {
     ];
 
     expect(enrollmentArgument.where.challenge).toEqual({ isActive: true });
-    expect(readArgument.where.challenge).toEqual({});
+    expect(readArgument.where.challenge).toEqual({ isActive: true });
+  });
+
+  it('never lists occurrences whose catalog challenge was deactivated', async () => {
+    const prisma = createListPrismaMock([]);
+
+    await createService(prisma).listToday(user);
+
+    const [argument] = prisma.userChallenge.findMany.mock.calls.at(-1) as [
+      { where: { challenge: Record<string, unknown> } },
+    ];
+    expect(argument.where.challenge).toMatchObject({ isActive: true });
   });
 });
 

@@ -995,10 +995,7 @@ export class ChallengesService {
       where: {
         userId,
         isActive: true,
-        challenge: {
-          isActive: true,
-          ...challengeAccessFilter(membershipActive),
-        },
+        challenge: challengeAccessFilter(membershipActive),
       },
       select: { id: true, challengeId: true, frequency: true },
     });

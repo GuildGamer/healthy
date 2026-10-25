@@ -5,6 +5,13 @@ import type { DeckCardKind } from './types';
 /** Measured activities read as what you do, whatever condition they serve. */
 export const DECK_KIND_BY_METRIC: Partial<Record<DeviceMetric, DeckCardKind>> = {
   pushups: 'strength',
+  squats: 'gym',
+  plank: 'mobility',
+  jumping_jacks: 'gym',
+  burpees: 'strength',
+  sit_ups: 'mobility',
+  mountain_climbers: 'gym',
+  lunges: 'mobility',
   walk: 'walk',
   run: 'walk',
   cycle: 'walk',

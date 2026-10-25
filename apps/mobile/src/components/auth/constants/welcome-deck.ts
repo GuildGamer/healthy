@@ -1,7 +1,7 @@
 import type { GlyphName } from '@/components/icons';
+import type { DeckCardKind } from '@/components/deck';
 
-/** Which deck fill a card takes; each matches a kind of challenge on Today. */
-export type DeckCardKind = 'bloodPressure' | 'walk' | 'water' | 'strength';
+export type { DeckCardKind };
 
 export interface DeckCardContent {
   id: string;
@@ -16,13 +16,14 @@ export interface DeckCardContent {
 
 /**
  * Fixed examples, not anyone's data: nothing is known before an account
- * exists, and they must show offline. Competitive fitness framing.
+ * exists, and they must show offline. Competitive fitness framing — three
+ * distinct deck kinds so light rails / dark fills stay visually different.
  */
 export const WELCOME_DECK_CARDS: readonly DeckCardContent[] = [
   {
     id: 'pushups-contest',
     kind: 'strength',
-    categoryGlyph: 'everydayHealth',
+    categoryGlyph: 'strength',
     category: 'Push-ups',
     when: 'By Sunday',
     title: 'Most push-ups by Sunday',
@@ -31,8 +32,8 @@ export const WELCOME_DECK_CARDS: readonly DeckCardContent[] = [
   },
   {
     id: 'plank-contest',
-    kind: 'strength',
-    categoryGlyph: 'everydayHealth',
+    kind: 'mobility',
+    categoryGlyph: 'mobility',
     category: 'Plank',
     when: 'Any time',
     title: 'Longest plank wins',
@@ -41,8 +42,8 @@ export const WELCOME_DECK_CARDS: readonly DeckCardContent[] = [
   },
   {
     id: 'squats-contest',
-    kind: 'strength',
-    categoryGlyph: 'everydayHealth',
+    kind: 'gym',
+    categoryGlyph: 'gym',
     category: 'Squats',
     when: 'This week',
     title: 'Gym vs office: squats',

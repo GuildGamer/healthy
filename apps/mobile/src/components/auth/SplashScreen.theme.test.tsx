@@ -24,7 +24,9 @@ describe('SplashScreen appearance', () => {
     expect(StyleSheet.flatten(screen.getByText('Healthy').props.style).color).toBe(
       lightColors.text,
     );
-    expect(colorOf('splash-fan-walk', 'backgroundColor')).toBe(lightDeckCards.walk);
+    expect(colorOf('splash-fan-strength', 'backgroundColor')).toBe(lightDeckCards.strength);
+    expect(colorOf('splash-fan-mobility', 'backgroundColor')).toBe(lightDeckCards.mobility);
+    expect(colorOf('splash-fan-gym', 'backgroundColor')).toBe(lightDeckCards.gym);
     expect(screen.getByTestId('splash-icon')).toBeOnTheScreen();
   });
 
@@ -39,6 +41,8 @@ describe('SplashScreen appearance', () => {
 
     expect(colorOf('splash-screen', 'backgroundColor')).toBe(darkColors.background);
     expect(StyleSheet.flatten(screen.getByText('Healthy').props.style).color).toBe(darkColors.text);
-    expect(colorOf('splash-fan-walk', 'backgroundColor')).toBe(darkDeckCards.walk);
+    expect(colorOf('splash-fan-strength', 'backgroundColor')).toBe(darkDeckCards.strength);
+    expect(colorOf('splash-fan-mobility', 'backgroundColor')).toBe(darkDeckCards.mobility);
+    expect(colorOf('splash-fan-gym', 'backgroundColor')).toBe(darkDeckCards.gym);
   });
 });
