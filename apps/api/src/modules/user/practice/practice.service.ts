@@ -166,7 +166,6 @@ export class PracticeService {
 
     const unlocked = await this.prisma.challenge.findFirst({
       where: {
-        isActive: true,
         deviceMetric: metric,
         ...challengeAccessFilter(membershipActive),
       },
