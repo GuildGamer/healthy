@@ -26,10 +26,9 @@ final class HealthyQuickPoseView: ExpoView {
   private var quickPose: QuickPose?
   private var camera: QuickPoseCamera?
   private var previewLayer: AVCaptureVideoPreviewLayer?
-  /// fileprivate so escaping callbacks that recover `HealthyQuickPoseView` can set the image.
-  fileprivate let overlayView = UIImageView()
+  private let overlayView = UIImageView()
   private var hasStarted = false
-  fileprivate var currentFeatures: [(String, QuickPose.Feature)] = []
+  private var currentFeatures: [(String, QuickPose.Feature)] = []
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -68,7 +67,7 @@ final class HealthyQuickPoseView: ExpoView {
       AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
         DispatchQueue.main.async {
           guard granted else { return }
-          (self as? HealthyQuickPoseView)?.tryStart()
+          self?.tryStart()
         }
       }
       return
@@ -90,31 +89,42 @@ final class HealthyQuickPoseView: ExpoView {
     camera = cam
     attachPreview(from: cam)
 
-    // Escaping QuickPose callbacks type `[weak self]` as ExpoView (ObjC base).
-    // Cast back before touching subclass members like `overlayView`.
     qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, _ in
       DispatchQueue.main.async {
-        guard let view = self as? HealthyQuickPoseView else { return }
-        view.overlayView.image = image
-        // `.success` carries associated values (camera frame + metadata).
-        guard case .success(_, _) = status else { return }
-
-        var results: [String: Double] = [:]
-        var feedbacks: [String: String] = [:]
-        for (key, feature) in view.currentFeatures {
-          if let value = featureResults[feature]?.value {
-            results[key] = value
-          }
-          if let prompt = feedback[feature]?.displayString, !prompt.isEmpty {
-            feedbacks[key] = prompt
-          }
-        }
-        view.onUpdate([
-          "results": results,
-          "feedbacks": feedbacks,
-        ])
+        self?.publishFrame(
+          status: status,
+          image: image,
+          featureResults: featureResults,
+          feedback: feedback
+        )
       }
     })
+  }
+
+  /// SDK Status.success carries a single labeled `info:` payload — not two wildcards.
+  private func publishFrame(
+    status: QuickPose.Status,
+    image: UIImage?,
+    featureResults: [QuickPose.Feature: QuickPose.FeatureResult],
+    feedback: [QuickPose.Feature: QuickPose.PoseFeedback]
+  ) {
+    overlayView.image = image
+    guard case .success(info: _) = status else { return }
+
+    var results: [String: Double] = [:]
+    var feedbacks: [String: String] = [:]
+    for (key, feature) in currentFeatures {
+      if let value = featureResults[feature]?.value {
+        results[key] = value
+      }
+      if let prompt = feedback[feature]?.displayString, !prompt.isEmpty {
+        feedbacks[key] = prompt
+      }
+    }
+    onUpdate([
+      "results": results,
+      "feedbacks": feedbacks,
+    ])
   }
 
   private func attachPreview(from cam: QuickPoseCamera, attempt: Int = 0) {
@@ -129,8 +139,8 @@ final class HealthyQuickPoseView: ExpoView {
 
     guard attempt < 40 else { return }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-      guard let view = self as? HealthyQuickPoseView, view.camera === cam else { return }
-      view.attachPreview(from: cam, attempt: attempt + 1)
+      guard let self, self.camera === cam else { return }
+      self.attachPreview(from: cam, attempt: attempt + 1)
     }
   }
 
