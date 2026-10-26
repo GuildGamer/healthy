@@ -5,8 +5,8 @@ import { appContract } from '@product/contract';
 import type { RequestWithAuth } from '../../../shared/types/request-with-auth.js';
 import { ProofClipsService } from './proof-clips.service.js';
 
-@Controller()
 /** Most handlers still require a session via `requireUser`; only publicVerify is anonymous. */
+@Controller()
 @Public()
 export class ProofClipsController {
   constructor(private readonly proofClipsService: ProofClipsService) {}
