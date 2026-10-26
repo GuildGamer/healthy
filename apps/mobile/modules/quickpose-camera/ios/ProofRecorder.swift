@@ -151,6 +151,8 @@ final class ProofRecorder {
       return
     }
 
+    let tempPosterURL = posterURL
+    let posterWasCaptured = posterCaptured
     isRecording = false
     writeQueue.async {
       input.markAsFinished()
@@ -162,14 +164,20 @@ final class ProofRecorder {
         }
 
         do {
-          let data = try Data(contentsOf: outputURL, options: [.mappedIfSafe])
+          let durableVideo = try Self.moveToApplicationSupport(from: outputURL, kind: "clip")
+          var durablePoster: URL?
+          if posterWasCaptured, let tempPosterURL {
+            durablePoster = try? Self.moveToApplicationSupport(from: tempPosterURL, kind: "poster")
+          }
+
+          let data = try Data(contentsOf: durableVideo, options: [.mappedIfSafe])
           var digest = SHA256()
           digest.update(data: data)
           let hash = digest.finalize().map { String(format: "%02x", $0) }.joined()
           let duration = max(1, Int((CACurrentMediaTime() - self.startedAt).rounded()))
           let result = FinishResult(
-            fileURL: outputURL,
-            posterURL: self.posterCaptured ? self.posterURL : nil,
+            fileURL: durableVideo,
+            posterURL: durablePoster,
             sha256Hex: hash,
             byteSize: data.count,
             durationSeconds: duration
@@ -182,6 +190,32 @@ final class ProofRecorder {
         }
       }
     }
+  }
+
+  /// Moves a finished temp file into Application Support so iOS will not purge it.
+  private static func moveToApplicationSupport(from source: URL, kind: String) throws -> URL {
+    let support = try FileManager.default.url(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask,
+      appropriateFor: nil,
+      create: true
+    )
+    let directory = support.appendingPathComponent("proof-clips", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    var resourceValues = URLResourceValues()
+    resourceValues.isExcludedFromBackup = true
+    var directoryForBackup = directory
+    try directoryForBackup.setResourceValues(resourceValues)
+
+    let stamp = Int(Date().timeIntervalSince1970 * 1000)
+    let ext = source.pathExtension.isEmpty ? (kind == "poster" ? "jpg" : "mp4") : source.pathExtension
+    let destination = directory.appendingPathComponent("\(kind)-\(stamp).\(ext)")
+    if FileManager.default.fileExists(atPath: destination.path) {
+      try FileManager.default.removeItem(at: destination)
+    }
+    try FileManager.default.moveItem(at: source, to: destination)
+    return destination
   }
 
   func cancel() {

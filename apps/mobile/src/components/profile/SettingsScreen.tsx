@@ -1,5 +1,5 @@
 import { fontWeight } from '@product/brand';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Glyph } from '@/components/icons';
 import { useSession } from '@/lib/auth-client';
@@ -73,6 +73,12 @@ export function SettingsScreen() {
           onPress={() => router.push('/settings/movement')}
           testID="open-health-link"
           value={me ? movementValue(me.healthLinkStatus) : null}
+        />
+        <SettingsLinkRow
+          glyph="play"
+          label="Proof clips"
+          onPress={() => router.push('/proof' as Href)}
+          testID="open-proof-clips"
         />
       </SettingsGroup>
       <SettingsGroup>

@@ -193,6 +193,22 @@ jest.mock('expo-keep-awake', () => ({
   useKeepAwake: jest.fn(),
 }));
 
+jest.mock('expo-media-library', () => ({
+  requestPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  saveToLibraryAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-video', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    useVideoPlayer: jest.fn(() => ({ loop: false, playing: false })),
+    VideoView: function MockVideoView(props: Record<string, unknown>) {
+      return React.createElement(View, props);
+    },
+  };
+});
+
 jest.mock('expo-store-review', () => ({
   hasAction: jest.fn(async () => true),
   isAvailableAsync: jest.fn(async () => true),

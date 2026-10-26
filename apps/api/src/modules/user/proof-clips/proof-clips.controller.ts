@@ -6,6 +6,7 @@ import type { RequestWithAuth } from '../../../shared/types/request-with-auth.js
 import { ProofClipsService } from './proof-clips.service.js';
 
 @Controller()
+/** Most handlers still require a session via `requireUser`; only publicVerify is anonymous. */
 @Public()
 export class ProofClipsController {
   constructor(private readonly proofClipsService: ProofClipsService) {}
@@ -63,6 +64,15 @@ export class ProofClipsController {
     const user = request.user ?? null;
     return implement(appContract.verifyProofCode).handler(async ({ input }) => {
       return this.proofClipsService.verify(user, input.code);
+    });
+  }
+
+  /** Anonymous on purpose: website visitors verify shared clips without signing in. */
+  @Implement(appContract.publicVerifyProofCode)
+  publicVerifyProofCode(@Req() request: RequestWithAuth) {
+    const clientKey = request.ip?.trim() || 'unknown';
+    return implement(appContract.publicVerifyProofCode).handler(async ({ input }) => {
+      return this.proofClipsService.verifyPublic(input.code, clientKey);
     });
   }
 

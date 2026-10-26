@@ -1,10 +1,11 @@
 import './load-env.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
 
@@ -12,6 +13,9 @@ async function bootstrap(): Promise<void> {
     origin: true,
     credentials: true,
   });
+
+  // One hop (Render / AWS ALB) so request.ip is the client for rate limits.
+  app.set('trust proxy', 1);
 
   app.enableShutdownHooks();
 

@@ -107,7 +107,20 @@ export const POSE_COPY = {
   tryAgain: 'Try again',
   notNow: 'Not now',
   saving: 'Saving your set…',
+  savingProof: 'Saving your proof clip…',
   goal: 'Goal',
+  proofClipOff: 'Proof clip: Off',
+  proofClipOn: 'Proof clip: On',
+  proofRecording: 'Recording',
+  proofHint: 'Your group can watch it. It is deleted 30 days after the group ends.',
+  proofFailed: 'Your proof clip didn’t save.',
+  proofDiscardTitle: 'Discard this proof clip?',
+  proofDiscardBody: 'It will be removed from this phone.',
+  proofDiscardConfirm: 'Discard',
+  proofDiscardCancel: 'Keep',
+  saveToPhotos: 'Save to Photos',
+  savedToPhotos: 'Saved to Photos',
+  saveToPhotosFailed: 'Could not save to Photos.',
 } as const;
 
 export const GYM_COPY = {

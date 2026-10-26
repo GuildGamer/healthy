@@ -58,6 +58,8 @@ type ChallengeSuccessScreenProps = {
   glasses?: number;
   /** Local proof clip from this set, if recording was on. */
   proofClipId?: string;
+  /** Recording was on but the clip never landed on the phone. */
+  proofFailed?: boolean;
 };
 
 /**
@@ -201,6 +203,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     minutes,
     glasses,
     proofClipId,
+    proofFailed = false,
   } = props;
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
@@ -288,9 +291,10 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         <WhyItMatters tip={benefitTip} />
       </View>
       <View style={styles.actions}>
-        {proofClipId ? (
+        {proofClipId || proofFailed ? (
           <ProofClipActions
-            clipId={proofClipId}
+            clipId={proofClipId ?? null}
+            failed={proofFailed && !proofClipId}
             visibility={isMatch ? 'group' : 'shared'}
           />
         ) : null}

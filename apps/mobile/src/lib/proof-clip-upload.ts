@@ -1,9 +1,14 @@
 import { apiClient } from '@/lib/api';
-import { getLocalProofClip, removeLocalProofClip } from '@/lib/proof-clip-store';
+import {
+  getLocalProofClip,
+  markLocalProofClipServerRecorded,
+  removeLocalProofClip,
+} from '@/lib/proof-clip-store';
 
 /**
  * Uploads a local clip to object storage and marks it ready. Idempotent:
- * repeating complete is a no-op on the server.
+ * repeating complete is a no-op on the server. Retries `recordProofClip` when
+ * the set finished offline or the earlier record call failed.
  */
 export async function uploadProofClip(input: {
   clipId: string;
@@ -12,6 +17,23 @@ export async function uploadProofClip(input: {
   const local = await getLocalProofClip(input.clipId);
   if (!local) {
     throw new Error('This clip is no longer on this phone.');
+  }
+
+  if (!local.serverRecorded) {
+    try {
+      await apiClient.recordProofClip({
+        clipId: local.clipId,
+        sha256: local.sha256,
+        byteSize: local.byteSize,
+        durationSeconds: local.durationSeconds,
+        count: local.count,
+      });
+      await markLocalProofClipServerRecorded(local.clipId);
+    } catch {
+      throw new Error(
+        'Could not register this clip with the server. It may have expired — try recording again.',
+      );
+    }
   }
 
   const urls = await apiClient.requestProofClipUpload({

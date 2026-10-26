@@ -1085,6 +1085,13 @@ enum ProofClipReportReason {
   other
 }
 
+/// Where the owner posted the clip. Null until upload completes; null and
+/// `group` stay private to participants. Only `shared` is publicly verifiable.
+enum ProofClipVisibility {
+  group
+  shared
+}
+
 /// Camera-counted set recording. Video bytes live in object storage; this row
 /// is the durable proof record (hash, count, timestamps) that outlives them.
 model ProofClip {
@@ -1108,7 +1115,9 @@ model ProofClip {
   byteSize        Int?
   videoKey        String?
   posterKey       String?
-  /// Set when the owner posts to a group or exports/shares (enables verify-by-code).
+  /// Null until upload completes. Only `shared` is publicly verifiable by code.
+  visibility      ProofClipVisibility?
+  /// Set when the owner posts to a group or exports/shares (drives retention).
   sharedAt        DateTime?
   lastViewedAt    DateTime?
   expiresAt       DateTime?

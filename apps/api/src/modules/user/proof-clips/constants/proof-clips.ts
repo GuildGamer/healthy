@@ -18,8 +18,11 @@ export {
   PROOF_CLIP_SOLO_RETENTION_DAYS,
 };
 
-/** How many verify attempts a user may make per rolling minute. */
+/** How many verify attempts a signed-in user may make per rolling minute. */
 export const PROOF_CLIP_VERIFY_RATE_LIMIT = 20;
+
+/** How many anonymous verify attempts an IP may make per rolling minute. */
+export const PROOF_CLIP_PUBLIC_VERIFY_RATE_LIMIT = 10;
 
 /** Reserved rows older than this are deleted by the sweep. */
 export const PROOF_CLIP_RESERVE_TTL_HOURS = 24;

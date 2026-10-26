@@ -8,6 +8,7 @@ import { QUICKPOSE_SDK_KEY } from '@/lib/config';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { POSE_COPY, SAVE_FAILED_MESSAGE } from './constants/doing-copy';
 import { PoseCountHud } from './PoseCountHud';
+import { ProofClipActions } from './ProofClipActions';
 import {
   poseCameraPlacement,
   poseCoachBanner,
@@ -61,12 +62,18 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
 function PoseCamera({ session }: { session: PoseSession }) {
   const styles = useThemedStyles(createStyles);
   const { QuickPoseCamera } = session.camera;
+  const keepMountedForProof = session.proofStatus === 'finalizing';
   const isLive =
-    session.phase !== 'review' && QuickPoseCamera !== null && Boolean(QUICKPOSE_SDK_KEY);
+    (session.phase !== 'review' || keepMountedForProof) &&
+    QuickPoseCamera !== null &&
+    Boolean(QUICKPOSE_SDK_KEY);
 
   return (
     <View
-      style={[styles.stage, session.phase === 'review' ? styles.stageDimmed : null]}
+      style={[
+        styles.stage,
+        session.phase === 'review' || keepMountedForProof ? styles.stageDimmed : null,
+      ]}
       testID="pose-camera"
     >
       {isLive && QuickPoseCamera ? (
@@ -181,18 +188,24 @@ function PoseSetupHint({ session }: { session: PoseSession }) {
 
 function ProofRecordChip({ session }: { session: PoseSession }) {
   const styles = useThemedStyles(createStyles);
+  const isRecording = session.proofStatus === 'recording';
+  const label = isRecording
+    ? POSE_COPY.proofRecording
+    : session.recordProof
+      ? POSE_COPY.proofClipOn
+      : POSE_COPY.proofClipOff;
+
   return (
     <View style={styles.proofChipWrap} testID="proof-record-chip">
       <DeckButton
-        label={session.recordProof ? 'Recording proof' : 'Record proof'}
+        label={label}
         onPress={() => session.toggleRecordProof(!session.recordProof)}
         testID="toggle-proof-record"
-        variant={session.recordProof ? 'cameraSolid' : 'quiet'}
+        variant={session.recordProof || isRecording ? 'cameraSolid' : 'quiet'}
       />
+      {isRecording ? <View style={styles.recordingDot} testID="proof-recording-dot" /> : null}
       {session.showProofExplainer || session.recordProof ? (
-        <Text style={styles.proofHint}>
-          Your group can watch it. It is deleted 30 days after the group ends.
-        </Text>
+        <Text style={styles.proofHint}>{POSE_COPY.proofHint}</Text>
       ) : null}
     </View>
   );
@@ -202,12 +215,15 @@ function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSession
   const { camera } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { count } = session.snapshot;
+  const finalizing = session.proofStatus === 'finalizing';
 
-  if (session.isSaving) {
+  if (session.isSaving || finalizing) {
     return (
       <View style={styles.saving}>
         <ActivityIndicator color={camera.text} />
-        <Text style={styles.panelSub}>{POSE_COPY.saving}</Text>
+        <Text style={styles.panelSub}>
+          {finalizing ? POSE_COPY.savingProof : POSE_COPY.saving}
+        </Text>
       </View>
     );
   }
@@ -218,6 +234,9 @@ function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSession
     : session.target > 0
       ? poseShortLine({ count, target: session.target })
       : poseReviewTitle({ mode, count, meetsTarget: false });
+  const visibility = mode === 'match' ? 'group' : 'shared';
+  const showProof =
+    !canSave && (Boolean(session.proofClipId) || session.proofFailed);
 
   return (
     <>
@@ -226,6 +245,13 @@ function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSession
         {session.target > 0 ? <Text style={styles.panelOf}> of {session.target}</Text> : null}
       </Text>
       <Text style={styles.panelSub}>{line}</Text>
+      {showProof ? (
+        <ProofClipActions
+          clipId={session.proofClipId}
+          failed={session.proofFailed && !session.proofClipId}
+          visibility={visibility}
+        />
+      ) : null}
       <View style={styles.panelAction}>
         <DeckButton
           label={POSE_COPY.tryAgain}
@@ -279,6 +305,12 @@ const createStyles = (theme: Theme) =>
       color: theme.camera.subtext,
       fontSize: fontSize.xs,
       textAlign: 'center',
+    },
+    recordingDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#E5484D',
     },
     guide: {
       position: 'absolute',

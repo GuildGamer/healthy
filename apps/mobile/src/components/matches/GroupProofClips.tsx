@@ -1,6 +1,6 @@
 import { fontSize, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DeckSectionTitle } from '@/components/deck';
 import { apiClient } from '@/lib/api';
@@ -27,7 +27,12 @@ export function GroupProofClips({ matchId }: { matchId: string }) {
         <Pressable
           key={clip.id}
           accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/proof/[clipId]', params: { clipId: clip.id } })}
+          onPress={() =>
+            router.push({
+              pathname: '/proof/[clipId]',
+              params: { clipId: clip.id },
+            } as unknown as Href)
+          }
           style={[styles.row, index === clips.length - 1 ? styles.rowLast : null]}
           testID={`group-proof-clip-${clip.id}`}
         >
@@ -70,7 +75,7 @@ const createStyles = (theme: Theme) =>
       fontSize: fontSize.sm,
     },
     code: {
-      color: theme.colors.mutedText,
+      color: theme.colors.muted,
       fontSize: fontSize.xs,
       letterSpacing: 0.6,
     },

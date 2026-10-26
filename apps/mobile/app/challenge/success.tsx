@@ -82,6 +82,7 @@ export default function ChallengeSuccessRoute() {
     minutes?: string | string[];
     glasses?: string | string[];
     proofClipId?: string | string[];
+    proofFailed?: string | string[];
   }>();
 
   if (isPending) {
@@ -122,6 +123,7 @@ export default function ChallengeSuccessRoute() {
       minutes={firstParam(params.minutes) ? parseCount(params.minutes) : undefined}
       glasses={firstParam(params.glasses) ? parseCount(params.glasses) : undefined}
       proofClipId={parseId(params.proofClipId)}
+      proofFailed={firstParam(params.proofFailed) === '1'}
     />
   );
 }

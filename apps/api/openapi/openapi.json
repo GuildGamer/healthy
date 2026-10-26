@@ -12132,6 +12132,187 @@
         }
       }
     },
+    "/proof-clips/verify/public": {
+      "get": {
+        "operationId": "publicVerifyProofCode",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "verified"
+                        },
+                        "metric": {
+                          "enum": [
+                            "walk",
+                            "run",
+                            "cycle",
+                            "steps",
+                            "sleep",
+                            "weight",
+                            "heart_rate",
+                            "pushups",
+                            "squats",
+                            "plank",
+                            "jumping_jacks",
+                            "burpees",
+                            "sit_ups",
+                            "mountain_climbers",
+                            "lunges"
+                          ],
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "recordedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "attested": {
+                          "type": "boolean"
+                        },
+                        "videoUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "posterUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "metric",
+                        "count",
+                        "recordedAt",
+                        "attested",
+                        "videoUrl",
+                        "posterUrl"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "original_expired"
+                        },
+                        "metric": {
+                          "enum": [
+                            "walk",
+                            "run",
+                            "cycle",
+                            "steps",
+                            "sleep",
+                            "weight",
+                            "heart_rate",
+                            "pushups",
+                            "squats",
+                            "plank",
+                            "jumping_jacks",
+                            "burpees",
+                            "sit_ups",
+                            "mountain_climbers",
+                            "lunges"
+                          ],
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "recordedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "attested": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "metric",
+                        "count",
+                        "recordedAt",
+                        "attested"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "removed"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "not_shared"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "not_found"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/proof-clips/remove": {
       "post": {
         "operationId": "removeProofClip",

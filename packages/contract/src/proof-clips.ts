@@ -251,6 +251,12 @@ export const verifyProofCodeContract = oc
   .input(verifyProofCodeInputSchema)
   .output(verifyProofCodeOutputSchema);
 
+/** Anonymous verify for shared clips. Website callers use this without a session. */
+export const publicVerifyProofCodeContract = oc
+  .route({ method: 'GET', path: '/proof-clips/verify/public' })
+  .input(verifyProofCodeInputSchema)
+  .output(verifyProofCodeOutputSchema);
+
 export const removeProofClipContract = oc
   .route({ method: 'POST', path: '/proof-clips/remove' })
   .input(removeProofClipInputSchema)

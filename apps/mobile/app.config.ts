@@ -55,6 +55,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription:
         'Healthy uses the camera to count reps on this phone and optionally record a proof clip of your set.',
+      NSPhotoLibraryAddUsageDescription:
+        'Healthy saves proof clips you choose to keep in your Photos library.',
       NSLocationWhenInUseUsageDescription:
         'Healthy uses your location to record walking and running routes.',
       NSLocationAlwaysAndWhenInUseUsageDescription:
@@ -115,6 +117,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-notifications',
     'expo-font',
     'expo-iap',
+    'expo-video',
+    [
+      'expo-media-library',
+      {
+        photosPermission: false,
+        savePhotosPermission:
+          'Healthy saves proof clips you choose to keep in your Photos library.',
+        isAccessMediaLocationEnabled: false,
+      },
+    ],
     [
       // Hands off to the animated `SplashScreen` component. The native splash
       // can follow the phone (Clinic white / Healthy night) but not a stored

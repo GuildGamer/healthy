@@ -25,6 +25,7 @@ import {
 import {
   PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_POSTER_CONTENT_TYPE,
+  PROOF_CLIP_PUBLIC_VERIFY_RATE_LIMIT,
   PROOF_CLIP_RESERVE_WINDOW_MINUTES,
   PROOF_CLIP_VERIFY_RATE_LIMIT,
   PROOF_CLIP_VIDEO_CONTENT_TYPE,
@@ -45,7 +46,7 @@ import {
 } from './errors/proof-clip.errors.js';
 import { evaluateProofAttestation } from './proof-clip-attestation.js';
 import { computeProofClipExpiry } from './proof-clip-expiry.js';
-import type { VerifyRateBucket } from './types/proof-clip.js';
+import { ProofCodeVerifyRateLimiter } from './proof-code-verify-rate-limiter.js';
 
 function videoObjectKey(userId: string, clipId: string): string {
   return `clips/${userId}/${clipId}/video.mp4`;
@@ -61,11 +62,10 @@ function sha256HexToBase64(hex: string): string {
 
 @Injectable()
 export class ProofClipsService {
-  private readonly verifyBuckets = new Map<string, VerifyRateBucket>();
-
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly verifyRateLimiter: ProofCodeVerifyRateLimiter,
   ) {}
 
   async reserve(
@@ -217,6 +217,14 @@ export class ProofClipsService {
     const clip = await this.requireOwnedClip(user.id, input.clipId);
 
     if (clip.status === 'ready') {
+      const nextVisibility =
+        clip.visibility === 'shared' ? 'shared' : input.visibility;
+      if (nextVisibility !== clip.visibility) {
+        await this.prisma.proofClip.update({
+          where: { id: clip.id },
+          data: { visibility: nextVisibility },
+        });
+      }
       return {
         clipId: clip.id,
         status: 'ready' as const,
@@ -271,6 +279,7 @@ export class ProofClipsService {
       where: { id: clip.id },
       data: {
         status: 'ready',
+        visibility: input.visibility,
         sharedAt,
         expiresAt,
       },
@@ -358,7 +367,7 @@ export class ProofClipsService {
     code: string,
   ): Promise<VerifyProofCodeOutput> {
     const user = requireUser(currentUser);
-    this.enforceVerifyRateLimit(user.id);
+    this.enforceVerifyRateLimit(`user:${user.id}`, PROOF_CLIP_VERIFY_RATE_LIMIT);
 
     const clip = await this.prisma.proofClip.findUnique({ where: { code } });
     if (!clip) {
@@ -368,15 +377,54 @@ export class ProofClipsService {
       return { outcome: 'removed' };
     }
 
-    const canVerify =
-      clip.userId === user.id ||
-      clip.sharedAt != null ||
-      (clip.matchId != null && (await this.isAcceptedParticipant(user.id, clip.matchId)));
+    const isOwner = clip.userId === user.id;
+    const isParticipant =
+      clip.matchId != null && (await this.isAcceptedParticipant(user.id, clip.matchId));
+    const isPubliclyShared = clip.visibility === 'shared';
 
-    if (!canVerify) {
+    if (!isOwner && !isParticipant && !isPubliclyShared) {
       return { outcome: 'not_shared' };
     }
 
+    const outcome = await this.verifyOutcomeFor(clip);
+    if (outcome.outcome === 'verified') {
+      await this.touchView(clip);
+    }
+    return outcome;
+  }
+
+  /**
+   * Anonymous verify for website visitors. Only clips posted with
+   * `visibility: shared` succeed; group-only and unset clips return
+   * `not_shared`. Does not touch lastViewedAt so anonymous traffic cannot
+   * extend retention.
+   */
+  async verifyPublic(
+    code: string,
+    clientKey: string,
+  ): Promise<VerifyProofCodeOutput> {
+    this.enforceVerifyRateLimit(
+      `ip:${clientKey}`,
+      PROOF_CLIP_PUBLIC_VERIFY_RATE_LIMIT,
+    );
+
+    const clip = await this.prisma.proofClip.findUnique({ where: { code } });
+    if (!clip) {
+      return { outcome: 'not_found' };
+    }
+    if (clip.status === 'removed') {
+      return { outcome: 'removed' };
+    }
+    if (clip.visibility !== 'shared') {
+      return { outcome: 'not_shared' };
+    }
+
+    return this.verifyOutcomeFor(clip);
+  }
+
+  private async verifyOutcomeFor(
+    clip: DbProofClip,
+  ): Promise<VerifyProofCodeOutput> {
     if (
       clip.status === 'expired' ||
       !clip.videoKey ||
@@ -398,7 +446,6 @@ export class ProofClipsService {
       return { outcome: 'not_found' };
     }
 
-    await this.touchView(clip);
     const urls = await this.signedUrls(clip);
 
     return {
@@ -696,17 +743,10 @@ export class ProofClipsService {
     }
   }
 
-  private enforceVerifyRateLimit(userId: string): void {
-    const now = Date.now();
-    const windowMs = 60_000;
-    const bucket = this.verifyBuckets.get(userId) ?? { timestamps: [] };
-    bucket.timestamps = bucket.timestamps.filter((stamp) => now - stamp < windowMs);
-    if (bucket.timestamps.length >= PROOF_CLIP_VERIFY_RATE_LIMIT) {
-      this.verifyBuckets.set(userId, bucket);
+  private enforceVerifyRateLimit(key: string, limit: number): void {
+    if (!this.verifyRateLimiter.tryConsume(key, limit)) {
       throw new ORPCError('TOO_MANY_REQUESTS', { message: PROOF_CLIP_VERIFY_RATE_LIMITED });
     }
-    bucket.timestamps.push(now);
-    this.verifyBuckets.set(userId, bucket);
   }
 
   private requireStorage(): void {

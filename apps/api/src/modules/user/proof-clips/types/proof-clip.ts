@@ -1,4 +1,4 @@
-import type { DeviceMetric, ProofClipStatus } from '@product/db';
+import type { DeviceMetric, ProofClipStatus, ProofClipVisibility } from '@product/db';
 
 export type ProofClipRow = {
   id: string;
@@ -15,6 +15,7 @@ export type ProofClipRow = {
   byteSize: number | null;
   videoKey: string | null;
   posterKey: string | null;
+  visibility: ProofClipVisibility | null;
   sharedAt: Date | null;
   lastViewedAt: Date | null;
   expiresAt: Date | null;

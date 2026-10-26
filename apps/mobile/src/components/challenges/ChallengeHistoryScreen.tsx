@@ -1,7 +1,7 @@
 import type { ChallengeHistoryEntry } from '@product/client';
 import { fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeckNoteCard, DeckPageNav } from '@/components/deck';
@@ -159,7 +159,7 @@ function HistoryRow({
           router.push({
             pathname: '/proof/[clipId]',
             params: { clipId: localClipQuery.data.clipId },
-          });
+          } as unknown as Href);
           return;
         }
         router.push(historyCompletionShareRoute(entry, challenge));

@@ -21,7 +21,9 @@ eas update --branch preview --message "describe change"
 
 Ship JS/asset changes over the air via EAS Update. Native dependency, permission, or SDK changes require a new store/build cycle.
 
-Native modules such as `expo-iap`, `expo-store-review`, `expo-splash-screen`, `@kingstinct/react-native-healthkit`, and `react-native-health-connect` are not present until you rebuild the development / preview / production binary (`make ios` / `make android`, or `eas build`). A JS-only EAS Update will not link them — stale installs fail closed instead of crashing.
+Native modules such as `expo-iap`, `expo-store-review`, `expo-splash-screen`, `expo-video`, `expo-media-library`, `@kingstinct/react-native-healthkit`, and `react-native-health-connect` are not present until you rebuild the development / preview / production binary (`make ios` / `make android`, or `eas build`). A JS-only EAS Update will not link them — stale installs fail closed instead of crashing.
+
+**Proof clip playback and Save to Photos** need a store/dev-client build: `expo-video` and `expo-media-library` are native, and iOS needs `NSPhotoLibraryAddUsageDescription`. Do not ship that lane as an OTA-only change.
 
 **Sleep from Apple Health / Health Connect** is a store-build change: new native modules, HealthKit entitlement + usage strings on iOS, and Health Connect sleep permission on Android. Ship a new binary; do not rely on OTA for that release. App Store / Play privacy nutrition labels must list Sleep as a collected health type (read-only; Healthy never writes to the health store).
 

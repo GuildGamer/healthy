@@ -1,11 +1,11 @@
 import { fontSize, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeckButton, DeckNavButton } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
+import { POSE_COPY } from '@/components/challenges/constants/doing-copy';
+import { saveProofToPhotos } from '@/components/challenges/save-proof-to-photos';
 import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { getLocalProofClip } from '@/lib/proof-clip-store';
@@ -31,6 +33,8 @@ export default function ProofClipViewerRoute() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [photosMessage, setPhotosMessage] = useState<string | null>(null);
+  const [savingPhotos, setSavingPhotos] = useState(false);
 
   const clipQuery = useQuery({
     queryKey: ['proof-clip', clipId],
@@ -91,6 +95,21 @@ export default function ProofClipViewerRoute() {
   const local = clipQuery.data?.local;
   const posterUri = remote?.posterUrl ?? local?.posterUri ?? null;
   const videoUri = remote?.videoUrl ?? local?.fileUri ?? null;
+  const canSaveToPhotos = Boolean(local?.fileUri) && (remote?.isOwner !== false || !remote);
+
+  async function onSaveToPhotos() {
+    if (!local?.fileUri) {
+      return;
+    }
+    setSavingPhotos(true);
+    setPhotosMessage(null);
+    try {
+      const failure = await saveProofToPhotos(local.fileUri);
+      setPhotosMessage(failure ?? POSE_COPY.savedToPhotos);
+    } finally {
+      setSavingPhotos(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.screen} testID="proof-viewer">
@@ -106,7 +125,9 @@ export default function ProofClipViewerRoute() {
         <ActivityIndicator />
       ) : (
         <View style={styles.body}>
-          {posterUri ? (
+          {videoUri ? (
+            <ProofVideoPlayer uri={videoUri} />
+          ) : posterUri ? (
             <Image source={{ uri: posterUri }} style={styles.poster} />
           ) : (
             <View style={[styles.poster, styles.fallback]}>
@@ -119,12 +140,21 @@ export default function ProofClipViewerRoute() {
               {remote.attested ? ' · attested' : ''}
             </Text>
           ) : null}
-          {videoUri ? (
+          {canSaveToPhotos ? (
             <DeckButton
-              label="Open clip"
-              onPress={() => void Linking.openURL(videoUri)}
-              testID="proof-open"
+              label={
+                photosMessage === POSE_COPY.savedToPhotos
+                  ? POSE_COPY.savedToPhotos
+                  : POSE_COPY.saveToPhotos
+              }
+              loading={savingPhotos}
+              onPress={() => void onSaveToPhotos()}
+              testID="proof-save-photos"
+              variant="quiet"
             />
+          ) : null}
+          {photosMessage && photosMessage !== POSE_COPY.savedToPhotos ? (
+            <Text style={styles.error}>{photosMessage}</Text>
           ) : null}
         </View>
       )}
@@ -161,6 +191,24 @@ export default function ProofClipViewerRoute() {
         </View>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+function ProofVideoPlayer({ uri }: { uri: string }) {
+  const styles = useThemedStyles(createStyles);
+  const player = useVideoPlayer(uri, (instance) => {
+    instance.loop = true;
+  });
+
+  return (
+    <VideoView
+      allowsFullscreen
+      contentFit="contain"
+      nativeControls
+      player={player}
+      style={styles.poster}
+      testID="proof-video"
+    />
   );
 }
 
@@ -206,8 +254,13 @@ const createStyles = (theme: Theme) =>
       color: '#fff',
     },
     meta: {
-      color: theme.colors.mutedText,
+      color: theme.colors.muted,
       fontSize: fontSize.sm,
+    },
+    error: {
+      color: theme.colors.danger,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
     },
     overflow: {
       marginTop: spacing.lg,
