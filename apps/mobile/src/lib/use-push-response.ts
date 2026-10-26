@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { type Href, router } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { hrefForPushData } from './open-push-destination';
 import { trackEvent } from './track-event';
 
@@ -9,12 +9,18 @@ import { trackEvent } from './track-event';
  * Opens the screen named in a push when the person taps it, including a cold
  * start from a killed app. Records `push_opened` when the payload carries a
  * delivery id from the engagement module.
+ *
+ * A cold-start tap arrives before the navigator is mounted, and navigating
+ * then throws. The destination is held until `canNavigate` — launch has left
+ * the root `index` route — so it also lands after launch's own redirect
+ * rather than being replaced by it.
  */
-export function usePushResponse(): void {
+export function usePushResponse(canNavigate: boolean): void {
   const handledResponseId = useRef<string | null>(null);
+  const [pendingHref, setPendingHref] = useState<Href | null>(null);
 
   useEffect(() => {
-    function openFromResponse(response: Notifications.NotificationResponse | null) {
+    function receiveResponse(response: Notifications.NotificationResponse | null) {
       if (!response) {
         return;
       }
@@ -27,17 +33,26 @@ export function usePushResponse(): void {
       handledResponseId.current = responseId;
       const data = response.notification.request.content.data;
       trackPushOpened(data);
-      router.push(hrefForPushData(data));
+      setPendingHref(hrefForPushData(data));
     }
 
-    void Notifications.getLastNotificationResponseAsync().then(openFromResponse);
+    void Notifications.getLastNotificationResponseAsync().then(receiveResponse);
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(openFromResponse);
+    const subscription = Notifications.addNotificationResponseReceivedListener(receiveResponse);
 
     return () => {
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!canNavigate || !pendingHref) {
+      return;
+    }
+
+    setPendingHref(null);
+    router.navigate(pendingHref);
+  }, [canNavigate, pendingHref]);
 }
 
 function trackPushOpened(data: unknown): void {

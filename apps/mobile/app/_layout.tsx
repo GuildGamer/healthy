@@ -30,7 +30,7 @@ export default function RootLayout() {
   const isDisplayFontReady = useDisplayFont();
   const hasLeftLaunchRoute = useHasLeftLaunchRoute();
   const [hasSplashExited, setHasSplashExited] = useState(false);
-  usePushResponse();
+  usePushResponse(hasLeftLaunchRoute);
   useUserActive();
 
   // `index` resolves the session and redirects; a deep link that never
