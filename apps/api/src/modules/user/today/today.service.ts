@@ -5,6 +5,7 @@ import {
   toChallengeCapture,
 } from '@product/contract';
 import type { DeviceMetric, PrismaClient } from '@product/db';
+import { VISIBLE_OCCURRENCE_FILTER } from '../../../shared/constants/visible-occurrence.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
@@ -89,6 +90,7 @@ export class TodayService {
           { frequency: 'weekly', periodKey: clock.weekStartKey },
           { frequency: 'monthly', periodKey: clock.monthStartKey },
         ],
+        AND: [VISIBLE_OCCURRENCE_FILTER],
       },
       select: {
         id: true,

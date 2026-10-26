@@ -57,10 +57,17 @@ async function seedOccurrence(
   periodKey: string,
   completedAt: Date | null = null,
 ): Promise<string> {
+  const enrollment = await prisma.challengeEnrollment.upsert({
+    where: { userId_challengeId: { userId: user.id, challengeId } },
+    create: { userId: user.id, challengeId, frequency: 'daily' },
+    update: {},
+    select: { id: true },
+  });
   const occurrence = await prisma.userChallenge.create({
     data: {
       userId: user.id,
       challengeId,
+      enrollmentId: enrollment.id,
       periodKey,
       status: completedAt ? 'completed' : 'pending',
       completedAt,

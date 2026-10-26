@@ -36,10 +36,14 @@ async function seedWalkOccurrence(): Promise<string> {
       targetDurationMinutes: 10,
     },
   });
+  const enrollment = await prisma.challengeEnrollment.create({
+    data: { userId: user.id, challengeId: walk.id, frequency: 'daily' },
+  });
   const occurrence = await prisma.userChallenge.create({
     data: {
       userId: user.id,
       challengeId: walk.id,
+      enrollmentId: enrollment.id,
       periodKey: periodKeyFor('daily', 'UTC', new Date()),
       status: 'in_progress',
       startedAt: new Date(),

@@ -22,6 +22,7 @@ import {
   type UserChallenge,
   type UserChallengeStatus,
 } from '@product/db';
+import { VISIBLE_OCCURRENCE_FILTER } from '../../../shared/constants/visible-occurrence.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor, previousDayKey } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
@@ -221,6 +222,7 @@ export class ChallengesService {
       where: {
         ...this.dueFilter(user.id, window),
         challenge: challengeAccessFilter(membershipActive),
+        AND: [VISIBLE_OCCURRENCE_FILTER],
       },
       include: ASSIGNMENT_INCLUDE,
       orderBy: [

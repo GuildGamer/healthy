@@ -6,6 +6,7 @@ import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
 import { PracticeService } from '../practice/practice.service.js';
 import { RemindersService } from '../reminders/reminders.service.js';
+import { TodayService } from '../today/today.service.js';
 import { ChallengesService } from './challenges.service.js';
 
 const user = { id: 'u-integration', email: 'ada@example.com', name: 'Ada' };
@@ -14,6 +15,7 @@ let prisma: PrismaClient;
 let challenges: ChallengesService;
 let enrollments: EnrollmentsService;
 let me: MeService;
+let todayDetails: TodayService;
 
 type CatalogSpec = {
   slug: string;
@@ -75,6 +77,7 @@ beforeAll(() => {
   challenges = new ChallengesService(prisma, new PracticeService(prisma));
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
   me = new MeService(prisma, enrollments);
+  todayDetails = new TodayService(prisma);
 });
 
 afterAll(async () => {
@@ -146,6 +149,34 @@ describe('ChallengesService against Postgres', () => {
     });
     expect(stored).toBe(1);
     await expect(me.getMe(user)).resolves.toMatchObject({ pointsBalance: 20 });
+    expect((await challenges.listToday(user)).totalCount).toBe(1);
+  });
+
+  it('drops an unfinished card from today once the challenge is removed', async () => {
+    await seedEnrolledUser(dailySpecs(2));
+    const [removed, kept] = (await challenges.listToday(user)).challenges;
+
+    await enrollments.setEnrollment(user, removed!.challengeId, false);
+
+    const today = await challenges.listToday(user);
+    expect(today.challenges.map((challenge) => challenge.id)).toEqual([kept!.id]);
+    const details = await todayDetails.details(user);
+    expect(details.occurrences.map((occurrence) => occurrence.userChallengeId)).toEqual([
+      kept!.id,
+    ]);
+  });
+
+  it('brings back the same card when a removed challenge is added again that day', async () => {
+    await seedEnrolledUser(dailySpecs(1));
+    const [original] = (await challenges.listToday(user)).challenges;
+    const challengeId = original!.challengeId;
+
+    await enrollments.setEnrollment(user, challengeId, false);
+    expect((await challenges.listToday(user)).totalCount).toBe(0);
+
+    await enrollments.setEnrollment(user, challengeId, true);
+    const [restored] = (await challenges.listToday(user)).challenges;
+    expect(restored?.id).toBe(original!.id);
   });
 
   it('awards points exactly once when a completion is retried', async () => {

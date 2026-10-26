@@ -6,3 +6,4 @@ export {
   MAX_REMINDERS_PER_CHALLENGE,
   MINUTES_PER_DAY,
 } from './reminder-defaults.js';
+export { VISIBLE_OCCURRENCE_FILTER } from './visible-occurrence.js';
