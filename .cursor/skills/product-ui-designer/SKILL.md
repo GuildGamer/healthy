@@ -9,12 +9,14 @@ description: >-
 
 ## Brand (non-negotiable)
 
-- Canvas: `#0B1220` navy. Surfaces `#121A2B` / `#1A2438`. Text `#F4F7FB`. Muted `#9AA8BF`.
-- Accent mint `#3DDC97` — used with conviction on heroes and primary actions, not sprayed everywhere.
-- Display face: Archivo Black (`displayFontFamily`) for one hero numeral or celebration title per screen. Never on every label.
-- Atmosphere: Home’s leaf watermark (`hero-banner`), not stock photo mush, not glow orbs, not purple gradients.
+Read `docs/design-direction.md` first. In short:
+
+- Two modes from `useTheme()`: Healthy night (navy page, cards filled with the activity's deep colour, mint primary) and Clinic white (grey page, white cards with an activity-colour rail, navy primary). Never hard-code one palette.
+- Each activity owns a colour in both modes (`deckCardPalettes`). Brand colour (mint by night, navy by day) means done.
+- The deck card is the signature shape: radius 30, action pinned to its foot, next card peeking.
+- Titles are system sans, semibold, tight. Archivo Black (`displayFontFamily`) only for the wordmark and at most one hero numeral on an exported image.
+- No leaf watermark (`hero-banner` is retired), glow, gradient wash, stock photos, pill clusters, or multi-layer shadows.
 - Lists/rows: hairline dividers. Cards only when they hold interaction.
-- No Canva achievement stacks, no pill clusters, no multi-layer shadows.
 
 ## Action hierarchy
 
@@ -25,13 +27,14 @@ description: >-
 
 ## Share cards
 
-- One dominant metric. Brand-first wordmark. Left-aligned like Home streak hero when possible.
+- Follow the exported-image family in `docs/design-direction.md`, as `DayShareCard` and `GroupRecapCard` do: Healthy night, eyebrow, activity-colour rule, semibold headline, facts row, primary-colour band with the wordmark.
+- At most one hero numeral, and only when the number is real. An invite can be sent before the host has scored.
 - Export must be sharp (1080×1440 for 3:4) and square-edged (no rounded capture — JPEG white corners).
 - Product claim when true: verified / sensor-measured work.
 
 ## Method
 
-1. Read neighboring screens (`HomeScreen`, brand tokens, current target files).
+1. Read `docs/design-direction.md`, then neighboring screens (`HomeScreen`, the `deck` components, brand tokens, current target files).
 2. State a short design thesis (2–4 bullets) before coding.
 3. Implement in the real RN files; match local patterns and `testID`s.
 4. Update tests. Keep types strict.

@@ -29,7 +29,9 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 
 - `README.md` — quick start
 - `docs/product.md` — north star, core loop, voice guide
+- `docs/design-direction.md` — visual direction: modes, colour roles, type, deck cards
 - `docs/social.md` — group challenges, invite loop, anti-complexity tenets
+- `docs/invite-preview.md` — invite link preview image spec and designer brief
 - `docs/testing.md` — device + CI testing loop
 - `docs/releases.md` — EAS Update vs store
 - `docs/splitting-repos.md` — optional later split

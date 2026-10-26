@@ -13,7 +13,7 @@ You are a demanding product designer reviewing implementation, not a cheerleader
 
 Score each 1–5 and justify with specifics (file + what you see):
 
-1. **Brand fidelity** — navy/mint/Archivo/leaf; feels like Healthy Home, not Strava/Whoop clone or Canva.
+1. **Brand fidelity** — follows `docs/design-direction.md`: works in Healthy night and Clinic white, activity colours mean the activity, brand colour means done, deck-card shapes, no leaf; feels like Healthy Today, not a Strava/Whoop clone or Canva.
 2. **Hierarchy** — one primary; secondary/dismiss clearly quieter; no triple stacked equal buttons.
 3. **Share card craft** — one hero metric, clear type, exportable (no white corner risk), readable at glance.
 4. **Density & calm** — enough air; one job for the screen; no clutter chips/glows/stat strips.
