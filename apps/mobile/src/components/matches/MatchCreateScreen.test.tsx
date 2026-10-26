@@ -36,18 +36,22 @@ describe('MatchCreateScreen', () => {
     mockedApi.listAcquaintances.mockResolvedValue({ people: [] });
   });
 
-  it('shows the invite friends will see, starting on a 7-day walking total', async () => {
+  it('shows the invite friends will see, starting on a 7-day push-up total', async () => {
     const view = renderWithClient(<MatchCreateScreen prefill={createPrefillFrom({})} />);
 
     const card = screen.getByTestId('match-create-card');
-    expect(within(card).getByText('Walking total')).toBeOnTheScreen();
+    expect(within(card).getByText('Push-up total')).toBeOnTheScreen();
     expect(within(card).getByText('7 days')).toBeOnTheScreen();
-    expect(within(card).getByText('Most minutes walked wins.')).toBeOnTheScreen();
+    expect(within(card).getByText('Most push-ups in total wins.')).toBeOnTheScreen();
     await view.cleanup();
   });
 
   it('rewrites the card as the way to win changes, and dims what walking cannot run', async () => {
     const view = renderWithClient(<MatchCreateScreen prefill={createPrefillFrom({})} />);
+
+    fireEvent.press(screen.getByTestId('match-create-activity'));
+    const activitySheet = await screen.findByTestId('match-create-activity-sheet');
+    fireEvent.press(within(activitySheet).getByTestId('match-metric-walk'));
 
     fireEvent.press(screen.getByTestId('match-create-mode'));
     const sheet = await screen.findByTestId('match-create-mode-sheet');
@@ -73,7 +77,7 @@ describe('MatchCreateScreen', () => {
     await waitFor(() =>
       expect(mockedApi.createMatch).toHaveBeenCalledWith({
         window: 'week',
-        metric: 'walk',
+        metric: 'pushups',
         scoringMode: 'cumulative_total',
         dailyScope: 'any_challenge',
       }),
@@ -91,7 +95,7 @@ describe('MatchCreateScreen', () => {
     fireEvent.press(screen.getByTestId('match-create-submit'));
 
     expect(await screen.findByTestId('match-create-failed')).toBeOnTheScreen();
-    expect(screen.getByText('Most minutes walked wins.')).toBeOnTheScreen();
+    expect(screen.getByText('Most push-ups in total wins.')).toBeOnTheScreen();
     await view.cleanup();
   });
 

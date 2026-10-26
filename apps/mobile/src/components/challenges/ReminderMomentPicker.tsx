@@ -6,7 +6,6 @@ import {
   DeckSheetFooter,
   DeckSheetMessage,
   DeckSheetSub,
-  DeckSheetTitle,
 } from '@/components/deck';
 import { Glyph } from '@/components/icons';
 import { formatClockTime } from '@/lib/clock-time';
@@ -43,7 +42,6 @@ export function ReminderMomentPicker({
 
   return (
     <View testID="reminder-moment-picker">
-      <DeckSheetTitle>{REMINDER_COPY.title}</DeckSheetTitle>
       <DeckSheetSub>{hint}</DeckSheetSub>
       <View style={styles.grid}>
         {REMINDER_MOMENTS.map((moment) => (

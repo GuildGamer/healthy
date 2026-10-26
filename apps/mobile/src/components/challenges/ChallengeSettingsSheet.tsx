@@ -7,11 +7,10 @@ import {
   DeckSheetFooter,
   DeckSheetModal,
   DeckSheetSub,
-  DeckSheetTitle,
 } from '@/components/deck';
 import { challengeGoal, goalPatch } from './challenge-goal';
 import { MOMENT_HINT } from './constants/reminder-moments';
-import { SETTINGS_COPY } from './constants/routine-copy';
+import { REMINDER_COPY, SETTINGS_COPY } from './constants/routine-copy';
 import { GoalPicker } from './GoalPicker';
 import { ReminderMomentPicker } from './ReminderMomentPicker';
 import { suggestedMoment } from './reminder-moments';
@@ -25,6 +24,25 @@ interface ChallengeSettingsSheetProps {
   onClose: () => void;
 }
 
+function settingsSheetTitle(
+  sheet: SettingsSheet | null,
+  challenge: CatalogChallenge,
+  reminderLimit: number,
+): string | undefined {
+  if (!sheet) {
+    return undefined;
+  }
+  if (sheet.kind === 'goal') {
+    return challengeGoal(challenge)?.editor?.title;
+  }
+  if (sheet.kind === 'reminder') {
+    return REMINDER_COPY.title;
+  }
+  return reminderLimit === 1
+    ? 'One reminder per challenge, for now.'
+    : `${reminderLimit} reminders per challenge, for now.`;
+}
+
 /** The sheet a setting opens: the goal, a reminder time, or why there is only one reminder. */
 export function ChallengeSettingsSheet({
   sheet,
@@ -33,13 +51,18 @@ export function ChallengeSettingsSheet({
   onClose,
 }: ChallengeSettingsSheetProps) {
   return (
-    <DeckSheetModal onDismiss={onClose} testID="settings-sheet" visible={sheet !== null}>
+    <DeckSheetModal
+      onDismiss={onClose}
+      testID="settings-sheet"
+      title={settingsSheetTitle(sheet, challenge, reminderLimit)}
+      visible={sheet !== null}
+    >
       {sheet?.kind === 'goal' ? <GoalSheetBody challenge={challenge} onClose={onClose} /> : null}
       {sheet?.kind === 'reminder' ? (
         <ReminderSheetBody challenge={challenge} onClose={onClose} replacing={sheet.replacing} />
       ) : null}
       {sheet?.kind === 'moreReminders' ? (
-        <MoreRemindersBody limit={reminderLimit} onClose={onClose} />
+        <MoreRemindersBody onClose={onClose} />
       ) : null}
     </DeckSheetModal>
   );
@@ -103,16 +126,11 @@ function ReminderSheetBody({
   );
 }
 
-function MoreRemindersBody({ limit, onClose }: { limit: number; onClose: () => void }) {
+function MoreRemindersBody({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const title =
-    limit === 1
-      ? 'One reminder per challenge, for now.'
-      : `${limit} reminders per challenge, for now.`;
 
   return (
     <View testID="more-reminders">
-      <DeckSheetTitle>{title}</DeckSheetTitle>
       <DeckSheetSub>{SETTINGS_COPY.moreRemindersBody}</DeckSheetSub>
       <DeckSheetFooter>
         <View style={styles.actions}>

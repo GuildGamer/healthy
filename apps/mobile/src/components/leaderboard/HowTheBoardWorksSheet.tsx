@@ -1,6 +1,6 @@
 import { fontSize, spacing } from '@product/brand';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckSheetModal, DeckSheetTitle } from '@/components/deck';
+import { DeckButton, DeckSheetModal } from '@/components/deck';
 import { Glyph } from '@/components/icons';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { boardFacts } from './board-facts';
@@ -26,9 +26,9 @@ export function HowTheBoardWorksSheet({
       }
       onDismiss={onClose}
       testID="leaderboard-how-it-works"
+      title={BOARD_COPY.howItWorks}
       visible
     >
-      <DeckSheetTitle>{BOARD_COPY.howItWorks}</DeckSheetTitle>
       <View style={styles.facts}>
         {boardFacts(publicName).map((fact, index) => (
           <View key={fact.glyph} style={[styles.fact, index === 0 ? null : styles.divider]}>

@@ -8,14 +8,12 @@ const DRAG_SLOP = 8;
 interface PullStart {
   dx: number;
   dy: number;
-  /** How far the sheet's content is scrolled; the sheet only moves once it is back at the top. */
-  scrollOffsetY: number;
   canDismiss: boolean;
 }
 
-/** A mostly vertical, downward pull on a sheet whose content is at the top. */
-export function isSheetPull({ dx, dy, scrollOffsetY, canDismiss }: PullStart): boolean {
-  return canDismiss && scrollOffsetY <= 0 && dy > DRAG_SLOP && dy > Math.abs(dx) * 1.5;
+/** A mostly vertical, downward pull on the sheet's fixed header. */
+export function isSheetPull({ dx, dy, canDismiss }: PullStart): boolean {
+  return canDismiss && dy > DRAG_SLOP && dy > Math.abs(dx) * 1.5;
 }
 
 export function isSheetDismissal({ dy, vy }: { dy: number; vy: number }): boolean {

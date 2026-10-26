@@ -9,7 +9,6 @@ import {
   DeckPageNav,
   DeckSheetMessage,
   DeckSheetModal,
-  DeckSheetTitle,
 } from '@/components/deck';
 import { TextField } from '@/components/forms/TextField';
 import { goBackOrHome } from '@/lib/go-back';
@@ -226,9 +225,9 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
         }
         onDismiss={close}
         testID="match-rename-crew-sheet"
+        title={CREATE_COPY.renameCrewTitle}
         visible={openSheet === 'rename' && renameCrew !== null}
       >
-        <DeckSheetTitle>{CREATE_COPY.renameCrewTitle}</DeckSheetTitle>
         <TextField
           maxLength={40}
           onChangeText={setRenameValue}

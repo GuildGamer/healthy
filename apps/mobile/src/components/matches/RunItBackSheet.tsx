@@ -6,7 +6,6 @@ import {
   DeckSheetMessage,
   DeckSheetModal,
   DeckSheetSub,
-  DeckSheetTitle,
 } from '@/components/deck';
 import { type Theme, useThemedStyles } from '@/theme';
 import { GroupCard } from './GroupCard';
@@ -66,9 +65,9 @@ export function RunItBackSheet({
       }
       onDismiss={isBusy ? undefined : onClose}
       testID="match-rerun-sheet"
+      title={RESULT_COPY.sameAgain}
       visible={visible}
     >
-      <DeckSheetTitle>{RESULT_COPY.sameAgain}</DeckSheetTitle>
       <DeckSheetSub>{sameAgainLine(board)}</DeckSheetSub>
       <GroupCard
         corner={days === 1 ? '1 day' : `${days} days`}

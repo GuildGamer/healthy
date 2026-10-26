@@ -7,7 +7,6 @@ import {
   DeckSelectRow,
   DeckSheetModal,
   DeckSheetSub,
-  DeckSheetTitle,
 } from '@/components/deck';
 import { type Theme, useThemedStyles } from '@/theme';
 import { SheetDone } from './CreateRuleSheets';
@@ -122,9 +121,9 @@ export function WhosInSheet({
       footer={footer}
       onDismiss={onClose}
       testID="match-create-crew-sheet"
+      title={CREATE_COPY.whosInTitle}
       visible={visible}
     >
-      <DeckSheetTitle>{CREATE_COPY.whosInTitle}</DeckSheetTitle>
       <SheetChoice
         glyph="link"
         hint={CREATE_COPY.newGroupHint}

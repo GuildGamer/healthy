@@ -14,6 +14,7 @@ import { useReduceMotion } from '@/lib/use-reduce-motion';
 import { type Theme, useThemedStyles } from '@/theme';
 import { DECK_CARD_RADIUS } from './constants';
 import { FooterSlotOutlet, FooterSlotProvider, useFooterSlot } from './DeckSheetFooter';
+import { DeckSheetTitle } from './DeckSheetText';
 import { useSheetDragToDismiss } from './useSheetDragToDismiss';
 
 const SHEET_ENTRY_OFFSET = 480;
@@ -21,6 +22,8 @@ const SHEET_ENTRY_MS = 260;
 /** Dimmed page left showing above a full sheet, so it still reads as a sheet you can dismiss. */
 const SHEET_TOP_CLEARANCE = 24;
 const SHEET_SIDE_PADDING = 22;
+/** Grabber-only header still needs a real drag zone when no title is set. */
+const HEADER_MIN_HEIGHT = 32;
 
 interface DeckSheetProps {
   /** A tap on the dimmed page or a pull down; omit while the sheet must stay, such as mid-save. */
@@ -31,11 +34,19 @@ interface DeckSheetProps {
    * list scrolls. Content can pin its own action with `DeckSheetFooter`.
    */
   footer?: ReactNode;
+  /** Fixed above the scroll, so a pull on the title closes the sheet. */
+  title?: string;
   testID?: string;
 }
 
 /** Slides up over Today for an act that needs a few numbers, and goes away when saved. */
-export function DeckSheet({ onDismiss, children, footer = null, testID }: DeckSheetProps) {
+export function DeckSheet({
+  onDismiss,
+  children,
+  footer = null,
+  title,
+  testID,
+}: DeckSheetProps) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const isReduceMotionEnabled = useReduceMotion();
@@ -71,7 +82,6 @@ export function DeckSheet({ onDismiss, children, footer = null, testID }: DeckSh
         testID="deck-sheet-scrim"
       />
       <Animated.View
-        {...drag.panHandlers}
         style={[
           styles.sheet,
           {
@@ -82,15 +92,20 @@ export function DeckSheet({ onDismiss, children, footer = null, testID }: DeckSh
         ]}
         testID={testID}
       >
-        <View style={styles.grabber} />
+        <View
+          {...drag.panHandlers}
+          style={styles.header}
+          testID="deck-sheet-header"
+        >
+          <View style={styles.grabber} />
+          {title ? <DeckSheetTitle>{title}</DeckSheetTitle> : null}
+        </View>
         <FooterSlotProvider value={footerSlot}>
           <ScrollView
             alwaysBounceVertical={false}
             bounces={false}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
-            onScroll={drag.onScroll}
-            scrollEventThrottle={16}
             style={styles.body}
             testID="deck-sheet-content"
           >
@@ -130,6 +145,10 @@ const createStyles = (theme: Theme) =>
       borderTopLeftRadius: DECK_CARD_RADIUS,
       borderTopRightRadius: DECK_CARD_RADIUS,
       paddingTop: 10,
+    },
+    header: {
+      minHeight: HEADER_MIN_HEIGHT,
+      paddingHorizontal: SHEET_SIDE_PADDING,
     },
     grabber: {
       alignSelf: 'center',

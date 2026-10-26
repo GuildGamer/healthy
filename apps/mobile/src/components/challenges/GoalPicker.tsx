@@ -7,7 +7,6 @@ import {
   DeckSheetFooter,
   DeckSheetMessage,
   DeckSheetSub,
-  DeckSheetTitle,
 } from '@/components/deck';
 import { type Theme, useThemedStyles } from '@/theme';
 import { clampGoal, formatGoalAmount, type GoalEditor } from './challenge-goal';
@@ -34,13 +33,12 @@ export function GoalPicker({
   error = null,
 }: GoalPickerProps) {
   const styles = useThemedStyles(createStyles);
-  const { title, sub, range } = editor;
+  const { sub, range } = editor;
   const [value, setValue] = useState(() => clampGoal(initialValue, range));
   const step = (delta: number) => setValue((current) => clampGoal(current + delta, range));
 
   return (
     <View testID="goal-picker">
-      <DeckSheetTitle>{title}</DeckSheetTitle>
       <DeckSheetSub>{sub}</DeckSheetSub>
       <View style={styles.stepper}>
         <DeckRoundButton

@@ -1,7 +1,7 @@
 import { fontWeight, spacing } from '@product/brand';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckSheetModal, DeckSheetSub, DeckSheetTitle } from '@/components/deck';
+import { DeckButton, DeckSheetModal, DeckSheetSub } from '@/components/deck';
 import { type Theme, useThemedStyles } from '@/theme';
 import { NUDGE_DELAY_MINUTES, nudgeDelayLabel, nudgeLandingLabel } from './nudge-delay';
 
@@ -30,9 +30,9 @@ export function NudgeDelaySheet({ savedMinutes, onDone, onClose }: NudgeDelayShe
       }
       onDismiss={onClose}
       testID="nudge-delay-sheet"
+      title="Nudge me after"
       visible
     >
-      <DeckSheetTitle>Nudge me after</DeckSheetTitle>
       <DeckSheetSub>If you leave a log unfinished.</DeckSheetSub>
       <View style={styles.grid}>
         {NUDGE_DELAY_MINUTES.map((minutes) => {

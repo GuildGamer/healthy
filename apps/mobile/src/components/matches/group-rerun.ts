@@ -13,7 +13,7 @@ import {
   matchLengthInput,
 } from './match-length';
 import type { GroupRules } from './group-rule-copy';
-import { legalScoringModeFor } from './match-metric';
+import { matchCreateDefaultMetric, legalScoringModeFor } from './match-metric';
 
 const DAY_MS = 86_400_000;
 
@@ -88,16 +88,18 @@ export type CreatePrefill = GroupRules & {
   participantUserIds: string[];
 };
 
-const DEFAULT_PREFILL: CreatePrefill = {
-  scoringMode: 'cumulative_total',
-  metric: 'walk',
-  dailyScope: 'any_challenge',
-  length: { kind: 'preset', window: 'week' },
-  crewId: null,
-  parentMatchId: null,
-  title: null,
-  participantUserIds: [],
-};
+function defaultPrefill(): CreatePrefill {
+  return {
+    scoringMode: 'cumulative_total',
+    metric: matchCreateDefaultMetric(),
+    dailyScope: 'any_challenge',
+    length: { kind: 'preset', window: 'week' },
+    crewId: null,
+    parentMatchId: null,
+    title: null,
+    participantUserIds: [],
+  };
+}
 
 function parseParticipantUserIds(raw: string | undefined): string[] {
   if (!raw?.trim()) {
@@ -122,23 +124,24 @@ function parseLength(raw: string | undefined, rules: GroupRules): MatchLengthCho
 
   const days = Number(raw);
   if (!Number.isInteger(days)) {
-    return legalChoiceFor(DEFAULT_PREFILL.length, rules.scoringMode);
+    return legalChoiceFor(defaultPrefill().length, rules.scoringMode);
   }
 
   return { kind: 'custom', days: clampCustomDays(days, rules.scoringMode) };
 }
 
 /**
- * Where the start screen opens. Opening it fresh starts on a 7-day walking
- * total; arriving from "Change something" starts on the finished contest.
- * Anything unreadable falls back rather than sending a pair the API rejects.
+ * Where the start screen opens. Opening it fresh starts on a 7-day push-up
+ * total (walking on Android); arriving from "Change something" starts on the
+ * finished contest. Anything unreadable falls back rather than sending a pair
+ * the API rejects.
  */
 export function createPrefillFrom(params: CreatePrefillParams): CreatePrefill {
   const metric = matchMetricSchema.safeParse(params.metric);
   const scoringMode = matchScoringModeSchema.safeParse(params.scoringMode);
   const dailyScope = matchDailyScopeSchema.safeParse(params.dailyScope);
   if (!metric.success || !scoringMode.success || !dailyScope.success) {
-    return DEFAULT_PREFILL;
+    return defaultPrefill();
   }
 
   const rules = {

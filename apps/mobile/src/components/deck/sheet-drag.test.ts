@@ -6,14 +6,10 @@ import {
 } from './sheet-drag';
 
 describe('isSheetPull', () => {
-  const pull = { dx: 2, dy: 20, scrollOffsetY: 0, canDismiss: true };
+  const pull = { dx: 2, dy: 20, canDismiss: true };
 
-  it('takes a downward pull when the content is at the top', () => {
+  it('takes a downward pull on the header', () => {
     expect(isSheetPull(pull)).toBe(true);
-  });
-
-  it('leaves the content to scroll back up first', () => {
-    expect(isSheetPull({ ...pull, scrollOffsetY: 40 })).toBe(false);
   });
 
   it('leaves taps, upward drags and sideways swipes alone', () => {

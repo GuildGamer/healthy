@@ -9,6 +9,8 @@ interface DeckSheetModalProps {
   children: ReactNode;
   /** Pinned under the content, so it stays reachable when a long list scrolls. */
   footer?: ReactNode;
+  /** Fixed above the scroll, so a pull on the title closes the sheet. */
+  title?: string;
   testID?: string;
 }
 
@@ -18,6 +20,7 @@ export function DeckSheetModal({
   onDismiss,
   children,
   footer,
+  title,
   testID,
 }: DeckSheetModalProps) {
   return (
@@ -28,7 +31,7 @@ export function DeckSheetModal({
       transparent
       visible={visible}
     >
-      <DeckSheet footer={footer} onDismiss={onDismiss} testID={testID}>
+      <DeckSheet footer={footer} onDismiss={onDismiss} testID={testID} title={title}>
         {children}
       </DeckSheet>
     </Modal>

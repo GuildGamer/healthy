@@ -1,11 +1,5 @@
 import { useRef } from 'react';
-import {
-  Animated,
-  type GestureResponderHandlers,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  PanResponder,
-} from 'react-native';
+import { Animated, type GestureResponderHandlers, PanResponder } from 'react-native';
 
 import { isSheetDismissal, isSheetPull } from './sheet-drag';
 
@@ -21,22 +15,19 @@ interface SheetDragOptions {
 interface SheetDrag {
   /** Added to the entry slide, so a pull moves the whole sheet. */
   dragY: Animated.Value;
+  /** On the sheet's fixed header, so the scroll view never races the pull. */
   panHandlers: GestureResponderHandlers;
-  /** On the sheet's scroll view: a pull only closes the sheet once its content is at the top. */
-  onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
 /**
- * Pull a sheet down to close it, as on any phone sheet. The gesture is taken
- * from the content only when it is scrolled to the top, so a long list still
- * scrolls back up before the sheet moves.
+ * Pull a sheet down to close it, as on any phone sheet. The gesture lives on
+ * the fixed header above the scroll, so a long list still scrolls on its own.
  */
 export function useSheetDragToDismiss({
   onDismiss,
   isReduceMotionEnabled,
 }: SheetDragOptions): SheetDrag {
   const dragY = useRef(new Animated.Value(0)).current;
-  const scrollOffsetY = useRef(0);
   const latest = useRef({ onDismiss, isReduceMotionEnabled });
   latest.current = { onDismiss, isReduceMotionEnabled };
 
@@ -65,11 +56,11 @@ export function useSheetDragToDismiss({
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+      onStartShouldSetPanResponder: () => Boolean(latest.current.onDismiss),
+      onMoveShouldSetPanResponder: (_event, gesture) =>
         isSheetPull({
           dx: gesture.dx,
           dy: gesture.dy,
-          scrollOffsetY: scrollOffsetY.current,
           canDismiss: Boolean(latest.current.onDismiss),
         }),
       onPanResponderTerminationRequest: () => false,
@@ -88,8 +79,5 @@ export function useSheetDragToDismiss({
   return {
     dragY,
     panHandlers: panResponder.panHandlers,
-    onScroll: (event) => {
-      scrollOffsetY.current = event.nativeEvent.contentOffset.y;
-    },
   };
 }

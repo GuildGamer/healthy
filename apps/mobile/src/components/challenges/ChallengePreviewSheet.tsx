@@ -2,7 +2,7 @@ import type { CatalogChallenge, ChallengeFrequency } from '@product/client';
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { displayChallengeTitle } from '@product/contract/challenge-title';
 import { useRouter } from 'expo-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
   DeckButton,
@@ -19,7 +19,7 @@ import { challengeProof } from './challenge-proof';
 import { ChallengeHero } from './ChallengeHero';
 import { frequencyLabel, frequencyOptions } from './constants/frequency-labels';
 import { MOMENT_HINT } from './constants/reminder-moments';
-import { CATALOG_COPY } from './constants/routine-copy';
+import { CATALOG_COPY, REMINDER_COPY } from './constants/routine-copy';
 import { GoalPicker } from './GoalPicker';
 import { ReminderMomentPicker } from './ReminderMomentPicker';
 import { reminderLabel, suggestedMoment } from './reminder-moments';
@@ -38,6 +38,22 @@ interface ChallengePreviewSheetProps {
   onAdded: (frequency: ChallengeFrequency) => void;
 }
 
+function previewSheetTitle(
+  step: PreviewStep,
+  challenge: CatalogChallenge | null,
+): string | undefined {
+  if (!challenge) {
+    return undefined;
+  }
+  if (step === 'reminder') {
+    return REMINDER_COPY.title;
+  }
+  if (step === 'goal') {
+    return challengeGoal(challenge)?.editor?.title;
+  }
+  return undefined;
+}
+
 /** The one moment someone is curious about a challenge: what you do, how it counts, and when. */
 export function ChallengePreviewSheet({
   challenge,
@@ -45,15 +61,29 @@ export function ChallengePreviewSheet({
   onClose,
   onAdded,
 }: ChallengePreviewSheetProps) {
+  const [step, setStep] = useState<PreviewStep>('preview');
+  const challengeId = challenge?.challengeId ?? null;
+
+  useEffect(() => {
+    setStep('preview');
+  }, [challengeId]);
+
   return (
-    <DeckSheetModal onDismiss={onClose} testID="catalog-preview" visible={challenge !== null}>
+    <DeckSheetModal
+      onDismiss={onClose}
+      testID="catalog-preview"
+      title={previewSheetTitle(step, challenge)}
+      visible={challenge !== null}
+    >
       {challenge ? (
         <PreviewBody
           challenge={challenge}
           key={challenge.challengeId}
           onAdded={onAdded}
           onClose={onClose}
+          onStepChange={setStep}
           otherMembersOnlyCount={otherMembersOnlyCount}
+          step={step}
         />
       ) : null}
     </DeckSheetModal>
@@ -65,10 +95,15 @@ function PreviewBody({
   otherMembersOnlyCount,
   onClose,
   onAdded,
-}: ChallengePreviewSheetProps & { challenge: CatalogChallenge }) {
+  step,
+  onStepChange,
+}: ChallengePreviewSheetProps & {
+  challenge: CatalogChallenge;
+  step: PreviewStep;
+  onStepChange: (step: PreviewStep) => void;
+}) {
   const goal = challengeGoal(challenge);
   const moment = suggestedMoment(challenge);
-  const [step, setStep] = useState<PreviewStep>('preview');
   const [frequency, setFrequency] = useState(challenge.frequency);
   const [goalAmount, setGoalAmount] = useState(goal?.amount ?? null);
   const [reminderMinute, setReminderMinute] = useState(moment.minuteOfDay);
@@ -81,7 +116,7 @@ function PreviewBody({
         initialMinute={reminderMinute}
         onSave={(minuteOfDay) => {
           setReminderMinute(minuteOfDay);
-          setStep('preview');
+          onStepChange('preview');
         }}
       />
     );
@@ -94,7 +129,7 @@ function PreviewBody({
         initialValue={goalAmount}
         onDone={(amount) => {
           setGoalAmount(amount);
-          setStep('preview');
+          onStepChange('preview');
         }}
         unit={goal.unit}
       />
@@ -129,8 +164,8 @@ function PreviewBody({
           hasFailed={addChallenge.isError}
           isAdding={addChallenge.isPending}
           onAdd={add}
-          onEditGoal={goal?.editor ? () => setStep('goal') : null}
-          onEditReminder={() => setStep('reminder')}
+          onEditGoal={goal?.editor ? () => onStepChange('goal') : null}
+          onEditReminder={() => onStepChange('reminder')}
           onSelectFrequency={setFrequency}
           reminderMinute={reminderMinute}
         />

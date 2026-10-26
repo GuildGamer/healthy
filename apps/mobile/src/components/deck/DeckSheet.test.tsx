@@ -77,4 +77,28 @@ describe('DeckSheet', () => {
 
     expect(screen.getByText('Save')).toBeOnTheScreen();
   });
+
+  it('keeps the title in the fixed header, not inside the scroll', () => {
+    render(
+      <DeckSheet onDismiss={jest.fn()} title="How you win">
+        <Text>Rows</Text>
+      </DeckSheet>,
+    );
+
+    const header = screen.getByTestId('deck-sheet-header');
+    expect(header).toContainElement(screen.getByText('How you win'));
+    expect(screen.getByTestId('deck-sheet-content')).not.toContainElement(
+      screen.getByText('How you win'),
+    );
+  });
+
+  it('still renders a drag header when there is no title', () => {
+    render(
+      <DeckSheet onDismiss={jest.fn()}>
+        <Text>Rows</Text>
+      </DeckSheet>,
+    );
+
+    expect(screen.getByTestId('deck-sheet-header')).toBeOnTheScreen();
+  });
 });

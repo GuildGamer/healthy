@@ -2,7 +2,7 @@ import { spacing } from '@product/brand';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { DeckButton, DeckSheetModal, DeckSheetSub, DeckSheetTitle } from '@/components/deck';
+import { DeckButton, DeckSheetModal, DeckSheetSub } from '@/components/deck';
 import { InlineNotice, InsetField } from '@/components/forms';
 import { updateUser } from '@/lib/auth-client';
 import { SETTINGS_SAVE_FAILED_MESSAGE } from './constants/settings-copy';
@@ -50,9 +50,9 @@ export function FullNameSheet({
       }
       onDismiss={save.isPending ? undefined : onClose}
       testID="full-name-sheet"
+      title="Account name"
       visible={visible}
     >
-      <DeckSheetTitle>Account name</DeckSheetTitle>
       <DeckSheetSub>Contests show your first name to friends. The rest stays private.</DeckSheetSub>
       {save.isError ? (
         <InlineNotice icon="offline" message={SETTINGS_SAVE_FAILED_MESSAGE} tone="error" />

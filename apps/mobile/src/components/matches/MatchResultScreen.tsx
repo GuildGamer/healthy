@@ -10,7 +10,6 @@ import {
   DeckPageNav,
   DeckSheetMessage,
   DeckSheetModal,
-  DeckSheetTitle,
 } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { TextField } from '@/components/forms/TextField';
@@ -142,9 +141,9 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
         }
         onDismiss={() => setIsNameCrewOpen(false)}
         testID="match-name-crew-sheet"
+        title={RESULT_COPY.nameAndSaveCrew}
         visible={isNameCrewOpen}
       >
-        <DeckSheetTitle>{RESULT_COPY.nameAndSaveCrew}</DeckSheetTitle>
         <TextField
           maxLength={CREW_NAME_MAX}
           onChangeText={setCrewName}

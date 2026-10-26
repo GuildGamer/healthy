@@ -4,7 +4,7 @@ import {
   matchScoringModeSchema,
 } from '@product/contract/match-board';
 import { Platform, StyleSheet, View } from 'react-native';
-import { DeckButton, DeckSheetModal, DeckSheetTitle } from '@/components/deck';
+import { DeckButton, DeckSheetModal } from '@/components/deck';
 import type { GlyphName } from '@/components/icons';
 import { type GroupRules, scoringModeHint } from './group-rule-copy';
 import { CREATE_COPY, MATCH_MODE_LABEL } from './match-copy';
@@ -19,7 +19,7 @@ import { SheetChoice } from './SheetChoice';
 
 const MODE_GLYPH: Record<MatchScoringMode, GlyphName> = {
   best_single: 'trophy',
-  cumulative_total: 'walk',
+  cumulative_total: 'strength',
   days_completed: 'flame',
 };
 
@@ -41,9 +41,9 @@ export function HowYouWinSheet({
       footer={<SheetDone onClose={onClose} />}
       onDismiss={onClose}
       testID="match-create-mode-sheet"
+      title={CREATE_COPY.howYouWinTitle}
       visible={visible}
     >
-      <DeckSheetTitle>{CREATE_COPY.howYouWinTitle}</DeckSheetTitle>
       {matchScoringModeSchema.options.map((mode) => (
         <SheetChoice
           glyph={MODE_GLYPH[mode]}
@@ -103,17 +103,17 @@ export function ActivitySheet({
   const poseChoices: MatchActivityChoice[] = [...MATCH_POSE_METRICS];
   const choices: MatchActivityChoice[] =
     rules.scoringMode === 'days_completed'
-      ? [MATCH_ANY_DAILY_CHOICE, 'walk', ...poseChoices]
-      : ['walk', ...poseChoices];
+      ? [MATCH_ANY_DAILY_CHOICE, ...poseChoices, 'walk']
+      : [...poseChoices, 'walk'];
 
   return (
     <DeckSheetModal
       footer={<SheetDone onClose={onClose} />}
       onDismiss={onClose}
       testID="match-create-activity-sheet"
+      title={CREATE_COPY.activityTitle}
       visible={visible}
     >
-      <DeckSheetTitle>{CREATE_COPY.activityTitle}</DeckSheetTitle>
       {choices.map((choice) => {
         const isPose = choice !== 'walk' && choice !== MATCH_ANY_DAILY_CHOICE;
         const hint = isPose

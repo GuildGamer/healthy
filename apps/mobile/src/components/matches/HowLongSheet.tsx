@@ -6,7 +6,7 @@ import {
   matchWindowSchema,
 } from '@product/contract/match-board';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckRoundButton, DeckSheetModal, DeckSheetTitle } from '@/components/deck';
+import { DeckRoundButton, DeckSheetModal } from '@/components/deck';
 import { type Theme, useThemedStyles } from '@/theme';
 import { SheetDone } from './CreateRuleSheets';
 import { CREATE_COPY } from './match-copy';
@@ -49,9 +49,9 @@ export function HowLongSheet({
       footer={<SheetDone onClose={onClose} />}
       onDismiss={onClose}
       testID="match-create-length-sheet"
+      title={CREATE_COPY.howLongTitle}
       visible={visible}
     >
-      <DeckSheetTitle>{CREATE_COPY.howLongTitle}</DeckSheetTitle>
       <View style={styles.grid}>
         {matchWindowSchema.options.map((window) => {
           const isAllowed = isWindowAllowedForScoringMode(scoringMode, window);
