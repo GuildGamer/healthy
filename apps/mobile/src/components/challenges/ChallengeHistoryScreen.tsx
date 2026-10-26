@@ -1,39 +1,26 @@
 import type { ChallengeHistoryEntry } from '@product/client';
 import { fontWeight, spacing } from '@product/brand';
-import { useQuery } from '@tanstack/react-query';
-import { type Href, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeckNoteCard, DeckPageNav } from '@/components/deck';
 import { Glyph } from '@/components/icons';
 import { formatPointsDelta } from '@/components/points';
-import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
-import { historyEvidenceCopy, historyLogCopy, mergeTodayIntoHistory } from './challenge-history';
-import { historyCompletionShareRoute, type CompletionChallenge } from './completion-poster';
+import { historyEvidenceCopy, historyLogCopy } from './challenge-history';
+import { ACTIVITY_COPY } from './constants/doing-copy';
 import { SETTINGS_COPY } from './constants/routine-copy';
 import { groupHistoryByWeek, historyDayLabel, historyTimeLabel, timesLabel } from './history-weeks';
 import { ListSectionTitle } from './ListSectionTitle';
 import { RoutineSkeleton } from './RoutineSkeleton';
-import { useChallengeQueries } from './useChallengeQueries';
+import { useChallengeHistory } from './useChallengeHistory';
 
 /** Where your own values live, by week, newest first. Private: never on Today or the routine. */
 export function ChallengeHistoryScreen({ challengeId }: { challengeId: string }) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
-  const { todayQuery, detailsQuery, catalogQuery } = useChallengeQueries();
-  const historyQuery = useQuery({
-    queryKey: ['challenges', 'history', challengeId],
-    queryFn: () => apiClient.listChallengeHistory({ challengeId }),
-  });
-  const occurrence = todayQuery.data?.challenges.find((item) => item.challengeId === challengeId);
-  const completedAt =
-    detailsQuery.data?.occurrences.find((item) => item.userChallengeId === occurrence?.id)
-      ?.completedAt ?? null;
-  const entries = mergeTodayIntoHistory(historyQuery.data?.entries ?? [], occurrence, completedAt);
-  const challenge =
-    catalogQuery.data?.challenges.find((item) => item.challengeId === challengeId) ?? null;
+  const { historyQuery, entries } = useChallengeHistory(challengeId);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
@@ -48,7 +35,7 @@ export function ChallengeHistoryScreen({ challengeId }: { challengeId: string })
         testID="challenge-history-screen"
       >
         <HistoryBody
-          challenge={challenge}
+          challengeId={challengeId}
           entries={entries}
           hasFailed={historyQuery.isError}
           isPending={historyQuery.isPending}
@@ -60,13 +47,13 @@ export function ChallengeHistoryScreen({ challengeId }: { challengeId: string })
 }
 
 function HistoryBody({
-  challenge,
+  challengeId,
   entries,
   isPending,
   hasFailed,
   onRetry,
 }: {
-  challenge: CompletionChallenge | null;
+  challengeId: string;
   entries: readonly ChallengeHistoryEntry[];
   isPending: boolean;
   hasFailed: boolean;
@@ -112,7 +99,7 @@ function HistoryBody({
           />
           {week.entries.map((entry, entryIndex) => (
             <HistoryRow
-              challenge={challenge}
+              challengeId={challengeId}
               entry={entry}
               isFirst={entryIndex === 0}
               key={entry.id}
@@ -126,12 +113,12 @@ function HistoryBody({
 }
 
 function HistoryRow({
-  challenge,
+  challengeId,
   entry,
   isFirst,
   now,
 }: {
-  challenge: CompletionChallenge | null;
+  challengeId: string;
   entry: ChallengeHistoryEntry;
   isFirst: boolean;
   now: Date;
@@ -141,29 +128,18 @@ function HistoryRow({
   const styles = useThemedStyles(createStyles);
   const evidence = historyEvidenceCopy(entry.evidence);
   const when = historyTimeLabel(entry.completedAt);
-  const localClipQuery = useQuery({
-    queryKey: ['proof-clip-local-by-challenge', entry.id],
-    queryFn: async () => {
-      const { listLocalProofClips } = await import('@/lib/proof-clip-store');
-      const clips = await listLocalProofClips();
-      return clips.find((clip) => clip.userChallengeId === entry.id) ?? null;
-    },
-  });
+  const hasClip = entry.proofClip !== null;
 
   return (
     <Pressable
-      accessibilityHint="Opens the share card"
+      accessibilityHint={hasClip ? ACTIVITY_COPY.openWithClipHint : ACTIVITY_COPY.openHint}
       accessibilityRole="button"
-      onPress={() => {
-        if (localClipQuery.data) {
-          router.push({
-            pathname: '/proof/[clipId]',
-            params: { clipId: localClipQuery.data.clipId },
-          } as unknown as Href);
-          return;
-        }
-        router.push(historyCompletionShareRoute(entry, challenge));
-      }}
+      onPress={() =>
+        router.push({
+          pathname: '/challenge/[challengeId]/history/[entryId]',
+          params: { challengeId, entryId: entry.id },
+        })
+      }
       style={({ pressed }) => [
         styles.row,
         isFirst ? null : styles.divider,
@@ -181,10 +157,14 @@ function HistoryRow({
           {formatPointsDelta(entry.pointsDelta)}
         </Text>
       </View>
-      {localClipQuery.data ? (
-        <Text style={styles.play} testID={`challenge-history-proof-${entry.id}`}>
-          ▶
-        </Text>
+      {hasClip ? (
+        <Glyph
+          color={colors.accent}
+          name="play"
+          size={16}
+          strokeWidth={2}
+          testID={`challenge-history-proof-${entry.id}`}
+        />
       ) : (
         <Glyph color={colors.muted} name="forward" size={16} strokeWidth={2} />
       )}
@@ -203,12 +183,6 @@ const createStyles = (theme: Theme) =>
     },
     content: {
       paddingHorizontal: 20,
-    },
-    play: {
-      color: theme.colors.accent,
-      fontSize: 14,
-      width: 16,
-      textAlign: 'center',
     },
     row: {
       flexDirection: 'row',

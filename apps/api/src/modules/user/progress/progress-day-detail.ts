@@ -34,6 +34,7 @@ function doneItems(rows: readonly LinkedRow[]): ProgressDayDetailDto['done'] {
       completedAt: (row.occurrence.completedAt ?? row.createdAt).toISOString(),
       points: row.delta,
       share: row.occurrence.share,
+      proofClip: row.occurrence.proofClip,
     });
   }
 
@@ -86,6 +87,7 @@ export function buildProgressDayDetail(input: {
       count: session.count,
       durationSeconds: session.durationSeconds,
       recordedAt: session.createdAt.toISOString(),
+      proofClip: session.proofClip,
     })),
     adjustments: input.ledger
       .filter((row) => row.occurrence === null)

@@ -1,4 +1,8 @@
-import { emptyChallengeTarget, type ProgressShareResult } from '@product/contract';
+import {
+  type ActivityProofClip,
+  emptyChallengeTarget,
+  type ProgressShareResult,
+} from '@product/contract';
 import { describe, expect, it } from 'vitest';
 import { buildProgressDayDetail } from './progress-day-detail.js';
 import type { LedgerDetailRow } from './types/progress.js';
@@ -17,6 +21,7 @@ function ledgerRow(
     userChallengeId: string;
     title: string;
     share?: ProgressShareResult | null;
+    proofClip?: ActivityProofClip | null;
   } | null,
 ): LedgerDetailRow {
   return {
@@ -33,6 +38,7 @@ function ledgerRow(
           completedAt: new Date(at),
           photoCheck: { resolution: 'expired', windowSeconds: 600 },
           share: occurrence.share ?? null,
+          proofClip: occurrence.proofClip ?? null,
         }
       : null,
   };
@@ -109,6 +115,39 @@ describe('buildProgressDayDetail', () => {
 
     expect(detail.done.map((item) => item.share)).toEqual([{ kind: 'glasses', count: 6 }, null]);
     expect(JSON.stringify(detail)).not.toContain('128');
+  });
+
+  it('carries the clip that filmed a finished challenge and a practice set', () => {
+    const clip: ActivityProofClip = {
+      id: 'clip-1',
+      displayCode: 'H7K-29Q',
+      status: 'ready',
+      visibility: 'group',
+    };
+    const detail = buildProgressDayDetail({
+      dayKey: '2026-10-20',
+      dailyOccurrences: [],
+      ledger: [
+        ledgerRow('pushups', 150, '2026-10-20T08:00:00.000Z', {
+          userChallengeId: 'pushups',
+          title: 'Do 20 pushups',
+          proofClip: clip,
+        }),
+      ],
+      practice: [
+        {
+          id: 'set-1',
+          metric: 'pushups',
+          count: 12,
+          durationSeconds: 40,
+          createdAt: new Date('2026-10-20T09:00:00.000Z'),
+          proofClip: { ...clip, id: 'clip-2', visibility: null },
+        },
+      ],
+    });
+
+    expect(detail.done[0]?.proofClip).toEqual(clip);
+    expect(detail.practice[0]?.proofClip).toMatchObject({ id: 'clip-2', visibility: null });
   });
 
   it('counts due and done daily challenges from the occurrences', () => {

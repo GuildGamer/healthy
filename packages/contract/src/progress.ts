@@ -2,6 +2,7 @@ import { oc } from '@orpc/contract';
 import { z } from 'zod';
 import { challengeCompletionKindSchema, healthCategorySchema } from './catalog-fields.js';
 import { challengeCaptureSchema, deviceMetricSchema } from './challenge-capture.js';
+import { activityProofClipSchema } from './proof-clips.js';
 
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -69,6 +70,8 @@ export const progressDoneItemSchema = progressChallengeMarkSchema.extend({
    * check-in, or any result whose numbers stay on the phone.
    */
   share: progressShareResultSchema.nullable(),
+  /** The clip that filmed this finish, when one was recorded. */
+  proofClip: activityProofClipSchema.nullable(),
 });
 
 export const photoCheckResolutionSchema = z.enum(['expired', 'skipped']);
@@ -92,6 +95,7 @@ export const progressPracticeItemSchema = z.object({
   count: z.number().int().nonnegative().nullable(),
   durationSeconds: z.number().int().nonnegative().nullable(),
   recordedAt: z.string().datetime(),
+  proofClip: activityProofClipSchema.nullable(),
 });
 
 /** Points moved by the team rather than a challenge, such as a bonus. */

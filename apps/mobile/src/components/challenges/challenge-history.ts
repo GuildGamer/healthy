@@ -128,6 +128,7 @@ export function mergeTodayIntoHistory(
       pointsDelta: occurrence.rewardPoints,
       log: historyLogFromKind(occurrence.completionKind),
       evidence: null,
+      proofClip: null,
     },
     ...entries,
   ];

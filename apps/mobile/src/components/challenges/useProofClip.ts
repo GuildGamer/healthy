@@ -18,7 +18,11 @@ function proofClipHref(clipId: string): Href {
  * when the person chooses to publish. A discarded clip is gone on purpose, so
  * it is not reported as missing.
  */
-export function useProofClip(clipId: string | null, visibility: ProofClipVisibility) {
+export function useProofClip(
+  clipId: string | null,
+  visibility: ProofClipVisibility,
+  options: { onPublished?: () => void } = {},
+) {
   const router = useRouter();
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +49,7 @@ export function useProofClip(clipId: string | null, visibility: ProofClipVisibil
     try {
       await uploadProofClip({ clipId, visibility });
       setHasPublished(true);
-      watch();
+      (options.onPublished ?? watch)();
     } catch (publishError) {
       setError(
         isGroupPostCapError(publishError)
@@ -115,6 +119,7 @@ export function useProofClip(clipId: string | null, visibility: ProofClipVisibil
     isBusy,
     error,
     hasSavedToPhotos,
+    hasPublished,
     /** A camera-roll copy carries the code, but the code only checks out once the clip is published. */
     savedHint:
       hasSavedToPhotos && !hasPublished

@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
+import { DayActivityScreen } from './DayActivityScreen';
 import { DayDetailScreen } from './DayDetailScreen';
 import { HistoryScreen } from './HistoryScreen';
 
@@ -15,7 +16,7 @@ const testSafeAreaMetrics: Metrics = {
 
 jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
-  apiClient: { listProgressDays: jest.fn(), getProgressDay: jest.fn() },
+  apiClient: { listProgressDays: jest.fn(), getProgressDay: jest.fn(), getProofClip: jest.fn() },
   apiQuery: {},
 }));
 
@@ -29,6 +30,7 @@ jest.mock('expo-router', () => ({
 const mockedApi = apiClient as unknown as {
   listProgressDays: jest.Mock;
   getProgressDay: jest.Mock;
+  getProofClip: jest.Mock;
 };
 
 const capture = {
@@ -136,6 +138,7 @@ describe('DayDetailScreen', () => {
           completedAt: '2026-10-20T08:30:00.000Z',
           points: 150,
           share: null,
+          proofClip: null,
         },
       ],
       missedPhotoChecks: [
@@ -157,6 +160,7 @@ describe('DayDetailScreen', () => {
           count: 14,
           durationSeconds: 90,
           recordedAt: '2026-10-20T19:10:00.000Z',
+          proofClip: null,
         },
       ],
       adjustments: [],
@@ -175,7 +179,7 @@ describe('DayDetailScreen', () => {
     await cleanup();
   });
 
-  it('opens the share card for the finish that was tapped', async () => {
+  it('offers a finish’s share card from its page, never with a reading on it', async () => {
     const detail: ProgressDayDetail = {
       dayKey: '2026-10-20',
       pointsEarned: 300,
@@ -192,6 +196,7 @@ describe('DayDetailScreen', () => {
           completedAt: '2026-10-20T08:30:00.000Z',
           points: 150,
           share: { kind: 'glasses', count: 6 },
+          proofClip: null,
         },
         {
           ...mark,
@@ -202,6 +207,7 @@ describe('DayDetailScreen', () => {
           completedAt: '2026-10-20T09:15:00.000Z',
           points: 150,
           share: null,
+          proofClip: null,
         },
       ],
       missedPhotoChecks: [],
@@ -209,9 +215,11 @@ describe('DayDetailScreen', () => {
       adjustments: [],
     };
     mockedApi.getProgressDay.mockResolvedValue(detail);
-    const { cleanup } = renderWithQueries(<DayDetailScreen dayKey="2026-10-20" />);
+    const water = renderWithQueries(<DayActivityScreen dayKey="2026-10-20" itemId="w" />);
 
-    fireEvent.press(await screen.findByTestId('history-done-w'));
+    expect(await screen.findByTestId('activity-detail-amount')).toHaveTextContent('6 glasses');
+    expect(screen.queryByTestId('activity-detail-clip')).toBeNull();
+    fireEvent.press(screen.getByTestId('activity-detail-share-card'));
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/challenge/share',
       params: {
@@ -224,8 +232,10 @@ describe('DayDetailScreen', () => {
         userChallengeId: 'w',
       },
     });
+    await water.cleanup();
 
-    fireEvent.press(screen.getByTestId('history-done-bp'));
+    const reading = renderWithQueries(<DayActivityScreen dayKey="2026-10-20" itemId="bp" />);
+    fireEvent.press(await screen.findByTestId('activity-detail-share-card'));
     const readingRoute: unknown = mockPush.mock.calls.at(-1)?.[0];
     expect(readingRoute).toMatchObject({
       pathname: '/challenge/share',
@@ -240,6 +250,117 @@ describe('DayDetailScreen', () => {
       },
     });
     expect(JSON.stringify(readingRoute)).not.toMatch(/128|82|mmol|L\/min/);
+
+    await reading.cleanup();
+  });
+
+  it('opens what was done, marking the rows that have a proof clip', async () => {
+    const clip = {
+      id: 'clip-1',
+      displayCode: 'H7K-29Q',
+      status: 'ready' as const,
+      visibility: 'group' as const,
+    };
+    const detail: ProgressDayDetail = {
+      dayKey: '2026-10-20',
+      pointsEarned: 150,
+      pointsLost: 0,
+      dailyDoneCount: 1,
+      dailyDueCount: 1,
+      done: [
+        {
+          ...mark,
+          userChallengeId: 'push',
+          title: 'Do 20 push-ups',
+          completedAt: '2026-10-20T08:30:00.000Z',
+          points: 150,
+          share: { kind: 'reps', count: 20 },
+          proofClip: clip,
+        },
+      ],
+      missedPhotoChecks: [],
+      practice: [
+        {
+          id: 'filmed',
+          title: 'Push-up practice',
+          metric: 'pushups',
+          count: 12,
+          durationSeconds: 60,
+          recordedAt: '2026-10-20T19:10:00.000Z',
+          proofClip: { ...clip, id: 'clip-2', visibility: null },
+        },
+        {
+          id: 'plain',
+          title: 'Push-up practice',
+          metric: 'pushups',
+          count: 8,
+          durationSeconds: 40,
+          recordedAt: '2026-10-20T20:10:00.000Z',
+          proofClip: null,
+        },
+      ],
+      adjustments: [],
+    };
+    mockedApi.getProgressDay.mockResolvedValue(detail);
+    const { cleanup } = renderWithQueries(<DayDetailScreen dayKey="2026-10-20" />);
+
+    fireEvent.press(await screen.findByTestId('history-done-push'));
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/history/[dayKey]/[itemId]',
+      params: { dayKey: '2026-10-20', itemId: 'push' },
+    });
+
+    fireEvent.press(screen.getByTestId('history-practice-filmed'));
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/history/[dayKey]/[itemId]',
+      params: { dayKey: '2026-10-20', itemId: 'filmed' },
+    });
+
+    mockPush.mockClear();
+    fireEvent.press(screen.getByTestId('history-practice-plain'));
+    expect(mockPush).not.toHaveBeenCalled();
+
+    await cleanup();
+  });
+
+  it('leads a filmed finish with its clip, its code, and where it was posted', async () => {
+    mockedApi.getProgressDay.mockResolvedValue({
+      dayKey: '2026-10-20',
+      pointsEarned: 150,
+      pointsLost: 0,
+      dailyDoneCount: 1,
+      dailyDueCount: 1,
+      done: [
+        {
+          ...mark,
+          userChallengeId: 'push',
+          title: 'Do 20 push-ups',
+          completedAt: '2026-10-20T08:30:00.000Z',
+          points: 150,
+          share: { kind: 'reps', count: 20 },
+          proofClip: { id: 'clip-1', displayCode: 'H7K-29Q', status: 'ready', visibility: 'group' },
+        },
+      ],
+      missedPhotoChecks: [],
+      practice: [],
+      adjustments: [],
+    } satisfies ProgressDayDetail);
+    mockedApi.getProofClip.mockResolvedValue({
+      id: 'clip-1',
+      displayCode: 'H7K-29Q',
+      videoUrl: 'https://cdn.test/clip-1/video.mp4',
+      posterUrl: 'https://cdn.test/clip-1/poster.jpg',
+    });
+    const { cleanup } = renderWithQueries(<DayActivityScreen dayKey="2026-10-20" itemId="push" />);
+
+    expect(await screen.findByTestId('activity-detail-video')).toBeOnTheScreen();
+    expect(mockedApi.getProofClip).toHaveBeenCalledWith({ clipId: 'clip-1' });
+    expect(screen.getByTestId('activity-detail-code')).toHaveTextContent(
+      'H7K-29Q · Posted to your group',
+    );
+    expect(screen.getByTestId('activity-detail-amount')).toHaveTextContent('20 push-ups');
+    expect(screen.queryByTestId('proof-publish')).toBeNull();
+    expect(screen.getByTestId('activity-detail-share-card')).toBeOnTheScreen();
 
     await cleanup();
   });

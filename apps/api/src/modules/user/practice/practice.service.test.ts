@@ -85,6 +85,9 @@ function createPrismaMock(
       })),
       findMany: vi.fn(async () => rows),
     },
+    proofClip: {
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
   };
 }
 
@@ -226,6 +229,43 @@ describe('PracticeService.record', () => {
     await new PracticeService(prisma as never).record(user, walk);
 
     expect(prisma.deviceActivityLog.upsert).not.toHaveBeenCalled();
+  });
+
+  it('links the clip that filmed the set, only if it is still unclaimed and live', async () => {
+    const prisma = createPrismaMock();
+    await new PracticeService(prisma as never).record(user, { ...input, proofClipId: 'clip-1' });
+
+    expect(prisma.proofClip.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'clip-1',
+        userId: 'u1',
+        deviceActivityLogId: null,
+        status: { in: ['reserved', 'recorded', 'ready'] },
+      },
+      data: { deviceActivityLogId: 'log-1' },
+    });
+  });
+
+  it('links no clip when the set carried none', async () => {
+    const prisma = createPrismaMock();
+    await new PracticeService(prisma as never).record(user, input);
+
+    expect(prisma.proofClip.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('links no clip to a session a completion has claimed', async () => {
+    const prisma = createPrismaMock({
+      stored: {
+        userChallengeId: 'uc-walk',
+        count: null,
+        durationSeconds: 600,
+        distanceMeters: 900,
+        endedAt: null,
+      },
+    });
+    await new PracticeService(prisma as never).record(user, { ...walk, proofClipId: 'clip-1' });
+
+    expect(prisma.proofClip.updateMany).not.toHaveBeenCalled();
   });
 
   it('awards no points and touches no ledger or streak', async () => {

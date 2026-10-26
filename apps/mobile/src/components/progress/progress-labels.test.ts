@@ -42,6 +42,7 @@ describe('day detail labels', () => {
           completedAt: '2026-10-20T08:00:00.000Z',
           points: 750,
           share: null,
+          proofClip: null,
         },
       ],
       adjustments: [{ id: 'a', reason: 'Bonus', points: 50, at: '2026-10-20T09:00:00.000Z' }],

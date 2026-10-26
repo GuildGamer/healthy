@@ -1,4 +1,5 @@
 import type {
+  ActivityProofClip,
   ChallengeCapture,
   ChallengeCompletionKind,
   DeviceMetric,
@@ -46,6 +47,7 @@ export type LedgerDetailRow = {
         photoCheck: PhotoCheckOutcome;
         /** Already reduced. The raw log never sits on this row. */
         share: ProgressShareResult | null;
+        proofClip: ActivityProofClip | null;
       })
     | null;
 };
@@ -56,6 +58,7 @@ export type PracticeRow = {
   count: number | null;
   durationSeconds: number | null;
   createdAt: Date;
+  proofClip: ActivityProofClip | null;
 };
 
 /** The member's own clock: their zone, today, and the day they joined. */

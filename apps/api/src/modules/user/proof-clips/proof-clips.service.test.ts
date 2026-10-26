@@ -83,6 +83,10 @@ function createHarness(initial?: ClipRow) {
         return current;
       }),
       count: vi.fn().mockResolvedValue(0),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    userBlock: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
     match: {
       findUnique: vi.fn().mockResolvedValue({
@@ -285,5 +289,30 @@ describe('ProofClipsService.completeUpload', () => {
     await expect(
       solo.service.completeUpload(owner, { clipId: 'clip1', visibility: 'group' }),
     ).rejects.toBeInstanceOf(ORPCError);
+  });
+});
+
+describe('ProofClipsService.listForMatch', () => {
+  it('keeps to one day by default', async () => {
+    const { service, prisma } = createHarness();
+    await service.listForMatch(owner, { matchId: 'match1', dayKey: '2026-10-20' });
+
+    const args = prisma.proofClip.findMany.mock.calls[0]?.[0];
+    expect(args.where.recordedAt).toEqual({
+      gte: new Date('2026-10-20T00:00:00.000Z'),
+      lt: new Date('2026-10-20T23:59:59.999Z'),
+    });
+    expect(args.take).toBeUndefined();
+  });
+
+  it('spans the whole run, newest first and capped, for a finished group', async () => {
+    const { service, prisma } = createHarness();
+    await service.listForMatch(owner, { matchId: 'match1', allDays: true });
+
+    const args = prisma.proofClip.findMany.mock.calls[0]?.[0];
+    expect(args.where.recordedAt).toBeUndefined();
+    expect(args.where).toMatchObject({ matchId: 'match1', status: 'ready' });
+    expect(args.orderBy).toEqual({ recordedAt: 'desc' });
+    expect(args.take).toBe(50);
   });
 });

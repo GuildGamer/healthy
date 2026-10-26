@@ -47,6 +47,8 @@ export const recordPracticeSessionInputSchema = z
      * walk saved again under the same id, after walking on, updates it.
      */
     externalId: z.string().min(1).max(128),
+    /** The proof clip that filmed this set, so History can show it with the set. */
+    proofClipId: z.string().min(1).optional(),
   })
   .superRefine((session, context) => {
     if (session.source !== PRACTICE_SOURCE_BY_METRIC[session.metric]) {

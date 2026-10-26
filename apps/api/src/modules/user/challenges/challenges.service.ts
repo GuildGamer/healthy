@@ -22,8 +22,10 @@ import {
   type UserChallenge,
   type UserChallengeStatus,
 } from '@product/db';
+import { ACTIVITY_PROOF_CLIP_ARGS } from '../../../shared/constants/activity-proof-clip.js';
 import { VISIBLE_OCCURRENCE_FILTER } from '../../../shared/constants/visible-occurrence.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
+import { activityProofClipFrom } from '../../../shared/utils/activity-proof-clip.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor, previousDayKey } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import {
@@ -933,6 +935,7 @@ export class ChallengesService {
         deviceActivityLog: true,
         surpriseEvidenceRequest: true,
         ledgerEntries: { select: { delta: true } },
+        proofClips: ACTIVITY_PROOF_CLIP_ARGS,
       },
     });
 
@@ -951,6 +954,7 @@ export class ChallengesService {
           deviceActivity: assignment.deviceActivityLog,
         }),
         evidence: historyEvidence(assignment.surpriseEvidenceRequest?.status),
+        proofClip: activityProofClipFrom(assignment.proofClips),
       })),
     };
   }

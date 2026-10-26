@@ -130,6 +130,19 @@ export const POSE_COPY = {
   saveToPhotosFailed: 'Could not save to Photos.',
   savedNotShared: 'Saved to Photos. Share the clip too so anyone can check its code.',
   savedNotPosted: 'Saved to Photos. Post it too so your group can check its code.',
+  proofSharedStatus: 'Shared',
+  proofPostedStatus: 'Posted to your group',
+  proofExpired: 'This clip has expired.',
+  proofNotOnPhone: 'This clip is no longer on this phone.',
+} as const;
+
+export const ACTIVITY_COPY = {
+  shareCard: 'Share card',
+  notFoundTitle: 'This didn’t load.',
+  notFoundBody: 'Check your connection and try again.',
+  tryAgain: 'Try again',
+  openHint: 'Opens what you did',
+  openWithClipHint: 'Opens what you did and its proof clip',
 } as const;
 
 export const GYM_COPY = {

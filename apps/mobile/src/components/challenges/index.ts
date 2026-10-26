@@ -32,6 +32,8 @@ export { buildTodayWin, sortOpenChallengesByFocus } from './challenge-list-layou
 export { LogEvidenceScreen } from './LogEvidenceScreen';
 export { AddChallengeScreen } from './AddChallengeScreen';
 export { ChallengeHistoryScreen } from './ChallengeHistoryScreen';
+export { ChallengeHistoryEntryScreen } from './ChallengeHistoryEntryScreen';
+export { type ActivityDetail, ActivityDetailScreen } from './ActivityDetailScreen';
 export { TimePickerModal } from './TimePickerModal';
 export { DEFAULT_PUSHUP_TARGET, clampPushupTarget } from './pushup-target';
 export { frequencyBadge, frequencyLabel, frequencyOptions } from './constants/frequency-labels';

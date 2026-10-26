@@ -1,6 +1,6 @@
 import type { ProgressDayDetail, ProgressDoneItem } from '@product/client';
 import { useRouter } from 'expo-router';
-import { dayCompletionShareRoute } from '@/components/challenges/completion-poster';
+import { ACTIVITY_COPY } from '@/components/challenges/constants/doing-copy';
 import {
   DECK_KIND_BY_METRIC,
   DeckDisc,
@@ -12,20 +12,37 @@ import { formatPointsDelta } from '@/components/points';
 import { PROGRESS_COPY } from './constants/progress-copy';
 import { clockTime, missedPhotoReason, practiceAmount } from './progress-labels';
 
-/** Each challenge finished that day. Tapping one opens its share card, never a reading. */
-export function DayDoneRows({ items }: { items: readonly ProgressDoneItem[] }) {
+function activityRoute(dayKey: string, itemId: string) {
+  return {
+    pathname: '/history/[dayKey]/[itemId]',
+    params: { dayKey, itemId },
+  } as const;
+}
+
+/** Each challenge finished that day. Tapping one opens it, with its clip when it has one. */
+export function DayDoneRows({
+  dayKey,
+  items,
+}: {
+  dayKey: string;
+  items: readonly ProgressDoneItem[];
+}) {
   const router = useRouter();
 
   return (
     <>
       {items.map((item, index) => (
         <DeckListRow
-          accessibilityHint="Opens the share card"
+          accessibilityHint={
+            item.proofClip ? ACTIVITY_COPY.openWithClipHint : ACTIVITY_COPY.openHint
+          }
           isFirst={index === 0}
           key={item.userChallengeId}
-          leading={<DeckDisc kind={deckCardKindFor(item)} />}
+          leading={
+            <DeckDisc glyph={item.proofClip ? 'play' : undefined} kind={deckCardKindFor(item)} />
+          }
           meta={clockTime(item.completedAt)}
-          onPress={() => router.push(dayCompletionShareRoute(item))}
+          onPress={() => router.push(activityRoute(dayKey, item.userChallengeId))}
           testID={`history-done-${item.userChallengeId}`}
           title={item.title}
           trailing={<DeckRowAmount text={formatPointsDelta(item.points)} />}
@@ -37,6 +54,8 @@ export function DayDoneRows({ items }: { items: readonly ProgressDoneItem[] }) {
 
 /** A missed photo check with its reason, practice with its reps, and any bonus. */
 export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
+  const router = useRouter();
+
   return (
     <>
       {detail.missedPhotoChecks.map((check, index) => (
@@ -53,10 +72,22 @@ export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
       ))}
       {detail.practice.map((session, index) => (
         <DeckListRow
+          accessibilityHint={session.proofClip ? ACTIVITY_COPY.openWithClipHint : undefined}
           isFirst={index === 0 && detail.missedPhotoChecks.length === 0}
           key={session.id}
-          leading={<DeckDisc kind={DECK_KIND_BY_METRIC[session.metric] ?? null} />}
+          leading={
+            <DeckDisc
+              glyph={session.proofClip ? 'play' : undefined}
+              kind={DECK_KIND_BY_METRIC[session.metric] ?? null}
+            />
+          }
           meta={clockTime(session.recordedAt)}
+          onPress={
+            session.proofClip
+              ? () => router.push(activityRoute(detail.dayKey, session.id))
+              : undefined
+          }
+          testID={`history-practice-${session.id}`}
           title={session.title}
           trailing={<DeckRowAmount text={practiceAmount(session)} tone="quiet" />}
         />

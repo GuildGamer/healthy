@@ -129,6 +129,10 @@ function RootStack() {
       <Stack.Screen name="points" options={{ headerShown: false, title: 'History' }} />
       <Stack.Screen name="history/index" options={{ headerShown: false, title: 'History' }} />
       <Stack.Screen name="history/[dayKey]" options={{ headerShown: false, title: 'Day' }} />
+      <Stack.Screen
+        name="history/[dayKey]/[itemId]"
+        options={{ headerShown: false, title: 'Activity' }}
+      />
       <Stack.Screen name="membership" options={{ headerShown: false, title: 'Membership' }} />
       <Stack.Screen name="notifications" options={{ headerShown: false, title: 'Notifications' }} />
       <Stack.Screen name="settings" options={{ headerShown: false, title: 'Settings' }} />
@@ -144,6 +148,10 @@ function RootStack() {
       <Stack.Screen
         name="challenge/[challengeId]/history"
         options={{ headerShown: false, title: 'History' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/history/[entryId]"
+        options={{ headerShown: false, title: 'Activity' }}
       />
       <Stack.Screen
         name="challenge/[challengeId]/log"

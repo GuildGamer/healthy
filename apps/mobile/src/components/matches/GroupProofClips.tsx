@@ -7,13 +7,16 @@ import { apiClient } from '@/lib/api';
 import { type Theme, useThemedStyles } from '@/theme';
 import { BOARD_COPY } from './match-copy';
 
-/** Today's posted proof clips for this group — a play affordance, not a feed. */
-export function GroupProofClips({ matchId }: { matchId: string }) {
+/**
+ * The group's posted proof clips — a play affordance, not a feed. Today's while
+ * the group runs; once it has finished, every day's, so they stay reachable.
+ */
+export function GroupProofClips({ matchId, isFinished }: { matchId: string; isFinished: boolean }) {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const clipsQuery = useQuery({
-    queryKey: ['proof-clips', 'match', matchId],
-    queryFn: () => apiClient.listMatchProofClips({ matchId }),
+    queryKey: ['proof-clips', 'match', matchId, isFinished ? 'all' : 'today'],
+    queryFn: () => apiClient.listMatchProofClips({ matchId, allDays: isFinished }),
   });
 
   const clips = clipsQuery.data?.clips ?? [];
@@ -22,7 +25,7 @@ export function GroupProofClips({ matchId }: { matchId: string }) {
     <View testID="group-proof-clips">
       {clips.length > 0 ? (
         <>
-          <DeckSectionTitle label="Proof today" />
+          <DeckSectionTitle label={isFinished ? BOARD_COPY.proofAllDays : BOARD_COPY.proofToday} />
           {clips.map((clip, index) => (
             <Pressable
               key={clip.id}

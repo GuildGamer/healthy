@@ -111,6 +111,8 @@ export const BOARD_COPY = {
   noScoreYet: 'No score yet',
   yourDays: 'Your days',
   verifyClip: 'Got a code? Verify a clip',
+  proofToday: 'Proof today',
+  proofAllDays: 'Proof clips',
   seats: (count: number) => `${count} of ${MATCH_PARTICIPANT_CAP}`,
   cancelledBody: 'This group was cancelled. Scores logged before then stay here.',
   seeResult: 'See the result',

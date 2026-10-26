@@ -1,3 +1,4 @@
+export { ACTIVITY_PROOF_CLIP_ARGS } from './activity-proof-clip.js';
 export { LOCAL_DAY_LAG_MS, LOCAL_DAY_LEAD_MS } from './local-day.js';
 export { CONDITION_FEATURES_ENABLED } from './product-scope.js';
 export {

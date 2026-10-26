@@ -157,6 +157,18 @@ export const proofClipSchema = z.object({
   isOwner: z.boolean(),
 });
 
+/**
+ * The clip behind a finished activity, as History lists it. URLs are fetched
+ * when the clip is opened, so a list never signs one per row.
+ */
+export const activityProofClipSchema = z.object({
+  id: z.string().min(1),
+  displayCode: z.string().min(1),
+  /** `recorded` is still only on the owner's phone; `expired` has lost its video. */
+  status: z.enum(['recorded', 'ready', 'expired']),
+  visibility: proofClipVisibilitySchema.nullable(),
+});
+
 export const getProofClipInputSchema = z.object({
   clipId: z.string().min(1),
 });
@@ -168,6 +180,8 @@ export const listMatchProofClipsInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  /** Every day of the contest, newest first — for a finished group looking back. */
+  allDays: z.boolean().optional(),
 });
 
 export const listMatchProofClipsOutputSchema = z.object({
@@ -295,6 +309,7 @@ export type ProofClipStatus = z.infer<typeof proofClipStatusSchema>;
 export type ProofClipVisibility = z.infer<typeof proofClipVisibilitySchema>;
 export type ProofClipReportReason = z.infer<typeof proofClipReportReasonSchema>;
 export type ProofClip = z.infer<typeof proofClipSchema>;
+export type ActivityProofClip = z.infer<typeof activityProofClipSchema>;
 export type ReserveProofClipInput = z.infer<typeof reserveProofClipInputSchema>;
 export type RecordProofClipInput = z.infer<typeof recordProofClipInputSchema>;
 export type VerifyProofCodeOutput = z.infer<typeof verifyProofCodeOutputSchema>;

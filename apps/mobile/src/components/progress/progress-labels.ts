@@ -152,6 +152,17 @@ export function practiceAmount(item: Pick<ProgressPracticeItem, 'metric' | 'coun
   return item.count === 1 ? '1 rep' : `${item.count} reps`;
 }
 
+/** What a practice set measured: its reps, or how long it lasted when it counts none. */
+export function practiceMeasure(
+  item: Pick<ProgressPracticeItem, 'metric' | 'count' | 'durationSeconds'>,
+): string {
+  if (item.count !== null && item.metric !== 'plank') {
+    return item.count === 1 ? '1 rep' : `${item.count} reps`;
+  }
+
+  return durationLabel(item.durationSeconds ?? 0);
+}
+
 /** "18:30" or "6:30 PM", as the phone's own clock shows it. */
 export function clockTime(isoInstant: string): string {
   return formatClockTime(new Date(isoInstant));

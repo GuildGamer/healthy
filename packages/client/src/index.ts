@@ -160,6 +160,7 @@ export type {
   ProgressMissedPhotoCheck,
   ProgressPracticeItem,
   ProgressShareResult,
+  ActivityProofClip,
   LeaderboardEntry,
   LeaderboardPeriod,
   ListLeaderboardInput,

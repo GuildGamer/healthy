@@ -130,6 +130,7 @@ function useSubmitSet(
           startedAt,
           endedAt,
           externalId: `practice:${props.challengeId}:${startedAt}`,
+          ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
         });
         return { mode: 'practice' as const, reps };
       }
@@ -395,7 +396,8 @@ export function usePoseSession(props: PoseSessionProps) {
       endedAt: new Date().toISOString(),
     });
     if (partial) {
-      savePartial(partial);
+      const proofClipId = proof.clipIdRef.current;
+      savePartial(proofClipId ? { ...partial, proofClipId } : partial);
     }
   }
 

@@ -169,7 +169,9 @@ function LiveBoard({
         {isOpen && !isWaiting ? (
           <GroupTodayStrip onTapFace={faces.onTapFace} rules={match} standings={match.standings} />
         ) : null}
-        {isWaiting ? null : <GroupProofClips matchId={match.id} />}
+        {isWaiting ? null : (
+          <GroupProofClips isFinished={match.status === 'completed'} matchId={match.id} />
+        )}
         {isWaiting ? null : (
           <GroupStandings
             onPreviewPhoto={setPreviewUri}

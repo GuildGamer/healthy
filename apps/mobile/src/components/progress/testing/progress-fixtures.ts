@@ -66,6 +66,7 @@ export function dayDetail(overrides: Partial<ProgressDayDetail> = {}): ProgressD
         completedAt: '2026-10-20T08:30:00.000Z',
         points: 150,
         share: null,
+        proofClip: null,
       },
     ],
     missedPhotoChecks: [
@@ -89,6 +90,7 @@ export function dayDetail(overrides: Partial<ProgressDayDetail> = {}): ProgressD
         count: 14,
         durationSeconds: 120,
         recordedAt: '2026-10-20T19:10:00.000Z',
+        proofClip: null,
       },
     ],
     adjustments: [],

@@ -54,6 +54,7 @@ import {
 import { getMembershipOfferContract, syncApplePurchaseContract } from './membership.js';
 import { getPracticeTotalsContract, recordPracticeSessionContract } from './practice.js';
 import {
+  activityProofClipSchema,
   blockUserContract,
   completeProofClipUploadContract,
   getProofClipContract,
@@ -743,6 +744,7 @@ export const challengeHistoryEntrySchema = z.object({
   pointsDelta: z.number().int(),
   log: challengeHistoryLogSchema.nullable(),
   evidence: challengeHistoryEvidenceSchema.nullable(),
+  proofClip: activityProofClipSchema.nullable(),
 });
 
 export const listChallengeHistoryInputSchema = z.object({
@@ -1137,6 +1139,7 @@ export {
   verifyProofCodeContract,
 } from './proof-clips.js';
 export type {
+  ActivityProofClip,
   ProofClip,
   ProofClipReportReason,
   ProofClipStatus,

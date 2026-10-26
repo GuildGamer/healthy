@@ -1,4 +1,5 @@
 import type {
+  ActivityProofClip,
   ChallengeCapture,
   ChallengeDraft,
   ChallengeFieldProgress,
@@ -80,6 +81,7 @@ export type ChallengeHistoryEntryDto = {
   pointsDelta: number;
   log: ChallengeHistoryLog | null;
   evidence: ChallengeHistoryEvidence | null;
+  proofClip: ActivityProofClip | null;
 };
 
 export type ListChallengeHistoryDto = {

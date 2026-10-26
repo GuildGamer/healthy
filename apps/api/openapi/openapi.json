@@ -5680,6 +5680,54 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "proofClip": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "displayCode": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "status": {
+                                    "enum": [
+                                      "recorded",
+                                      "ready",
+                                      "expired"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "visibility": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "group",
+                                          "shared"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "displayCode",
+                                  "status",
+                                  "visibility"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -5689,7 +5737,8 @@
                           "outcome",
                           "pointsDelta",
                           "log",
-                          "evidence"
+                          "evidence",
+                          "proofClip"
                         ]
                       }
                     }
@@ -10277,6 +10326,10 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 128
+                  },
+                  "proofClipId": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 },
                 "required": [
@@ -10971,6 +11024,54 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "proofClip": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "displayCode": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "status": {
+                                    "enum": [
+                                      "recorded",
+                                      "ready",
+                                      "expired"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "visibility": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "group",
+                                          "shared"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "displayCode",
+                                  "status",
+                                  "visibility"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -10982,7 +11083,8 @@
                           "title",
                           "completedAt",
                           "points",
-                          "share"
+                          "share",
+                          "proofClip"
                         ]
                       }
                     },
@@ -11201,6 +11303,54 @@
                           "recordedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "proofClip": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "displayCode": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "status": {
+                                    "enum": [
+                                      "recorded",
+                                      "ready",
+                                      "expired"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "visibility": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "group",
+                                          "shared"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "displayCode",
+                                  "status",
+                                  "visibility"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -11209,7 +11359,8 @@
                           "metric",
                           "count",
                           "durationSeconds",
-                          "recordedAt"
+                          "recordedAt",
+                          "proofClip"
                         ]
                       }
                     },
@@ -11862,6 +12013,15 @@
             "schema": {
               "type": "string",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "allDays",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             },
             "allowEmptyValue": true,
             "allowReserved": true

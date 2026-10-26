@@ -64,6 +64,9 @@ export class PracticeService {
     const user = requireUser(currentUser);
     await this.assertMetricUnlocked(user.id, input.metric);
     const session = await this.saveSession(user.id, input);
+    if (input.proofClipId && !session.userChallengeId) {
+      await this.linkProofClip(user.id, input.proofClipId, session.id);
+    }
 
     return {
       session: toSessionDto(session),
@@ -103,6 +106,23 @@ export class PracticeService {
         ...measured,
       },
       update: measured,
+    });
+  }
+
+  /**
+   * Ties the clip that filmed this set to it, so History can open it. Only the
+   * member's own clip, still live, and never moved off a session it already
+   * belongs to; a clip that does not qualify is simply left unlinked.
+   */
+  private async linkProofClip(userId: string, clipId: string, sessionId: string): Promise<void> {
+    await this.prisma.proofClip.updateMany({
+      where: {
+        id: clipId,
+        userId,
+        deviceActivityLogId: null,
+        status: { in: ['reserved', 'recorded', 'ready'] },
+      },
+      data: { deviceActivityLogId: sessionId },
     });
   }
 

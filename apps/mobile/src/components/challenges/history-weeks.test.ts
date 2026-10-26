@@ -10,6 +10,7 @@ function entry(id: string, at: Date): ChallengeHistoryEntry {
     pointsDelta: 200,
     log: { kind: 'check_in' },
     evidence: null,
+    proofClip: null,
   };
 }
 

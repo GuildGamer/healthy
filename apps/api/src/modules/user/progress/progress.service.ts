@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@product/db';
+import { ACTIVITY_PROOF_CLIP_ARGS } from '../../../shared/constants/activity-proof-clip.js';
 import { LOCAL_DAY_LAG_MS, LOCAL_DAY_LEAD_MS } from '../../../shared/constants/local-day.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
+import { activityProofClipFrom } from '../../../shared/utils/activity-proof-clip.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor, shiftDayKey } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
@@ -175,6 +177,7 @@ export class ProgressService {
               select: { metric: true, durationSeconds: true, count: true },
             },
             challengeLog: { select: { payload: true } },
+            proofClips: ACTIVITY_PROOF_CLIP_ARGS,
           },
         },
       },
@@ -197,6 +200,7 @@ export class ProgressService {
               deviceActivity: row.userChallenge.deviceActivityLog,
               challengeLogPayload: row.userChallenge.challengeLog?.payload ?? null,
             }),
+            proofClip: activityProofClipFrom(row.userChallenge.proofClips),
           }
         : null,
     }));
@@ -204,10 +208,22 @@ export class ProgressService {
 
   /** Sessions that finished no challenge — the practice feed. */
   private async practiceRows(userId: string, range: InstantRange): Promise<PracticeRow[]> {
-    return this.prisma.deviceActivityLog.findMany({
+    const rows = await this.prisma.deviceActivityLog.findMany({
       where: { userId, userChallengeId: null, createdAt: { gte: range.from, lt: range.to } },
       orderBy: { createdAt: 'asc' },
-      select: { id: true, metric: true, count: true, durationSeconds: true, createdAt: true },
+      select: {
+        id: true,
+        metric: true,
+        count: true,
+        durationSeconds: true,
+        createdAt: true,
+        proofClips: ACTIVITY_PROOF_CLIP_ARGS,
+      },
     });
+
+    return rows.map(({ proofClips, ...row }) => ({
+      ...row,
+      proofClip: activityProofClipFrom(proofClips),
+    }));
   }
 }

@@ -88,6 +88,7 @@ describe('mergeTodayIntoHistory', () => {
       pointsDelta: 20,
       log: { kind: 'check_in' as const },
       evidence: null,
+      proofClip: null,
     };
 
     expect(mergeTodayIntoHistory([existing], occurrence)).toEqual([existing]);

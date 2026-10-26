@@ -492,6 +492,7 @@ model DeviceActivityLog {
   externalId      String?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+  proofClips      ProofClip[]
 
   @@unique([userId, externalId])
   @@index([userId, metric])
@@ -1109,6 +1110,9 @@ model ProofClip {
   match           Match?           @relation(fields: [matchId], references: [id], onDelete: SetNull)
   matchAttemptId  String?
   matchAttempt    MatchAttempt?    @relation(fields: [matchAttemptId], references: [id], onDelete: SetNull)
+  /// The practice set this clip filmed. Linked when the set is saved, so History can show it.
+  deviceActivityLogId String?
+  deviceActivityLog   DeviceActivityLog? @relation(fields: [deviceActivityLogId], references: [id], onDelete: SetNull)
   status          ProofClipStatus  @default(reserved)
   /// Hex SHA-256 of the finished file. Null while reserved.
   sha256          String?
@@ -1133,6 +1137,8 @@ model ProofClip {
   @@index([status, expiresAt])
   @@index([matchId, userId])
   @@index([userId, createdAt])
+  @@index([userChallengeId])
+  @@index([deviceActivityLogId])
   @@map("proof_clips")
 }
 

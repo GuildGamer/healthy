@@ -1,3 +1,4 @@
+export { DayActivityScreen } from './DayActivityScreen';
 export { DayDetailScreen } from './DayDetailScreen';
 export { HistoryScreen } from './HistoryScreen';
 export { useRefreshProgress } from './useProgressQueries';

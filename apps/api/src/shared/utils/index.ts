@@ -1,3 +1,4 @@
+export { activityProofClipFrom, type ActivityProofClipRow } from './activity-proof-clip.js';
 export {
   DEFAULT_TIME_ZONE,
   dayKeyFor,

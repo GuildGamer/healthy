@@ -27,5 +27,8 @@ export const PROOF_CLIP_PUBLIC_VERIFY_RATE_LIMIT = 10;
 /** Reserved rows older than this are deleted by the sweep. */
 export const PROOF_CLIP_RESERVE_TTL_HOURS = 24;
 
+/** A finished group's whole-run clip list stops here; each clip signs its own URLs. */
+export const PROOF_CLIP_ALL_DAYS_LIMIT = 50;
+
 export const PROOF_CLIP_VIDEO_CONTENT_TYPE = 'video/mp4';
 export const PROOF_CLIP_POSTER_CONTENT_TYPE = 'image/jpeg';

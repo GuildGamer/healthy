@@ -24,6 +24,7 @@ function done(overrides: Partial<ProgressDoneItem>): ProgressDoneItem {
     completedAt,
     points: 150,
     share: null,
+    proofClip: null,
     ...overrides,
   };
 }

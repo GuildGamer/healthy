@@ -23,6 +23,7 @@ import {
   type ObjectStorage,
 } from '../../shared-modules/storage/index.js';
 import {
+  PROOF_CLIP_ALL_DAYS_LIMIT,
   PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_POSTER_CONTENT_TYPE,
   PROOF_CLIP_PUBLIC_VERIFY_RATE_LIMIT,
@@ -314,7 +315,7 @@ export class ProofClipsService {
 
   async listForMatch(
     currentUser: AuthenticatedUser | null | undefined,
-    input: { matchId: string; dayKey?: string },
+    input: { matchId: string; dayKey?: string; allDays?: boolean },
   ) {
     const user = requireUser(currentUser);
     const match = await this.prisma.match.findUnique({
@@ -334,22 +335,26 @@ export class ProofClipsService {
 
     const blocked = await this.blockedUserIds(user.id);
     const dayKey = input.dayKey ?? dayKeyFor(DEFAULT_TIME_ZONE);
+    const recordedAt = input.allDays
+      ? undefined
+      : {
+          gte: new Date(`${dayKey}T00:00:00.000Z`),
+          lt: new Date(`${dayKey}T23:59:59.999Z`),
+        };
 
     const clips = await this.prisma.proofClip.findMany({
       where: {
         matchId: input.matchId,
         status: 'ready',
         userId: { notIn: [...blocked] },
-        recordedAt: {
-          gte: new Date(`${dayKey}T00:00:00.000Z`),
-          lt: new Date(`${dayKey}T23:59:59.999Z`),
-        },
+        recordedAt,
       },
       include: {
         user: { include: { profile: true } },
         reports: { where: { reporterUserId: user.id } },
       },
       orderBy: { recordedAt: 'desc' },
+      take: input.allDays ? PROOF_CLIP_ALL_DAYS_LIMIT : undefined,
     });
 
     const visible = clips.filter((clip) => clip.reports.length === 0);
