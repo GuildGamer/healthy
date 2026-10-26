@@ -1,0 +1,377 @@
+import AVFoundation
+import CryptoKit
+import UIKit
+import VideoToolbox
+
+/**
+ * Writes a muted HEVC clip from composited camera frames while QuickPose runs.
+ *
+ * Overlay (logo label, verification code, live rep count, date) is burned in
+ * before encoding so the exported file is self-evidencing. SHA-256 is computed
+ * incrementally; a poster JPEG is captured from the first written frame.
+ *
+ * Spike findings: QuickPose's `onFrame` fifth argument is unused landmarks
+ * storage for phase 5; the `image` overlay UIImage is what we composite onto.
+ */
+final class ProofRecorder {
+  struct Overlay {
+    var code: String
+    var label: String
+    var count: Int
+  }
+
+  private(set) var isRecording = false
+
+  private var writer: AVAssetWriter?
+  private var input: AVAssetWriterInput?
+  private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
+  private var hasher = SHA256()
+  private var frameCount = 0
+  private var startedAt: CFTimeInterval = 0
+  private var outputURL: URL?
+  private var posterURL: URL?
+  private var posterCaptured = false
+  private var overlay = Overlay(code: "", label: "", count: 0)
+  private let writeQueue = DispatchQueue(label: "healthy.proof-recorder")
+
+  private static let targetWidth = 720
+  private static let targetHeight = 1280
+  private static let bitRate = 1_000_000
+  private static let frameDuration = CMTime(value: 1, timescale: 15)
+
+  func start(overlay: Overlay) throws {
+    stopWithoutFinishing()
+
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("proof-clips", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    let stamp = Int(Date().timeIntervalSince1970 * 1000)
+    let videoURL = directory.appendingPathComponent("clip-\(stamp).mp4")
+    let poster = directory.appendingPathComponent("poster-\(stamp).jpg")
+
+    if FileManager.default.fileExists(atPath: videoURL.path) {
+      try FileManager.default.removeItem(at: videoURL)
+    }
+
+    let assetWriter = try AVAssetWriter(outputURL: videoURL, fileType: .mp4)
+    let settings: [String: Any] = [
+      AVVideoCodecKey: AVVideoCodecType.hevc,
+      AVVideoWidthKey: Self.targetWidth,
+      AVVideoHeightKey: Self.targetHeight,
+      AVVideoCompressionPropertiesKey: [
+        AVVideoAverageBitRateKey: Self.bitRate,
+        AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main_AutoLevel,
+      ],
+    ]
+
+    let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+    videoInput.expectsMediaDataInRealTime = true
+
+    let pixelAdaptor = AVAssetWriterInputPixelBufferAdaptor(
+      assetWriterInput: videoInput,
+      sourcePixelBufferAttributes: [
+        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+        kCVPixelBufferWidthKey as String: Self.targetWidth,
+        kCVPixelBufferHeightKey as String: Self.targetHeight,
+      ]
+    )
+
+    guard assetWriter.canAdd(videoInput) else {
+      throw ProofRecorderError.cannotAddInput
+    }
+    assetWriter.add(videoInput)
+
+    guard assetWriter.startWriting() else {
+      throw assetWriter.error ?? ProofRecorderError.startFailed
+    }
+    assetWriter.startSession(atSourceTime: .zero)
+
+    writer = assetWriter
+    input = videoInput
+    adaptor = pixelAdaptor
+    hasher = SHA256()
+    frameCount = 0
+    startedAt = CACurrentMediaTime()
+    outputURL = videoURL
+    posterURL = poster
+    posterCaptured = false
+    self.overlay = overlay
+    isRecording = true
+  }
+
+  func updateOverlay(code: String? = nil, label: String? = nil, count: Int? = nil) {
+    if let code { overlay.code = code }
+    if let label { overlay.label = label }
+    if let count { overlay.count = count }
+  }
+
+  /// Appends one composited frame. Safe to call from the QuickPose frame callback.
+  func append(cameraImage: UIImage?, overlayImage: UIImage?) {
+    guard isRecording, let writer, writer.status == .writing else { return }
+
+    writeQueue.async { [weak self] in
+      guard let self, self.isRecording else { return }
+      guard let input = self.input, input.isReadyForMoreMediaData else { return }
+      guard let adaptor = self.adaptor else { return }
+
+      let composed = Self.compose(
+        camera: cameraImage,
+        overlay: overlayImage,
+        proof: self.overlay,
+        size: CGSize(width: Self.targetWidth, height: Self.targetHeight)
+      )
+
+      guard let buffer = Self.pixelBuffer(from: composed) else { return }
+      let time = CMTimeMultiply(Self.frameDuration, multiplier: Int32(self.frameCount))
+
+      if adaptor.append(buffer, withPresentationTime: time) {
+        self.frameCount += 1
+        if !self.posterCaptured, let posterURL = self.posterURL,
+           let jpeg = composed.jpegData(compressionQuality: 0.7)
+        {
+          try? jpeg.write(to: posterURL, options: .atomic)
+          self.posterCaptured = true
+        }
+      }
+    }
+  }
+
+  struct FinishResult {
+    let fileURL: URL
+    let posterURL: URL?
+    let sha256Hex: String
+    let byteSize: Int
+    let durationSeconds: Int
+  }
+
+  func finish(completion: @escaping (Result<FinishResult, Error>) -> Void) {
+    guard isRecording, let writer, let input, let outputURL else {
+      completion(.failure(ProofRecorderError.notRecording))
+      return
+    }
+
+    isRecording = false
+    writeQueue.async {
+      input.markAsFinished()
+      writer.finishWriting {
+        if writer.status != .completed {
+          completion(.failure(writer.error ?? ProofRecorderError.finishFailed))
+          self.clearWriterState()
+          return
+        }
+
+        do {
+          let data = try Data(contentsOf: outputURL, options: [.mappedIfSafe])
+          var digest = SHA256()
+          digest.update(data: data)
+          let hash = digest.finalize().map { String(format: "%02x", $0) }.joined()
+          let duration = max(1, Int((CACurrentMediaTime() - self.startedAt).rounded()))
+          let result = FinishResult(
+            fileURL: outputURL,
+            posterURL: self.posterCaptured ? self.posterURL : nil,
+            sha256Hex: hash,
+            byteSize: data.count,
+            durationSeconds: duration
+          )
+          self.clearWriterState()
+          completion(.success(result))
+        } catch {
+          self.clearWriterState()
+          completion(.failure(error))
+        }
+      }
+    }
+  }
+
+  func cancel() {
+    stopWithoutFinishing()
+  }
+
+  private func stopWithoutFinishing() {
+    isRecording = false
+    input?.markAsFinished()
+    writer?.cancelWriting()
+    if let outputURL, FileManager.default.fileExists(atPath: outputURL.path) {
+      try? FileManager.default.removeItem(at: outputURL)
+    }
+    clearWriterState()
+  }
+
+  private func clearWriterState() {
+    writer = nil
+    input = nil
+    adaptor = nil
+    frameCount = 0
+  }
+
+  private static func compose(
+    camera: UIImage?,
+    overlay: UIImage?,
+    proof: Overlay,
+    size: CGSize
+  ) -> UIImage {
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    format.opaque = true
+    let renderer = UIGraphicsImageRenderer(size: size, format: format)
+    return renderer.image { context in
+      UIColor.black.setFill()
+      context.fill(CGRect(origin: .zero, size: size))
+
+      if let camera {
+        drawAspectFill(camera, in: CGRect(origin: .zero, size: size))
+      }
+      if let overlay {
+        drawAspectFill(overlay, in: CGRect(origin: .zero, size: size))
+      }
+
+      drawProofChrome(proof, in: CGRect(origin: .zero, size: size))
+    }
+  }
+
+  private static func drawAspectFill(_ image: UIImage, in rect: CGRect) {
+    let imageSize = image.size
+    guard imageSize.width > 0, imageSize.height > 0 else { return }
+    let scale = max(rect.width / imageSize.width, rect.height / imageSize.height)
+    let drawSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+    let origin = CGPoint(
+      x: rect.midX - drawSize.width / 2,
+      y: rect.midY - drawSize.height / 2
+    )
+    image.draw(in: CGRect(origin: origin, size: drawSize))
+  }
+
+  private static func drawProofChrome(_ proof: Overlay, in rect: CGRect) {
+    let padding: CGFloat = 24
+    let chipHeight: CGFloat = 36
+
+    // Top-left: Healthy wordmark chip
+    let brand = "Healthy" as NSString
+    let brandAttrs: [NSAttributedString.Key: Any] = [
+      .font: UIFont.systemFont(ofSize: 16, weight: .heavy),
+      .foregroundColor: UIColor.white,
+    ]
+    let brandSize = brand.size(withAttributes: brandAttrs)
+    let brandRect = CGRect(
+      x: padding,
+      y: padding + 8,
+      width: brandSize.width + 24,
+      height: chipHeight
+    )
+    let brandPath = UIBezierPath(roundedRect: brandRect, cornerRadius: 10)
+    UIColor.black.withAlphaComponent(0.55).setFill()
+    brandPath.fill()
+    brand.draw(
+      at: CGPoint(x: brandRect.minX + 12, y: brandRect.midY - brandSize.height / 2),
+      withAttributes: brandAttrs
+    )
+
+    // Top-right: verification code
+    let code = proof.code as NSString
+    let codeAttrs: [NSAttributedString.Key: Any] = [
+      .font: UIFont.monospacedSystemFont(ofSize: 15, weight: .semibold),
+      .foregroundColor: UIColor.white,
+    ]
+    let codeSize = code.size(withAttributes: codeAttrs)
+    let codeRect = CGRect(
+      x: rect.width - padding - codeSize.width - 24,
+      y: padding + 8,
+      width: codeSize.width + 24,
+      height: chipHeight
+    )
+    let codePath = UIBezierPath(roundedRect: codeRect, cornerRadius: 10)
+    UIColor.black.withAlphaComponent(0.55).setFill()
+    codePath.fill()
+    code.draw(
+      at: CGPoint(x: codeRect.minX + 12, y: codeRect.midY - codeSize.height / 2),
+      withAttributes: codeAttrs
+    )
+
+    // Bottom-centre: live count + label + date
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateStyle = .medium
+    dateFormatter.timeStyle = .none
+    let dateLine = dateFormatter.string(from: Date())
+    let countLine = "\(proof.count)  ·  \(proof.label)" as NSString
+    let countAttrs: [NSAttributedString.Key: Any] = [
+      .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+      .foregroundColor: UIColor.white,
+    ]
+    let dateAttrs: [NSAttributedString.Key: Any] = [
+      .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+      .foregroundColor: UIColor.white.withAlphaComponent(0.85),
+    ]
+    let countSize = countLine.size(withAttributes: countAttrs)
+    let dateSize = (dateLine as NSString).size(withAttributes: dateAttrs)
+    let blockWidth = max(countSize.width, dateSize.width) + 32
+    let blockHeight = countSize.height + dateSize.height + 20
+    let blockRect = CGRect(
+      x: (rect.width - blockWidth) / 2,
+      y: rect.height - padding - blockHeight - 24,
+      width: blockWidth,
+      height: blockHeight
+    )
+    let blockPath = UIBezierPath(roundedRect: blockRect, cornerRadius: 14)
+    UIColor.black.withAlphaComponent(0.55).setFill()
+    blockPath.fill()
+    countLine.draw(
+      at: CGPoint(x: blockRect.midX - countSize.width / 2, y: blockRect.minY + 8),
+      withAttributes: countAttrs
+    )
+    (dateLine as NSString).draw(
+      at: CGPoint(x: blockRect.midX - dateSize.width / 2, y: blockRect.minY + 8 + countSize.height + 2),
+      withAttributes: dateAttrs
+    )
+
+    // Recording pip
+    let pip = CGRect(x: rect.width - padding - 14, y: padding + 54, width: 10, height: 10)
+    UIColor.systemRed.setFill()
+    UIBezierPath(ovalIn: pip).fill()
+  }
+
+  private static func pixelBuffer(from image: UIImage) -> CVPixelBuffer? {
+    guard let cgImage = image.cgImage else { return nil }
+    let width = cgImage.width
+    let height = cgImage.height
+    var buffer: CVPixelBuffer?
+    let attrs: [CFString: Any] = [
+      kCVPixelBufferCGImageCompatibilityKey: true,
+      kCVPixelBufferCGBitmapContextCompatibilityKey: true,
+    ]
+    let status = CVPixelBufferCreate(
+      kCFAllocatorDefault,
+      width,
+      height,
+      kCVPixelFormatType_32BGRA,
+      attrs as CFDictionary,
+      &buffer
+    )
+    guard status == kCVReturnSuccess, let pixelBuffer = buffer else { return nil }
+
+    CVPixelBufferLockBaseAddress(pixelBuffer, [])
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+
+    guard let context = CGContext(
+      data: CVPixelBufferGetBaseAddress(pixelBuffer),
+      width: width,
+      height: height,
+      bitsPerComponent: 8,
+      bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+    ) else {
+      return nil
+    }
+
+    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+    return pixelBuffer
+  }
+}
+
+enum ProofRecorderError: Error {
+  case cannotAddInput
+  case startFailed
+  case notRecording
+  case finishFailed
+}

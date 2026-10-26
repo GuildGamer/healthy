@@ -12,6 +12,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 const LINK_HOST = 'www.gethealthyapp.com';
 /** Trailing slash matters: without it Android would also claim `/matches/...`. */
 const MATCH_INVITE_PATH_PREFIX = '/match/';
+const PROOF_VERIFY_PATH_PREFIX = '/v/';
 
 /**
  * Canonical store IDs for your own Apple/Google account later.
@@ -53,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
     infoPlist: {
       NSCameraUsageDescription:
-        'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
+        'Healthy uses the camera to count reps on this phone and optionally record a proof clip of your set.',
       NSLocationWhenInUseUsageDescription:
         'Healthy uses your location to record walking and running routes.',
       NSLocationAlwaysAndWhenInUseUsageDescription:
@@ -88,6 +89,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
             scheme: 'https',
             host: LINK_HOST,
             pathPrefix: MATCH_INVITE_PATH_PREFIX,
+          },
+          {
+            scheme: 'https',
+            host: LINK_HOST,
+            pathPrefix: PROOF_VERIFY_PATH_PREFIX,
           },
         ],
       },

@@ -79,6 +79,11 @@ export {
   matchScoreUnit,
   matchWindowLength,
   resolveMatchLength,
+  formatProofCode,
+  isValidProofCode,
+  mintProofCode,
+  normaliseProofCode,
+  toDisplayProofCode,
 } from '@product/contract';
 export {
   adminCanManageAdmins,

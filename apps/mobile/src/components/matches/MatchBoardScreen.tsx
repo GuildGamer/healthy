@@ -12,6 +12,7 @@ import { BoardDock } from './BoardDock';
 import { BoardHero } from './BoardHero';
 import { BoardOptionsSheet } from './BoardOptionsSheet';
 import { GroupPage } from './GroupPage';
+import { GroupProofClips } from './GroupProofClips';
 import { GroupStandings } from './GroupStandings';
 import { GroupTodayStrip } from './GroupTodayStrip';
 import { BOARD_COPY, GROUPS_COPY } from './match-copy';
@@ -167,6 +168,7 @@ function LiveBoard({
         {isOpen && !isWaiting ? (
           <GroupTodayStrip onTapFace={faces.onTapFace} rules={match} standings={match.standings} />
         ) : null}
+        {isWaiting ? null : <GroupProofClips matchId={match.id} />}
         {isWaiting ? null : (
           <GroupStandings
             onPreviewPhoto={setPreviewUri}
@@ -183,6 +185,10 @@ function LiveBoard({
         onShare={() => {
           setIsOptionsOpen(false);
           share();
+        }}
+        onVerifyClip={() => {
+          setIsOptionsOpen(false);
+          router.push('/v/new');
         }}
         onStepAway={confirmStepAway}
         visible={isOptionsOpen}

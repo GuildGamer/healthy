@@ -80,6 +80,29 @@ export type AppleIapConfig =
       appAppleId: number | null;
     };
 
+/**
+ * Object storage for proof clips. `STORAGE_PROVIDER` selects one.
+ * Leave it unset locally to boot without a bucket; deployed environments
+ * refuse to start until credentials are complete. R2, B2, and MinIO all use
+ * the S3-compatible adapter.
+ */
+export const storageProviders = ['r2', 'b2', 'minio', 's3'] as const;
+export type StorageProvider = (typeof storageProviders)[number];
+
+export type S3StorageConfig = {
+  mode: 's3';
+  provider: StorageProvider;
+  endpoint: string;
+  region: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  /** MinIO and some B2 setups need path-style URLs. */
+  forcePathStyle: boolean;
+};
+
+export type StorageConfig = { mode: 'disabled' } | S3StorageConfig;
+
 export type Environment = {
   isProd: boolean;
   isLocal: boolean;
@@ -91,6 +114,7 @@ export type Environment = {
   mail: MailConfig;
   evidenceVision: EvidenceVisionConfig;
   appleIap: AppleIapConfig;
+  storage: StorageConfig;
   /** Origin of the Next.js admin console. */
   adminAppUrl: string;
   /**
@@ -375,6 +399,57 @@ function readSchedulerMode(value: string | undefined): SchedulerMode {
   throw new Error(`REMINDER_SCHEDULER_MODE must be 'in_process' or 'external', got '${mode}'`);
 }
 
+function isStorageProvider(value: string): value is StorageProvider {
+  return (storageProviders as readonly string[]).includes(value);
+}
+
+function readStorage(
+  source: NodeJS.ProcessEnv,
+  requiresStorage: boolean,
+): StorageConfig {
+  const providerRaw = readConfigured(source.STORAGE_PROVIDER)?.toLowerCase() ?? null;
+  const endpoint = readConfigured(source.STORAGE_ENDPOINT);
+  const region = readConfigured(source.STORAGE_REGION) ?? 'auto';
+  const bucket = readConfigured(source.STORAGE_BUCKET);
+  const accessKeyId = readConfigured(source.STORAGE_ACCESS_KEY_ID);
+  const secretAccessKey = readConfigured(source.STORAGE_SECRET_ACCESS_KEY);
+  const hasAny = Boolean(providerRaw || endpoint || bucket || accessKeyId || secretAccessKey);
+
+  if (!hasAny) {
+    if (requiresStorage) {
+      throw new Error(
+        'STORAGE_PROVIDER and credentials are required outside local development',
+      );
+    }
+    return { mode: 'disabled' };
+  }
+
+  if (!providerRaw || !isStorageProvider(providerRaw)) {
+    const allowed = storageProviders.map((name) => `'${name}'`).join(', ');
+    throw new Error(
+      `STORAGE_PROVIDER must be ${allowed}, got '${source.STORAGE_PROVIDER ?? ''}'`,
+    );
+  }
+
+  if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
+    throw new Error(
+      'STORAGE_ENDPOINT, STORAGE_BUCKET, STORAGE_ACCESS_KEY_ID, and STORAGE_SECRET_ACCESS_KEY are required when STORAGE_PROVIDER is set',
+    );
+  }
+
+  return {
+    mode: 's3',
+    provider: providerRaw,
+    endpoint,
+    region,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+    // R2, B2, and MinIO all speak path-style S3 URLs. Virtual-hosted is AWS-only.
+    forcePathStyle: true,
+  };
+}
+
 /**
  * A developer machine. Staging is deployed: it must email a random code,
  * not the local `000000` shortcut.
@@ -408,6 +483,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     mail: readMail(source, mailPolicy),
     evidenceVision: readEvidenceVision(source, isProd),
     appleIap: readAppleIap(source),
+    storage: readStorage(source, !isLocal),
     adminAppUrl: readOptional(source.ADMIN_APP_URL) ?? 'http://localhost:3001',
     // Not localhost by default: an invite is shared with someone else, so a
     // link only this machine can open is worse than one pointing at the

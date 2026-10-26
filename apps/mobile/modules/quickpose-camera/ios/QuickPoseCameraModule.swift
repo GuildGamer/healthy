@@ -5,7 +5,7 @@ public class QuickPoseCameraModule: Module {
     Name("QuickPoseCamera")
 
     View(HealthyQuickPoseView.self) {
-      Events("onUpdate")
+      Events("onUpdate", "onProofRecorded", "onProofRecordingError")
 
       Prop("sdkKey") { (view: HealthyQuickPoseView, sdkKey: String) in
         view.sdkKey = sdkKey
@@ -21,6 +21,18 @@ public class QuickPoseCameraModule: Module {
 
       Prop("useFrontCamera") { (view: HealthyQuickPoseView, useFrontCamera: Bool) in
         view.useFrontCamera = useFrontCamera
+      }
+
+      Prop("proofRecording") { (view: HealthyQuickPoseView, config: [String: Any]?) in
+        view.proofRecording = config
+      }
+
+      Prop("proofCount") { (view: HealthyQuickPoseView, count: Int?) in
+        view.proofCount = count ?? 0
+      }
+
+      Prop("finishProofToken") { (view: HealthyQuickPoseView, token: Int?) in
+        view.finishProofToken = token ?? 0
       }
     }
   }

@@ -40,6 +40,10 @@ model User {
   entitlements           Entitlement[]
   experimentAssignments  ExperimentAssignment[]
   analyticsEvents        AnalyticsEvent[]
+  proofClips             ProofClip[]
+  proofClipReports       ProofClipReport[]       @relation("ProofClipReporter")
+  blocksInitiated        UserBlock[]             @relation("UserBlockBlocker")
+  blocksReceived         UserBlock[]             @relation("UserBlockBlocked")
 
   @@map("user")
 }
@@ -371,6 +375,7 @@ model UserChallenge {
   inProgressNudgeDelivery InProgressNudgeDelivery?
   /// Contests created from this completed occurrence (distribution flywheel).
   sourcedMatches          Match[]
+  proofClips              ProofClip[]
 
   @@unique([userId, challengeId, periodKey])
   @@index([userId, periodKey])
@@ -959,6 +964,7 @@ model Match {
   participants          MatchParticipant[]
   attempts              MatchAttempt[]
   reactions             MatchReaction[]
+  proofClips            ProofClip[]
 
   @@index([hostUserId, createdAt])
   @@index([status, endsAt])
@@ -1058,9 +1064,95 @@ model MatchAttempt {
   /// into a push-up contest.
   source          MatchAttemptSource @default(in_app_pose)
   recordedAt      DateTime           @default(now())
+  proofClips      ProofClip[]
 
   @@index([matchId, userId, recordedAt])
   @@map("match_attempts")
+}
+
+enum ProofClipStatus {
+  reserved
+  recorded
+  ready
+  expired
+  removed
+}
+
+enum ProofClipReportReason {
+  inappropriate
+  spam
+  harassment
+  other
+}
+
+/// Camera-counted set recording. Video bytes live in object storage; this row
+/// is the durable proof record (hash, count, timestamps) that outlives them.
+model ProofClip {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Crockford base32 + check character, e.g. `7KQ4M2XD`. Displayed with a hyphen.
+  code            String           @unique
+  metric          DeviceMetric
+  count           Int              @default(0)
+  durationSeconds Int?
+  userChallengeId String?
+  userChallenge   UserChallenge?   @relation(fields: [userChallengeId], references: [id], onDelete: SetNull)
+  matchId         String?
+  match           Match?           @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  matchAttemptId  String?
+  matchAttempt    MatchAttempt?    @relation(fields: [matchAttemptId], references: [id], onDelete: SetNull)
+  status          ProofClipStatus  @default(reserved)
+  /// Hex SHA-256 of the finished file. Null while reserved.
+  sha256          String?
+  byteSize        Int?
+  videoKey        String?
+  posterKey       String?
+  /// Set when the owner posts to a group or exports/shares (enables verify-by-code).
+  sharedAt        DateTime?
+  lastViewedAt    DateTime?
+  expiresAt       DateTime?
+  reservedAt      DateTime         @default(now())
+  recordedAt      DateTime?
+  attested        Boolean          @default(false)
+  /// Downsampled landmark JSON for skeleton replay after the video expires.
+  skeletonTrack   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  reports         ProofClipReport[]
+
+  @@index([status, expiresAt])
+  @@index([matchId, userId])
+  @@index([userId, createdAt])
+  @@map("proof_clips")
+}
+
+model ProofClipReport {
+  id             String                @id @default(cuid())
+  clipId         String
+  clip           ProofClip             @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  reporterUserId String
+  reporterUser   User                  @relation("ProofClipReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  reason         ProofClipReportReason
+  createdAt      DateTime              @default(now())
+
+  @@unique([clipId, reporterUserId])
+  @@index([clipId])
+  @@map("proof_clip_reports")
+}
+
+/// Hides another member's proof clips from the blocker's views.
+model UserBlock {
+  id            String   @id @default(cuid())
+  blockerUserId String
+  blockerUser   User     @relation("UserBlockBlocker", fields: [blockerUserId], references: [id], onDelete: Cascade)
+  blockedUserId String
+  blockedUser   User     @relation("UserBlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([blockerUserId, blockedUserId])
+  @@index([blockedUserId])
+  @@map("user_blocks")
 }
 
 enum ExperimentStatus {

@@ -53,6 +53,19 @@ import {
 } from './matches.js';
 import { getMembershipOfferContract, syncApplePurchaseContract } from './membership.js';
 import { getPracticeTotalsContract, recordPracticeSessionContract } from './practice.js';
+import {
+  blockUserContract,
+  completeProofClipUploadContract,
+  getProofClipContract,
+  listMatchProofClipsContract,
+  recordProofClipContract,
+  removeProofClipContract,
+  reportProofClipContract,
+  requestProofClipUploadContract,
+  reserveProofClipContract,
+  unblockUserContract,
+  verifyProofCodeContract,
+} from './proof-clips.js';
 import { getProgressDayContract, listProgressDaysContract } from './progress.js';
 import { getTodayDetailsContract } from './today.js';
 
@@ -935,6 +948,17 @@ export const appContract = {
   getTodayDetails: getTodayDetailsContract,
   listProgressDays: listProgressDaysContract,
   getProgressDay: getProgressDayContract,
+  reserveProofClip: reserveProofClipContract,
+  recordProofClip: recordProofClipContract,
+  requestProofClipUpload: requestProofClipUploadContract,
+  completeProofClipUpload: completeProofClipUploadContract,
+  getProofClip: getProofClipContract,
+  listMatchProofClips: listMatchProofClipsContract,
+  verifyProofCode: verifyProofCodeContract,
+  removeProofClip: removeProofClipContract,
+  reportProofClip: reportProofClipContract,
+  blockUser: blockUserContract,
+  unblockUser: unblockUserContract,
 };
 
 export type AppContract = typeof appContract;
@@ -1079,3 +1103,41 @@ export type {
   SaveCrewInput,
   SaveCrewOutput,
 } from './crews.js';
+
+export {
+  PROOF_CLIP_GROUP_RETENTION_DAYS,
+  PROOF_CLIP_HARD_RETENTION_DAYS,
+  PROOF_CLIP_MAX_BYTES,
+  PROOF_CLIP_MAX_DURATION_SECONDS,
+  PROOF_CLIP_RESERVE_WINDOW_MINUTES,
+  PROOF_CLIP_SIGNED_URL_TTL_SECONDS,
+  PROOF_CLIP_SOLO_RETENTION_DAYS,
+  PROOF_CODE_ALPHABET,
+  PROOF_CODE_BODY_LENGTH,
+  formatProofCode,
+  isValidProofCode,
+  mintProofCode,
+  normaliseProofCode,
+  proofCodeCheckCharacter,
+  toDisplayProofCode,
+  blockUserContract,
+  completeProofClipUploadContract,
+  getProofClipContract,
+  listMatchProofClipsContract,
+  recordProofClipContract,
+  removeProofClipContract,
+  reportProofClipContract,
+  requestProofClipUploadContract,
+  reserveProofClipContract,
+  unblockUserContract,
+  verifyProofCodeContract,
+} from './proof-clips.js';
+export type {
+  ProofClip,
+  ProofClipReportReason,
+  ProofClipStatus,
+  ProofClipVisibility,
+  RecordProofClipInput,
+  ReserveProofClipInput,
+  VerifyProofCodeOutput,
+} from './proof-clips.js';

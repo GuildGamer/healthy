@@ -6,6 +6,7 @@ import { EvidenceModule } from './evidence/index.js';
 import { HealthModule } from './health/index.js';
 import { PushInfrastructureModule } from './push/index.js';
 import { EngagementModule } from './engagement/index.js';
+import { StorageModule } from './storage/index.js';
 import { SubscriptionsModule } from './subscriptions/index.js';
 
 export default [
@@ -15,6 +16,7 @@ export default [
   EvidenceModule,
   PushInfrastructureModule,
   EngagementModule,
+  StorageModule,
   SubscriptionsModule,
   AppleModule,
   HealthModule,

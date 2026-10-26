@@ -141,12 +141,29 @@ function HistoryRow({
   const styles = useThemedStyles(createStyles);
   const evidence = historyEvidenceCopy(entry.evidence);
   const when = historyTimeLabel(entry.completedAt);
+  const localClipQuery = useQuery({
+    queryKey: ['proof-clip-local-by-challenge', entry.id],
+    queryFn: async () => {
+      const { listLocalProofClips } = await import('@/lib/proof-clip-store');
+      const clips = await listLocalProofClips();
+      return clips.find((clip) => clip.userChallengeId === entry.id) ?? null;
+    },
+  });
 
   return (
     <Pressable
       accessibilityHint="Opens the share card"
       accessibilityRole="button"
-      onPress={() => router.push(historyCompletionShareRoute(entry, challenge))}
+      onPress={() => {
+        if (localClipQuery.data) {
+          router.push({
+            pathname: '/proof/[clipId]',
+            params: { clipId: localClipQuery.data.clipId },
+          });
+          return;
+        }
+        router.push(historyCompletionShareRoute(entry, challenge));
+      }}
       style={({ pressed }) => [
         styles.row,
         isFirst ? null : styles.divider,
@@ -164,7 +181,13 @@ function HistoryRow({
           {formatPointsDelta(entry.pointsDelta)}
         </Text>
       </View>
-      <Glyph color={colors.muted} name="forward" size={16} strokeWidth={2} />
+      {localClipQuery.data ? (
+        <Text style={styles.play} testID={`challenge-history-proof-${entry.id}`}>
+          ▶
+        </Text>
+      ) : (
+        <Glyph color={colors.muted} name="forward" size={16} strokeWidth={2} />
+      )}
     </Pressable>
   );
 }
@@ -180,6 +203,12 @@ const createStyles = (theme: Theme) =>
     },
     content: {
       paddingHorizontal: 20,
+    },
+    play: {
+      color: theme.colors.accent,
+      fontSize: 14,
+      width: 16,
+      textAlign: 'center',
     },
     row: {
       flexDirection: 'row',

@@ -73,7 +73,12 @@ function PoseCamera({ session }: { session: PoseSession }) {
         <QuickPoseCamera
           key={session.cameraSessionKey}
           metric={session.metric}
+          finishProofToken={session.finishProofToken}
+          onProofRecorded={session.handleProofRecorded}
+          onProofRecordingError={session.handleProofRecordingError}
           onUpdate={session.handleQuickPoseUpdate}
+          proofCount={session.proofCount}
+          proofRecording={session.proofRecording}
           sdkKey={QUICKPOSE_SDK_KEY}
         />
       ) : (
@@ -162,6 +167,7 @@ function PoseSetupHint({ session }: { session: PoseSession }) {
       <Text style={styles.hintSub} testID="pose-status">
         {sub}
       </Text>
+      <ProofRecordChip session={session} />
       <DeckButton
         label={POSE_COPY.startNow}
         loading={session.isStarting}
@@ -170,6 +176,25 @@ function PoseSetupHint({ session }: { session: PoseSession }) {
         variant="quiet"
       />
     </>
+  );
+}
+
+function ProofRecordChip({ session }: { session: PoseSession }) {
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.proofChipWrap} testID="proof-record-chip">
+      <DeckButton
+        label={session.recordProof ? 'Recording proof' : 'Record proof'}
+        onPress={() => session.toggleRecordProof(!session.recordProof)}
+        testID="toggle-proof-record"
+        variant={session.recordProof ? 'cameraSolid' : 'quiet'}
+      />
+      {session.showProofExplainer || session.recordProof ? (
+        <Text style={styles.proofHint}>
+          Your group can watch it. It is deleted 30 days after the group ends.
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -243,6 +268,17 @@ const createStyles = (theme: Theme) =>
       fontSize: fontSize.sm,
       textAlign: 'center',
       paddingHorizontal: spacing.lg,
+    },
+    proofChipWrap: {
+      alignItems: 'center',
+      gap: spacing.xs,
+      marginBottom: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    proofHint: {
+      color: theme.camera.subtext,
+      fontSize: fontSize.xs,
+      textAlign: 'center',
     },
     guide: {
       position: 'absolute',

@@ -1,5 +1,10 @@
 import type { MatchMetric } from '@product/contract/match-board';
-import { QuickPoseCameraView } from 'quickpose-camera';
+import {
+  QuickPoseCameraView,
+  type ProofRecordedEvent,
+  type ProofRecordingConfig,
+  type ProofRecordingErrorEvent,
+} from 'quickpose-camera';
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import {
@@ -14,6 +19,11 @@ type QuickPoseExerciseCameraProps = {
   sdkKey: string;
   metric: MatchMetric;
   onUpdate: (update: QuickPoseExerciseUpdate) => void;
+  proofRecording?: ProofRecordingConfig | null;
+  proofCount?: number;
+  finishProofToken?: number;
+  onProofRecorded?: (event: ProofRecordedEvent['nativeEvent']) => void;
+  onProofRecordingError?: (message: string) => void;
 };
 
 /**
@@ -25,6 +35,11 @@ export function QuickPoseExerciseCamera({
   sdkKey,
   metric,
   onUpdate,
+  proofRecording = null,
+  proofCount = 0,
+  finishProofToken = 0,
+  onProofRecorded,
+  onProofRecordingError,
 }: QuickPoseExerciseCameraProps) {
   const { colors } = useTheme();
   const features = useMemo(() => [...quickPoseFeaturesFor(metric)], [metric]);
@@ -49,12 +64,21 @@ export function QuickPoseExerciseCamera({
     <QuickPoseCameraView
       features={features}
       featureStyles={featureStyles}
+      onProofRecorded={(event: ProofRecordedEvent) => {
+        onProofRecorded?.(event.nativeEvent);
+      }}
+      onProofRecordingError={(event: ProofRecordingErrorEvent) => {
+        onProofRecordingError?.(event.nativeEvent.message);
+      }}
       onUpdate={(event) => {
         onUpdate({
           results: event.nativeEvent.results,
           feedbacks: event.nativeEvent.feedbacks,
         });
       }}
+      finishProofToken={finishProofToken}
+      proofCount={proofCount}
+      proofRecording={proofRecording}
       sdkKey={sdkKey}
       style={styles.camera}
       useFrontCamera

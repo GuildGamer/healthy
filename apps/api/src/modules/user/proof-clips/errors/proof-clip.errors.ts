@@ -1,0 +1,12 @@
+export const PROOF_CLIP_NOT_FOUND = 'Proof clip not found.';
+export const PROOF_CLIP_NOT_OWNER = 'Only the owner can change this clip.';
+export const PROOF_CLIP_NOT_PARTICIPANT = 'Join the group to watch this clip.';
+export const PROOF_CLIP_WRONG_STATUS = 'This clip cannot be updated in its current state.';
+export const PROOF_CLIP_RESERVE_EXPIRED = 'The recording window for this clip has ended.';
+export const PROOF_CLIP_DAILY_CAP = 'One posted clip per group member per day.';
+export const PROOF_CLIP_UPLOAD_MISSING = 'The uploaded file was not found.';
+export const PROOF_CLIP_UPLOAD_SIZE_MISMATCH = 'The uploaded file size does not match.';
+export const PROOF_CLIP_STORAGE_UNAVAILABLE = 'Clip storage is not configured.';
+export const PROOF_CLIP_VERIFY_RATE_LIMITED = 'Too many verification attempts. Try again shortly.';
+export const PROOF_CLIP_CANNOT_BLOCK_SELF = 'You cannot block yourself.';
+export const PROOF_CLIP_CONTEXT_NOT_FOUND = 'The challenge or group for this clip was not found.';

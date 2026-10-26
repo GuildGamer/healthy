@@ -22,6 +22,7 @@ import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { SUCCESS_COPY } from './constants/success-copy';
 import { friendChallengeSpec } from './friend-challenge';
 import { nextGoalLadderOffer, type GoalLadderOffer } from './goal-ladder';
+import { ProofClipActions } from './ProofClipActions';
 import { posterForSuccess, type SuccessFace } from './success-poster';
 import { posterRunLine } from './share-poster';
 import { SharePosterCard } from './SharePosterCard';
@@ -55,6 +56,8 @@ type ChallengeSuccessScreenProps = {
   face?: SuccessFace;
   minutes?: number;
   glasses?: number;
+  /** Local proof clip from this set, if recording was on. */
+  proofClipId?: string;
 };
 
 /**
@@ -197,6 +200,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     face,
     minutes,
     glasses,
+    proofClipId,
   } = props;
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
@@ -284,6 +288,12 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         <WhyItMatters tip={benefitTip} />
       </View>
       <View style={styles.actions}>
+        {proofClipId ? (
+          <ProofClipActions
+            clipId={proofClipId}
+            visibility={isMatch ? 'group' : 'shared'}
+          />
+        ) : null}
         {shareImage.error ? <DeckSheetMessage message={shareImage.error} /> : null}
         {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
         <SuccessActions friend={friend} shareImage={shareImage} />

@@ -4,12 +4,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ComponentType, useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
+import type { ProofRecordingConfig } from 'quickpose-camera';
 import { MATCH_DEFAULT_METRIC, MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
 import { announceChallengeFinish } from '@/lib/challenge-finish-session';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
 import { goBackOrHome } from '@/lib/go-back';
 import type { QuickPoseExerciseUpdate } from '@/lib/pose/quickpose-exercise';
+import {
+  getProofRecordingEnabled,
+  hasSeenProofExplainer,
+  markProofExplainerSeen,
+  setProofRecordingEnabled,
+} from '@/lib/proof-clip-preference';
+import { saveLocalProofClip } from '@/lib/proof-clip-store';
 import { trackEvent } from '@/lib/track-event';
 import { finishAndLeave } from './finish-challenge';
 import { partialSetSession, setSessionId } from './partial-session';
@@ -24,6 +32,17 @@ export type QuickPoseCameraProps = {
   sdkKey: string;
   metric: MatchMetric;
   onUpdate: (update: QuickPoseExerciseUpdate) => void;
+  proofRecording?: ProofRecordingConfig | null;
+  proofCount?: number;
+  finishProofToken?: number;
+  onProofRecorded?: (event: {
+    fileUri: string;
+    sha256: string;
+    byteSize: number;
+    durationSeconds: number;
+    posterUri?: string;
+  }) => void;
+  onProofRecordingError?: (message: string) => void;
 };
 
 export type PoseSessionProps =
@@ -88,6 +107,7 @@ function useSubmitSet(
   props: PoseSessionProps,
   occurrence: TodayChallenge | undefined,
   metric: MatchMetric,
+  proofClipIdRef: { current: string | null },
 ) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -156,6 +176,7 @@ function useSubmitSet(
             title: MATCH_METRIC_LABEL[submitted.metric],
             count: String(submitted.reps),
             matchId: props.matchId,
+            ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
           },
         });
         return;
@@ -187,6 +208,26 @@ function useSubmitSet(
         challenge_goal: submitted.reps,
         challenge_type: poseMetricFromCapture(occurrence?.capture.metric),
       });
+
+      if (proofClipIdRef.current) {
+        router.replace({
+          pathname: '/challenge/success',
+          params: {
+            title: occurrence?.title ?? MATCH_METRIC_LABEL[metric],
+            count: String(submitted.reps),
+            points: String(submitted.result.pointsAwarded),
+            streak: String(submitted.result.currentStreakDays),
+            penalty: String(submitted.result.penaltyApplied),
+            userChallengeId: occurrence?.id,
+            challengeId: occurrence?.challengeId,
+            metric,
+            proofClipId: proofClipIdRef.current,
+            face: 'reps',
+          },
+        });
+        return;
+      }
+
       finishAndLeave(submitted.result, {
         kind: 'reps',
         count: submitted.reps,
@@ -220,10 +261,17 @@ export function usePoseSession(props: PoseSessionProps) {
   const [phase, setPhase] = useState<PoseSessionPhase>('setup');
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [cameraSessionKey, setCameraSessionKey] = useState(0);
+  const [recordProof, setRecordProof] = useState(false);
+  const [showProofExplainer, setShowProofExplainer] = useState(false);
+  const [proofRecording, setProofRecording] = useState<ProofRecordingConfig | null>(null);
+  const [proofClipId, setProofClipId] = useState<string | null>(null);
+  const [finishProofToken, setFinishProofToken] = useState(0);
   const phaseRef = useRef<PoseSessionPhase>('setup');
   const startedAtRef = useRef<string | null>(null);
   const autoStartLockRef = useRef(false);
-  const submitSet = useSubmitSet(props, occurrence, metric);
+  const proofClipIdRef = useRef<string | null>(null);
+  const proofMetaRef = useRef<{ code: string; displayCode: string } | null>(null);
+  const submitSet = useSubmitSet(props, occurrence, metric, proofClipIdRef);
   const { savePartial } = useSavePartialSession();
   const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
   const meetsTarget = isUnscored ? snapshot.count > 0 : target > 0 && snapshot.count >= target;
@@ -232,8 +280,13 @@ export function usePoseSession(props: PoseSessionProps) {
     phaseRef.current = phase;
   }, [phase]);
 
+  useEffect(() => {
+    void getProofRecordingEnabled().then(setRecordProof);
+    void hasSeenProofExplainer().then((seen) => setShowProofExplainer(!seen));
+  }, []);
+
   const handleQuickPoseUpdate = useCallback(
-    (update: QuickPosePushupUpdate) => {
+    (update: QuickPoseExerciseUpdate) => {
       if (phaseRef.current === 'setup' || phaseRef.current === 'counting') {
         ingestQuickPose(update);
       }
@@ -249,6 +302,60 @@ export function usePoseSession(props: PoseSessionProps) {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
   });
+
+  const toggleRecordProof = useCallback((enabled: boolean) => {
+    setRecordProof(enabled);
+    void setProofRecordingEnabled(enabled);
+    if (enabled) {
+      void markProofExplainerSeen();
+      setShowProofExplainer(false);
+    }
+  }, []);
+
+  const handleProofRecorded = useCallback(
+    async (event: {
+      fileUri: string;
+      sha256: string;
+      byteSize: number;
+      durationSeconds: number;
+      posterUri?: string;
+    }) => {
+      const clipId = proofClipIdRef.current;
+      const meta = proofMetaRef.current;
+      if (!clipId || !meta) {
+        return;
+      }
+
+      try {
+        await apiClient.recordProofClip({
+          clipId,
+          sha256: event.sha256,
+          byteSize: event.byteSize,
+          durationSeconds: event.durationSeconds,
+          count: snapshot.count,
+        });
+        await saveLocalProofClip({
+          clipId,
+          fileUri: event.fileUri,
+          posterUri: event.posterUri ?? null,
+          sha256: event.sha256,
+          byteSize: event.byteSize,
+          durationSeconds: event.durationSeconds,
+          code: meta.code,
+          displayCode: meta.displayCode,
+          recordedAt: new Date().toISOString(),
+          userChallengeId: props.mode === 'challenge' ? occurrence?.id ?? null : null,
+          matchId: props.mode === 'match' ? props.matchId : null,
+        });
+        setProofClipId(clipId);
+      } catch {
+        setSessionError('Could not save the proof clip.');
+      } finally {
+        setProofRecording(null);
+      }
+    },
+    [occurrence?.id, props, snapshot.count],
+  );
 
   const beginCounting = useCallback(
     async (options?: { preserveCounter?: boolean }) => {
@@ -267,6 +374,29 @@ export function usePoseSession(props: PoseSessionProps) {
       autoStartLockRef.current = true;
       try {
         await startOccurrence.mutateAsync();
+
+        if (recordProof) {
+          const context =
+            props.mode === 'match'
+              ? ({ kind: 'match' as const, matchId: props.matchId })
+              : props.mode === 'practice'
+                ? ({ kind: 'practice' as const, challengeId: props.challengeId })
+                : ({
+                    kind: 'challenge' as const,
+                    userChallengeId: occurrence!.id,
+                  });
+          const reserved = await apiClient.reserveProofClip({ context, metric });
+          proofClipIdRef.current = reserved.clipId;
+          proofMetaRef.current = { code: reserved.code, displayCode: reserved.displayCode };
+          setProofRecording({
+            code: reserved.displayCode,
+            label: MATCH_METRIC_LABEL[metric],
+          });
+        } else {
+          proofClipIdRef.current = null;
+          proofMetaRef.current = null;
+          setProofRecording(null);
+        }
       } catch (error) {
         autoStartLockRef.current = false;
         throw error;
@@ -282,7 +412,7 @@ export function usePoseSession(props: PoseSessionProps) {
       start({ preserveCounter });
       setPhase('counting');
     },
-    [camera.isReady, occurrence, props.mode, start, startOccurrence],
+    [camera.isReady, metric, occurrence, props, recordProof, start, startOccurrence],
   );
 
   useEffect(() => {
@@ -328,6 +458,9 @@ export function usePoseSession(props: PoseSessionProps) {
 
   function stopCounting() {
     stop();
+    if (proofRecording) {
+      setFinishProofToken((token) => token + 1);
+    }
     setPhase('review');
     if (meetsTarget) {
       save();
@@ -354,6 +487,15 @@ export function usePoseSession(props: PoseSessionProps) {
     isStarting: startOccurrence.isPending,
     isSaving: submitSet.isPending,
     saveFailed: submitSet.isError,
+    recordProof,
+    showProofExplainer,
+    proofRecording,
+    proofClipId,
+    proofCount: snapshot.count,
+    finishProofToken,
+    toggleRecordProof,
+    handleProofRecorded,
+    handleProofRecordingError: (message: string) => setSessionError(message),
     startNow: () => void beginCounting(),
     retry: () => void beginCounting(),
     stopCounting,

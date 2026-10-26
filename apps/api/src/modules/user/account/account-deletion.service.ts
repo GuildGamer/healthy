@@ -42,6 +42,7 @@ export class AccountDeletionService {
 
         await this.eraseIdentity(transaction, user.id, now);
         await this.erasePersonalData(transaction, user.id);
+        await this.markProofClipsRemoved(transaction, user.id, now);
         await this.leaveGroups(transaction, user.id, now);
         await this.detachRecords(transaction, user.id);
         return { success: true, data: { deleted: true } };
@@ -178,5 +179,24 @@ export class AccountDeletionService {
   /** Analytics keep their counts without saying whose they were. */
   private async detachRecords(transaction: DeletionTransaction, userId: string): Promise<void> {
     await transaction.analyticsEvent.updateMany({ where: { userId }, data: { userId: null } });
+  }
+
+  /**
+   * Marks clips removed inside the transaction. Object bytes are deleted by the
+   * retention sweep — storage calls stay out of the DB transaction.
+   */
+  private async markProofClipsRemoved(
+    transaction: DeletionTransaction,
+    userId: string,
+    now: Date,
+  ): Promise<void> {
+    await transaction.proofClip.updateMany({
+      where: { userId, status: { not: 'removed' } },
+      data: { status: 'removed', expiresAt: now },
+    });
+    await transaction.proofClipReport.deleteMany({ where: { reporterUserId: userId } });
+    await transaction.userBlock.deleteMany({
+      where: { OR: [{ blockerUserId: userId }, { blockedUserId: userId }] },
+    });
   }
 }

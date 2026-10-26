@@ -6,6 +6,8 @@ import UIKit
 
 final class HealthyQuickPoseView: ExpoView {
   let onUpdate = EventDispatcher()
+  let onProofRecorded = EventDispatcher()
+  let onProofRecordingError = EventDispatcher()
 
   var sdkKey = "" {
     didSet { tryStart() }
@@ -23,13 +25,34 @@ final class HealthyQuickPoseView: ExpoView {
     didSet { tryStart() }
   }
 
+  /// When set, frames are written to a proof clip with this overlay.
+  var proofRecording: [String: Any]? {
+    didSet { syncProofRecording() }
+  }
+
+  /// Live rep count pushed from JS while a proof clip is recording.
+  var proofCount: Int = 0 {
+    didSet {
+      proofRecorder?.updateOverlay(count: proofCount)
+    }
+  }
+
+  /// Incremented by JS to finish the in-flight recording (not cancel it).
+  var finishProofToken: Int = 0 {
+    didSet {
+      if finishProofToken > 0 {
+        finishProofRecording()
+      }
+    }
+  }
+
   private var quickPose: QuickPose?
   private var camera: QuickPoseCamera?
   private var previewLayer: AVCaptureVideoPreviewLayer?
   private let overlayView = UIImageView()
   private var hasStarted = false
   private var currentFeatures: [(String, QuickPose.Feature)] = []
-
+  private var proofRecorder: ProofRecorder?
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
@@ -89,6 +112,8 @@ final class HealthyQuickPoseView: ExpoView {
     camera = cam
     attachPreview(from: cam)
 
+    // Fifth argument is QuickPose landmarks. Shape confirmed on device in the
+    // recording spike; phase 5 skeleton replay will consume it once typed.
     qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, _ in
       DispatchQueue.main.async {
         self?.publishFrame(
@@ -99,6 +124,8 @@ final class HealthyQuickPoseView: ExpoView {
         )
       }
     })
+
+    syncProofRecording()
   }
 
   /// SDK Status.success carries a single labeled `info:` payload — not two wildcards.
@@ -109,6 +136,13 @@ final class HealthyQuickPoseView: ExpoView {
     feedback: [QuickPose.Feature: QuickPose.PoseFeedback]
   ) {
     overlayView.image = image
+
+    if let recorder = proofRecorder, recorder.isRecording {
+      // Preview layer has the camera; overlay image is the QuickPose draw.
+      let cameraSnap = snapshotPreview()
+      recorder.append(cameraImage: cameraSnap, overlayImage: image)
+    }
+
     guard case .success(info: _) = status else { return }
 
     var results: [String: Double] = [:]
@@ -125,6 +159,82 @@ final class HealthyQuickPoseView: ExpoView {
       "results": results,
       "feedbacks": feedbacks,
     ])
+  }
+
+  private func snapshotPreview() -> UIImage? {
+    guard let previewLayer else { return nil }
+    let size = previewLayer.bounds.size
+    guard size.width > 0, size.height > 0 else { return nil }
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    let renderer = UIGraphicsImageRenderer(size: size, format: format)
+    return renderer.image { context in
+      previewLayer.render(in: context.cgContext)
+    }
+  }
+
+  private func syncProofRecording() {
+    guard hasStarted else { return }
+
+    guard let config = proofRecording,
+          let code = config["code"] as? String,
+          !code.isEmpty
+    else {
+      if proofRecorder?.isRecording == true {
+        proofRecorder?.cancel()
+      }
+      proofRecorder = nil
+      return
+    }
+
+    if proofRecorder?.isRecording == true {
+      proofRecorder?.updateOverlay(
+        code: code,
+        label: (config["label"] as? String) ?? "",
+        count: proofCount
+      )
+      return
+    }
+
+    let recorder = ProofRecorder()
+    do {
+      try recorder.start(
+        overlay: ProofRecorder.Overlay(
+          code: code,
+          label: (config["label"] as? String) ?? "",
+          count: proofCount
+        )
+      )
+      proofRecorder = recorder
+    } catch {
+      onProofRecordingError(["message": "Could not start proof recording."])
+      proofRecorder = nil
+    }
+  }
+
+  /// Ends the clip and emits `onProofRecorded` with file URIs and the hash.
+  func finishProofRecording() {
+    guard let recorder = proofRecorder, recorder.isRecording else { return }
+    recorder.finish { [weak self] result in
+      DispatchQueue.main.async {
+        self?.proofRecorder = nil
+        switch result {
+        case .success(let finished):
+          var payload: [String: Any] = [
+            "fileUri": finished.fileURL.absoluteString,
+            "sha256": finished.sha256Hex,
+            "byteSize": finished.byteSize,
+            "durationSeconds": finished.durationSeconds,
+          ]
+          if let poster = finished.posterURL {
+            payload["posterUri"] = poster.absoluteString
+          }
+          self?.onProofRecorded(payload)
+        case .failure:
+          self?.onProofRecordingError(["message": "Could not finish proof recording."])
+        }
+      }
+    }
   }
 
   private func attachPreview(from cam: QuickPoseCamera, attempt: Int = 0) {
@@ -155,6 +265,10 @@ final class HealthyQuickPoseView: ExpoView {
   }
 
   private func stop() {
+    if proofRecorder?.isRecording == true {
+      proofRecorder?.cancel()
+    }
+    proofRecorder = nil
     quickPose?.stop()
     quickPose = nil
     camera?.stop()

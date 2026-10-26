@@ -11149,6 +11149,1175 @@
         }
       }
     },
+    "/proof-clips/reserve": {
+      "post": {
+        "operationId": "reserveProofClip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "context": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "challenge"
+                          },
+                          "userChallengeId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "userChallengeId"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "practice"
+                          },
+                          "challengeId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "challengeId"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "match"
+                          },
+                          "matchId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "matchId"
+                        ]
+                      }
+                    ]
+                  },
+                  "metric": {
+                    "enum": [
+                      "walk",
+                      "run",
+                      "cycle",
+                      "steps",
+                      "sleep",
+                      "weight",
+                      "heart_rate",
+                      "pushups",
+                      "squats",
+                      "plank",
+                      "jumping_jacks",
+                      "burpees",
+                      "sit_ups",
+                      "mountain_climbers",
+                      "lunges"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "context",
+                  "metric"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "clipId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "code": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "displayCode": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "reservedUntil": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "clipId",
+                    "code",
+                    "displayCode",
+                    "reservedUntil"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/record": {
+      "post": {
+        "operationId": "recordProofClip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 12582912
+                  },
+                  "durationSeconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 90
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200000
+                  },
+                  "matchAttemptId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "attestation": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 16384
+                  },
+                  "skeletonTrack": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200000
+                  }
+                },
+                "required": [
+                  "clipId",
+                  "sha256",
+                  "byteSize",
+                  "durationSeconds",
+                  "count"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "clipId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "const": "recorded"
+                    },
+                    "attested": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "clipId",
+                    "status",
+                    "attested"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/upload-url": {
+      "post": {
+        "operationId": "requestProofClipUpload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "videoByteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 12582912
+                  },
+                  "posterByteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 512000
+                  }
+                },
+                "required": [
+                  "clipId",
+                  "videoByteSize"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "video": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "headers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "key": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "headers",
+                        "key"
+                      ]
+                    },
+                    "poster": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "url": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "headers": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            },
+                            "key": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "headers",
+                            "key"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "video",
+                    "poster"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/complete": {
+      "post": {
+        "operationId": "completeProofClipUpload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "visibility": {
+                    "enum": [
+                      "group",
+                      "shared"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clipId",
+                  "visibility"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "clipId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "const": "ready"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "clipId",
+                    "status",
+                    "expiresAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/{clipId}": {
+      "get": {
+        "operationId": "getProofClip",
+        "parameters": [
+          {
+            "name": "clipId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "code": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "displayCode": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "enum": [
+                        "reserved",
+                        "recorded",
+                        "ready",
+                        "expired",
+                        "removed"
+                      ],
+                      "type": "string"
+                    },
+                    "metric": {
+                      "enum": [
+                        "walk",
+                        "run",
+                        "cycle",
+                        "steps",
+                        "sleep",
+                        "weight",
+                        "heart_rate",
+                        "pushups",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
+                      ],
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "durationSeconds": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "matchId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "userChallengeId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "recordedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sharedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expiresAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "attested": {
+                      "type": "boolean"
+                    },
+                    "videoUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "posterUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "isOwner": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "displayCode",
+                    "status",
+                    "metric",
+                    "count",
+                    "durationSeconds",
+                    "matchId",
+                    "userChallengeId",
+                    "recordedAt",
+                    "sharedAt",
+                    "expiresAt",
+                    "attested",
+                    "videoUrl",
+                    "posterUrl",
+                    "isOwner"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/match/{matchId}": {
+      "get": {
+        "operationId": "listMatchProofClips",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "dayKey",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "clips": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "code": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayCode": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "status": {
+                            "enum": [
+                              "reserved",
+                              "recorded",
+                              "ready",
+                              "expired",
+                              "removed"
+                            ],
+                            "type": "string"
+                          },
+                          "metric": {
+                            "enum": [
+                              "walk",
+                              "run",
+                              "cycle",
+                              "steps",
+                              "sleep",
+                              "weight",
+                              "heart_rate",
+                              "pushups",
+                              "squats",
+                              "plank",
+                              "jumping_jacks",
+                              "burpees",
+                              "sit_ups",
+                              "mountain_climbers",
+                              "lunges"
+                            ],
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "durationSeconds": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "matchId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "userChallengeId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "recordedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "sharedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "expiresAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "attested": {
+                            "type": "boolean"
+                          },
+                          "videoUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "posterUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "isOwner": {
+                            "type": "boolean"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "displayCode",
+                          "status",
+                          "metric",
+                          "count",
+                          "durationSeconds",
+                          "matchId",
+                          "userChallengeId",
+                          "recordedAt",
+                          "sharedAt",
+                          "expiresAt",
+                          "attested",
+                          "videoUrl",
+                          "posterUrl",
+                          "isOwner",
+                          "userId",
+                          "displayName"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "clips"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/verify": {
+      "post": {
+        "operationId": "verifyProofCode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 16
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "verified"
+                        },
+                        "metric": {
+                          "enum": [
+                            "walk",
+                            "run",
+                            "cycle",
+                            "steps",
+                            "sleep",
+                            "weight",
+                            "heart_rate",
+                            "pushups",
+                            "squats",
+                            "plank",
+                            "jumping_jacks",
+                            "burpees",
+                            "sit_ups",
+                            "mountain_climbers",
+                            "lunges"
+                          ],
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "recordedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "attested": {
+                          "type": "boolean"
+                        },
+                        "videoUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "posterUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "metric",
+                        "count",
+                        "recordedAt",
+                        "attested",
+                        "videoUrl",
+                        "posterUrl"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "original_expired"
+                        },
+                        "metric": {
+                          "enum": [
+                            "walk",
+                            "run",
+                            "cycle",
+                            "steps",
+                            "sleep",
+                            "weight",
+                            "heart_rate",
+                            "pushups",
+                            "squats",
+                            "plank",
+                            "jumping_jacks",
+                            "burpees",
+                            "sit_ups",
+                            "mountain_climbers",
+                            "lunges"
+                          ],
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "recordedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "attested": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "metric",
+                        "count",
+                        "recordedAt",
+                        "attested"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "removed"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "not_shared"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "not_found"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/remove": {
+      "post": {
+        "operationId": "removeProofClip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "clipId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/report": {
+      "post": {
+        "operationId": "reportProofClip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "reason": {
+                    "enum": [
+                      "inappropriate",
+                      "spam",
+                      "harassment",
+                      "other"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clipId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/blocks": {
+      "post": {
+        "operationId": "blockUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "userId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/blocks/remove": {
+      "post": {
+        "operationId": "unblockUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "userId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/me": {
       "get": {
         "operationId": "me",

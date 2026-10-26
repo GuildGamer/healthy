@@ -9,6 +9,7 @@ interface BoardOptionsSheetProps {
   isHost: boolean;
   canShare: boolean;
   onShare: () => void;
+  onVerifyClip?: () => void;
   /** Cancel for the host, Leave for everyone else. */
   onStepAway: () => void;
   onClose: () => void;
@@ -20,6 +21,7 @@ export function BoardOptionsSheet({
   isHost,
   canShare,
   onShare,
+  onVerifyClip,
   onStepAway,
   onClose,
 }: BoardOptionsSheetProps) {
@@ -30,6 +32,13 @@ export function BoardOptionsSheet({
       <View style={styles.group}>
         {canShare ? (
           <OptionRow label={BOARD_COPY.shareLink} onPress={onShare} testID="match-options-share" />
+        ) : null}
+        {onVerifyClip ? (
+          <OptionRow
+            label="Verify a clip"
+            onPress={onVerifyClip}
+            testID="match-options-verify"
+          />
         ) : null}
         <OptionRow
           isDanger

@@ -46,6 +46,18 @@ services:
         sync: false
       - key: EVIDENCE_VISION_MODEL
         sync: false
+      - key: STORAGE_PROVIDER
+        sync: false
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
 
   - type: web
     name: product-web

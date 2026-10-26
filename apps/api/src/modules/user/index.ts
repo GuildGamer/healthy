@@ -12,6 +12,7 @@ import { MembershipModule } from './membership/index.js';
 import { NotificationsModule } from './notifications/index.js';
 import { PracticeModule } from './practice/index.js';
 import { ProgressModule } from './progress/index.js';
+import { ProofClipsModule } from './proof-clips/index.js';
 import { PushDevicesModule } from './push/index.js';
 import { RemindersModule } from './reminders/index.js';
 import { TipsModule } from './tips/index.js';
@@ -32,6 +33,7 @@ export default [
   CrewsModule,
   FriendMilestonesModule,
   PracticeModule,
+  ProofClipsModule,
   NotificationsModule,
   LeaderboardModule,
   PushDevicesModule,

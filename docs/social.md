@@ -45,8 +45,9 @@ before it can start.
 3. **Zero extra logging.** Group score derives from daily challenges the member
    already completes. Never ask for the same rep twice.
 4. **One primary action per screen.**
-5. **Reactions are one tap and finite.** No comment threads and no free text —
-   which also means no moderation queue and no report flow.
+5. **Reactions are one tap and finite.** No comment threads and no free text.
+   Proof clips (opt-in camera recordings of a counted set) are the exception
+   that needs report and block — App Store rule 1.2 for user-generated content.
 6. **Notification budget.** At most one group push per group per day, plus the
    settlement result.
 7. **Identity is scoped.** First name inside a group you were invited to,
@@ -475,10 +476,23 @@ diff stays reviewable.
 | 3 | Cheers, nudges, notification budget, recap share card |
 | 4 | More metrics (steps, walk distance), possibly `team_total`; handles only if link sharing proves insufficient |
 
+## Proof clips
+
+An opt-in recording of a camera-counted set (solo or group). The clip burns in
+the Healthy logo, a server-issued verification code, and the live rep count.
+Clips stay on the phone until posted to a group or shared; cloud copies live in
+Cloudflare R2 and expire (30 days after last share/view for solo, 30 days after
+the contest ends for groups, hard cap 90 days). After expiry the hash, count and
+timestamps remain so the code can still verify that the set happened.
+
+Verify-by-code is signed-in only and returns activity, count, date and a
+playback URL — never a name or groups. Report and block ship with the feature.
+
 ## Not building
 
-A follow graph, an activity feed, comments, public or discoverable groups, and
-photos inside groups. No crew page, crew feed, or crew chat — the three
-additions that would quietly turn an address-book entry into a club. No
+A follow graph, an activity feed, comments, public or discoverable groups, or a
+photo gallery / media feed inside groups. Proof clips are one posted clip per
+member per contest day, not a feed. No crew page, crew feed, or crew chat — the
+three additions that would quietly turn an address-book entry into a club. No
 searchable user directory. Recorded here so they do not creep back in as "small
 additions".

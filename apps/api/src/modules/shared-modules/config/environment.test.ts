@@ -12,11 +12,21 @@ describe('readEnvironment', () => {
     expect(environment.mail).toEqual({ mode: 'log' });
     expect(environment.evidenceVision).toEqual({ mode: 'accept' });
     expect(environment.appleIap).toEqual({ mode: 'disabled' });
+    expect(environment.storage).toEqual({ mode: 'disabled' });
     expect(environment.adminAppUrl).toBe('http://localhost:3001');
     expect(environment.websiteUrl).toBe('https://www.gethealthyapp.com');
     expect(environment.adminBootstrapEmail).toBeNull();
     expect(environment.testingMembership).toBe(true);
   });
+
+  const deployedStorage = {
+    STORAGE_PROVIDER: 'r2',
+    STORAGE_ENDPOINT: 'https://account.r2.cloudflarestorage.com',
+    STORAGE_REGION: 'auto',
+    STORAGE_BUCKET: 'healthy-clips',
+    STORAGE_ACCESS_KEY_ID: 'key',
+    STORAGE_SECRET_ACCESS_KEY: 'secret',
+  } as const;
 
   it('treats only production as production', () => {
     const production = readEnvironment({
@@ -27,10 +37,12 @@ describe('readEnvironment', () => {
       SMTP_PASS: 'secret',
       SMTP_FROM: 'noreply@example.com',
       EVIDENCE_VISION_API_KEY: 'sk-test',
+      ...deployedStorage,
     });
 
     expect(production.isProd).toBe(true);
     expect(production.isLocal).toBe(false);
+    expect(production.storage.mode).toBe('s3');
     expect(readEnvironment({ NODE_ENV: 'development' }).isLocal).toBe(true);
     expect(readEnvironment({ NODE_ENV: 'test' }).isLocal).toBe(true);
   });
@@ -42,6 +54,7 @@ describe('readEnvironment', () => {
       NODE_ENV: 'staging',
       EMAIL_PROVIDER: 'sendbyte',
       SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      ...deployedStorage,
     });
 
     expect(staging.isProd).toBe(false);
@@ -51,6 +64,16 @@ describe('readEnvironment', () => {
       apiKey: 'sk_live_test',
       from: 'hello@gethealthyapp.com',
     });
+  });
+
+  it('requires object storage outside local development', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'staging',
+        EMAIL_PROVIDER: 'sendbyte',
+        SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      }),
+    ).toThrow(/STORAGE_PROVIDER/);
   });
 
   it('accepts external scheduling when a dispatch secret is present', () => {
@@ -127,6 +150,7 @@ describe('readEnvironment', () => {
       readEnvironment({
         NODE_ENV: 'production',
         EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
       }),
     ).toThrow(/required in production/);
   });
@@ -227,6 +251,7 @@ describe('readEnvironment', () => {
         SEND_BYTE_LIVE_KEY: 'sk_live_test',
         EVIDENCE_VISION_PROVIDER: 'accept',
         EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
       }),
     ).toThrow(/EVIDENCE_VISION_PROVIDER=accept is not allowed/);
   });
@@ -240,6 +265,7 @@ describe('readEnvironment', () => {
         SMTP_USER: 'mailer',
         SMTP_PASS: 'secret',
         SMTP_FROM: 'noreply@example.com',
+        ...deployedStorage,
       }),
     ).toThrow(/EVIDENCE_VISION_API_KEY is required/);
   });
@@ -346,6 +372,7 @@ describe('readEnvironment', () => {
       EMAIL_PROVIDER: 'sendbyte',
       SEND_BYTE_LIVE_KEY: 'sk_live_test',
       EVIDENCE_VISION_API_KEY: 'sk-test',
+      ...deployedStorage,
     });
 
     expect(environment.mail).toEqual({
@@ -361,6 +388,7 @@ describe('readEnvironment', () => {
         NODE_ENV: 'production',
         EMAIL_PROVIDER: 'sendbyte',
         EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
       }),
     ).toThrow(/SEND_BYTE_LIVE_KEY is required/);
   });
@@ -371,6 +399,7 @@ describe('readEnvironment', () => {
         NODE_ENV: 'production',
         EMAIL_PROVIDER: 'log',
         EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
       }),
     ).toThrow(/EMAIL_PROVIDER=log is not allowed/);
   });
