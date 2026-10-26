@@ -46,19 +46,24 @@ export function ReadingSheetLayout({
   const { tone, glyph } = useChallengeTone(occurrence);
 
   return (
-    <DeckSheet onDismiss={isSaving ? undefined : () => goBackOrHome()} testID={testID}>
+    <DeckSheet
+      footer={
+        <View style={styles.save}>
+          <DeckButton
+            disabled={!canSave}
+            label={didFail ? SAVE_RETRY_LABEL : saveLabel}
+            loading={isSaving}
+            onPress={onSave}
+            testID="reading-save"
+          />
+        </View>
+      }
+      onDismiss={isSaving ? undefined : () => goBackOrHome()}
+      testID={testID}
+    >
       <DeckSheetEyebrow corner={corner} glyph={glyph} label={label} tone={tone} />
       {children}
       {message ? <DeckSheetMessage message={message} testID="reading-message" /> : null}
-      <View style={styles.save}>
-        <DeckButton
-          disabled={!canSave}
-          label={didFail ? SAVE_RETRY_LABEL : saveLabel}
-          loading={isSaving}
-          onPress={onSave}
-          testID="reading-save"
-        />
-      </View>
     </DeckSheet>
   );
 }
@@ -66,11 +71,16 @@ export function ReadingSheetLayout({
 /** The sheet when there is nothing to log: not on today's list, or already logged. */
 export function ClosedReadingSheet({ message, testID }: { message: string; testID: string }) {
   return (
-    <DeckSheet onDismiss={() => goBackOrHome()} testID={testID}>
+    <DeckSheet
+      footer={
+        <View style={styles.save}>
+          <DeckButton label="OK" onPress={() => goBackOrHome()} variant="tonal" />
+        </View>
+      }
+      onDismiss={() => goBackOrHome()}
+      testID={testID}
+    >
       <DeckSheetSub>{message}</DeckSheetSub>
-      <View style={styles.save}>
-        <DeckButton label="OK" onPress={() => goBackOrHome()} variant="tonal" />
-      </View>
     </DeckSheet>
   );
 }

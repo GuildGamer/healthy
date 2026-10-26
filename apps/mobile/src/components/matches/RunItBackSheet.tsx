@@ -47,6 +47,23 @@ export function RunItBackSheet({
 
   return (
     <DeckSheetModal
+      footer={
+        <View style={styles.actions}>
+          <DeckButton
+            label={RESULT_COPY.startIt}
+            loading={isBusy}
+            onPress={onStart}
+            testID="match-rerun-start"
+          />
+          <DeckButton
+            disabled={isBusy}
+            label={RESULT_COPY.changeSomething}
+            onPress={onChange}
+            testID="match-rerun-change"
+            variant="quiet"
+          />
+        </View>
+      }
       onDismiss={isBusy ? undefined : onClose}
       testID="match-rerun-sheet"
       visible={visible}
@@ -69,21 +86,6 @@ export function RunItBackSheet({
         </View>
       </GroupCard>
       {hasFailed ? <DeckSheetMessage message={RESULT_COPY.runItBackFailed} /> : null}
-      <View style={styles.actions}>
-        <DeckButton
-          label={RESULT_COPY.startIt}
-          loading={isBusy}
-          onPress={onStart}
-          testID="match-rerun-start"
-        />
-        <DeckButton
-          disabled={isBusy}
-          label={RESULT_COPY.changeSomething}
-          onPress={onChange}
-          testID="match-rerun-change"
-          variant="quiet"
-        />
-      </View>
     </DeckSheetModal>
   );
 }

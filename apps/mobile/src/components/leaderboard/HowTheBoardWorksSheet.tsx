@@ -18,7 +18,16 @@ export function HowTheBoardWorksSheet({
   const styles = useThemedStyles(createStyles);
 
   return (
-    <DeckSheetModal onDismiss={onClose} testID="leaderboard-how-it-works" visible>
+    <DeckSheetModal
+      footer={
+        <View style={styles.action}>
+          <DeckButton label={BOARD_COPY.gotIt} onPress={onClose} testID="leaderboard-got-it" />
+        </View>
+      }
+      onDismiss={onClose}
+      testID="leaderboard-how-it-works"
+      visible
+    >
       <DeckSheetTitle>{BOARD_COPY.howItWorks}</DeckSheetTitle>
       <View style={styles.facts}>
         {boardFacts(publicName).map((fact, index) => (
@@ -30,9 +39,6 @@ export function HowTheBoardWorksSheet({
             </View>
           </View>
         ))}
-      </View>
-      <View style={styles.action}>
-        <DeckButton label={BOARD_COPY.gotIt} onPress={onClose} testID="leaderboard-got-it" />
       </View>
     </DeckSheetModal>
   );

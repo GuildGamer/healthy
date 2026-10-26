@@ -45,7 +45,12 @@ export function HowLongSheet({
   const isCustom = length.kind === 'custom';
 
   return (
-    <DeckSheetModal onDismiss={onClose} testID="match-create-length-sheet" visible={visible}>
+    <DeckSheetModal
+      footer={<SheetDone onClose={onClose} />}
+      onDismiss={onClose}
+      testID="match-create-length-sheet"
+      visible={visible}
+    >
       <DeckSheetTitle>{CREATE_COPY.howLongTitle}</DeckSheetTitle>
       <View style={styles.grid}>
         {matchWindowSchema.options.map((window) => {
@@ -84,7 +89,6 @@ export function HowLongSheet({
           onChange={(days) => onChoose({ kind: 'custom', days })}
         />
       ) : null}
-      <SheetDone onClose={onClose} />
     </DeckSheetModal>
   );
 }

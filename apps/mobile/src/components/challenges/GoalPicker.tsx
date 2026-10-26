@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   DeckButton,
   DeckRoundButton,
+  DeckSheetFooter,
   DeckSheetMessage,
   DeckSheetSub,
   DeckSheetTitle,
@@ -87,14 +88,16 @@ export function GoalPicker({
         })}
       </View>
       {error ? <DeckSheetMessage message={error} /> : null}
-      <View style={styles.action}>
-        <DeckButton
-          label={SETTINGS_COPY.goalDone}
-          loading={isSaving}
-          onPress={() => onDone(value)}
-          testID="goal-done"
-        />
-      </View>
+      <DeckSheetFooter>
+        <View style={styles.action}>
+          <DeckButton
+            label={SETTINGS_COPY.goalDone}
+            loading={isSaving}
+            onPress={() => onDone(value)}
+            testID="goal-done"
+          />
+        </View>
+      </DeckSheetFooter>
     </View>
   );
 }

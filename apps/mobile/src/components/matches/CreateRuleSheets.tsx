@@ -37,7 +37,12 @@ export function HowYouWinSheet({
   onChoose,
 }: RuleSheetProps & { onChoose: (mode: MatchScoringMode) => void }) {
   return (
-    <DeckSheetModal onDismiss={onClose} testID="match-create-mode-sheet" visible={visible}>
+    <DeckSheetModal
+      footer={<SheetDone onClose={onClose} />}
+      onDismiss={onClose}
+      testID="match-create-mode-sheet"
+      visible={visible}
+    >
       <DeckSheetTitle>{CREATE_COPY.howYouWinTitle}</DeckSheetTitle>
       {matchScoringModeSchema.options.map((mode) => (
         <SheetChoice
@@ -51,7 +56,6 @@ export function HowYouWinSheet({
           title={MATCH_MODE_LABEL[mode]}
         />
       ))}
-      <SheetDone onClose={onClose} />
     </DeckSheetModal>
   );
 }
@@ -103,7 +107,12 @@ export function ActivitySheet({
       : ['walk', ...poseChoices];
 
   return (
-    <DeckSheetModal onDismiss={onClose} testID="match-create-activity-sheet" visible={visible}>
+    <DeckSheetModal
+      footer={<SheetDone onClose={onClose} />}
+      onDismiss={onClose}
+      testID="match-create-activity-sheet"
+      visible={visible}
+    >
       <DeckSheetTitle>{CREATE_COPY.activityTitle}</DeckSheetTitle>
       {choices.map((choice) => {
         const isPose = choice !== 'walk' && choice !== MATCH_ANY_DAILY_CHOICE;
@@ -131,7 +140,6 @@ export function ActivitySheet({
           />
         );
       })}
-      <SheetDone onClose={onClose} />
     </DeckSheetModal>
   );
 }

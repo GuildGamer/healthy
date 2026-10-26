@@ -51,10 +51,7 @@ function activityLabel(choice: MatchActivityChoice): string {
   return choice === MATCH_ANY_DAILY_CHOICE ? MATCH_ANY_DAILY_LABEL : MATCH_METRIC_LABEL[choice];
 }
 
-function whosInLabel(
-  crews: readonly Crew[],
-  selection: WhosInSelection,
-): string {
+function whosInLabel(crews: readonly Crew[], selection: WhosInSelection): string {
   const crewName = crews.find((crew) => crew.id === selection.crewId)?.name;
   const people = selection.participantUserIds.length;
   if (crewName && people > 0) {
@@ -215,6 +212,18 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
         visible={openSheet === 'crew'}
       />
       <DeckSheetModal
+        footer={
+          <>
+            <DeckButton
+              disabled={renameValue.trim().length === 0}
+              label={CREATE_COPY.renameCrewSave}
+              loading={rename.isPending}
+              onPress={() => rename.mutate()}
+              testID="match-rename-crew-save"
+            />
+            <SheetDone onClose={close} />
+          </>
+        }
         onDismiss={close}
         testID="match-rename-crew-sheet"
         visible={openSheet === 'rename' && renameCrew !== null}
@@ -227,14 +236,6 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
           testID="match-rename-crew-input"
           value={renameValue}
         />
-        <DeckButton
-          disabled={renameValue.trim().length === 0}
-          label={CREATE_COPY.renameCrewSave}
-          loading={rename.isPending}
-          onPress={() => rename.mutate()}
-          testID="match-rename-crew-save"
-        />
-        <SheetDone onClose={close} />
       </DeckSheetModal>
     </>
   );

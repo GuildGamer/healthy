@@ -4,7 +4,13 @@ import { displayChallengeTitle } from '@product/contract/challenge-title';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckSegmented, DeckSheetMessage, DeckSheetModal } from '@/components/deck';
+import {
+  DeckButton,
+  DeckSegmented,
+  DeckSheetFooter,
+  DeckSheetMessage,
+  DeckSheetModal,
+} from '@/components/deck';
 import { Glyph } from '@/components/icons';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { membershipBoxBody, rewardCornerLabel } from './catalog-layout';
@@ -186,14 +192,16 @@ function PreviewSettings({
         />
       </View>
       {hasFailed ? <DeckSheetMessage message={CATALOG_COPY.addFailed} /> : null}
-      <View style={styles.action}>
-        <DeckButton
-          label={CATALOG_COPY.addButton}
-          loading={isAdding}
-          onPress={onAdd}
-          testID="preview-add"
-        />
-      </View>
+      <DeckSheetFooter>
+        <View style={styles.action}>
+          <DeckButton
+            label={CATALOG_COPY.addButton}
+            loading={isAdding}
+            onPress={onAdd}
+            testID="preview-add"
+          />
+        </View>
+      </DeckSheetFooter>
     </>
   );
 }
@@ -245,16 +253,18 @@ function MembersOnlyOffer({ otherCount, onClose }: { otherCount: number; onClose
         </View>
         <Text style={themed.memberBody}>{membershipBoxBody(otherCount)}</Text>
       </View>
-      <View style={styles.action}>
-        <DeckButton
-          label={CATALOG_COPY.membershipButton}
-          onPress={() => {
-            onClose();
-            router.push({ pathname: '/membership', params: { source: 'other' } });
-          }}
-          testID="preview-membership"
-        />
-      </View>
+      <DeckSheetFooter>
+        <View style={styles.action}>
+          <DeckButton
+            label={CATALOG_COPY.membershipButton}
+            onPress={() => {
+              onClose();
+              router.push({ pathname: '/membership', params: { source: 'other' } });
+            }}
+            testID="preview-membership"
+          />
+        </View>
+      </DeckSheetFooter>
     </>
   );
 }

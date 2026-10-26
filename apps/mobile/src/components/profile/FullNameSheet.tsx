@@ -37,14 +37,23 @@ export function FullNameSheet({
 
   return (
     <DeckSheetModal
+      footer={
+        <View style={styles.action}>
+          <DeckButton
+            disabled={trimmed.length === 0 || trimmed === savedName.trim()}
+            label="Save"
+            loading={save.isPending}
+            onPress={() => save.mutate()}
+            testID="full-name-save"
+          />
+        </View>
+      }
       onDismiss={save.isPending ? undefined : onClose}
       testID="full-name-sheet"
       visible={visible}
     >
       <DeckSheetTitle>Account name</DeckSheetTitle>
-      <DeckSheetSub>
-        Contests show your first name to friends. The rest stays private.
-      </DeckSheetSub>
+      <DeckSheetSub>Contests show your first name to friends. The rest stays private.</DeckSheetSub>
       {save.isError ? (
         <InlineNotice icon="offline" message={SETTINGS_SAVE_FAILED_MESSAGE} tone="error" />
       ) : null}
@@ -61,15 +70,6 @@ export function FullNameSheet({
         textContentType="name"
         value={draft}
       />
-      <View style={styles.action}>
-        <DeckButton
-          disabled={trimmed.length === 0 || trimmed === savedName.trim()}
-          label="Save"
-          loading={save.isPending}
-          onPress={() => save.mutate()}
-          testID="full-name-save"
-        />
-      </View>
     </DeckSheetModal>
   );
 }

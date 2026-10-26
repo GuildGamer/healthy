@@ -56,6 +56,16 @@ function CheckInSheet({ occurrence }: { occurrence: TodayChallenge }) {
 
   return (
     <DeckSheet
+      footer={
+        <View style={styles.action}>
+          <DeckButton
+            label={complete.isError ? SAVE_RETRY_LABEL : READING_COPY.checkInDone}
+            loading={complete.isPending}
+            onPress={markDone}
+            testID="confirm-challenge"
+          />
+        </View>
+      }
       onDismiss={complete.isPending ? undefined : () => goBackOrHome()}
       testID="confirm-sheet"
     >
@@ -63,14 +73,6 @@ function CheckInSheet({ occurrence }: { occurrence: TodayChallenge }) {
       <DeckSheetTitle>{occurrence.title}</DeckSheetTitle>
       {occurrence.instruction ? <DeckSheetSub>{occurrence.instruction}</DeckSheetSub> : null}
       {saveError ? <DeckSheetMessage message={saveError} /> : null}
-      <View style={styles.action}>
-        <DeckButton
-          label={complete.isError ? SAVE_RETRY_LABEL : READING_COPY.checkInDone}
-          loading={complete.isPending}
-          onPress={markDone}
-          testID="confirm-challenge"
-        />
-      </View>
     </DeckSheet>
   );
 }

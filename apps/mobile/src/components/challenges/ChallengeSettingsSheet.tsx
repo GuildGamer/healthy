@@ -2,7 +2,13 @@ import type { CatalogChallenge, ChallengeReminder } from '@product/client';
 import { spacing } from '@product/brand';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import { DeckButton, DeckSheetModal, DeckSheetSub, DeckSheetTitle } from '@/components/deck';
+import {
+  DeckButton,
+  DeckSheetFooter,
+  DeckSheetModal,
+  DeckSheetSub,
+  DeckSheetTitle,
+} from '@/components/deck';
 import { challengeGoal, goalPatch } from './challenge-goal';
 import { MOMENT_HINT } from './constants/reminder-moments';
 import { SETTINGS_COPY } from './constants/routine-copy';
@@ -108,17 +114,19 @@ function MoreRemindersBody({ limit, onClose }: { limit: number; onClose: () => v
     <View testID="more-reminders">
       <DeckSheetTitle>{title}</DeckSheetTitle>
       <DeckSheetSub>{SETTINGS_COPY.moreRemindersBody}</DeckSheetSub>
-      <View style={styles.actions}>
-        <DeckButton
-          label={SETTINGS_COPY.moreRemindersMembership}
-          onPress={() => {
-            onClose();
-            router.push({ pathname: '/membership', params: { source: 'other' } });
-          }}
-          testID="more-reminders-membership"
-        />
-        <DeckButton label={SETTINGS_COPY.notNow} onPress={onClose} variant="quiet" />
-      </View>
+      <DeckSheetFooter>
+        <View style={styles.actions}>
+          <DeckButton
+            label={SETTINGS_COPY.moreRemindersMembership}
+            onPress={() => {
+              onClose();
+              router.push({ pathname: '/membership', params: { source: 'other' } });
+            }}
+            testID="more-reminders-membership"
+          />
+          <DeckButton label={SETTINGS_COPY.notNow} onPress={onClose} variant="quiet" />
+        </View>
+      </DeckSheetFooter>
     </View>
   );
 }

@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReduceMotion } from '@/lib/use-reduce-motion';
 import { type Theme, useThemedStyles } from '@/theme';
 import { DECK_CARD_RADIUS } from './constants';
+import { FooterSlotOutlet, FooterSlotProvider, useFooterSlot } from './DeckSheetFooter';
+import { useSheetDragToDismiss } from './useSheetDragToDismiss';
 
 const SHEET_ENTRY_OFFSET = 480;
 const SHEET_ENTRY_MS = 260;
@@ -21,10 +23,13 @@ const SHEET_TOP_CLEARANCE = 24;
 const SHEET_SIDE_PADDING = 22;
 
 interface DeckSheetProps {
-  /** Tapping the dimmed page behind; omit while the sheet must stay, such as mid-save. */
+  /** A tap on the dimmed page or a pull down; omit while the sheet must stay, such as mid-save. */
   onDismiss?: () => void;
   children: ReactNode;
-  /** Pinned under the content, such as Done, so it stays reachable when a long list scrolls. */
+  /**
+   * Pinned under the content, such as Done, so it stays in view when a long
+   * list scrolls. Content can pin its own action with `DeckSheetFooter`.
+   */
   footer?: ReactNode;
   testID?: string;
 }
@@ -35,6 +40,9 @@ export function DeckSheet({ onDismiss, children, footer = null, testID }: DeckSh
   const insets = useSafeAreaInsets();
   const isReduceMotionEnabled = useReduceMotion();
   const entry = useRef(new Animated.Value(isReduceMotionEnabled ? 0 : SHEET_ENTRY_OFFSET)).current;
+  const drag = useSheetDragToDismiss({ onDismiss, isReduceMotionEnabled });
+  const translateY = useRef(Animated.add(entry, drag.dragY)).current;
+  const footerSlot = useFooterSlot();
 
   useEffect(() => {
     if (isReduceMotionEnabled) {
@@ -63,26 +71,44 @@ export function DeckSheet({ onDismiss, children, footer = null, testID }: DeckSh
         testID="deck-sheet-scrim"
       />
       <Animated.View
+        {...drag.panHandlers}
         style={[
           styles.sheet,
           {
             marginTop: insets.top + SHEET_TOP_CLEARANCE,
             paddingBottom: insets.bottom + spacing.md,
-            transform: [{ translateY: entry }],
+            transform: [{ translateY }],
           },
         ]}
         testID={testID}
       >
         <View style={styles.grabber} />
-        <ScrollView
-          alwaysBounceVertical={false}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          style={styles.body}
-        >
-          {children}
-        </ScrollView>
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
+        <FooterSlotProvider value={footerSlot}>
+          <ScrollView
+            alwaysBounceVertical={false}
+            bounces={false}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            onScroll={drag.onScroll}
+            scrollEventThrottle={16}
+            style={styles.body}
+            testID="deck-sheet-content"
+          >
+            {children}
+          </ScrollView>
+        </FooterSlotProvider>
+        {footer ? (
+          <View style={styles.footer}>{footer}</View>
+        ) : (
+          <FooterSlotOutlet
+            slot={footerSlot}
+            wrap={(slotted) => (
+              <View style={styles.footer} testID="deck-sheet-footer">
+                {slotted}
+              </View>
+            )}
+          />
+        )}
       </Animated.View>
     </KeyboardAvoidingView>
   );

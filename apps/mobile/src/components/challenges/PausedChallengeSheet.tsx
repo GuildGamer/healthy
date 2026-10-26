@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import {
   DeckButton,
   DeckSheetEyebrow,
+  DeckSheetFooter,
   DeckSheetMessage,
   DeckSheetModal,
   DeckSheetSub,
@@ -51,22 +52,24 @@ function PausedSheetBody({
       <DeckSheetTitle>{ROUTINE_COPY.pausedSheetTitle}</DeckSheetTitle>
       <DeckSheetSub>{ROUTINE_COPY.pausedSheetBody}</DeckSheetSub>
       {removeChallenge.isError ? <DeckSheetMessage message={SETTINGS_COPY.saveFailed} /> : null}
-      <View style={styles.actions}>
-        <DeckButton
-          label={ROUTINE_COPY.pausedSheetMembership}
-          onPress={openMembership}
-          testID="paused-membership"
-        />
-        <DeckButton
-          label={ROUTINE_COPY.pausedSheetRemove}
-          loading={removeChallenge.isPending}
-          onPress={() =>
-            removeChallenge.mutate(challenge.challengeId, { onSuccess: () => onClose() })
-          }
-          testID="paused-remove"
-          variant="quiet"
-        />
-      </View>
+      <DeckSheetFooter>
+        <View style={styles.actions}>
+          <DeckButton
+            label={ROUTINE_COPY.pausedSheetMembership}
+            onPress={openMembership}
+            testID="paused-membership"
+          />
+          <DeckButton
+            label={ROUTINE_COPY.pausedSheetRemove}
+            loading={removeChallenge.isPending}
+            onPress={() =>
+              removeChallenge.mutate(challenge.challengeId, { onSuccess: () => onClose() })
+            }
+            testID="paused-remove"
+            variant="quiet"
+          />
+        </View>
+      </DeckSheetFooter>
     </>
   );
 }

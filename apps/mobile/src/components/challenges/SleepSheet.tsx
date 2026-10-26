@@ -40,9 +40,7 @@ function sleepSourceLabel(sample: SleepSample): string {
     return sample.inBedOnly ? READING_COPY.inBedFromAppleHealth : READING_COPY.fromAppleHealth;
   }
 
-  return sample.inBedOnly
-    ? READING_COPY.inBedFromHealthConnect
-    : READING_COPY.fromHealthConnect;
+  return sample.inBedOnly ? READING_COPY.inBedFromHealthConnect : READING_COPY.fromHealthConnect;
 }
 
 function useHealthLinkPrompt() {
@@ -175,7 +173,10 @@ export function SleepSheet({ occurrence }: { occurrence: TodayChallenge }) {
   return (
     <>
       {face === 'loading' ? (
-        <DeckSheet onDismiss={() => goBackOrHome()} testID={`log-reading-${occurrence.challengeId}`}>
+        <DeckSheet
+          onDismiss={() => goBackOrHome()}
+          testID={`log-reading-${occurrence.challengeId}`}
+        >
           <DeckSheetEyebrow
             corner={nowLabel(takenAt)}
             glyph={glyph}
@@ -190,6 +191,27 @@ export function SleepSheet({ occurrence }: { occurrence: TodayChallenge }) {
 
       {face === 'confirm' && sample ? (
         <DeckSheet
+          footer={
+            <View style={styles.save}>
+              <DeckButton
+                disabled={!canSave}
+                label={complete.isError ? SAVE_RETRY_LABEL : READING_COPY.saveSleep}
+                loading={complete.isPending}
+                onPress={save}
+                testID="reading-save"
+              />
+              <DeckButton
+                disabled={complete.isPending}
+                label={READING_COPY.editTimes}
+                onPress={() => {
+                  applySampleToPickers(sample);
+                  setFace('times');
+                }}
+                testID="sleep-edit-times"
+                variant="quiet"
+              />
+            </View>
+          }
           onDismiss={complete.isPending ? undefined : () => goBackOrHome()}
           testID={`log-reading-${occurrence.challengeId}`}
         >
@@ -220,25 +242,6 @@ export function SleepSheet({ occurrence }: { occurrence: TodayChallenge }) {
           </View>
           {restedChoices}
           {saveError ? <DeckSheetMessage message={saveError} testID="reading-message" /> : null}
-          <View style={styles.save}>
-            <DeckButton
-              disabled={!canSave}
-              label={complete.isError ? SAVE_RETRY_LABEL : READING_COPY.saveSleep}
-              loading={complete.isPending}
-              onPress={save}
-              testID="reading-save"
-            />
-            <DeckButton
-              disabled={complete.isPending}
-              label={READING_COPY.editTimes}
-              onPress={() => {
-                applySampleToPickers(sample);
-                setFace('times');
-              }}
-              testID="sleep-edit-times"
-              variant="quiet"
-            />
-          </View>
         </DeckSheet>
       ) : null}
 

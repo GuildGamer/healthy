@@ -43,6 +43,18 @@ export function NudgeSheet({
 
   return (
     <DeckSheetModal
+      footer={
+        target ? (
+          <View style={styles.action}>
+            <DeckButton
+              label={BOARD_COPY.nudgeSend}
+              loading={isSending}
+              onPress={onSend}
+              testID="match-nudge-send"
+            />
+          </View>
+        ) : null
+      }
       onDismiss={isSending ? undefined : onClose}
       testID="match-nudge-sheet"
       visible={target !== null}
@@ -72,14 +84,6 @@ export function NudgeSheet({
           </View>
           <DeckSheetSub>{BOARD_COPY.nudgeNote(target.displayName)}</DeckSheetSub>
           {hasFailed ? <DeckSheetMessage message={BOARD_COPY.reactionFailed} /> : null}
-          <View style={styles.action}>
-            <DeckButton
-              label={BOARD_COPY.nudgeSend}
-              loading={isSending}
-              onPress={onSend}
-              testID="match-nudge-send"
-            />
-          </View>
         </>
       ) : null}
     </DeckSheetModal>

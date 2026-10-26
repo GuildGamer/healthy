@@ -1,5 +1,6 @@
-import { fontSize, fontWeight, radii, spacing } from '@product/brand';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { fontSize, fontWeight, spacing } from '@product/brand';
+import { StyleSheet, Text, View } from 'react-native';
+import { DeckSheetModal } from '@/components/deck';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { type Theme, useThemedStyles } from '@/theme';
 import { useHealthLink } from './useHealthLink';
@@ -15,9 +16,28 @@ export function ConnectHealthSheet({
   const healthLink = useHealthLink({ onSaved: onClose });
 
   return (
-    <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
-      <Pressable onPress={onClose} style={styles.backdrop} />
-      <View style={styles.sheet}>
+    <DeckSheetModal
+      footer={
+        <View style={styles.actions}>
+          <FormButton
+            label="Allow access"
+            loading={healthLink.isSaving}
+            onPress={healthLink.allow}
+            testID="connect-health"
+          />
+          <FormButton
+            label="Not now"
+            onPress={healthLink.decline}
+            testID="skip-health"
+            variant="secondary"
+          />
+        </View>
+      }
+      onDismiss={healthLink.isSaving ? undefined : onClose}
+      testID="connect-health-sheet"
+      visible={visible}
+    >
+      <View style={styles.content}>
         <Text style={styles.title}>Movement & sleep</Text>
         <Text style={styles.body}>
           Allow motion, location, and sleep so this phone can count steps, record walks, and offer
@@ -29,35 +49,19 @@ export function ConnectHealthSheet({
           before anything is marked done. Healthy never writes to the health store.
         </Text>
         {healthLink.errorMessage ? <FormErrorBanner message={healthLink.errorMessage} /> : null}
-        <FormButton
-          label="Allow access"
-          loading={healthLink.isSaving}
-          onPress={healthLink.allow}
-          testID="connect-health"
-        />
-        <FormButton
-          label="Not now"
-          onPress={healthLink.decline}
-          testID="skip-health"
-          variant="secondary"
-        />
       </View>
-    </Modal>
+    </DeckSheetModal>
   );
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: theme.colors.scrim,
-    },
-    sheet: {
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: radii.lg,
-      borderTopRightRadius: radii.lg,
-      padding: spacing.lg,
+    content: {
       gap: spacing.md,
+    },
+    actions: {
+      gap: spacing.md,
+      marginTop: spacing.md,
     },
     title: {
       color: theme.colors.text,

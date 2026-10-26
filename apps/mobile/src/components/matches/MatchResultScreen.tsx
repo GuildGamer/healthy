@@ -125,6 +125,21 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
         visible={isRerunOpen}
       />
       <DeckSheetModal
+        footer={
+          <>
+            <DeckButton
+              disabled={crewName.trim().length === 0}
+              label={RESULT_COPY.saveCrew}
+              onPress={() => {
+                rerun.saveCrew(crewName);
+                setIsNameCrewOpen(false);
+                setCrewName('');
+              }}
+              testID="match-name-crew-save"
+            />
+            <SheetDone onClose={() => setIsNameCrewOpen(false)} />
+          </>
+        }
         onDismiss={() => setIsNameCrewOpen(false)}
         testID="match-name-crew-sheet"
         visible={isNameCrewOpen}
@@ -137,17 +152,6 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
           testID="match-name-crew-input"
           value={crewName}
         />
-        <DeckButton
-          disabled={crewName.trim().length === 0}
-          label={RESULT_COPY.saveCrew}
-          onPress={() => {
-            rerun.saveCrew(crewName);
-            setIsNameCrewOpen(false);
-            setCrewName('');
-          }}
-          testID="match-name-crew-save"
-        />
-        <SheetDone onClose={() => setIsNameCrewOpen(false)} />
       </DeckSheetModal>
       {previewUri ? (
         <ProfilePhotoPreviewModal

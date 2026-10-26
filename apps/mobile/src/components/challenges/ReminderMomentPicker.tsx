@@ -1,7 +1,13 @@
 import { fontWeight, spacing } from '@product/brand';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckSheetMessage, DeckSheetSub, DeckSheetTitle } from '@/components/deck';
+import {
+  DeckButton,
+  DeckSheetFooter,
+  DeckSheetMessage,
+  DeckSheetSub,
+  DeckSheetTitle,
+} from '@/components/deck';
 import { Glyph } from '@/components/icons';
 import { formatClockTime } from '@/lib/clock-time';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
@@ -57,14 +63,16 @@ export function ReminderMomentPicker({
         value={isOwnTime ? formatClockTime(minuteOfDay) : null}
       />
       {error ? <DeckSheetMessage message={error} /> : null}
-      <View style={styles.action}>
-        <DeckButton
-          label={saveLabel}
-          loading={isSaving}
-          onPress={() => onSave(minuteOfDay)}
-          testID="reminder-save"
-        />
-      </View>
+      <DeckSheetFooter>
+        <View style={styles.action}>
+          <DeckButton
+            label={saveLabel}
+            loading={isSaving}
+            onPress={() => onSave(minuteOfDay)}
+            testID="reminder-save"
+          />
+        </View>
+      </DeckSheetFooter>
       <TimePickerModal
         initialMinute={minuteOfDay}
         onCancel={() => setIsClockOpen(false)}

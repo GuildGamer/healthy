@@ -18,7 +18,20 @@ export function NudgeDelaySheet({ savedMinutes, onDone, onClose }: NudgeDelayShe
   const now = new Date();
 
   return (
-    <DeckSheetModal onDismiss={onClose} testID="nudge-delay-sheet" visible>
+    <DeckSheetModal
+      footer={
+        <View style={styles.action}>
+          <DeckButton
+            label="Done"
+            onPress={() => onDone(selectedMinutes)}
+            testID="nudge-delay-done"
+          />
+        </View>
+      }
+      onDismiss={onClose}
+      testID="nudge-delay-sheet"
+      visible
+    >
       <DeckSheetTitle>Nudge me after</DeckSheetTitle>
       <DeckSheetSub>If you leave a log unfinished.</DeckSheetSub>
       <View style={styles.grid}>
@@ -38,13 +51,6 @@ export function NudgeDelaySheet({ savedMinutes, onDone, onClose }: NudgeDelayShe
             </Pressable>
           );
         })}
-      </View>
-      <View style={styles.action}>
-        <DeckButton
-          label="Done"
-          onPress={() => onDone(selectedMinutes)}
-          testID="nudge-delay-done"
-        />
       </View>
     </DeckSheetModal>
   );
