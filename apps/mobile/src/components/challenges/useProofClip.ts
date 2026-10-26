@@ -23,6 +23,7 @@ export function useProofClip(clipId: string | null, visibility: ProofClipVisibil
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSavedToPhotos, setHasSavedToPhotos] = useState(false);
+  const [hasPublished, setHasPublished] = useState(false);
   const [wasDiscarded, setWasDiscarded] = useState(false);
   const localQuery = useQuery({
     queryKey: ['proof-clip-local', clipId],
@@ -43,6 +44,7 @@ export function useProofClip(clipId: string | null, visibility: ProofClipVisibil
     setError(null);
     try {
       await uploadProofClip({ clipId, visibility });
+      setHasPublished(true);
       watch();
     } catch (publishError) {
       setError(
@@ -113,6 +115,13 @@ export function useProofClip(clipId: string | null, visibility: ProofClipVisibil
     isBusy,
     error,
     hasSavedToPhotos,
+    /** A camera-roll copy carries the code, but the code only checks out once the clip is published. */
+    savedHint:
+      hasSavedToPhotos && !hasPublished
+        ? visibility === 'group'
+          ? POSE_COPY.savedNotPosted
+          : POSE_COPY.savedNotShared
+        : null,
     publishLabel: visibility === 'group' ? POSE_COPY.proofPostToGroup : POSE_COPY.proofShare,
     publish: () => void publish(),
     saveToPhotos: () => void saveToPhotos(),

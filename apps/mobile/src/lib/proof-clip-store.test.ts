@@ -1,10 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
+import { proofClipsDirectoryUri } from 'quickpose-camera';
 import {
   getLocalProofClip,
   listLocalProofClips,
   markLocalProofClipServerRecorded,
   pruneLocalProofClips,
   removeLocalProofClip,
+  resolveProofClipUri,
   saveLocalProofClip,
   type LocalProofClip,
 } from './proof-clip-store';
@@ -86,6 +88,37 @@ describe('proof-clip-store', () => {
 
     const listed = await listLocalProofClips();
     expect(listed.map((item) => item.clipId)).toEqual(['b', 'a']);
+  });
+
+  it('resolves stored clip paths against the current install', () => {
+    const stale =
+      'file:///var/mobile/Containers/Data/Application/OLD/Library/Application%20Support/proof-clips/clip-1.mp4';
+    const current =
+      'file:///var/mobile/Containers/Data/Application/NEW/Library/Application%20Support/proof-clips/';
+
+    expect(resolveProofClipUri(stale, current)).toBe(
+      'file:///var/mobile/Containers/Data/Application/NEW/Library/Application%20Support/proof-clips/clip-1.mp4',
+    );
+    expect(resolveProofClipUri(stale, null)).toBe(stale);
+    expect(resolveProofClipUri('file:///tmp/other.mp4', current)).toBe('file:///tmp/other.mp4');
+  });
+
+  it('reads clips back with paths in this install', async () => {
+    jest.mocked(proofClipsDirectoryUri).mockReturnValue('file:///new/proof-clips');
+    getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        'clip-1': clip({
+          fileUri: 'file:///old/proof-clips/clip-1.mp4',
+          posterUri: 'file:///old/proof-clips/poster-1.jpg',
+        }),
+      }),
+    );
+
+    const loaded = await getLocalProofClip('clip-1');
+
+    expect(loaded?.fileUri).toBe('file:///new/proof-clips/clip-1.mp4');
+    expect(loaded?.posterUri).toBe('file:///new/proof-clips/poster-1.jpg');
+    jest.mocked(proofClipsDirectoryUri).mockReturnValue(null);
   });
 
   it('removes a clip from the index', async () => {

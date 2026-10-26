@@ -6,6 +6,7 @@ import type { PoseSessionProps } from './pose-session';
 export type ProofClipStatus =
   | 'off'
   | 'armed'
+  | 'reserving'
   | 'recording'
   | 'finalizing'
   | 'saved'
@@ -30,6 +31,8 @@ export type ProofClipContext = {
   metric: MatchMetric;
   userChallengeId: string | null;
   matchId: string | null;
+  /** True once the metric and challenge or match are known, so a code can be reserved ahead of the set. */
+  isReady: boolean;
 };
 
 export type ProofClipRecording = {
@@ -41,7 +44,8 @@ export type ProofClipRecording = {
   finishProofToken: number;
   proofFailed: boolean;
   toggleRecordProof: (enabled: boolean) => void;
-  armForCounting: () => Promise<void>;
+  /** Starts the clip without blocking counting; recording begins once the code is in hand. */
+  armForCounting: () => void;
   requestFinish: () => void;
   waitUntilSettled: () => Promise<ProofClipOutcome>;
   handleProofRecorded: (event: ProofRecordedEvent) => Promise<void>;

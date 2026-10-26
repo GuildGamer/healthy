@@ -1,4 +1,5 @@
 import type { MatchMetric } from '@product/client';
+import type { ReserveProofClipInput } from '@product/contract';
 import { PROOF_CLIP_MAX_DURATION_SECONDS } from '@product/contract/proof-clip-limits';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProofRecordingConfig } from 'quickpose-camera';
@@ -14,7 +15,6 @@ import {
   markLocalProofClipServerRecorded,
   saveLocalProofClip,
 } from '@/lib/proof-clip-store';
-import type { PoseSessionProps } from './types/pose-session';
 import type {
   ProofClipContext,
   ProofClipOutcome,
@@ -24,25 +24,60 @@ import type {
 } from './types/proof-clip-recording';
 
 const SETTLE_TIMEOUT_MS = 10_000;
+/** A held code must outlive the longest set plus the record call that follows it. */
+const RESERVATION_HEADROOM_MS = PROOF_CLIP_MAX_DURATION_SECONDS * 1000 + 60_000;
 
 type SettleWaiter = {
   resolve: (outcome: ProofClipOutcome) => void;
   timer: ReturnType<typeof setTimeout>;
 };
 
-function reserveContext(props: PoseSessionProps, userChallengeId: string | null) {
+type Reservation = Awaited<ReturnType<typeof apiClient.reserveProofClip>>;
+
+type ReservationRequest = { key: string; input: ReserveProofClipInput };
+
+type HeldReservation = { key: string; promise: Promise<Reservation> };
+
+function reservationRequest(context: ProofClipContext): ReservationRequest | null {
+  const { props, metric, userChallengeId } = context;
   if (props.mode === 'match') {
-    return { kind: 'match' as const, matchId: props.matchId };
+    return {
+      key: `match:${props.matchId}:${metric}`,
+      input: { context: { kind: 'match', matchId: props.matchId }, metric },
+    };
   }
   if (props.mode === 'practice') {
-    return { kind: 'practice' as const, challengeId: props.challengeId };
+    return {
+      key: `practice:${props.challengeId}:${metric}`,
+      input: { context: { kind: 'practice', challengeId: props.challengeId }, metric },
+    };
   }
-  return { kind: 'challenge' as const, userChallengeId: userChallengeId! };
+  if (!userChallengeId) {
+    return null;
+  }
+  return {
+    key: `challenge:${userChallengeId}:${metric}`,
+    input: { context: { kind: 'challenge', userChallengeId }, metric },
+  };
+}
+
+function hasHeadroom(reservation: Reservation): boolean {
+  return Date.parse(reservation.reservedUntil) - Date.now() > RESERVATION_HEADROOM_MS;
+}
+
+function removeQuietly(clipId: string): void {
+  void apiClient.removeProofClip({ clipId }).catch(() => undefined);
+}
+
+function releaseHeld(held: HeldReservation): void {
+  void held.promise.then((reservation) => removeQuietly(reservation.clipId)).catch(() => undefined);
 }
 
 /**
- * Owns the proof-clip lifecycle for one pose set: arm → record → finalise →
- * save locally (then tell the server). Navigation waits on `waitUntilSettled`.
+ * Owns the proof-clip lifecycle for one pose set: hold a code → record →
+ * finalise → save locally (then tell the server). The code is reserved while
+ * the person sets up, so counting never waits on the network. Navigation waits
+ * on `waitUntilSettled`.
  */
 export function useProofClipRecording(
   context: ProofClipContext,
@@ -60,6 +95,9 @@ export function useProofClipRecording(
   const clipIdRef = useRef<string | null>(null);
   const metaRef = useRef<{ code: string; displayCode: string } | null>(null);
   const waiterRef = useRef<SettleWaiter | null>(null);
+  const heldRef = useRef<HeldReservation | null>(null);
+  /** Bumped whenever a pending reservation stops being wanted. */
+  const generationRef = useRef(0);
   const contextRef = useRef(context);
   contextRef.current = context;
 
@@ -71,6 +109,46 @@ export function useProofClipRecording(
     });
     void hasSeenProofExplainer().then((seen) => setShowProofExplainer(!seen));
   }, []);
+
+  const releaseHeldReservation = useCallback(() => {
+    const held = heldRef.current;
+    heldRef.current = null;
+    if (held) {
+      releaseHeld(held);
+    }
+  }, []);
+
+  const heldKey = context.isReady ? (reservationRequest(context)?.key ?? null) : null;
+
+  useEffect(() => {
+    if (status !== 'armed' || !heldKey || heldRef.current?.key === heldKey) {
+      return;
+    }
+    const request = reservationRequest(contextRef.current);
+    if (!request) {
+      return;
+    }
+
+    releaseHeldReservation();
+    const held: HeldReservation = {
+      key: request.key,
+      promise: apiClient.reserveProofClip(request.input),
+    };
+    heldRef.current = held;
+    held.promise.catch(() => {
+      if (heldRef.current === held) {
+        heldRef.current = null;
+      }
+    });
+  }, [heldKey, releaseHeldReservation, status]);
+
+  useEffect(
+    () => () => {
+      generationRef.current += 1;
+      releaseHeldReservation();
+    },
+    [releaseHeldReservation],
+  );
 
   const clearWaiter = useCallback((outcome: ProofClipOutcome) => {
     const waiter = waiterRef.current;
@@ -87,6 +165,13 @@ export function useProofClipRecording(
     setStatus(next);
   }, []);
 
+  const markFailed = useCallback(() => {
+    setStatusSync('failed');
+    setProofFailed(true);
+    setProofRecording(null);
+    clearWaiter('failed');
+  }, [clearWaiter, setStatusSync]);
+
   const toggleRecordProof = useCallback(
     (enabled: boolean) => {
       setRecordProof(enabled);
@@ -100,53 +185,102 @@ export function useProofClipRecording(
         return;
       }
 
+      releaseHeldReservation();
       if (statusRef.current === 'armed' || statusRef.current === 'off') {
         setStatusSync('off');
       }
     },
-    [setStatusSync],
+    [releaseHeldReservation, setStatusSync],
   );
 
-  const armForCounting = useCallback(async () => {
+  /** The held code when it still matches this set and has time left; otherwise a fresh one. */
+  const takeReservation = useCallback(async (): Promise<Reservation> => {
+    const request = reservationRequest(contextRef.current);
+    if (!request) {
+      throw new Error('This challenge is not on today’s list.');
+    }
+
+    const held = heldRef.current;
+    heldRef.current = null;
+    if (held && held.key === request.key) {
+      try {
+        const reservation = await held.promise;
+        if (hasHeadroom(reservation)) {
+          return reservation;
+        }
+        removeQuietly(reservation.clipId);
+      } catch {
+        // The early reserve failed; try once more now.
+      }
+    } else if (held) {
+      releaseHeld(held);
+    }
+
+    return apiClient.reserveProofClip(request.input);
+  }, []);
+
+  const armForCounting = useCallback(() => {
     setProofFailed(false);
     setProofClipId(null);
+    clipIdRef.current = null;
+    metaRef.current = null;
+    generationRef.current += 1;
+    const generation = generationRef.current;
 
     if (!recordProof) {
-      clipIdRef.current = null;
-      metaRef.current = null;
       setProofRecording(null);
       setStatusSync('off');
       return;
     }
 
-    const { props, metric, userChallengeId } = contextRef.current;
-    if (props.mode === 'challenge' && !userChallengeId) {
-      throw new Error('This challenge is not on today’s list.');
-    }
+    setStatusSync('reserving');
+    const { metric } = contextRef.current;
+    void takeReservation().then(
+      (reservation) => {
+        if (generationRef.current !== generation || statusRef.current !== 'reserving') {
+          removeQuietly(reservation.clipId);
+          return;
+        }
+        clipIdRef.current = reservation.clipId;
+        metaRef.current = { code: reservation.code, displayCode: reservation.displayCode };
+        setProofRecording({
+          code: reservation.displayCode,
+          label: MATCH_METRIC_LABEL[metric as MatchMetric],
+          maxDurationSeconds: PROOF_CLIP_MAX_DURATION_SECONDS,
+        });
+        setStatusSync('recording');
+      },
+      () => {
+        if (generationRef.current === generation) {
+          markFailed();
+        }
+      },
+    );
+  }, [markFailed, recordProof, setStatusSync, takeReservation]);
 
-    const reserved = await apiClient.reserveProofClip({
-      context: reserveContext(props, userChallengeId),
-      metric,
-    });
-    clipIdRef.current = reserved.clipId;
-    metaRef.current = { code: reserved.code, displayCode: reserved.displayCode };
-    setProofRecording({
-      code: reserved.displayCode,
-      label: MATCH_METRIC_LABEL[metric as MatchMetric],
-      maxDurationSeconds: PROOF_CLIP_MAX_DURATION_SECONDS,
-    });
-    setStatusSync('recording');
-  }, [recordProof, setStatusSync]);
+  /** A set that ended before its code arrived has no clip to finish. */
+  const abandonReserving = useCallback(() => {
+    generationRef.current += 1;
+    markFailed();
+  }, [markFailed]);
 
   const requestFinish = useCallback(() => {
+    if (statusRef.current === 'reserving') {
+      abandonReserving();
+      return;
+    }
     if (statusRef.current !== 'recording' || !clipIdRef.current) {
       return;
     }
     setStatusSync('finalizing');
     setFinishProofToken((token) => token + 1);
-  }, [setStatusSync]);
+  }, [abandonReserving, setStatusSync]);
 
   const waitUntilSettled = useCallback((): Promise<ProofClipOutcome> => {
+    if (statusRef.current === 'reserving') {
+      abandonReserving();
+    }
+
     const current = statusRef.current;
     if (current === 'saved') {
       return Promise.resolve('saved');
@@ -156,9 +290,6 @@ export function useProofClipRecording(
     }
     if (current === 'discarded') {
       return Promise.resolve('discarded');
-    }
-    if (current === 'off' || current === 'armed') {
-      return Promise.resolve('off');
     }
     if (current !== 'finalizing' && current !== 'recording') {
       return Promise.resolve('off');
@@ -183,7 +314,7 @@ export function useProofClipRecording(
       }, SETTLE_TIMEOUT_MS);
       waiterRef.current = { resolve, timer };
     });
-  }, [setStatusSync]);
+  }, [abandonReserving, setStatusSync]);
 
   const handleProofRecorded = useCallback(
     async (event: ProofRecordedEvent) => {
@@ -192,10 +323,7 @@ export function useProofClipRecording(
       const { props, userChallengeId, matchId } = contextRef.current;
 
       if (!clipId || !meta) {
-        setStatusSync('failed');
-        setProofFailed(true);
-        setProofRecording(null);
-        clearWaiter('failed');
+        markFailed();
         return;
       }
 
@@ -234,25 +362,20 @@ export function useProofClipRecording(
           // Local clip is already saved; upload will retry recordProofClip.
         }
       } catch {
-        setStatusSync('failed');
-        setProofFailed(true);
-        setProofRecording(null);
-        clearWaiter('failed');
+        markFailed();
       }
     },
-    [clearWaiter, getRepCount, setStatusSync],
+    [clearWaiter, getRepCount, markFailed, setStatusSync],
   );
 
   const handleProofRecordingError = useCallback(
     (_message: string) => {
-      setStatusSync('failed');
-      setProofFailed(true);
-      setProofRecording(null);
-      clearWaiter('failed');
+      markFailed();
     },
-    [clearWaiter, setStatusSync],
+    [markFailed],
   );
 
+  /** Leaving the session: drop the clip in flight and any code held for the next set. */
   const discardReservation = useCallback(async () => {
     const clipId = clipIdRef.current;
     const wasRecording =
@@ -264,8 +387,10 @@ export function useProofClipRecording(
       waiterRef.current = null;
     }
 
+    generationRef.current += 1;
+    releaseHeldReservation();
     setProofRecording(null);
-    setStatusSync(recordProof ? 'armed' : 'off');
+    setStatusSync('discarded');
     clipIdRef.current = null;
     metaRef.current = null;
 
@@ -276,7 +401,7 @@ export function useProofClipRecording(
         // Leaving still wins if the server call fails.
       }
     }
-  }, [recordProof, setStatusSync]);
+  }, [releaseHeldReservation, setStatusSync]);
 
   return {
     status,

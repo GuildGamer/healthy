@@ -116,6 +116,21 @@ describe('ProofClipActions', () => {
     ).toBeOnTheScreen();
   });
 
+  it('says a Photos copy still needs sharing before its code checks out', async () => {
+    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
+
+    render(<ProofClipActions clipId="clip-1" visibility="shared" />);
+    expect(screen.queryByTestId('proof-saved-hint')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('proof-save-photos'));
+    });
+
+    expect(screen.getByTestId('proof-saved-hint')).toHaveTextContent(
+      'Saved to Photos. Share the clip too so anyone can check its code.',
+    );
+  });
+
   it('treats a discarded clip as gone, not as a failed save', async () => {
     useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {

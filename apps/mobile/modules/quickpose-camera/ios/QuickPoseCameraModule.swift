@@ -4,6 +4,10 @@ public class QuickPoseCameraModule: Module {
   public func definition() -> ModuleDefinition {
     Name("QuickPoseCamera")
 
+    Constants {
+      ["proofClipsDirectoryUri": (try? ProofRecorder.durableDirectory())?.absoluteString ?? ""]
+    }
+
     View(HealthyQuickPoseView.self) {
       Events("onUpdate", "onProofRecorded", "onProofRecordingError")
 

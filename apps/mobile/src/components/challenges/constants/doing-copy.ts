@@ -128,6 +128,8 @@ export const POSE_COPY = {
   saveToPhotos: 'Save to Photos',
   savedToPhotos: 'Saved to Photos',
   saveToPhotosFailed: 'Could not save to Photos.',
+  savedNotShared: 'Saved to Photos. Share the clip too so anyone can check its code.',
+  savedNotPosted: 'Saved to Photos. Post it too so your group can check its code.',
 } as const;
 
 export const GYM_COPY = {

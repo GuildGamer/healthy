@@ -286,6 +286,7 @@ export function usePoseSession(props: PoseSessionProps) {
       metric,
       userChallengeId: occurrence?.id ?? null,
       matchId,
+      isReady: isMatch ? matchQuery.isSuccess : !isPending,
     },
     () => countRef.current,
   );
@@ -325,8 +326,12 @@ export function usePoseSession(props: PoseSessionProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
   });
 
+  /**
+   * Counting shows on the first rep. Starting the occurrence and the proof
+   * clip run behind it: saving retries the start, and the clip catches up.
+   */
   const beginCounting = useCallback(
-    async (options?: { preserveCounter?: boolean }) => {
+    (options?: { preserveCounter?: boolean }) => {
       if (props.mode === 'challenge' && !occurrence) {
         return;
       }
@@ -340,14 +345,6 @@ export function usePoseSession(props: PoseSessionProps) {
 
       const preserveCounter = options?.preserveCounter === true;
       autoStartLockRef.current = true;
-      try {
-        await startOccurrence.mutateAsync();
-        await proof.armForCounting();
-      } catch (error) {
-        autoStartLockRef.current = false;
-        throw error;
-      }
-
       startedAtRef.current = new Date().toISOString();
       // Remounting the camera mid-rep drops landmarks — only reset on manual start.
       if (!preserveCounter) {
@@ -357,6 +354,8 @@ export function usePoseSession(props: PoseSessionProps) {
       phaseRef.current = 'counting';
       start({ preserveCounter });
       setPhase('counting');
+      proof.armForCounting();
+      startOccurrence.mutate();
     },
     [camera.isReady, occurrence, proof, props.mode, start, startOccurrence],
   );
@@ -372,9 +371,7 @@ export function usePoseSession(props: PoseSessionProps) {
     }
 
     autoStartLockRef.current = true;
-    void beginCounting({ preserveCounter: true }).catch(() => {
-      autoStartLockRef.current = false;
-    });
+    beginCounting({ preserveCounter: true });
   }, [beginCounting, camera.isReady, phase, snapshot.bodyInFrame, snapshot.count, snapshot.phase]);
 
   function save() {
@@ -445,8 +442,8 @@ export function usePoseSession(props: PoseSessionProps) {
     toggleRecordProof: proof.toggleRecordProof,
     handleProofRecorded: proof.handleProofRecorded,
     handleProofRecordingError: proof.handleProofRecordingError,
-    startNow: () => void beginCounting(),
-    retry: () => void beginCounting(),
+    startNow: () => beginCounting(),
+    retry: () => beginCounting(),
     stopCounting: () => void stopCounting(),
     save,
     leave: () => {

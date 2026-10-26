@@ -1,5 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
+import { proofClipsDirectoryUri } from 'quickpose-camera';
 
+const PROOF_CLIPS_SEGMENT = '/proof-clips/';
 const INDEX_KEY = 'proof_clip_local_index_v1';
 /** Clips older than this are dropped from the local index (files may already be gone). */
 const LOCAL_CLIP_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -42,9 +44,28 @@ async function writeIndex(index: Index): Promise<void> {
   await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(index));
 }
 
+/**
+ * The index outlives reinstalls (SecureStore) but iOS gives the app a new
+ * container path, so a stored absolute URI points nowhere. Keep the file name
+ * and resolve it against this install's clip folder.
+ */
+export function resolveProofClipUri(uri: string, directoryUri: string | null): string {
+  if (!directoryUri || !uri.includes(PROOF_CLIPS_SEGMENT)) {
+    return uri;
+  }
+  const fileName = uri.slice(uri.lastIndexOf('/') + 1);
+  if (!fileName) {
+    return uri;
+  }
+  return `${directoryUri.replace(/\/+$/, '')}/${fileName}`;
+}
+
 function normalizeClip(clip: LocalProofClip): LocalProofClip {
+  const directoryUri = proofClipsDirectoryUri();
   return {
     ...clip,
+    fileUri: resolveProofClipUri(clip.fileUri, directoryUri),
+    posterUri: clip.posterUri ? resolveProofClipUri(clip.posterUri, directoryUri) : null,
     count: typeof clip.count === 'number' && Number.isFinite(clip.count) ? clip.count : 0,
     serverRecorded: clip.serverRecorded === true,
   };

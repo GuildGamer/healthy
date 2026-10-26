@@ -115,7 +115,11 @@ function VerifyResult({ result }: { result: VerifyProofCodeOutput }) {
             by camera
           </Text>
           {result.videoUrl ? (
-            <ProofVideoPlayer testID="verify-video" uri={result.videoUrl} />
+            <ProofVideoPlayer
+              posterUri={result.posterUrl}
+              testID="verify-video"
+              uri={result.videoUrl}
+            />
           ) : result.posterUrl ? (
             <Image source={{ uri: result.posterUrl }} style={styles.poster} />
           ) : null}

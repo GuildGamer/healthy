@@ -36,18 +36,36 @@ const context = {
   metric: 'pushups' as const,
   userChallengeId: 'uc-1',
   matchId: null,
+  isReady: true,
 };
+
+function reservation(clipId = 'clip-1') {
+  return {
+    clipId,
+    code: 'ABCDEFG',
+    displayCode: 'ABCD-EFG',
+    reservedUntil: new Date(Date.now() + 30 * 60_000).toISOString(),
+  };
+}
+
+async function renderArmed(getRepCount: () => number, hookContext = context) {
+  const rendered = renderHook(() => useProofClipRecording(hookContext, getRepCount));
+  await waitFor(() => expect(rendered.result.current.recordProof).toBe(true));
+  return rendered;
+}
+
+async function startRecording(result: { current: ReturnType<typeof useProofClipRecording> }) {
+  act(() => {
+    result.current.armForCounting();
+  });
+  await waitFor(() => expect(result.current.status).toBe('recording'));
+}
 
 describe('useProofClipRecording', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    mockedApi.reserveProofClip.mockResolvedValue({
-      clipId: 'clip-1',
-      code: 'ABCDEFG',
-      displayCode: 'ABCD-EFG',
-      reservedUntil: new Date(Date.now() + 30 * 60_000).toISOString(),
-    });
+    mockedApi.reserveProofClip.mockResolvedValue(reservation());
     mockedApi.recordProofClip.mockResolvedValue({
       clipId: 'clip-1',
       status: 'recorded',
@@ -60,15 +78,75 @@ describe('useProofClipRecording', () => {
     jest.useRealTimers();
   });
 
-  it('waits for onProofRecorded before resolving saved', async () => {
-    const { result } = renderHook(() => useProofClipRecording(context, () => 12));
+  it('holds a code during setup and uses it when counting starts', async () => {
+    const { result } = await renderArmed(() => 0);
+    await waitFor(() => expect(mockedApi.reserveProofClip).toHaveBeenCalledTimes(1));
 
-    await waitFor(() => expect(result.current.recordProof).toBe(true));
+    await startRecording(result);
+
+    expect(mockedApi.reserveProofClip).toHaveBeenCalledTimes(1);
+    expect(result.current.proofRecording).toEqual(
+      expect.objectContaining({ code: 'ABCD-EFG' }),
+    );
+  });
+
+  it('does not hold a code before the context is known', async () => {
+    await renderArmed(() => 0, { ...context, isReady: false });
+
+    expect(mockedApi.reserveProofClip).not.toHaveBeenCalled();
+  });
+
+  it('reserves on demand when the held code failed', async () => {
+    mockedApi.reserveProofClip
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(reservation('clip-2'));
+    const { result } = await renderArmed(() => 0);
+    await waitFor(() => expect(mockedApi.reserveProofClip).toHaveBeenCalledTimes(1));
+
+    await startRecording(result);
+
+    expect(mockedApi.reserveProofClip).toHaveBeenCalledTimes(2);
+    expect(result.current.clipIdRef.current).toBe('clip-2');
+  });
+
+  it('fails the clip and drops the code when the set ends before it arrives', async () => {
+    let resolveReserve: (value: ReturnType<typeof reservation>) => void = () => undefined;
+    mockedApi.reserveProofClip.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveReserve = resolve;
+        }),
+    );
+    const { result } = await renderArmed(() => 2, { ...context, isReady: false });
+
+    act(() => {
+      result.current.armForCounting();
+    });
+    expect(result.current.status).toBe('reserving');
+
+    let outcome: string | undefined;
+    act(() => {
+      result.current.requestFinish();
+      void result.current.waitUntilSettled().then((value) => {
+        outcome = value;
+      });
+    });
+
+    await waitFor(() => expect(outcome).toBe('failed'));
+    expect(result.current.proofFailed).toBe(true);
 
     await act(async () => {
-      await result.current.armForCounting();
+      resolveReserve(reservation());
     });
-    expect(result.current.status).toBe('recording');
+    await waitFor(() =>
+      expect(mockedApi.removeProofClip).toHaveBeenCalledWith({ clipId: 'clip-1' }),
+    );
+    expect(result.current.status).toBe('failed');
+  });
+
+  it('waits for onProofRecorded before resolving saved', async () => {
+    const { result } = await renderArmed(() => 12);
+    await startRecording(result);
 
     act(() => {
       result.current.requestFinish();
@@ -100,12 +178,8 @@ describe('useProofClipRecording', () => {
 
   it('saves locally even when recordProofClip rejects', async () => {
     mockedApi.recordProofClip.mockRejectedValueOnce(new Error('offline'));
-    const { result } = renderHook(() => useProofClipRecording(context, () => 8));
-
-    await waitFor(() => expect(result.current.recordProof).toBe(true));
-    await act(async () => {
-      await result.current.armForCounting();
-    });
+    const { result } = await renderArmed(() => 8);
+    await startRecording(result);
     act(() => {
       result.current.requestFinish();
     });
@@ -132,12 +206,8 @@ describe('useProofClipRecording', () => {
   });
 
   it('resolves failed after the settle timeout', async () => {
-    const { result } = renderHook(() => useProofClipRecording(context, () => 3));
-
-    await waitFor(() => expect(result.current.recordProof).toBe(true));
-    await act(async () => {
-      await result.current.armForCounting();
-    });
+    const { result } = await renderArmed(() => 3);
+    await startRecording(result);
     act(() => {
       result.current.requestFinish();
     });
@@ -158,18 +228,26 @@ describe('useProofClipRecording', () => {
   });
 
   it('calls removeProofClip when leaving mid-recording', async () => {
-    const { result } = renderHook(() => useProofClipRecording(context, () => 1));
-
-    await waitFor(() => expect(result.current.recordProof).toBe(true));
-    await act(async () => {
-      await result.current.armForCounting();
-    });
-    expect(result.current.status).toBe('recording');
+    const { result } = await renderArmed(() => 1);
+    await startRecording(result);
 
     await act(async () => {
       await result.current.discardReservation();
     });
 
     expect(mockedApi.removeProofClip).toHaveBeenCalledWith({ clipId: 'clip-1' });
+  });
+
+  it('releases a held code when leaving before counting', async () => {
+    const { result } = await renderArmed(() => 0);
+    await waitFor(() => expect(mockedApi.reserveProofClip).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.discardReservation();
+    });
+
+    await waitFor(() =>
+      expect(mockedApi.removeProofClip).toHaveBeenCalledWith({ clipId: 'clip-1' }),
+    );
   });
 });

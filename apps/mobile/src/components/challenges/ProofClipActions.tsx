@@ -1,13 +1,12 @@
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck';
-import { Glyph } from '@/components/icons';
 import { type Theme, useThemedStyles } from '@/theme';
 import { POSE_COPY } from './constants/doing-copy';
+import { ProofPlayBadge } from './ProofPlayBadge';
 import type { ProofClipVisibility } from './types/proof-clip-recording';
 import { type ProofClipState, useProofClip } from './useProofClip';
 
-const PLAY_BADGE_SIZE = 56;
 const PANEL_POSTER_MAX_HEIGHT = 220;
 
 /**
@@ -39,9 +38,7 @@ export function ProofClipHero({ proof, fill = false }: { proof: ProofClipState; 
         {clip.posterUri ? (
           <Image source={{ uri: clip.posterUri }} style={StyleSheet.absoluteFill} />
         ) : null}
-        <View style={styles.playBadge}>
-          <Glyph color="#FFFFFF" name="play" size={24} />
-        </View>
+        <ProofPlayBadge />
       </Pressable>
       <View style={styles.caption}>
         <Text style={styles.code}>{clip.displayCode}</Text>
@@ -68,22 +65,31 @@ export function ProofClipPrimaryRow({ proof }: { proof: ProofClipState }) {
   }
 
   return (
-    <View style={styles.primaryRow}>
-      <DeckButton
-        isFlexible
-        label={proof.publishLabel}
-        loading={proof.isBusy}
-        onPress={proof.publish}
-        testID="proof-publish"
-      />
-      <DeckRoundButton
-        accessibilityLabel={proof.hasSavedToPhotos ? POSE_COPY.savedToPhotos : POSE_COPY.saveToPhotos}
-        disabled={proof.isBusy || proof.hasSavedToPhotos}
-        glyph={proof.hasSavedToPhotos ? 'check' : 'download'}
-        onPress={proof.saveToPhotos}
-        onSurface
-        testID="proof-save-photos"
-      />
+    <View style={styles.primaryBlock}>
+      <View style={styles.primaryRow}>
+        <DeckButton
+          isFlexible
+          label={proof.publishLabel}
+          loading={proof.isBusy}
+          onPress={proof.publish}
+          testID="proof-publish"
+        />
+        <DeckRoundButton
+          accessibilityLabel={
+            proof.hasSavedToPhotos ? POSE_COPY.savedToPhotos : POSE_COPY.saveToPhotos
+          }
+          disabled={proof.isBusy || proof.hasSavedToPhotos}
+          glyph={proof.hasSavedToPhotos ? 'check' : 'download'}
+          onPress={proof.saveToPhotos}
+          onSurface
+          testID="proof-save-photos"
+        />
+      </View>
+      {proof.savedHint ? (
+        <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-saved-hint">
+          {proof.savedHint}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -157,14 +163,6 @@ const createStyles = (theme: Theme) =>
     pressed: {
       opacity: 0.85,
     },
-    playBadge: {
-      width: PLAY_BADGE_SIZE,
-      height: PLAY_BADGE_SIZE,
-      borderRadius: PLAY_BADGE_SIZE / 2,
-      backgroundColor: 'rgba(0, 0, 0, 0.45)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     caption: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -180,10 +178,18 @@ const createStyles = (theme: Theme) =>
       fontSize: fontSize.sm,
       fontWeight: fontWeight.medium,
     },
+    primaryBlock: {
+      gap: spacing.sm,
+    },
     primaryRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
+    },
+    hint: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
     },
     error: {
       color: theme.colors.danger,

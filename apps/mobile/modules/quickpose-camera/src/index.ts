@@ -1,4 +1,4 @@
-import { requireNativeViewManager } from 'expo-modules-core';
+import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
 import type { ComponentType } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 
@@ -53,3 +53,12 @@ export type QuickPoseCameraViewProps = {
 
 export const QuickPoseCameraView: ComponentType<QuickPoseCameraViewProps> =
   requireNativeViewManager('QuickPoseCamera');
+
+const nativeModule = requireOptionalNativeModule<{ proofClipsDirectoryUri?: string }>(
+  'QuickPoseCamera',
+);
+
+/** This install's folder for finished proof clips, or null where the native side does not record. */
+export function proofClipsDirectoryUri(): string | null {
+  return nativeModule?.proofClipsDirectoryUri || null;
+}

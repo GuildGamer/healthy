@@ -134,7 +134,7 @@ export default function ProofClipViewerRoute() {
       ) : (
         <View style={styles.body}>
           {videoUri ? (
-            <ProofVideoPlayer uri={videoUri} />
+            <ProofVideoPlayer posterUri={posterUri} uri={videoUri} />
           ) : posterUri ? (
             <Image source={{ uri: posterUri }} style={styles.poster} />
           ) : (

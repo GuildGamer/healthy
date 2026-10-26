@@ -27,8 +27,12 @@ final class ProofRecorder {
   private var writer: AVAssetWriter?
   private var input: AVAssetWriterInput?
   private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
-  private var startedAt: CFTimeInterval = 0
+  /// The clip's time zero. A session that starts before its first frame plays black until that frame.
+  private var firstFrameAt: CFTimeInterval?
   private var lastFrameSeconds: Double?
+  /// One frame in flight at most: a queued frame holds a camera buffer, and a backlog starves the camera and QuickPose.
+  private let inFlightLock = NSLock()
+  private var isFrameInFlight = false
   private var outputURL: URL?
   private var posterURL: URL?
   private var posterCaptured = false
@@ -96,7 +100,7 @@ final class ProofRecorder {
     writer = assetWriter
     input = videoInput
     adaptor = pixelAdaptor
-    startedAt = CACurrentMediaTime()
+    firstFrameAt = nil
     lastFrameSeconds = nil
     outputURL = videoURL
     posterURL = poster
@@ -117,12 +121,16 @@ final class ProofRecorder {
   /// A frame without a camera image is skipped rather than written as black.
   func append(cameraFrame: CVPixelBuffer?) {
     guard isRecording, let writer, writer.status == .writing, let cameraFrame else { return }
-    let elapsedSeconds = CACurrentMediaTime() - startedAt
+    guard claimFrameSlot() else { return }
+    let capturedAt = CACurrentMediaTime()
 
     writeQueue.async { [weak self] in
-      guard let self, self.isRecording else { return }
+      guard let self else { return }
+      defer { self.releaseFrameSlot() }
+      guard self.isRecording else { return }
       guard let input = self.input, input.isReadyForMoreMediaData else { return }
       guard let adaptor = self.adaptor else { return }
+      let elapsedSeconds = self.firstFrameAt.map { capturedAt - $0 } ?? 0
       guard self.isDueForFrame(at: elapsedSeconds) else { return }
       guard let camera = self.cameraImage(from: cameraFrame) else { return }
 
@@ -136,6 +144,9 @@ final class ProofRecorder {
       let time = CMTime(seconds: elapsedSeconds, preferredTimescale: Self.timescale)
 
       if adaptor.append(buffer, withPresentationTime: time) {
+        if self.firstFrameAt == nil {
+          self.firstFrameAt = capturedAt
+        }
         self.lastFrameSeconds = elapsedSeconds
         if !self.posterCaptured, let posterURL = self.posterURL,
            let jpeg = composed.jpegData(compressionQuality: 0.7)
@@ -145,6 +156,20 @@ final class ProofRecorder {
         }
       }
     }
+  }
+
+  private func claimFrameSlot() -> Bool {
+    inFlightLock.lock()
+    defer { inFlightLock.unlock() }
+    if isFrameInFlight { return false }
+    isFrameInFlight = true
+    return true
+  }
+
+  private func releaseFrameSlot() {
+    inFlightLock.lock()
+    isFrameInFlight = false
+    inFlightLock.unlock()
   }
 
   /// Real elapsed time keeps playback at the speed it happened; the gap caps the clip at 15 fps.
@@ -218,8 +243,9 @@ final class ProofRecorder {
     }
   }
 
-  /// Moves a finished temp file into Application Support so iOS will not purge it.
-  private static func moveToApplicationSupport(from source: URL, kind: String) throws -> URL {
+  /// Where finished clips live. iOS moves the app container on reinstall and update,
+  /// so JS rebuilds stored file URIs against this rather than trusting old absolute paths.
+  static func durableDirectory() throws -> URL {
     let support = try FileManager.default.url(
       for: .applicationSupportDirectory,
       in: .userDomainMask,
@@ -233,7 +259,12 @@ final class ProofRecorder {
     resourceValues.isExcludedFromBackup = true
     var directoryForBackup = directory
     try directoryForBackup.setResourceValues(resourceValues)
+    return directory
+  }
 
+  /// Moves a finished temp file into Application Support so iOS will not purge it.
+  private static func moveToApplicationSupport(from source: URL, kind: String) throws -> URL {
+    let directory = try durableDirectory()
     let stamp = Int(Date().timeIntervalSince1970 * 1000)
     let ext = source.pathExtension.isEmpty ? (kind == "poster" ? "jpg" : "mp4") : source.pathExtension
     let destination = directory.appendingPathComponent("\(kind)-\(stamp).\(ext)")
@@ -262,6 +293,7 @@ final class ProofRecorder {
     writer = nil
     input = nil
     adaptor = nil
+    firstFrameAt = nil
     lastFrameSeconds = nil
   }
 
