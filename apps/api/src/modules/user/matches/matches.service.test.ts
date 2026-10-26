@@ -1260,6 +1260,7 @@ describe('MatchesService', () => {
     });
 
     expect(created.match.title).toBe('Acme March challenge');
+    expect(created.match.hostTitle).toBe('Acme March challenge');
   });
 
   it('seats a saved crew pending, so nobody is scored before accepting', async () => {

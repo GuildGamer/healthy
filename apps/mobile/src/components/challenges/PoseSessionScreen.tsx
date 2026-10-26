@@ -1,6 +1,14 @@
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useKeepAwake } from 'expo-keep-awake';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  type LayoutChangeEvent,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeckButton, DeckNavButton } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
@@ -21,6 +29,10 @@ import { type PoseSession, type PoseSessionProps, usePoseSession } from './usePo
 export type PoseSessionScreenProps = PoseSessionProps;
 
 const GUIDE_WIDTH = 230;
+const GUIDE_TOP = '18%';
+/** Fallback until the bottom panel reports its height. */
+const GUIDE_BOTTOM_FALLBACK = '28%';
+const GUIDE_GAP = 12;
 
 function pillLabel(props: PoseSessionProps, target: number): string {
   if (props.mode === 'practice') {
@@ -37,15 +49,20 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
 
   const styles = useThemedStyles(createStyles);
   const session = usePoseSession(props);
+  const [panelHeight, setPanelHeight] = useState(0);
 
   if (session.isLoading) {
     return <ScreenLoader />;
   }
 
+  const isRecording = session.proofStatus === 'recording';
+
   return (
     <View style={styles.screen} testID="pose-session-screen">
       <PoseCamera session={session} />
-      {session.phase === 'setup' ? <BodyGuide fits={session.snapshot.bodyInFrame} /> : null}
+      {session.phase === 'setup' ? (
+        <BodyGuide fits={session.snapshot.bodyInFrame} panelHeight={panelHeight} />
+      ) : null}
       {session.phase === 'counting' ? (
         <PoseCountHud
           count={session.snapshot.count}
@@ -53,8 +70,16 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
           target={session.target}
         />
       ) : null}
-      <PoseTopBar label={pillLabel(props, session.target)} onClose={session.leave} />
-      <PoseBottom mode={props.mode} session={session} />
+      <PoseTopBar
+        isRecording={isRecording}
+        label={pillLabel(props, session.target)}
+        onClose={session.leave}
+      />
+      <PoseBottom
+        mode={props.mode}
+        onPanelLayout={(event) => setPanelHeight(event.nativeEvent.layout.height)}
+        session={session}
+      />
     </View>
   );
 }
@@ -100,18 +125,28 @@ function PoseCamera({ session }: { session: PoseSession }) {
 }
 
 /** Where to be: dashed until you fit, then solid in the done colour. */
-function BodyGuide({ fits }: { fits: boolean }) {
+function BodyGuide({ fits, panelHeight }: { fits: boolean; panelHeight: number }) {
   const styles = useThemedStyles(createStyles);
+  const bottom = panelHeight > 0 ? panelHeight + GUIDE_GAP : GUIDE_BOTTOM_FALLBACK;
+
   return (
     <View
       pointerEvents="none"
-      style={[styles.guide, fits ? styles.guideFits : null]}
+      style={[styles.guide, { bottom }, fits ? styles.guideFits : null]}
       testID="pose-guide"
     />
   );
 }
 
-function PoseTopBar({ label, onClose }: { label: string; onClose: () => void }) {
+function PoseTopBar({
+  label,
+  onClose,
+  isRecording,
+}: {
+  label: string;
+  onClose: () => void;
+  isRecording: boolean;
+}) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
 
@@ -124,27 +159,47 @@ function PoseTopBar({ label, onClose }: { label: string; onClose: () => void }) 
         overCamera
         testID="pose-back"
       />
-      <Text style={styles.pill}>{label}</Text>
+      <View style={styles.topCentre}>
+        <Text style={styles.pill}>{label}</Text>
+        {isRecording ? (
+          <View style={styles.recPill} testID="proof-recording-dot">
+            <View style={styles.recordingDot} />
+            <Text style={styles.recLabel}>{POSE_COPY.proofRecording}</Text>
+          </View>
+        ) : null}
+      </View>
       <View style={styles.topSpacer} />
     </View>
   );
 }
 
-function PoseBottom({ session, mode }: { session: PoseSession; mode: PoseSessionProps['mode'] }) {
+function PoseBottom({
+  session,
+  mode,
+  onPanelLayout,
+}: {
+  session: PoseSession;
+  mode: PoseSessionProps['mode'];
+  onPanelLayout: (event: LayoutChangeEvent) => void;
+}) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const paddingBottom = Math.max(insets.bottom, spacing.md) + spacing.md;
 
   if (session.phase === 'review') {
     return (
-      <View style={[styles.panel, { bottom: paddingBottom }]} testID="pose-review">
+      <View
+        onLayout={onPanelLayout}
+        style={[styles.panel, { bottom: paddingBottom }]}
+        testID="pose-review"
+      >
         <PoseReview mode={mode} session={session} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.fade, { paddingBottom }]}>
+    <View onLayout={onPanelLayout} style={[styles.fade, { paddingBottom }]}>
       {session.phase === 'counting' ? (
         <View style={styles.stop}>
           <DeckButton
@@ -174,7 +229,8 @@ function PoseSetupHint({ session }: { session: PoseSession }) {
       <Text style={styles.hintSub} testID="pose-status">
         {sub}
       </Text>
-      <ProofRecordChip session={session} />
+      <View style={styles.setupDivider} />
+      <ProofClipRow session={session} />
       <DeckButton
         label={POSE_COPY.startNow}
         loading={session.isStarting}
@@ -186,27 +242,30 @@ function PoseSetupHint({ session }: { session: PoseSession }) {
   );
 }
 
-function ProofRecordChip({ session }: { session: PoseSession }) {
+function ProofClipRow({ session }: { session: PoseSession }) {
+  const { camera, colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const isRecording = session.proofStatus === 'recording';
-  const label = isRecording
-    ? POSE_COPY.proofRecording
-    : session.recordProof
-      ? POSE_COPY.proofClipOn
-      : POSE_COPY.proofClipOff;
+  const isOn = session.recordProof;
 
   return (
-    <View style={styles.proofChipWrap} testID="proof-record-chip">
-      <DeckButton
-        label={label}
-        onPress={() => session.toggleRecordProof(!session.recordProof)}
+    <View style={styles.proofRow} testID="proof-record-chip">
+      <View style={styles.proofGlyph}>
+        <View style={[styles.proofGlyphDot, isOn ? styles.proofGlyphDotOn : null]} />
+      </View>
+      <View style={styles.proofText}>
+        <Text style={styles.proofTitle}>{POSE_COPY.proofClip}</Text>
+        <Text style={styles.proofNote}>
+          {session.showProofExplainer ? POSE_COPY.proofHint : POSE_COPY.proofClipNote}
+        </Text>
+      </View>
+      <Switch
+        accessibilityLabel={POSE_COPY.proofClip}
+        onValueChange={(next) => session.toggleRecordProof(next)}
         testID="toggle-proof-record"
-        variant={session.recordProof || isRecording ? 'cameraSolid' : 'quiet'}
+        thumbColor={camera.text}
+        trackColor={{ false: colors.tickIdle, true: colors.accent }}
+        value={isOn}
       />
-      {isRecording ? <View style={styles.recordingDot} testID="proof-recording-dot" /> : null}
-      {session.showProofExplainer || session.recordProof ? (
-        <Text style={styles.proofHint}>{POSE_COPY.proofHint}</Text>
-      ) : null}
     </View>
   );
 }
@@ -295,16 +354,45 @@ const createStyles = (theme: Theme) =>
       textAlign: 'center',
       paddingHorizontal: spacing.lg,
     },
-    proofChipWrap: {
+    proofRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.xs,
-      marginBottom: spacing.sm,
-      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+      alignSelf: 'stretch',
+      marginBottom: spacing.md,
+      paddingHorizontal: spacing.xs,
     },
-    proofHint: {
+    proofGlyph: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.camera.pill,
+    },
+    proofGlyphDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: theme.camera.subtext,
+    },
+    proofGlyphDotOn: {
+      backgroundColor: '#E5484D',
+    },
+    proofText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    proofTitle: {
+      color: theme.camera.text,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.semibold,
+    },
+    proofNote: {
       color: theme.camera.subtext,
       fontSize: fontSize.xs,
-      textAlign: 'center',
+      lineHeight: 16,
     },
     recordingDot: {
       width: 8,
@@ -315,8 +403,7 @@ const createStyles = (theme: Theme) =>
     guide: {
       position: 'absolute',
       alignSelf: 'center',
-      top: '18%',
-      bottom: '22%',
+      top: GUIDE_TOP,
       width: GUIDE_WIDTH,
       borderWidth: 2.5,
       borderStyle: 'dashed',
@@ -338,6 +425,11 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'space-between',
     },
+    topCentre: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     pill: {
       color: theme.camera.text,
       backgroundColor: theme.camera.pill,
@@ -347,6 +439,21 @@ const createStyles = (theme: Theme) =>
       paddingVertical: spacing.sm,
       borderRadius: radii.full,
       overflow: 'hidden',
+    },
+    recPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: theme.camera.pill,
+      paddingHorizontal: 10,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.full,
+    },
+    recLabel: {
+      color: theme.camera.text,
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: 0.6,
     },
     topSpacer: {
       width: 40,
@@ -360,6 +467,13 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 22,
       alignItems: 'center',
       backgroundColor: theme.camera.pill,
+    },
+    setupDivider: {
+      alignSelf: 'stretch',
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.camera.subtext,
+      opacity: 0.35,
+      marginVertical: spacing.md,
     },
     stop: {
       width: 140,

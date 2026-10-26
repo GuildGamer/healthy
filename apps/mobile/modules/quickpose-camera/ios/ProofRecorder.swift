@@ -301,25 +301,38 @@ final class ProofRecorder {
       withAttributes: brandAttrs
     )
 
-    // Top-right: verification code
-    let code = proof.code as NSString
+    // Top-right: code + verify URL so anyone watching knows where to check it
+    let codeLine = proof.code as NSString
+    let urlLine = "gethealthyapp.com/v/\(proof.code)" as NSString
     let codeAttrs: [NSAttributedString.Key: Any] = [
       .font: UIFont.monospacedSystemFont(ofSize: 15, weight: .semibold),
       .foregroundColor: UIColor.white,
     ]
-    let codeSize = code.size(withAttributes: codeAttrs)
+    let urlAttrs: [NSAttributedString.Key: Any] = [
+      .font: UIFont.systemFont(ofSize: 11, weight: .medium),
+      .foregroundColor: UIColor.white.withAlphaComponent(0.85),
+    ]
+    let codeSize = codeLine.size(withAttributes: codeAttrs)
+    let urlSize = urlLine.size(withAttributes: urlAttrs)
+    let chipWidth = max(codeSize.width, urlSize.width) + 24
+    let chipBlockHeight = codeSize.height + urlSize.height + 14
     let codeRect = CGRect(
-      x: rect.width - padding - codeSize.width - 24,
+      x: rect.width - padding - chipWidth,
       y: padding + 8,
-      width: codeSize.width + 24,
-      height: chipHeight
+      width: chipWidth,
+      height: max(chipHeight, chipBlockHeight)
     )
     let codePath = UIBezierPath(roundedRect: codeRect, cornerRadius: 10)
     UIColor.black.withAlphaComponent(0.55).setFill()
     codePath.fill()
-    code.draw(
-      at: CGPoint(x: codeRect.minX + 12, y: codeRect.midY - codeSize.height / 2),
+    let codeY = codeRect.minY + 7
+    codeLine.draw(
+      at: CGPoint(x: codeRect.maxX - 12 - codeSize.width, y: codeY),
       withAttributes: codeAttrs
+    )
+    urlLine.draw(
+      at: CGPoint(x: codeRect.maxX - 12 - urlSize.width, y: codeY + codeSize.height + 2),
+      withAttributes: urlAttrs
     )
 
     // Bottom-centre: live count + label + date

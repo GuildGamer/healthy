@@ -543,6 +543,7 @@ export class MatchesService {
           .filter((standing) => !standing.isYou)
           .map((standing) => standing.displayName),
       ),
+      hostTitle: match.title?.trim() || null,
       metric: board.metric,
       scoringMode: board.scoringMode,
       dailyScope: board.dailyScope,
@@ -1216,6 +1217,7 @@ export class MatchesService {
       token: match.inviteToken,
       inviteUrl: this.inviteUrlFor(match.inviteToken),
       title: this.contestTitleFor(match, opponentNames),
+      hostTitle: match.title?.trim() || null,
       metric: match.metric,
       scoringMode: match.scoringMode,
       dailyScope: match.dailyScope,

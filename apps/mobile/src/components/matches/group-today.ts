@@ -53,14 +53,59 @@ export function todayTally(standings: readonly MatchStanding[]): { done: number;
   };
 }
 
-/** The group named by its other members, "Ada, Tunde +3", or by its activity while you wait. */
-export function groupTitle(standings: readonly MatchStanding[], rules: GroupRules): string {
+type GroupTitleSource = GroupRules & { hostTitle?: string | null };
+
+/**
+ * What the group is called on the board and in lists. Prefers the host-written
+ * name; otherwise "You vs Joseph" for two, "You, Ada, Tunde +2" for more, or
+ * the waiting title before anyone joins.
+ */
+export function groupTitle(standings: readonly MatchStanding[], rules: GroupTitleSource): string {
+  const hostTitle = rules.hostTitle?.trim();
+  if (hostTitle) {
+    return hostTitle;
+  }
+
   const others = standings.filter((standing) => !standing.isYou);
   if (others.length === 0) {
     return BOARD_COPY.waitingTitle(groupNoun(rules));
   }
 
-  return crewLabel(others.map((standing) => standing.displayName));
+  if (others.length === 1) {
+    return BOARD_COPY.versusTitle(others[0]!.displayName);
+  }
+
+  return BOARD_COPY.withOthersTitle(crewLabel(others.map((standing) => standing.displayName)));
+}
+
+/** Top non-pending score and who holds it, for the board hero. */
+export type GroupBest = {
+  score: number;
+  /** "You", a first name, or "Tied" when several share the top. */
+  holder: string;
+};
+
+export function groupBest(standings: readonly MatchStanding[]): GroupBest | null {
+  const playing = standings.filter((standing) => !standing.isPending);
+  const topScore = Math.max(0, ...playing.map((standing) => standing.score));
+  if (topScore <= 0) {
+    return null;
+  }
+
+  const holders = playing.filter((standing) => standing.score === topScore);
+  if (holders.length === 0) {
+    return null;
+  }
+
+  if (holders.length > 1) {
+    return { score: topScore, holder: BOARD_COPY.groupBestTied };
+  }
+
+  const sole = holders[0]!;
+  return {
+    score: topScore,
+    holder: sole.isYou ? BOARD_COPY.you : sole.displayName,
+  };
 }
 
 /** "2nd", once somebody has scored. Before that a place is one nobody earned. */

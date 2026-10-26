@@ -101,6 +101,15 @@ export const BOARD_COPY = {
   waitingTitle: (groupNoun: string) => `Your ${groupNoun} group`,
   waitingBody: (rule: string) =>
     `${rule} Nobody has joined yet. Send the link and the board fills as they go.`,
+  /** Two-person group with no host-written name. */
+  versusTitle: (other: string) => `You vs ${other}`,
+  /** Larger unnamed group: "You, Ada, Tunde +2". */
+  withOthersTitle: (othersLabel: string) => `You, ${othersLabel}`,
+  groupBest: 'Group best',
+  groupBestTied: 'Tied',
+  noScoreYet: 'No score yet',
+  yourDays: 'Your days',
+  verifyClip: 'Got a code? Verify a clip',
   seats: (count: number) => `${count} of ${MATCH_PARTICIPANT_CAP}`,
   cancelledBody: 'This group was cancelled. Scores logged before then stay here.',
   seeResult: 'See the result',

@@ -182,6 +182,12 @@ export const matchBoardSchema = z.object({
    * Optional for older API builds that omitted it.
    */
   title: z.string().min(1).optional(),
+  /**
+   * The name the host typed when creating the contest, or null when they left
+   * it blank. Distinct from `title`, which falls back to participant names.
+   * Optional for older API builds.
+   */
+  hostTitle: z.string().min(1).nullable().optional(),
   metric: matchMetricSchema,
   scoringMode: matchScoringModeSchema,
   /** Which finished days count. Only meaningful under `days_completed`. */
@@ -304,6 +310,12 @@ export const matchMoveSchema = z.object({
 export const matchListItemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
+  /**
+   * The name the host typed when creating the contest, or null when they left
+   * it blank. Distinct from `title`, which falls back to participant names.
+   * Optional for older API builds.
+   */
+  hostTitle: z.string().min(1).nullable().optional(),
   metric: matchMetricSchema,
   scoringMode: matchScoringModeSchema,
   dailyScope: matchDailyScopeSchema,

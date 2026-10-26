@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DeckSectionTitle } from '@/components/deck';
 import { apiClient } from '@/lib/api';
 import { type Theme, useThemedStyles } from '@/theme';
+import { BOARD_COPY } from './match-copy';
 
 /** Today's posted proof clips for this group — a play affordance, not a feed. */
 export function GroupProofClips({ matchId }: { matchId: string }) {
@@ -16,34 +17,43 @@ export function GroupProofClips({ matchId }: { matchId: string }) {
   });
 
   const clips = clipsQuery.data?.clips ?? [];
-  if (clips.length === 0) {
-    return null;
-  }
 
   return (
     <View testID="group-proof-clips">
-      <DeckSectionTitle label="Proof today" />
-      {clips.map((clip, index) => (
-        <Pressable
-          key={clip.id}
-          accessibilityRole="button"
-          onPress={() =>
-            router.push({
-              pathname: '/proof/[clipId]',
-              params: { clipId: clip.id },
-            } as unknown as Href)
-          }
-          style={[styles.row, index === clips.length - 1 ? styles.rowLast : null]}
-          testID={`group-proof-clip-${clip.id}`}
-        >
-          <Text style={styles.play}>▶</Text>
-          <View style={styles.meta}>
-            <Text style={styles.name}>{clip.displayName}</Text>
-            <Text style={styles.code}>{clip.displayCode}</Text>
-          </View>
-          <Text style={styles.count}>{clip.count}</Text>
-        </Pressable>
-      ))}
+      {clips.length > 0 ? (
+        <>
+          <DeckSectionTitle label="Proof today" />
+          {clips.map((clip, index) => (
+            <Pressable
+              key={clip.id}
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: '/proof/[clipId]',
+                  params: { clipId: clip.id },
+                } as unknown as Href)
+              }
+              style={[styles.row, index === clips.length - 1 ? styles.rowLast : null]}
+              testID={`group-proof-clip-${clip.id}`}
+            >
+              <Text style={styles.play}>▶</Text>
+              <View style={styles.meta}>
+                <Text style={styles.name}>{clip.displayName}</Text>
+                <Text style={styles.code}>{clip.displayCode}</Text>
+              </View>
+              <Text style={styles.count}>{clip.count}</Text>
+            </Pressable>
+          ))}
+        </>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/v/new' as Href)}
+        style={[styles.verifyRow, clips.length > 0 ? styles.verifyAfterClips : null]}
+        testID="group-verify-clip"
+      >
+        <Text style={styles.verifyLabel}>{BOARD_COPY.verifyClip}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -83,5 +93,18 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
       fontSize: fontSize.md,
       fontWeight: '600',
+    },
+    verifyRow: {
+      paddingVertical: spacing.sm,
+    },
+    verifyAfterClips: {
+      marginTop: spacing.xs,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+      paddingTop: spacing.md,
+    },
+    verifyLabel: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
     },
   });

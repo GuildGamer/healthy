@@ -4,6 +4,8 @@ import { MATCH_METRIC_UNIT } from './match-metric';
 
 export type InviteMessageInput = {
   hostScore?: number | null;
+  /** Host-typed contest name; omitted when they left it blank. */
+  hostTitle?: string | null;
   metric: MatchMetric;
   scoringMode: MatchScoringMode;
   endsAt?: string | Date | null;
@@ -71,6 +73,11 @@ function deadlinePhrase(endsAt: string | Date | null | undefined, now: Date): st
   return null;
 }
 
+function withHostTitle(hostTitle: string | null | undefined, body: string): string {
+  const trimmed = hostTitle?.trim();
+  return trimmed ? `${trimmed}: ${body}` : body;
+}
+
 /**
  * Competitive share text for a contest invite. The URL is appended by the
  * share helper — this is the message only.
@@ -82,8 +89,14 @@ export function inviteShareMessage(input: InviteMessageInput, now = new Date()):
 
   if (input.hostScore != null && input.hostScore > 0) {
     const unit = MATCH_METRIC_UNIT[input.metric];
-    return `I did ${input.hostScore} ${unit}. Think you can beat me? ${winLine}`;
+    return withHostTitle(
+      input.hostTitle,
+      `I did ${input.hostScore} ${unit}. Think you can beat me? ${winLine}`,
+    );
   }
 
-  return `I just started a ${ACTIVITY_CONTEST[input.metric]} contest. Think you can beat me? ${winLine}`;
+  return withHostTitle(
+    input.hostTitle,
+    `I just started a ${ACTIVITY_CONTEST[input.metric]} contest. Think you can beat me? ${winLine}`,
+  );
 }

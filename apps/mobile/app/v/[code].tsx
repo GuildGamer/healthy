@@ -74,8 +74,8 @@ export default function VerifyProofCodeRoute() {
       {!result ? (
         <View style={styles.form}>
           <Text style={styles.lede}>
-            Enter the code burned into the video. Healthy will show whether the
-            original is still on file.
+            Enter the code burned into the video. If you copied it, it fills in
+            here. Healthy will show whether the original is still on file.
           </Text>
           <TextInput
             autoCapitalize="characters"

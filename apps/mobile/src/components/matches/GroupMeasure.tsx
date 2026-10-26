@@ -1,4 +1,4 @@
-import { fontWeight, radii, spacing } from '@product/brand';
+import { fontWeight } from '@product/brand';
 import { StyleSheet, Text, View } from 'react-native';
 import { type Theme, useThemedStyles } from '@/theme';
 
@@ -8,36 +8,39 @@ interface GroupMeasureProps {
   /** Plain count, or a hold formatted as m:ss. */
   score: string | number;
   unit: string;
-  /** "2nd", or null while there is no place to hold. */
-  place: string | null;
+  /** "Group best · You", or "No score yet" before anyone has scored. */
+  caption: string;
   /** Clinic white draws the number in the group's colour. */
   numeralColor?: string;
 }
 
-/** Your score as the card's one big number, with your place beside it. */
-export function GroupMeasure({ score, unit, place, numeralColor }: GroupMeasureProps) {
+/** The board card's one big number — the group's best so far — with a caption. */
+export function GroupMeasure({ score, unit, caption, numeralColor }: GroupMeasureProps) {
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={styles.row} testID="match-board-measure">
-      <Text style={[styles.numeral, numeralColor ? { color: numeralColor } : null]}>{score}</Text>
-      {unit ? <Text style={styles.unit}>{unit}</Text> : null}
-      {place ? (
-        <Text style={styles.place} testID="match-board-place">
-          {place}
-        </Text>
-      ) : null}
+    <View style={styles.block} testID="match-board-measure">
+      <View style={styles.row}>
+        <Text style={[styles.numeral, numeralColor ? { color: numeralColor } : null]}>{score}</Text>
+        {unit ? <Text style={styles.unit}>{unit}</Text> : null}
+      </View>
+      <Text style={styles.caption} testID="match-board-caption">
+        {caption}
+      </Text>
     </View>
   );
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
+    block: {
+      marginTop: 14,
+      gap: 6,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'baseline',
       gap: 10,
-      marginTop: 14,
     },
     numeral: {
       color: theme.deckCards.text,
@@ -51,16 +54,9 @@ const createStyles = (theme: Theme) =>
       color: theme.deckCards.subtext,
       fontSize: 15,
     },
-    place: {
-      marginLeft: 'auto',
-      color: theme.deckCards.text,
-      backgroundColor: theme.deckCards.track,
-      borderRadius: radii.md,
-      overflow: 'hidden',
-      paddingHorizontal: 11,
-      paddingVertical: 6,
-      fontSize: 15,
-      fontWeight: fontWeight.semibold,
-      marginBottom: spacing.xs,
+    caption: {
+      color: theme.deckCards.subtext,
+      fontSize: 13,
+      fontWeight: fontWeight.medium,
     },
   });

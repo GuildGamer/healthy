@@ -48,4 +48,21 @@ describe('inviteShareMessage', () => {
       'I did 30 minutes. Think you can beat me? Most minutes walked wins.',
     );
   });
+
+  it('leads with the host-written contest name', () => {
+    expect(
+      inviteShareMessage(
+        {
+          hostTitle: 'Push-up Sunday',
+          hostScore: 40,
+          metric: 'pushups',
+          scoringMode: 'best_single',
+          endsAt: '2026-10-26T23:59:59.000Z',
+        },
+        now,
+      ),
+    ).toBe(
+      'Push-up Sunday: I did 40 push-ups. Think you can beat me? Most push-ups in one go wins by tonight.',
+    );
+  });
 });

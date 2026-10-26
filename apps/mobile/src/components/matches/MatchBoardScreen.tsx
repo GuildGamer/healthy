@@ -1,6 +1,6 @@
 import type { MatchBoard } from '@product/client';
 import { useQuery } from '@tanstack/react-query';
-import { Redirect, useRouter } from 'expo-router';
+import { type Href, Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { DeckNavButton, DeckNoteCard, DeckPageNav, DeckToast } from '@/components/deck';
@@ -99,6 +99,7 @@ function LiveBoard({
     void shareMatchLink({
       url: match.inviteUrl,
       hostScore: you?.score ?? match.yourScore,
+      hostTitle: match.hostTitle,
       metric: match.metric,
       scoringMode: match.scoringMode,
       endsAt: match.endsAt,
@@ -188,7 +189,7 @@ function LiveBoard({
         }}
         onVerifyClip={() => {
           setIsOptionsOpen(false);
-          router.push('/v/new');
+          router.push('/v/new' as Href);
         }}
         onStepAway={confirmStepAway}
         visible={isOptionsOpen}

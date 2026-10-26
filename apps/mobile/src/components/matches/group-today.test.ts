@@ -1,5 +1,12 @@
 import type { MatchStanding } from '@product/client';
-import { faceLookFor, faceTapFor, groupTitle, placeLabel, todayTally } from './group-today';
+import {
+  faceLookFor,
+  faceTapFor,
+  groupBest,
+  groupTitle,
+  placeLabel,
+  todayTally,
+} from './group-today';
 
 function standing(overrides: Partial<MatchStanding> = {}): MatchStanding {
   return {
@@ -65,7 +72,31 @@ describe('todayTally', () => {
 });
 
 describe('groupTitle', () => {
-  it('names the other members', () => {
+  it('prefers the host-written name', () => {
+    expect(
+      groupTitle(
+        [
+          standing({ isYou: true, displayName: 'Nurul' }),
+          standing({ userId: 'a', displayName: 'Ada' }),
+        ],
+        { ...walkTotal, hostTitle: 'Push-up Sunday' },
+      ),
+    ).toBe('Push-up Sunday');
+  });
+
+  it('reads as a head-to-head for two people', () => {
+    expect(
+      groupTitle(
+        [
+          standing({ isYou: true, displayName: 'Nurul' }),
+          standing({ userId: 'j', displayName: 'Joseph' }),
+        ],
+        walkTotal,
+      ),
+    ).toBe('You vs Joseph');
+  });
+
+  it('includes you when naming a larger group', () => {
     expect(
       groupTitle(
         [
@@ -76,11 +107,58 @@ describe('groupTitle', () => {
         ],
         walkTotal,
       ),
-    ).toBe('Ada, Tunde +1');
+    ).toBe('You, Ada, Tunde +1');
   });
 
   it('names the activity while nobody else is in', () => {
     expect(groupTitle([standing({ isYou: true })], walkTotal)).toBe('Your walking group');
+  });
+});
+
+describe('groupBest', () => {
+  it('returns null when nobody has scored', () => {
+    expect(
+      groupBest([
+        standing({ isYou: true, score: 0 }),
+        standing({ userId: 'j', displayName: 'Joseph', score: 0 }),
+      ]),
+    ).toBeNull();
+  });
+
+  it('names you when you hold the top score', () => {
+    expect(
+      groupBest([
+        standing({ isYou: true, score: 40 }),
+        standing({ userId: 'j', displayName: 'Joseph', score: 30 }),
+      ]),
+    ).toEqual({ score: 40, holder: 'You' });
+  });
+
+  it('names the other person when they hold it', () => {
+    expect(
+      groupBest([
+        standing({ isYou: true, score: 20 }),
+        standing({ userId: 'j', displayName: 'Joseph', score: 40 }),
+      ]),
+    ).toEqual({ score: 40, holder: 'Joseph' });
+  });
+
+  it('says Tied when several share the top', () => {
+    expect(
+      groupBest([
+        standing({ isYou: true, score: 40 }),
+        standing({ userId: 'j', displayName: 'Joseph', score: 40 }),
+      ]),
+    ).toEqual({ score: 40, holder: 'Tied' });
+  });
+
+  it('ignores pending seats', () => {
+    expect(
+      groupBest([
+        standing({ isYou: true, score: 10 }),
+        standing({ userId: 'p', displayName: 'Pat', score: 99, isPending: true }),
+      ]),
+    ).toEqual({ score: 10, holder: 'You' });
   });
 });
 

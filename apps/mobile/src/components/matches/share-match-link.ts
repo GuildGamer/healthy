@@ -5,6 +5,8 @@ import { inviteShareMessage } from './invite-message';
 export type ShareMatchLinkOptions = {
   url: string;
   hostScore?: number | null;
+  /** Host-typed contest name; omitted when they left it blank. */
+  hostTitle?: string | null;
   metric: MatchMetric;
   scoringMode: MatchScoringMode;
   endsAt?: string | Date | null;

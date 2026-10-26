@@ -6372,6 +6372,17 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "hostTitle": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "metric": {
                           "enum": [
                             "pushups",
@@ -6636,6 +6647,17 @@
                           "title": {
                             "type": "string",
                             "minLength": 1
+                          },
+                          "hostTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "metric": {
                             "enum": [
@@ -6949,6 +6971,17 @@
                           "title": {
                             "type": "string",
                             "minLength": 1
+                          },
+                          "hostTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "metric": {
                             "enum": [
@@ -7619,6 +7652,17 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "hostTitle": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "metric": {
                       "enum": [
                         "pushups",
@@ -7878,6 +7922,17 @@
                     "title": {
                       "type": "string",
                       "minLength": 1
+                    },
+                    "hostTitle": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "metric": {
                       "enum": [
@@ -8165,6 +8220,17 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "hostTitle": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "metric": {
                       "enum": [
                         "pushups",
@@ -8430,6 +8496,17 @@
                     "title": {
                       "type": "string",
                       "minLength": 1
+                    },
+                    "hostTitle": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "metric": {
                       "enum": [
@@ -8710,6 +8787,17 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "hostTitle": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "metric": {
                       "enum": [
                         "pushups",
@@ -8972,6 +9060,17 @@
                           "title": {
                             "type": "string",
                             "minLength": 1
+                          },
+                          "hostTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "metric": {
                             "enum": [
@@ -9285,6 +9384,17 @@
                           "title": {
                             "type": "string",
                             "minLength": 1
+                          },
+                          "hostTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "metric": {
                             "enum": [

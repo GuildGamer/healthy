@@ -10,8 +10,8 @@ import { GroupMeasure } from './GroupMeasure';
 import { dayStripUnit } from './group-days';
 import { groupRuleTitle } from './group-rule-copy';
 import { groupToneFor } from './group-tone';
-import { groupTitle, placeLabel } from './group-today';
-import { BOARD_COPY, GROUPS_COPY } from './match-copy';
+import { groupBest, groupTitle } from './group-today';
+import { BOARD_COPY } from './match-copy';
 import { formatBoardScore } from './match-metric';
 
 const STATUS_CORNER = { completed: 'Ended', cancelled: 'Cancelled' } as const;
@@ -22,34 +22,44 @@ function cornerFor(match: MatchBoard): string {
 
 function BoardScoreMeasure({
   match,
-  place,
   toneColor,
 }: {
   match: MatchBoard;
-  place: string;
   toneColor?: string;
 }) {
-  const formatted = formatBoardScore(match.scoringMode, match.metric, match.yourScore);
+  const best = groupBest(match.standings);
+  if (!best) {
+    return (
+      <GroupMeasure
+        caption={BOARD_COPY.noScoreYet}
+        numeralColor={toneColor}
+        score="–"
+        unit=""
+      />
+    );
+  }
+
+  const formatted = formatBoardScore(match.scoringMode, match.metric, best.score);
   const unit = match.dayStrip ? dayStripUnit(match.dayStrip) : formatted.unit;
 
   return (
     <GroupMeasure
+      caption={`${BOARD_COPY.groupBest} · ${best.holder}`}
       numeralColor={toneColor}
-      place={place === GROUPS_COPY.noPlace ? null : place}
-      score={match.dayStrip ? match.yourScore : formatted.value}
+      score={match.dayStrip ? best.score : formatted.value}
       unit={unit}
     />
   );
 }
 
 /**
- * The board's one colour card: the rule, time left, your score and your
- * place. Before anyone joins there is nothing to rank, so it sells the invite.
+ * The board's one colour card: the rule, time left, the group's best score
+ * and who holds it. Before anyone joins there is nothing to rank, so it sells
+ * the invite.
  */
 export function BoardHero({ match, isWaiting }: { match: MatchBoard; isWaiting: boolean }) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
-  const place = placeLabel(match.standings);
   const tone = groupToneFor(theme, match);
   const you = match.standings.find((row) => row.isYou);
 
@@ -70,13 +80,16 @@ export function BoardHero({ match, isWaiting }: { match: MatchBoard; isWaiting: 
         </View>
       ) : (
         <>
-          <BoardScoreMeasure match={match} place={place} toneColor={tone.railColor ?? undefined} />
+          <BoardScoreMeasure match={match} toneColor={tone.railColor ?? undefined} />
           {match.dayStrip ? (
-            <GroupDaySquares
-              movedDayKeys={you?.movedDayKeys ?? []}
-              strip={match.dayStrip}
-              toneColor={tone.tone}
-            />
+            <View style={styles.days}>
+              <Text style={styles.daysLabel}>{BOARD_COPY.yourDays}</Text>
+              <GroupDaySquares
+                movedDayKeys={you?.movedDayKeys ?? []}
+                strip={match.dayStrip}
+                toneColor={tone.tone}
+              />
+            </View>
           ) : null}
         </>
       )}
@@ -98,5 +111,15 @@ const createStyles = (theme: Theme) =>
     seatsText: {
       color: theme.deckCards.subtext,
       fontSize: 14,
+    },
+    days: {
+      marginTop: spacing.md,
+      gap: 6,
+    },
+    daysLabel: {
+      color: theme.deckCards.subtext,
+      fontSize: 12,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
     },
   });

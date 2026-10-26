@@ -80,6 +80,12 @@ export function SettingsScreen() {
           onPress={() => router.push('/proof' as Href)}
           testID="open-proof-clips"
         />
+        <SettingsLinkRow
+          glyph="check"
+          label="Verify a clip"
+          onPress={() => router.push('/v/new' as Href)}
+          testID="open-verify-clip"
+        />
       </SettingsGroup>
       <SettingsGroup>
         <SettingsLinkRow

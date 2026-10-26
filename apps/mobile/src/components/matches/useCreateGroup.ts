@@ -66,6 +66,7 @@ export function useCreateGroup(prefill: CreatePrefill) {
         await shareMatchLink({
           url: result.match.inviteUrl,
           hostScore: result.match.yourScore,
+          hostTitle: result.match.hostTitle,
           metric: result.match.metric,
           scoringMode: result.match.scoringMode,
           endsAt: result.match.endsAt,

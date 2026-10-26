@@ -52,6 +52,7 @@ export function useRunItBack(board: MatchBoard) {
         await shareMatchLink({
           url: created.match.inviteUrl,
           hostScore: created.match.yourScore,
+          hostTitle: created.match.hostTitle,
           metric: created.match.metric,
           scoringMode: created.match.scoringMode,
           endsAt: created.match.endsAt,

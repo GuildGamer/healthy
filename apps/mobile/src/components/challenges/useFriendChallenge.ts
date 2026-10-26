@@ -82,6 +82,7 @@ export function useFriendChallenge(input: FriendChallengeInput) {
       await shareMatchLink({
         url: result.invite.url,
         hostScore: input.spec.match.seedCount ?? result.match.yourScore,
+        hostTitle: result.match.hostTitle,
         metric: result.match.metric,
         scoringMode: result.match.scoringMode,
         endsAt: result.match.endsAt,

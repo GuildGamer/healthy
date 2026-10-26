@@ -31,13 +31,14 @@ tap away on the join screen, so the card does not repeat them.
 
 ### Content
 
-1. **Who** — top left: the host's first name and photo (initials when there is
-   none): "Ada challenged you".
+1. **Who** — top left: the host's first name and a large photo (initials when
+   there is none): "Ada challenged you". This line is prominent so a chat
+   thumbnail still answers who invited you.
 2. **Brand** — top right: the Archivo wordmark, quiet. No band: the chat app
    already prints the URL under the image.
 3. **What** — bottom left, the largest type: the contest title.
 4. **Activity and when** — under the title, after a dot in the activity colour:
-   "Push-ups · 3 days left".
+   "Push-ups · 3 days left". The win rule stays on the join screen.
 5. **The host's score, only when they have one** — appended to that line:
    "· Ada's on 42". Never larger than the line it sits on.
 
