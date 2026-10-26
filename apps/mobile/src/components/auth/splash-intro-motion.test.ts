@@ -1,6 +1,11 @@
 import { act } from '@testing-library/react-native';
 import { Animated } from 'react-native';
-import { SPLASH_CATCH_UP_MS, SPLASH_EXIT_FADE_MS, SPLASH_FAN_MS } from './constants/splash-intro';
+import {
+  SPLASH_CATCH_UP_MS,
+  SPLASH_EXIT_FADE_MS,
+  SPLASH_FAN_MS,
+  SPLASH_FAN_STAGGER_MS,
+} from './constants/splash-intro';
 import { createSplashIntroMotion, type SplashIntroMotion } from './splash-intro-motion';
 
 function advance(milliseconds: number) {
@@ -42,7 +47,28 @@ describe('createSplashIntroMotion', () => {
     expect(animations).toHaveLength(motion.fan.length);
     animations.forEach((config) => {
       expect(config.toValue).toBe(1);
-      expect(config.duration).toBeLessThanOrEqual(SPLASH_FAN_MS);
+      expect((config.delay ?? 0) + (config.duration ?? 0)).toBeLessThanOrEqual(SPLASH_FAN_MS);
+    });
+    motion.stop();
+  });
+
+  it('opens the inner pair before the outer pair sweeps past it', () => {
+    const motion = createSplashIntroMotion();
+
+    motion.startIntro(false);
+
+    const animations = cardAnimations(timing, motion);
+    const spreads = motion.fan.map(({ card }) => Math.abs(card.rotateDeg));
+    const innerSpread = Math.min(...spreads);
+    const outerSpread = Math.max(...spreads);
+    spreads.forEach((spread, index) => {
+      const delay = animations[index]?.delay ?? 0;
+      if (spread === innerSpread) {
+        expect(delay).toBe(0);
+      }
+      if (spread === outerSpread) {
+        expect(delay).toBe(SPLASH_FAN_STAGGER_MS);
+      }
     });
     motion.stop();
   });

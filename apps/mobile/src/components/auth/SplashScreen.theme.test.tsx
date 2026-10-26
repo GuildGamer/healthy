@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { ThemeProvider } from '@/theme';
 import { SplashScreen } from './SplashScreen';
+import { SPLASH_FAN } from './constants/splash-intro';
 
 function colorOf(testID: string, key: 'backgroundColor' | 'color'): unknown {
   return StyleSheet.flatten(screen.getByTestId(testID).props.style)[key];
@@ -24,9 +25,9 @@ describe('SplashScreen appearance', () => {
     expect(StyleSheet.flatten(screen.getByText('Healthy').props.style).color).toBe(
       lightColors.text,
     );
-    expect(colorOf('splash-fan-strength', 'backgroundColor')).toBe(lightDeckCards.strength);
-    expect(colorOf('splash-fan-mobility', 'backgroundColor')).toBe(lightDeckCards.mobility);
-    expect(colorOf('splash-fan-gym', 'backgroundColor')).toBe(lightDeckCards.gym);
+    SPLASH_FAN.forEach(({ kind }) => {
+      expect(colorOf(`splash-fan-${kind}`, 'backgroundColor')).toBe(lightDeckCards[kind]);
+    });
     expect(screen.getByTestId('splash-icon')).toBeOnTheScreen();
   });
 
@@ -41,8 +42,8 @@ describe('SplashScreen appearance', () => {
 
     expect(colorOf('splash-screen', 'backgroundColor')).toBe(darkColors.background);
     expect(StyleSheet.flatten(screen.getByText('Healthy').props.style).color).toBe(darkColors.text);
-    expect(colorOf('splash-fan-strength', 'backgroundColor')).toBe(darkDeckCards.strength);
-    expect(colorOf('splash-fan-mobility', 'backgroundColor')).toBe(darkDeckCards.mobility);
-    expect(colorOf('splash-fan-gym', 'backgroundColor')).toBe(darkDeckCards.gym);
+    SPLASH_FAN.forEach(({ kind }) => {
+      expect(colorOf(`splash-fan-${kind}`, 'backgroundColor')).toBe(darkDeckCards[kind]);
+    });
   });
 });

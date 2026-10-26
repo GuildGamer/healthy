@@ -30,20 +30,34 @@ export interface SplashIntroMotion {
   stop: () => void;
 }
 
-const FAN_CARD_MS = SPLASH_FAN_MS - SPLASH_FAN_STAGGER_MS * (SPLASH_FAN.length - 1);
+const LAST_DEAL_STEP = Math.max(...SPLASH_FAN.map((card) => card.dealStep));
+const FAN_CARD_MS = SPLASH_FAN_MS - SPLASH_FAN_STAGGER_MS * LAST_DEAL_STEP;
 const SWAY_EASING = Easing.inOut(Easing.sin);
 
 function swayTo(value: Animated.Value, toValue: number, duration: number) {
   return Animated.timing(value, { toValue, duration, easing: SWAY_EASING, useNativeDriver: true });
 }
 
-function settleCards(
-  fan: readonly FanCardMotion[],
-  duration: number,
-  easing: (progress: number) => number,
-): Animated.CompositeAnimation[] {
+function dealCards(fan: readonly FanCardMotion[]): Animated.CompositeAnimation[] {
+  return fan.map(({ card, progress }) =>
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: FAN_CARD_MS,
+      delay: card.dealStep * SPLASH_FAN_STAGGER_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }),
+  );
+}
+
+function catchUpCards(fan: readonly FanCardMotion[]): Animated.CompositeAnimation[] {
   return fan.map(({ progress }) =>
-    Animated.timing(progress, { toValue: 1, duration, easing, useNativeDriver: true }),
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: SPLASH_CATCH_UP_MS,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }),
   );
 }
 
@@ -110,13 +124,7 @@ export function createSplashIntroMotion(): SplashIntroMotion {
     }
 
     phase = 'fanning';
-    run(
-      Animated.stagger(
-        SPLASH_FAN_STAGGER_MS,
-        settleCards(fan, FAN_CARD_MS, Easing.out(Easing.cubic)),
-      ),
-      holdWithSway,
-    );
+    run(Animated.parallel(dealCards(fan)), holdWithSway);
   }
 
   function exit(onExited: () => void) {
@@ -126,7 +134,7 @@ export function createSplashIntroMotion(): SplashIntroMotion {
 
     if (phase === 'fanning') {
       running?.stop();
-      Animated.parallel(settleCards(fan, SPLASH_CATCH_UP_MS, Easing.out(Easing.quad))).start();
+      Animated.parallel(catchUpCards(fan)).start();
     }
 
     phase = 'exiting';

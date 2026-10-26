@@ -4,15 +4,15 @@ import { Glyph } from '@/components/icons';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import appIcon from '../../../assets/icon.png';
 import {
-  SPLASH_CARD_HEIGHT,
-  SPLASH_CARD_WIDTH,
+  SPLASH_CARD_SIZE,
+  SPLASH_FAN_PIVOT,
+  SPLASH_ICON_SIZE,
   SPLASH_SWAY_DEG,
   type SplashFanCard,
 } from './constants/splash-intro';
 import { deckCardTone } from './deck-card-tone';
 import { useSplashIntro } from './use-splash-intro';
 
-const ICON_SIZE = 104;
 const FAN_RAIL_HEIGHT = 4;
 
 interface SplashScreenProps {
@@ -26,8 +26,8 @@ interface SplashScreenProps {
 
 /**
  * One overlay above the whole app for launch. The icon sits at dead centre,
- * where the native splash leaves it, and Today's three cards are dealt out
- * from behind it like a hand while launch work runs.
+ * where the native splash leaves it, and four activity cards fan out from
+ * behind it like a hand while launch work runs.
  */
 export function SplashScreen({ hasNativeSplashHidden, isReady, onExited }: SplashScreenProps) {
   const styles = useThemedStyles(createStyles);
@@ -76,8 +76,7 @@ function FanCard({ card, progress }: { card: SplashFanCard; progress: Animated.V
   const { deckCards } = theme;
 
   const transform = [
-    { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, card.translateX] }) },
-    { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, card.translateY] }) },
+    { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, card.liftY] }) },
     {
       rotate: progress.interpolate({
         inputRange: [0, 1],
@@ -109,23 +108,23 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
     },
     stage: {
-      width: ICON_SIZE,
-      height: ICON_SIZE,
+      width: SPLASH_ICON_SIZE,
+      height: SPLASH_ICON_SIZE,
     },
     fan: {
       ...StyleSheet.absoluteFillObject,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    /** Starts tucked wholly behind the icon and pivots from its bottom edge. */
+    /** Starts tucked wholly behind the icon and turns about the hand's grip. */
     fanCard: {
       position: 'absolute',
-      width: SPLASH_CARD_WIDTH,
-      height: SPLASH_CARD_HEIGHT,
-      borderRadius: radii.md,
+      width: SPLASH_CARD_SIZE,
+      height: SPLASH_CARD_SIZE,
+      borderRadius: radii.xl,
       padding: spacing.sm,
       overflow: 'hidden',
-      transformOrigin: 'bottom',
+      transformOrigin: [...SPLASH_FAN_PIVOT],
       borderWidth: theme.deckCards.hasToneRail ? StyleSheet.hairlineWidth : 0,
       borderColor: theme.colors.border,
     },
@@ -137,8 +136,8 @@ const createStyles = (theme: Theme) =>
       height: FAN_RAIL_HEIGHT,
     },
     icon: {
-      width: ICON_SIZE,
-      height: ICON_SIZE,
+      width: SPLASH_ICON_SIZE,
+      height: SPLASH_ICON_SIZE,
       borderRadius: radii.xl,
     },
     /** Hung off the midpoint so the icon itself never moves. */
@@ -147,7 +146,7 @@ const createStyles = (theme: Theme) =>
       top: '50%',
       left: 0,
       right: 0,
-      marginTop: ICON_SIZE / 2 + spacing.md,
+      marginTop: SPLASH_ICON_SIZE / 2 + spacing.md,
       alignItems: 'center',
     },
     wordmark: {

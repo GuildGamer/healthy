@@ -12,15 +12,15 @@ import {
 
 type SplashProps = ComponentProps<typeof SplashScreen>;
 
-function middleFanCard() {
-  const card = SPLASH_FAN.find((fanCard) => fanCard.rotateDeg === 0);
+function backFanCard() {
+  const card = SPLASH_FAN[0];
   if (!card) {
-    throw new Error('The splash fan has no upright middle card');
+    throw new Error('The splash fan has no cards');
   }
   return card;
 }
 
-const MIDDLE_CARD = middleFanCard();
+const BACK_CARD = backFanCard();
 
 /** Renders, then lets the Reduce Motion lookup settle. */
 async function renderSplash(props: SplashProps) {
@@ -35,8 +35,8 @@ function advance(milliseconds: number) {
   });
 }
 
-function middleCard() {
-  return screen.getByTestId(`splash-fan-${MIDDLE_CARD.kind}`);
+function backCard() {
+  return screen.getByTestId(`splash-fan-${BACK_CARD.kind}`);
 }
 
 /**
@@ -68,7 +68,7 @@ describe('SplashScreen', () => {
     expect(screen.getByTestId('splash-screen')).toBeOnTheScreen();
     expect(screen.getByTestId('splash-icon')).toBeOnTheScreen();
     expect(screen.getByText('Healthy')).toBeOnTheScreen();
-    expect(middleCard()).toHaveStyle({ opacity: 0 });
+    expect(backCard()).toHaveStyle({ opacity: 0 });
   });
 
   it('deals the cards out as soon as the native splash hides', async () => {
@@ -122,8 +122,8 @@ describe('SplashScreen', () => {
 
     view.rerender(<SplashScreen hasNativeSplashHidden isReady={false} onExited={jest.fn()} />);
 
-    expect(middleCard()).toHaveStyle({
-      transform: [{ translateX: 0 }, { translateY: MIDDLE_CARD.translateY }, { rotate: '0deg' }],
+    expect(backCard()).toHaveStyle({
+      transform: [{ translateY: BACK_CARD.liftY }, { rotate: `${BACK_CARD.rotateDeg}deg` }],
     });
   });
 
