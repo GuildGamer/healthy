@@ -233,15 +233,49 @@ function emitFix(coords: { latitude: number; longitude: number }) {
   });
 }
 
-async function startWalk() {
-  fireEvent.press(await screen.findByTestId('start-session'));
-  await waitFor(() => {
+const MAX_FLUSHES = 50;
+/** A walk test steps through up to ten simulated minutes, stride by stride. */
+const WALK_TEST_TIMEOUT_MS = 20_000;
+
+jest.setTimeout(WALK_TEST_TIMEOUT_MS);
+
+/**
+ * Settles promises without moving the clock. `waitFor` advances fake timers on
+ * every poll, so once a walk has started it would add however many polls a
+ * busy machine needed to the walk's duration.
+ */
+async function flushUntil(assertion: () => void) {
+  for (let flush = 0; flush < MAX_FLUSHES; flush += 1) {
+    try {
+      assertion();
+      return;
+    } catch {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+  }
+  assertion();
+}
+
+/** Presses `testID` and settles until the walk is live again: button and sensors. */
+async function pressAndWalk(testID: string) {
+  const motionListeners = addMotionListener.mock.calls.length;
+  const stepWatches = watchStepCount.mock.calls.length;
+  fireEvent.press(await screen.findByTestId(testID));
+  await flushUntil(() => {
     expect(screen.getByTestId('stop-session')).toBeOnTheScreen();
+    expect(addMotionListener.mock.calls.length).toBeGreaterThan(motionListeners);
+    expect(watchStepCount.mock.calls.length).toBeGreaterThan(stepWatches);
   });
-  await waitFor(() => {
-    expect(addMotionListener).toHaveBeenCalled();
-    expect(watchStepCount).toHaveBeenCalled();
-  });
+}
+
+async function startWalk() {
+  await pressAndWalk('start-session');
+}
+
+async function resumeWalk() {
+  await pressAndWalk('resume-session');
 }
 
 beforeEach(() => {
@@ -450,10 +484,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     await walkFor(300);
     fireEvent.press(screen.getByTestId('stop-session'));
 
-    fireEvent.press(await screen.findByTestId('resume-session'));
-    await waitFor(() => {
-      expect(screen.getByTestId('stop-session')).toBeOnTheScreen();
-    });
+    await resumeWalk();
     await walkFor(300);
 
     expect(screen.getByTestId('session-stats')).toHaveTextContent('10:00');
@@ -498,10 +529,7 @@ describe('ChallengeSessionScreen walk goal', () => {
     expect(screen.getByTestId('resume-session')).toHaveTextContent('Keep walking');
     expect(screen.queryByTestId('start-session')).toBeNull();
 
-    fireEvent.press(screen.getByTestId('resume-session'));
-    await waitFor(() => {
-      expect(screen.getByTestId('stop-session')).toBeOnTheScreen();
-    });
+    await resumeWalk();
     await walkFor(120);
 
     expect(screen.getByTestId('session-stats')).toHaveTextContent('10:00');
@@ -559,7 +587,7 @@ describe('ChallengeSessionScreen walk goal', () => {
       );
     });
     fireEvent.press(screen.getByTestId('resume-session'));
-    await waitFor(() => {
+    await flushUntil(() => {
       expect(screen.getByTestId('pause-session')).toBeOnTheScreen();
     });
     expect(mockedApi.completeChallenge).not.toHaveBeenCalled();

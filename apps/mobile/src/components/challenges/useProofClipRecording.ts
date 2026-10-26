@@ -1,4 +1,5 @@
 import type { MatchMetric } from '@product/client';
+import { PROOF_CLIP_MAX_DURATION_SECONDS } from '@product/contract/proof-clip-limits';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProofRecordingConfig } from 'quickpose-camera';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
@@ -132,6 +133,7 @@ export function useProofClipRecording(
     setProofRecording({
       code: reserved.displayCode,
       label: MATCH_METRIC_LABEL[metric as MatchMetric],
+      maxDurationSeconds: PROOF_CLIP_MAX_DURATION_SECONDS,
     });
     setStatusSync('recording');
   }, [recordProof, setStatusSync]);

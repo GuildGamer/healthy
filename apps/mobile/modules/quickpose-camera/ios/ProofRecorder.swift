@@ -1,17 +1,19 @@
 import AVFoundation
+import CoreImage
 import CryptoKit
 import UIKit
 import VideoToolbox
 
 /**
- * Writes a muted HEVC clip from composited camera frames while QuickPose runs.
+ * Writes a muted HEVC clip of the camera with QuickPose's skeleton on top.
  *
  * Overlay (logo label, verification code, live rep count, date) is burned in
- * before encoding so the exported file is self-evidencing. SHA-256 is computed
- * incrementally; a poster JPEG is captured from the first written frame.
+ * before encoding so the exported file is self-evidencing. A poster JPEG is
+ * captured from the first written frame.
  *
- * Spike findings: QuickPose's `onFrame` fifth argument is unused landmarks
- * storage for phase 5; the `image` overlay UIImage is what we composite onto.
+ * Camera frames are not mirrored (QuickPose keeps ML input raw) but the front
+ * preview and QuickPose's overlay are, so a front-camera frame is mirrored
+ * before the overlay is drawn on it.
  */
 final class ProofRecorder {
   struct Overlay {
@@ -25,21 +27,25 @@ final class ProofRecorder {
   private var writer: AVAssetWriter?
   private var input: AVAssetWriterInput?
   private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
-  private var hasher = SHA256()
-  private var frameCount = 0
   private var startedAt: CFTimeInterval = 0
+  private var lastFrameSeconds: Double?
   private var outputURL: URL?
   private var posterURL: URL?
   private var posterCaptured = false
+  private var mirrorsCamera = false
+  private var maxDurationSeconds: Double = 0
   private var overlay = Overlay(code: "", label: "", count: 0)
   private let writeQueue = DispatchQueue(label: "healthy.proof-recorder")
+  private let imageContext = CIContext()
 
   private static let targetWidth = 720
   private static let targetHeight = 1280
+  /// 90 s at this rate stays under the contract's PROOF_CLIP_MAX_BYTES (12 MB).
   private static let bitRate = 1_000_000
-  private static let frameDuration = CMTime(value: 1, timescale: 15)
+  private static let minimumFrameGapSeconds = 1.0 / 15.0
+  private static let timescale: CMTimeScale = 600
 
-  func start(overlay: Overlay) throws {
+  func start(overlay: Overlay, mirrorsCamera: Bool, maxDurationSeconds: Double) throws {
     stopWithoutFinishing()
 
     let directory = FileManager.default.temporaryDirectory
@@ -90,12 +96,13 @@ final class ProofRecorder {
     writer = assetWriter
     input = videoInput
     adaptor = pixelAdaptor
-    hasher = SHA256()
-    frameCount = 0
     startedAt = CACurrentMediaTime()
+    lastFrameSeconds = nil
     outputURL = videoURL
     posterURL = poster
     posterCaptured = false
+    self.mirrorsCamera = mirrorsCamera
+    self.maxDurationSeconds = maxDurationSeconds
     self.overlay = overlay
     isRecording = true
   }
@@ -107,26 +114,30 @@ final class ProofRecorder {
   }
 
   /// Appends one composited frame. Safe to call from the QuickPose frame callback.
-  func append(cameraImage: UIImage?, overlayImage: UIImage?) {
-    guard isRecording, let writer, writer.status == .writing else { return }
+  /// A frame without a camera image is skipped rather than written as black.
+  func append(cameraFrame: CVPixelBuffer?, overlayImage: UIImage?) {
+    guard isRecording, let writer, writer.status == .writing, let cameraFrame else { return }
+    let elapsedSeconds = CACurrentMediaTime() - startedAt
 
     writeQueue.async { [weak self] in
       guard let self, self.isRecording else { return }
       guard let input = self.input, input.isReadyForMoreMediaData else { return }
       guard let adaptor = self.adaptor else { return }
+      guard self.isDueForFrame(at: elapsedSeconds) else { return }
+      guard let camera = self.cameraImage(from: cameraFrame) else { return }
 
       let composed = Self.compose(
-        camera: cameraImage,
+        camera: camera,
         overlay: overlayImage,
         proof: self.overlay,
         size: CGSize(width: Self.targetWidth, height: Self.targetHeight)
       )
 
       guard let buffer = Self.pixelBuffer(from: composed) else { return }
-      let time = CMTimeMultiply(Self.frameDuration, multiplier: Int32(self.frameCount))
+      let time = CMTime(seconds: elapsedSeconds, preferredTimescale: Self.timescale)
 
       if adaptor.append(buffer, withPresentationTime: time) {
-        self.frameCount += 1
+        self.lastFrameSeconds = elapsedSeconds
         if !self.posterCaptured, let posterURL = self.posterURL,
            let jpeg = composed.jpegData(compressionQuality: 0.7)
         {
@@ -135,6 +146,22 @@ final class ProofRecorder {
         }
       }
     }
+  }
+
+  /// Real elapsed time keeps playback at the speed it happened; the gap caps the clip at 15 fps.
+  private func isDueForFrame(at elapsedSeconds: Double) -> Bool {
+    guard elapsedSeconds <= maxDurationSeconds else { return false }
+    guard let lastFrameSeconds else { return true }
+    return elapsedSeconds - lastFrameSeconds >= Self.minimumFrameGapSeconds
+  }
+
+  private func cameraImage(from frame: CVPixelBuffer) -> UIImage? {
+    var image = CIImage(cvPixelBuffer: frame)
+    if mirrorsCamera {
+      image = image.oriented(.upMirrored)
+    }
+    guard let cgImage = imageContext.createCGImage(image, from: image.extent) else { return nil }
+    return UIImage(cgImage: cgImage)
   }
 
   struct FinishResult {
@@ -174,7 +201,7 @@ final class ProofRecorder {
           var digest = SHA256()
           digest.update(data: data)
           let hash = digest.finalize().map { String(format: "%02x", $0) }.joined()
-          let duration = max(1, Int((CACurrentMediaTime() - self.startedAt).rounded()))
+          let duration = max(1, Int((self.lastFrameSeconds ?? 0).rounded(.up)))
           let result = FinishResult(
             fileURL: durableVideo,
             posterURL: durablePoster,
@@ -236,11 +263,11 @@ final class ProofRecorder {
     writer = nil
     input = nil
     adaptor = nil
-    frameCount = 0
+    lastFrameSeconds = nil
   }
 
   private static func compose(
-    camera: UIImage?,
+    camera: UIImage,
     overlay: UIImage?,
     proof: Overlay,
     size: CGSize
@@ -253,9 +280,7 @@ final class ProofRecorder {
       UIColor.black.setFill()
       context.fill(CGRect(origin: .zero, size: size))
 
-      if let camera {
-        drawAspectFill(camera, in: CGRect(origin: .zero, size: size))
-      }
+      drawAspectFill(camera, in: CGRect(origin: .zero, size: size))
       if let overlay {
         drawAspectFill(overlay, in: CGRect(origin: .zero, size: size))
       }

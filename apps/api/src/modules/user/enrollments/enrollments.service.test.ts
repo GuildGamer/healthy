@@ -197,27 +197,19 @@ describe('EnrollmentsService.listCatalog', () => {
     expect(result.enrolledCount).toBe(0);
   });
 
-  it('narrows to the chosen conditions plus general health', async () => {
-    const prisma = createPrismaMock({ categories: ['asthma'] });
+  it.each([[['asthma']], [[]]])(
+    'offers only everyday health while conditions are out of scope (chosen: %j)',
+    async (categories) => {
+      const prisma = createPrismaMock({ categories });
 
-    await createService(prisma).listCatalog(user);
+      await createService(prisma).listCatalog(user);
 
-    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
-      { where: { category: { in: string[] } } },
-    ];
-    expect(argument.where.category.in.sort()).toEqual(['asthma', 'general']);
-  });
-
-  it('shows every category before onboarding has chosen any', async () => {
-    const prisma = createPrismaMock({ categories: [] });
-
-    await createService(prisma).listCatalog(user);
-
-    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
-      { where: { category: { in: string[] } } },
-    ];
-    expect(argument.where.category.in).toHaveLength(4);
-  });
+      const [argument] = prisma.challenge.findMany.mock.calls[0] as [
+        { where: { category: { in: string[] } } },
+      ];
+      expect(argument.where.category.in).toEqual(['general']);
+    },
+  );
 
   it('rejects unauthenticated callers', async () => {
     const prisma = createPrismaMock({});

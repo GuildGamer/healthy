@@ -1,6 +1,8 @@
 /** @type {import('jest').Config} */
 module.exports = {
   preset: 'jest-expo',
+  // Turbo runs this beside the API suite; half the cores keeps render tests under their timeouts.
+  maxWorkers: '50%',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testPathIgnorePatterns: ['/node_modules/', '/.maestro/'],
   moduleNameMapper: {
@@ -21,6 +23,8 @@ module.exports = {
       '<rootDir>/../../packages/contract/src/match-board.ts',
     '^@product/contract/account-deletion$':
       '<rootDir>/../../packages/contract/src/account-deletion.ts',
+    '^@product/contract/proof-clip-limits$':
+      '<rootDir>/../../packages/contract/src/proof-clip-limits.ts',
     '^@product/contract$': '<rootDir>/../../packages/contract/src/index.ts',
     '\\.tflite$': '<rootDir>/jest.tflite-mock.js',
   },

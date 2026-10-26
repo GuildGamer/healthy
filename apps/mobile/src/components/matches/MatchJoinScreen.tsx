@@ -115,7 +115,10 @@ function Invite({
 
   if (autoJoin && canJoin && (join.isPending || !join.isError)) {
     return (
-      <GroupPage testID="match-join-auto">
+      <GroupPage
+        nav={<DeckPageNav isClose onBack={() => goBackOrHome(LEAVE_HREF)} />}
+        testID="match-join-auto"
+      >
         <ScreenLoader />
         <Text style={styles.autoJoinLine}>{`Joining ${host}’s contest…`}</Text>
       </GroupPage>

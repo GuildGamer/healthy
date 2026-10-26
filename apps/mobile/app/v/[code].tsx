@@ -7,7 +7,7 @@ import {
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useMutation } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Image,
@@ -18,10 +18,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DeckButton, DeckNavButton } from '@/components/deck';
+import { DeckButton, DeckPageNav } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useThemedStyles } from '@/theme';
 
 function firstParam(value: string | string[] | undefined): string | undefined {
@@ -31,7 +32,6 @@ function firstParam(value: string | string[] | undefined): string | undefined {
 export default function VerifyProofCodeRoute() {
   const { data: session, isPending } = useSession();
   const params = useLocalSearchParams<{ code?: string | string[] }>();
-  const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const [code, setCode] = useState(() => {
     const raw = firstParam(params.code);
@@ -65,10 +65,8 @@ export default function VerifyProofCodeRoute() {
 
   return (
     <SafeAreaView style={styles.screen} testID="verify-proof">
-      <View style={styles.top}>
-        <DeckNavButton accessibilityLabel="Close" glyph="close" onPress={() => router.back()} />
-        <Text style={styles.title}>Verify a clip</Text>
-        <View style={styles.spacer} />
+      <View style={styles.nav}>
+        <DeckPageNav isClose onBack={() => goBackOrHome()} title="Verify a clip" />
       </View>
 
       {!result ? (
@@ -190,21 +188,12 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
       paddingHorizontal: spacing.md,
     },
-    top: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    nav: {
       marginBottom: spacing.lg,
     },
-    title: {
-      color: theme.colors.text,
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
-    },
-    spacer: { width: 40 },
     form: { gap: spacing.md },
     lede: {
-      color: theme.colors.mutedText,
+      color: theme.colors.muted,
       fontSize: fontSize.sm,
     },
     input: {
@@ -218,7 +207,7 @@ const createStyles = (theme: Theme) =>
       textAlign: 'center',
     },
     placeholder: {
-      color: theme.colors.mutedText,
+      color: theme.colors.muted,
     },
     error: {
       color: theme.colors.danger,
@@ -235,7 +224,7 @@ const createStyles = (theme: Theme) =>
       fontWeight: fontWeight.semibold,
     },
     meta: {
-      color: theme.colors.mutedText,
+      color: theme.colors.muted,
       fontSize: fontSize.sm,
       textAlign: 'center',
     },

@@ -42,15 +42,14 @@ describe('MatchBoardScreen', () => {
     mockedApi.reactToMatchMember.mockImplementation(async () => liveBoard());
   });
 
-  it('leads with your score and place, then today, then standings', async () => {
+  it('leads with the group best and who holds it, then today, then standings', async () => {
     mockedApi.getMatch.mockResolvedValue(liveBoard());
     const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
 
     const hero = await screen.findByTestId('match-board-hero');
     expect(within(hero).getByText('Walking total')).toBeOnTheScreen();
-    expect(within(hero).getByText('Ada, Tunde')).toBeOnTheScreen();
-    expect(within(hero).getByText('86')).toBeOnTheScreen();
-    expect(within(hero).getByText('2nd')).toBeOnTheScreen();
+    expect(within(hero).getByText('112')).toBeOnTheScreen();
+    expect(within(hero).getByText('Group best · Ada')).toBeOnTheScreen();
     expect(screen.getByText('2 of 3 walked')).toBeOnTheScreen();
     expect(screen.getByTestId('match-standing-tunde')).toBeOnTheScreen();
     expect(screen.getByText('Start a walk')).toBeOnTheScreen();

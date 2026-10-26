@@ -1,28 +1,28 @@
 import { fontSize, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, Redirect, useLocalSearchParams } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DeckButton, DeckNavButton } from '@/components/deck';
+import { DeckButton, DeckNavButton, DeckPageNav } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { POSE_COPY } from '@/components/challenges/constants/doing-copy';
 import { saveProofToPhotos } from '@/components/challenges/save-proof-to-photos';
 import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { goBackOrHome } from '@/lib/go-back';
 import { getLocalProofClip } from '@/lib/proof-clip-store';
 import { type Theme, useThemedStyles } from '@/theme';
 
+const PROOF_CLIPS_HREF: Href = '/proof';
+
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function leaveViewer(): void {
+  goBackOrHome(PROOF_CLIPS_HREF);
 }
 
 export default function ProofClipViewerRoute() {
@@ -30,7 +30,6 @@ export default function ProofClipViewerRoute() {
   const params = useLocalSearchParams<{ clipId?: string | string[] }>();
   const clipId = firstParam(params.clipId);
   const styles = useThemedStyles(createStyles);
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [photosMessage, setPhotosMessage] = useState<string | null>(null);
@@ -58,7 +57,7 @@ export default function ProofClipViewerRoute() {
       apiClient.reportProofClip({ clipId: clipId!, reason: 'inappropriate' }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['proof-clip', clipId] });
-      router.back();
+      leaveViewer();
     },
   });
 
@@ -78,7 +77,7 @@ export default function ProofClipViewerRoute() {
       }
       await apiClient.blockUser({ userId: ownerId });
     },
-    onSuccess: () => router.back(),
+    onSuccess: leaveViewer,
   });
 
   if (isPending) {
@@ -113,12 +112,21 @@ export default function ProofClipViewerRoute() {
 
   return (
     <SafeAreaView style={styles.screen} testID="proof-viewer">
-      <View style={styles.top}>
-        <DeckNavButton accessibilityLabel="Close" glyph="close" onPress={() => router.back()} />
-        <Text style={styles.title}>{remote?.displayCode ?? local?.displayCode ?? 'Proof'}</Text>
-        <Pressable onPress={() => setMenuOpen((open) => !open)} testID="proof-overflow">
-          <Text style={styles.menu}>···</Text>
-        </Pressable>
+      <View style={styles.nav}>
+        <DeckPageNav
+          isClose
+          onBack={leaveViewer}
+          right={
+            <DeckNavButton
+              accessibilityLabel="More"
+              glyph="more"
+              onPage
+              onPress={() => setMenuOpen((open) => !open)}
+              testID="proof-overflow"
+            />
+          }
+          title={remote?.displayCode ?? local?.displayCode ?? 'Proof'}
+        />
       </View>
 
       {clipQuery.isPending ? (
@@ -182,7 +190,7 @@ export default function ProofClipViewerRoute() {
             <DeckButton
               label="Remove"
               onPress={() => {
-                void apiClient.removeProofClip({ clipId }).then(() => router.back());
+                void apiClient.removeProofClip({ clipId }).then(leaveViewer);
               }}
               testID="proof-remove"
               variant="quiet"
@@ -219,21 +227,8 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
       paddingHorizontal: spacing.md,
     },
-    top: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    nav: {
       marginBottom: spacing.md,
-    },
-    title: {
-      color: theme.colors.text,
-      fontSize: fontSize.md,
-      letterSpacing: 1,
-    },
-    menu: {
-      color: theme.colors.text,
-      fontSize: fontSize.lg,
-      paddingHorizontal: spacing.sm,
     },
     body: {
       gap: spacing.md,

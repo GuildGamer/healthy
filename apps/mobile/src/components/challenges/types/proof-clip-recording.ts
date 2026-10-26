@@ -14,6 +14,9 @@ export type ProofClipStatus =
 
 export type ProofClipOutcome = 'saved' | 'failed' | 'discarded' | 'off';
 
+/** Group sets post to the board; solo sets are shared. */
+export type ProofClipVisibility = 'group' | 'shared';
+
 export type ProofRecordedEvent = {
   fileUri: string;
   sha256: string;

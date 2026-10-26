@@ -1,40 +1,106 @@
-import { fontSize, radii, spacing } from '@product/brand';
-import { useQuery } from '@tanstack/react-query';
-import { type Href, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native';
-import { DeckButton } from '@/components/deck';
-import { getLocalProofClip } from '@/lib/proof-clip-store';
-import { discardLocalProofClip, uploadProofClip } from '@/lib/proof-clip-upload';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck';
+import { Glyph } from '@/components/icons';
 import { type Theme, useThemedStyles } from '@/theme';
 import { POSE_COPY } from './constants/doing-copy';
-import { saveProofToPhotos } from './save-proof-to-photos';
+import type { ProofClipVisibility } from './types/proof-clip-recording';
+import { type ProofClipState, useProofClip } from './useProofClip';
+
+const PLAY_BADGE_SIZE = 56;
+const PANEL_POSTER_MAX_HEIGHT = 220;
+
+/**
+ * The clip itself: its first frame, a tap to watch it, and the code burned
+ * into it. Discard sits with the clip it removes rather than with the buttons.
+ * `fill` grows it into the space it is given; otherwise it stays compact.
+ */
+export function ProofClipHero({ proof, fill = false }: { proof: ProofClipState; fill?: boolean }) {
+  const styles = useThemedStyles(createStyles);
+  const clip = proof.clip;
+
+  if (!clip) {
+    return null;
+  }
+
+  return (
+    <View style={[styles.hero, fill ? styles.heroFill : null]} testID="proof-clip-hero">
+      <Pressable
+        accessibilityLabel={POSE_COPY.proofWatch}
+        accessibilityRole="button"
+        onPress={proof.watch}
+        style={({ pressed }) => [
+          styles.poster,
+          fill ? styles.posterFill : styles.posterCompact,
+          pressed ? styles.pressed : null,
+        ]}
+        testID="proof-clip-watch"
+      >
+        {clip.posterUri ? (
+          <Image source={{ uri: clip.posterUri }} style={StyleSheet.absoluteFill} />
+        ) : null}
+        <View style={styles.playBadge}>
+          <Glyph color="#FFFFFF" name="play" size={24} />
+        </View>
+      </Pressable>
+      <View style={styles.caption}>
+        <Text style={styles.code}>{clip.displayCode}</Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={proof.isBusy}
+          hitSlop={spacing.sm}
+          onPress={proof.confirmDiscard}
+          testID="proof-discard"
+        >
+          <Text style={styles.discard}>{POSE_COPY.proofDiscard}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/** The one solid button is publishing; saving a copy is the icon beside it. */
+export function ProofClipPrimaryRow({ proof }: { proof: ProofClipState }) {
+  const styles = useThemedStyles(createStyles);
+
+  if (!proof.clip) {
+    return null;
+  }
+
+  return (
+    <View style={styles.primaryRow}>
+      <DeckButton
+        isFlexible
+        label={proof.publishLabel}
+        loading={proof.isBusy}
+        onPress={proof.publish}
+        testID="proof-publish"
+      />
+      <DeckRoundButton
+        accessibilityLabel={proof.hasSavedToPhotos ? POSE_COPY.savedToPhotos : POSE_COPY.saveToPhotos}
+        disabled={proof.isBusy || proof.hasSavedToPhotos}
+        glyph={proof.hasSavedToPhotos ? 'check' : 'download'}
+        onPress={proof.saveToPhotos}
+        onSurface
+        testID="proof-save-photos"
+      />
+    </View>
+  );
+}
 
 type ProofClipActionsProps = {
   clipId: string | null;
-  /** Group sets post to the board; solo sets share. */
-  visibility: 'group' | 'shared';
+  visibility: ProofClipVisibility;
   /** True when recording was requested but the clip never landed on the phone. */
   failed?: boolean;
 };
 
-/**
- * Shows the clip poster and offers Post/Share, Save to Photos, or Discard.
- * Upload happens only when the person chooses to publish.
- */
+/** A compact clip block for a panel that has its own buttons below it. */
 export function ProofClipActions({ clipId, visibility, failed = false }: ProofClipActionsProps) {
   const styles = useThemedStyles(createStyles);
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [savedToPhotos, setSavedToPhotos] = useState(false);
-  const localQuery = useQuery({
-    queryKey: ['proof-clip-local', clipId],
-    queryFn: () => (clipId ? getLocalProofClip(clipId) : Promise.resolve(null)),
-    enabled: Boolean(clipId),
-  });
+  const proof = useProofClip(clipId, visibility);
 
-  if (failed) {
+  if (failed || proof.isMissing) {
     return (
       <View style={styles.wrap} testID="proof-clip-failed">
         <Text style={styles.error}>{POSE_COPY.proofFailed}</Text>
@@ -42,112 +108,19 @@ export function ProofClipActions({ clipId, visibility, failed = false }: ProofCl
     );
   }
 
-  if (!clipId) {
-    return null;
-  }
-
-  async function publish() {
-    if (!clipId) {
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await uploadProofClip({ clipId, visibility });
-      router.push({ pathname: '/proof/[clipId]', params: { clipId } } as unknown as Href);
-    } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : 'Could not publish.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function confirmDiscard() {
-    Alert.alert(POSE_COPY.proofDiscardTitle, POSE_COPY.proofDiscardBody, [
-      { text: POSE_COPY.proofDiscardCancel, style: 'cancel' },
-      {
-        text: POSE_COPY.proofDiscardConfirm,
-        style: 'destructive',
-        onPress: () => void discard(),
-      },
-    ]);
-  }
-
-  async function discard() {
-    if (!clipId) {
-      return;
-    }
-    setBusy(true);
-    try {
-      await discardLocalProofClip(clipId);
-      await localQuery.refetch();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveToPhotos() {
-    const local = localQuery.data;
-    if (!local) {
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const failure = await saveProofToPhotos(local.fileUri);
-      if (failure) {
-        setError(failure);
-        return;
-      }
-      setSavedToPhotos(true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (localQuery.isPending) {
+  if (proof.isLoading) {
     return <ActivityIndicator />;
   }
 
-  const local = localQuery.data;
-  if (!local) {
-    return (
-      <View style={styles.wrap} testID="proof-clip-failed">
-        <Text style={styles.error}>{POSE_COPY.proofFailed}</Text>
-      </View>
-    );
+  if (!proof.clip) {
+    return null;
   }
 
   return (
     <View style={styles.wrap} testID="proof-clip-actions">
-      {local.posterUri ? (
-        <Image source={{ uri: local.posterUri }} style={styles.poster} />
-      ) : (
-        <View style={[styles.poster, styles.posterFallback]}>
-          <Text style={styles.posterLabel}>Proof ready</Text>
-        </View>
-      )}
-      <Text style={styles.code}>{local.displayCode}</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <DeckButton
-        label={visibility === 'group' ? 'Post to group' : 'Share'}
-        loading={busy}
-        onPress={() => void publish()}
-        testID="proof-publish"
-      />
-      <DeckButton
-        label={savedToPhotos ? POSE_COPY.savedToPhotos : POSE_COPY.saveToPhotos}
-        loading={busy}
-        onPress={() => void saveToPhotos()}
-        testID="proof-save-photos"
-        variant="quiet"
-      />
-      <DeckButton
-        label="Discard"
-        onPress={confirmDiscard}
-        testID="proof-discard"
-        variant="quiet"
-      />
+      <ProofClipHero proof={proof} />
+      {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
+      <ProofClipPrimaryRow proof={proof} />
     </View>
   );
 }
@@ -158,27 +131,59 @@ const createStyles = (theme: Theme) =>
       gap: spacing.sm,
       marginTop: spacing.md,
     },
-    poster: {
-      width: '100%',
-      aspectRatio: 9 / 16,
-      maxHeight: 280,
-      borderRadius: radii.md,
-      backgroundColor: '#000',
-      alignSelf: 'center',
+    hero: {
+      alignItems: 'center',
+      gap: spacing.sm,
     },
-    posterFallback: {
+    heroFill: {
+      flex: 1,
+      minHeight: 0,
+    },
+    poster: {
+      aspectRatio: 9 / 16,
+      borderRadius: radii.md,
+      backgroundColor: '#000000',
+      overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    posterLabel: {
-      color: '#fff',
-      fontSize: fontSize.md,
+    posterFill: {
+      flex: 1,
+      maxWidth: '100%',
+    },
+    posterCompact: {
+      height: PANEL_POSTER_MAX_HEIGHT,
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    playBadge: {
+      width: PLAY_BADGE_SIZE,
+      height: PLAY_BADGE_SIZE,
+      borderRadius: PLAY_BADGE_SIZE / 2,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    caption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
     },
     code: {
       color: theme.colors.muted,
       fontSize: fontSize.sm,
-      textAlign: 'center',
       letterSpacing: 1,
+    },
+    discard: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+    },
+    primaryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
     error: {
       color: theme.colors.danger,

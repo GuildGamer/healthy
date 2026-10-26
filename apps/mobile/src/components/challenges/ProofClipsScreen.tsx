@@ -1,6 +1,6 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import { type Href, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeckPageNav } from '@/components/deck';
@@ -62,7 +62,7 @@ function ProofClipRow({ clip, isFirst }: { clip: LocalProofClip; isFirst: boolea
         router.push({
           pathname: '/proof/[clipId]',
           params: { clipId: clip.clipId },
-        } as unknown as Href)
+        })
       }
       style={({ pressed }) => [
         styles.row,

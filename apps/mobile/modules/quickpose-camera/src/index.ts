@@ -30,6 +30,8 @@ export type ProofRecordingErrorEvent = {
 export type ProofRecordingConfig = {
   code: string;
   label: string;
+  /** Frames past this are dropped so the clip stays within what the API accepts. */
+  maxDurationSeconds: number;
 };
 
 export type QuickPoseCameraViewProps = {

@@ -146,7 +146,8 @@ function historyLogFromKind(kind: ChallengeCompletionKind): ChallengeHistoryLog 
 }
 
 function deviceLogCopy(log: Extract<ChallengeHistoryLog, { kind: 'device' }>): string {
-  const metric = DEVICE_METRIC[log.metric] ?? log.metric;
+  const knownMetric: string | undefined = DEVICE_METRIC[log.metric];
+  const metric = knownMetric ?? log.metric;
 
   if (log.durationSeconds != null) {
     const minutes = Math.max(1, Math.round(log.durationSeconds / 60));
@@ -158,12 +159,12 @@ function deviceLogCopy(log: Extract<ChallengeHistoryLog, { kind: 'device' }>): s
   }
 
   if (log.count != null) {
-    if (log.metric && DEVICE_METRIC[log.metric]) {
-      const unit = log.metric === 'plank' ? 'seconds' : DEVICE_METRIC[log.metric].toLowerCase();
-      return `${log.count} ${unit}`;
+    if (!knownMetric) {
+      return `${log.count} · ${metric}`;
     }
 
-    return `${log.count} · ${metric}`;
+    const unit = log.metric === 'plank' ? 'seconds' : knownMetric.toLowerCase();
+    return `${log.count} ${unit}`;
   }
 
   return metric;

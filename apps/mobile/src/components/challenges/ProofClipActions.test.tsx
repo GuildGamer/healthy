@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { ProofClipActions } from './ProofClipActions';
 
 jest.mock('@tanstack/react-query', () => {
@@ -19,7 +20,7 @@ jest.mock('@/lib/proof-clip-store', () => ({
 
 jest.mock('@/lib/proof-clip-upload', () => ({
   uploadProofClip: jest.fn(),
-  discardLocalProofClip: jest.fn(),
+  discardLocalProofClip: jest.fn(async () => undefined),
 }));
 
 jest.mock('./save-proof-to-photos', () => ({
@@ -29,10 +30,24 @@ jest.mock('./save-proof-to-photos', () => ({
 const { useQuery } = jest.requireMock('@tanstack/react-query') as {
   useQuery: jest.Mock;
 };
+const { uploadProofClip } = jest.requireMock('@/lib/proof-clip-upload') as {
+  uploadProofClip: jest.Mock;
+};
+
+const localClip = {
+  clipId: 'clip-1',
+  fileUri: 'file:///tmp/clip.mp4',
+  posterUri: null,
+  displayCode: 'ABCD-EFG',
+};
 
 describe('ProofClipActions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('shows an explicit failure message when the clip did not save', () => {
@@ -70,5 +85,31 @@ describe('ProofClipActions', () => {
     render(<ProofClipActions clipId="clip-missing" visibility="shared" />);
 
     expect(screen.getByTestId('proof-clip-failed')).toBeOnTheScreen();
+  });
+
+  it('never shows a raw upload error', async () => {
+    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
+    uploadProofClip.mockRejectedValue(new Error('PUT https://bucket/abc 403 SignatureDoesNotMatch'));
+
+    render(<ProofClipActions clipId="clip-1" visibility="shared" />);
+    fireEvent.press(screen.getByTestId('proof-publish'));
+
+    expect(await screen.findByText('Could not share the clip. Try again.')).toBeOnTheScreen();
+    expect(screen.queryByText(/SignatureDoesNotMatch/)).toBeNull();
+  });
+
+  it('treats a discarded clip as gone, not as a failed save', async () => {
+    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.[1]?.onPress?.();
+    });
+
+    render(<ProofClipActions clipId="clip-1" visibility="shared" />);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('proof-discard'));
+    });
+
+    expect(screen.queryByTestId('proof-clip-actions')).toBeNull();
+    expect(screen.queryByTestId('proof-clip-failed')).toBeNull();
   });
 });

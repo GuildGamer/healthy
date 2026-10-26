@@ -75,15 +75,11 @@ describe('AddChallengeScreen', () => {
     await view.settle();
   });
 
-  it('folds suggestions away once you pick a category', async () => {
+  it('offers no condition filters while conditions are out of product scope', async () => {
     const view = renderScreen(<AddChallengeScreen />);
     await screen.findByTestId('catalog-suggestions');
 
-    fireEvent.press(screen.getByTestId('catalog-chip-asthma'));
-
-    expect(screen.queryByTestId('catalog-suggestions')).toBeNull();
-    expect(screen.getByText('Preventer inhaler')).toBeOnTheScreen();
-    expect(screen.queryByText('Go to the gym')).toBeNull();
+    expect(screen.queryByTestId('catalog-chips')).toBeNull();
     await view.settle();
   });
 

@@ -45,6 +45,24 @@ screen that already solves the same shape and match it.
 - Shared chrome lives in a shared folder. If two features need the same row,
   promote it rather than importing across feature folders or copying it.
 
+## Routes
+
+- Every new `app/` route is registered in the root `Stack` in `app/_layout.tsx`
+  with `headerShown: false`, and draws its own `DeckPageNav` that leaves via
+  `goBackOrHome`. `root-stack-routes.test.ts` fails otherwise; a missing entry
+  shows the native "Back / Healthy" header on top of the page's own.
+- `router.back()` is a no-op after a deep link; leave a page with `goBackOrHome`.
+- Colours come from `theme.colors` keys that exist (`text`, `muted`, …). An
+  unknown key is `undefined`, which renders black in dark mode.
+
+## Native camera
+
+- Never snapshot `AVCaptureVideoPreviewLayer` (`render(in:)` draws black).
+  Recorded frames come from the capture output via `CameraFrameTap`.
+- Recording changes are not done until seen on a real device: the clip shows
+  the person, plays at real speed, and stays under the contract's size and
+  duration caps.
+
 ## Release lanes
 
 - JS-only: EAS Update.

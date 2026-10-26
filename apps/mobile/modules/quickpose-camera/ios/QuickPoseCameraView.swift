@@ -48,6 +48,8 @@ final class HealthyQuickPoseView: ExpoView {
 
   private var quickPose: QuickPose?
   private var camera: QuickPoseCamera?
+  /// Retained here: the capture output holds its delegate weakly.
+  private var frameTap: CameraFrameTap?
   private var previewLayer: AVCaptureVideoPreviewLayer?
   private let overlayView = UIImageView()
   private var hasStarted = false
@@ -100,8 +102,9 @@ final class HealthyQuickPoseView: ExpoView {
 
     let qp = QuickPose(sdkKey: sdkKey)
     let cam = QuickPoseCamera(useFrontCamera: useFrontCamera)
+    let tap = CameraFrameTap(quickPose: qp)
     do {
-      try cam.start(delegate: qp)
+      try cam.start(delegate: tap)
     } catch {
       return
     }
@@ -110,6 +113,7 @@ final class HealthyQuickPoseView: ExpoView {
     currentFeatures = mapped
     quickPose = qp
     camera = cam
+    frameTap = tap
     attachPreview(from: cam)
 
     // Fifth argument is QuickPose landmarks. Shape confirmed on device in the
@@ -138,9 +142,7 @@ final class HealthyQuickPoseView: ExpoView {
     overlayView.image = image
 
     if let recorder = proofRecorder, recorder.isRecording {
-      // Preview layer has the camera; overlay image is the QuickPose draw.
-      let cameraSnap = snapshotPreview()
-      recorder.append(cameraImage: cameraSnap, overlayImage: image)
+      recorder.append(cameraFrame: frameTap?.newestFrame(), overlayImage: image)
     }
 
     guard case .success(info: _) = status else { return }
@@ -161,29 +163,19 @@ final class HealthyQuickPoseView: ExpoView {
     ])
   }
 
-  private func snapshotPreview() -> UIImage? {
-    guard let previewLayer else { return nil }
-    let size = previewLayer.bounds.size
-    guard size.width > 0, size.height > 0 else { return nil }
-    let format = UIGraphicsImageRendererFormat()
-    format.scale = 1
-    let renderer = UIGraphicsImageRenderer(size: size, format: format)
-    return renderer.image { context in
-      previewLayer.render(in: context.cgContext)
-    }
-  }
-
   private func syncProofRecording() {
     guard hasStarted else { return }
 
     guard let config = proofRecording,
           let code = config["code"] as? String,
-          !code.isEmpty
+          !code.isEmpty,
+          let maxDurationSeconds = config["maxDurationSeconds"] as? Double
     else {
       if proofRecorder?.isRecording == true {
         proofRecorder?.cancel()
       }
       proofRecorder = nil
+      frameTap?.setKeepingFrames(false)
       return
     }
 
@@ -203,9 +195,12 @@ final class HealthyQuickPoseView: ExpoView {
           code: code,
           label: (config["label"] as? String) ?? "",
           count: proofCount
-        )
+        ),
+        mirrorsCamera: useFrontCamera,
+        maxDurationSeconds: maxDurationSeconds
       )
       proofRecorder = recorder
+      frameTap?.setKeepingFrames(true)
     } catch {
       onProofRecordingError(["message": "Could not start proof recording."])
       proofRecorder = nil
@@ -215,6 +210,7 @@ final class HealthyQuickPoseView: ExpoView {
   /// Ends the clip and emits `onProofRecorded` with file URIs and the hash.
   func finishProofRecording() {
     guard let recorder = proofRecorder, recorder.isRecording else { return }
+    frameTap?.setKeepingFrames(false)
     recorder.finish { [weak self] result in
       DispatchQueue.main.async {
         self?.proofRecorder = nil
@@ -273,6 +269,8 @@ final class HealthyQuickPoseView: ExpoView {
     quickPose = nil
     camera?.stop()
     camera = nil
+    frameTap?.setKeepingFrames(false)
+    frameTap = nil
     previewLayer?.removeFromSuperlayer()
     previewLayer = nil
     overlayView.image = nil

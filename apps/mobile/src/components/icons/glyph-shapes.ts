@@ -47,6 +47,7 @@ export type GlyphName =
   | 'leaf'
   | 'plus'
   | 'share'
+  | 'download'
   | 'lock'
   | 'minus'
   | 'deleteKey'
@@ -227,6 +228,11 @@ export const GLYPH_SHAPES: Record<GlyphName, readonly GlyphShape[]> = {
   share: [
     { kind: 'path', d: 'M12 3v13' },
     { kind: 'path', d: 'm7 8 5-5 5 5' },
+    { kind: 'path', d: 'M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5' },
+  ],
+  download: [
+    { kind: 'path', d: 'M12 3v13' },
+    { kind: 'path', d: 'm7 11 5 5 5-5' },
     { kind: 'path', d: 'M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5' },
   ],
   lock: [

@@ -29,6 +29,14 @@ const NAME_USE_NOTE = 'Friends in your contests see this.';
 const INVITE_NAME_USE: Record<PublicMatchInvitePreview['metric'], string> = {
   pushups: 'Friends see this with your push-ups. Nothing else about you is shown.',
   walk: 'Friends see this with your minutes walked. Nothing else about you is shown.',
+  squats: 'Friends see this with your squats. Nothing else about you is shown.',
+  plank: 'Friends see this with your plank time. Nothing else about you is shown.',
+  jumping_jacks: 'Friends see this with your jumping jacks. Nothing else about you is shown.',
+  burpees: 'Friends see this with your burpees. Nothing else about you is shown.',
+  sit_ups: 'Friends see this with your sit-ups. Nothing else about you is shown.',
+  mountain_climbers:
+    'Friends see this with your mountain climbers. Nothing else about you is shown.',
+  lunges: 'Friends see this with your lunges. Nothing else about you is shown.',
 };
 
 interface TwoQuickThingsScreenProps {

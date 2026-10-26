@@ -45,10 +45,15 @@
       "types": "./dist/account-deletion.d.ts",
       "import": "./dist/account-deletion.js",
       "require": "./dist/account-deletion.cjs"
+    },
+    "./proof-clip-limits": {
+      "types": "./dist/proof-clip-limits.d.ts",
+      "import": "./dist/proof-clip-limits.js",
+      "require": "./dist/proof-clip-limits.cjs"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts src/country-code.ts src/display-name.ts src/challenge-title.ts src/challenge-sort.ts src/challenge-capture.ts src/match-board.ts src/account-deletion.ts --format esm,cjs --dts --clean",
+    "build": "tsup src/index.ts src/country-code.ts src/display-name.ts src/challenge-title.ts src/challenge-sort.ts src/challenge-capture.ts src/match-board.ts src/account-deletion.ts src/proof-clip-limits.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"lint: contract skipped\"",
     "test": "vitest run"

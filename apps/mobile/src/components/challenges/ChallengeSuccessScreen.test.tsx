@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Sharing from 'expo-sharing';
 import type { ComponentProps } from 'react';
+import { Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
@@ -52,6 +53,17 @@ jest.mock('expo-router', () => {
   };
 });
 
+const mockGetLocalProofClip = jest.fn();
+
+jest.mock('@/lib/proof-clip-store', () => ({
+  getLocalProofClip: (clipId: string) => mockGetLocalProofClip(clipId),
+}));
+
+jest.mock('@/lib/proof-clip-upload', () => ({
+  uploadProofClip: jest.fn(),
+  discardLocalProofClip: jest.fn(async () => undefined),
+}));
+
 const testSafeAreaMetrics: Metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
@@ -79,6 +91,59 @@ function renderSuccess(props: Partial<ComponentProps<typeof ChallengeSuccessScre
 afterEach(() => {
   clearPendingSharePhoto();
   jest.clearAllMocks();
+});
+
+describe('ChallengeSuccessScreen with a proof clip', () => {
+  const clipFinish = {
+    completedCount: 12,
+    face: 'reps' as const,
+    proofClipId: 'clip-1',
+    title: 'Do 10 push-ups',
+    userChallengeId: 'uc-1',
+  };
+
+  beforeEach(() => {
+    mockGetLocalProofClip.mockResolvedValue({
+      clipId: 'clip-1',
+      fileUri: 'file:///clip.mp4',
+      posterUri: 'file:///poster.jpg',
+      displayCode: '42BW-A7J4',
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('makes the clip the one job: one solid button and no share card behind it', async () => {
+    renderSuccess(clipFinish);
+
+    expect(await screen.findByTestId('proof-clip-hero')).toBeOnTheScreen();
+    expect(screen.getByText('42BW-A7J4')).toBeOnTheScreen();
+    expect(screen.getByTestId('proof-publish')).toHaveTextContent('Share clip');
+    expect(screen.getByLabelText('Save to Photos')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-poster-image')).toBeNull();
+    expect(screen.queryByTestId('challenge-success-share')).toBeNull();
+  });
+
+  it('falls back to the share card once the clip is discarded, without calling it lost', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.[1]?.onPress?.();
+    });
+    renderSuccess(clipFinish);
+
+    fireEvent.press(await screen.findByTestId('proof-discard'));
+
+    expect(await screen.findByTestId('share-poster-image')).toBeOnTheScreen();
+    expect(screen.queryByText('Your proof clip didn’t save.')).toBeNull();
+  });
+
+  it('says so when recording was on but the clip never landed', () => {
+    renderSuccess({ ...clipFinish, proofClipId: undefined, proofFailed: true });
+
+    expect(screen.getByText('Your proof clip didn’t save.')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
+  });
 });
 
 describe('ChallengeSuccessScreen share card', () => {

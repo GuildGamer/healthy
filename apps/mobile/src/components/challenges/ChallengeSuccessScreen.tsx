@@ -18,17 +18,19 @@ import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 import { clearPendingSharePhoto, pendingSharePhotoFor } from '@/lib/share-card-session';
 import { trackEvent } from '@/lib/track-event';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
+import { POSE_COPY } from './constants/doing-copy';
 import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { SUCCESS_COPY } from './constants/success-copy';
 import { friendChallengeSpec } from './friend-challenge';
 import { nextGoalLadderOffer, type GoalLadderOffer } from './goal-ladder';
-import { ProofClipActions } from './ProofClipActions';
+import { ProofClipHero, ProofClipPrimaryRow } from './ProofClipActions';
 import { posterForSuccess, type SuccessFace } from './success-poster';
 import { posterRunLine } from './share-poster';
 import { SharePosterCard } from './SharePosterCard';
 import type { FriendChallengeSource } from './types/friend-challenge';
 import { useFriendChallenge } from './useFriendChallenge';
 import { useUpdateEnrollment } from './useChallengeMutations';
+import { type ProofClipState, useProofClip } from './useProofClip';
 
 type ChallengeSuccessScreenProps = {
   title: string;
@@ -224,6 +226,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     practice,
   });
   const shareImage = useShareCardImage({ matchId, userChallengeId, practice });
+  const proof = useProofClip(proofClipId ?? null, isMatch ? 'group' : 'shared');
   const { me, leave } = useLeaveSuccess(matchId);
   const benefitTip = useSuccessBenefitTip({ challengeId, activityKey, practice, isMatch });
   const [photoUri] = useState(() => pendingSharePhotoFor(userChallengeId));
@@ -257,6 +260,19 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     );
   }
 
+  if (proof.isLoading || proof.clip) {
+    return (
+      <SafeAreaView style={styles.container} testID="challenge-success-screen">
+        {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
+        <View style={styles.body}>
+          {proof.isLoading ? <ActivityIndicator /> : <ProofClipHero fill proof={proof} />}
+        </View>
+        <ClipFinishActions doneLabel={doneLabel} friend={friend} onDone={leave} proof={proof} />
+      </SafeAreaView>
+    );
+  }
+
+  const clipFailed = (proofFailed && !proofClipId) || proof.isMissing;
   const streakDays =
     isMatch || practice ? (me?.currentStreakDays ?? currentStreakDays) : currentStreakDays;
   const ladderOffer =
@@ -291,13 +307,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         <WhyItMatters tip={benefitTip} />
       </View>
       <View style={styles.actions}>
-        {proofClipId || proofFailed ? (
-          <ProofClipActions
-            clipId={proofClipId ?? null}
-            failed={proofFailed && !proofClipId}
-            visibility={isMatch ? 'group' : 'shared'}
-          />
-        ) : null}
+        {clipFailed ? <DeckSheetMessage message={POSE_COPY.proofFailed} /> : null}
         {shareImage.error ? <DeckSheetMessage message={shareImage.error} /> : null}
         {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
         <SuccessActions friend={friend} shareImage={shareImage} />
@@ -325,6 +335,44 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+/**
+ * With a clip, the clip is the one job: publishing it is the only solid
+ * button, and a friend challenge drops to a quiet word beside the way out.
+ */
+function ClipFinishActions({
+  proof,
+  friend,
+  doneLabel,
+  onDone,
+}: {
+  proof: ProofClipState;
+  friend: ReturnType<typeof useFriendChallenge>;
+  doneLabel: string;
+  onDone: () => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const offersFriend = friend.isReady && friend.isOffered;
+
+  return (
+    <View style={styles.actions}>
+      {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
+      {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
+      <ProofClipPrimaryRow proof={proof} />
+      <View style={[styles.quietRow, offersFriend ? styles.quietRowSplit : null]}>
+        {offersFriend ? (
+          <QuietAction
+            disabled={friend.isCreating}
+            label={FRIEND_CHALLENGE_COPY.action}
+            onPress={friend.challengeFriend}
+            testID="challenge-success-challenge-friend"
+          />
+        ) : null}
+        <QuietAction label={doneLabel} onPress={onDone} testID="challenge-success-done" />
+      </View>
+    </View>
   );
 }
 
@@ -526,19 +574,26 @@ function QuietAction({
   label,
   onPress,
   testID,
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   testID: string;
+  disabled?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       hitSlop={spacing.sm}
       onPress={onPress}
-      style={({ pressed }) => [styles.quietAction, pressed ? styles.quietActionPressed : null]}
+      style={({ pressed }) => [
+        styles.quietAction,
+        pressed || disabled ? styles.quietActionPressed : null,
+      ]}
       testID={testID}
     >
       <Text style={styles.quietActionLabel}>{label}</Text>
