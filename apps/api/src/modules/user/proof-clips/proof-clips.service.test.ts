@@ -190,6 +190,36 @@ describe('ProofClipsService.verify', () => {
       outcome: 'verified',
     });
   });
+
+  it.each(['reserved', 'recorded'] as const)(
+    'calls a %s clip not shared rather than an unknown code',
+    async (status) => {
+      const { service } = createHarness(
+        clip({ status, visibility: null, sharedAt: null, expiresAt: null }),
+      );
+      await expect(service.verify(owner, '7KQ4M2XD')).resolves.toEqual({
+        outcome: 'not_shared',
+      });
+    },
+  );
+});
+
+describe('ProofClipsService.requestUpload', () => {
+  it('refuses a second group post before any upload URL is issued', async () => {
+    const { service, prisma, storage } = createHarness(
+      clip({ status: 'recorded', visibility: null, sharedAt: null, expiresAt: null }),
+    );
+    prisma.proofClip.count.mockResolvedValueOnce(1);
+
+    await expect(
+      service.requestUpload(owner, {
+        clipId: 'clip1',
+        videoByteSize: 1_024,
+        visibility: 'group',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(storage.presignPut).not.toHaveBeenCalled();
+  });
 });
 
 describe('ProofClipsService.completeUpload', () => {

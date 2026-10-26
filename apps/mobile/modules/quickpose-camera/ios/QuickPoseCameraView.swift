@@ -142,7 +142,7 @@ final class HealthyQuickPoseView: ExpoView {
     overlayView.image = image
 
     if let recorder = proofRecorder, recorder.isRecording {
-      recorder.append(cameraFrame: frameTap?.newestFrame(), overlayImage: image)
+      recorder.append(cameraFrame: frameTap?.newestFrame())
     }
 
     guard case .success(info: _) = status else { return }

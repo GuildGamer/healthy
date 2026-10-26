@@ -11501,6 +11501,13 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 512000
+                  },
+                  "visibility": {
+                    "enum": [
+                      "group",
+                      "shared"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [

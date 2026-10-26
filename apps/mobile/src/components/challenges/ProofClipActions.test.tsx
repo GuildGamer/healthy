@@ -98,6 +98,24 @@ describe('ProofClipActions', () => {
     expect(screen.queryByText(/SignatureDoesNotMatch/)).toBeNull();
   });
 
+  it('says why a second group post today was refused', async () => {
+    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
+    uploadProofClip.mockRejectedValue(
+      Object.assign(new Error('You already posted a clip to this group today.'), {
+        code: 'CONFLICT',
+      }),
+    );
+
+    render(<ProofClipActions clipId="clip-1" visibility="group" />);
+    fireEvent.press(screen.getByTestId('proof-publish'));
+
+    expect(
+      await screen.findByText(
+        'You already posted a clip to this group today. Save this one to Photos instead.',
+      ),
+    ).toBeOnTheScreen();
+  });
+
   it('treats a discarded clip as gone, not as a failed save', async () => {
     useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {

@@ -113,4 +113,44 @@ describe('uploadProofClip', () => {
 
     expect(mockedApi.recordProofClip).not.toHaveBeenCalled();
   });
+
+  it('uploads the poster and sends visibility so the server can refuse early', async () => {
+    mockedGetLocal.mockResolvedValue({
+      clipId: 'clip-1',
+      fileUri: 'file:///tmp/clip.mp4',
+      posterUri: 'file:///tmp/poster.jpg',
+      sha256: 'a'.repeat(64),
+      byteSize: 1024,
+      durationSeconds: 12,
+      count: 10,
+      code: 'ABCDEFG',
+      displayCode: 'ABCD-EFG',
+      recordedAt: new Date().toISOString(),
+      userChallengeId: null,
+      matchId: 'match-1',
+      serverRecorded: true,
+    });
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: { url: 'https://upload.example/poster', headers: {}, key: 'p' },
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await uploadProofClip({ clipId: 'clip-1', visibility: 'group' });
+
+    expect(mockedApi.requestProofClipUpload).toHaveBeenCalledWith({
+      clipId: 'clip-1',
+      videoByteSize: 1024,
+      posterByteSize: 5,
+      visibility: 'group',
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://upload.example/poster',
+      expect.objectContaining({ method: 'PUT' }),
+    );
+  });
 });

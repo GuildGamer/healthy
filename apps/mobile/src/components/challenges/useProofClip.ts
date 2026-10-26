@@ -3,6 +3,7 @@ import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { getLocalProofClip } from '@/lib/proof-clip-store';
+import { isGroupPostCapError } from '@/lib/proof-clip-errors';
 import { discardLocalProofClip, uploadProofClip } from '@/lib/proof-clip-upload';
 import { POSE_COPY } from './constants/doing-copy';
 import { saveProofToPhotos } from './save-proof-to-photos';
@@ -43,8 +44,12 @@ export function useProofClip(clipId: string | null, visibility: ProofClipVisibil
     try {
       await uploadProofClip({ clipId, visibility });
       watch();
-    } catch {
-      setError(POSE_COPY.proofPublishFailed);
+    } catch (publishError) {
+      setError(
+        isGroupPostCapError(publishError)
+          ? POSE_COPY.proofAlreadyPostedToday
+          : POSE_COPY.proofPublishFailed,
+      );
     } finally {
       setIsBusy(false);
     }

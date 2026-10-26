@@ -1,13 +1,13 @@
 import { fontSize, radii, spacing } from '@product/brand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type Href, Redirect, useLocalSearchParams } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeckButton, DeckNavButton, DeckPageNav } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { POSE_COPY } from '@/components/challenges/constants/doing-copy';
+import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
 import { saveProofToPhotos } from '@/components/challenges/save-proof-to-photos';
 import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
@@ -199,24 +199,6 @@ export default function ProofClipViewerRoute() {
         </View>
       ) : null}
     </SafeAreaView>
-  );
-}
-
-function ProofVideoPlayer({ uri }: { uri: string }) {
-  const styles = useThemedStyles(createStyles);
-  const player = useVideoPlayer(uri, (instance) => {
-    instance.loop = true;
-  });
-
-  return (
-    <VideoView
-      allowsFullscreen
-      contentFit="contain"
-      nativeControls
-      player={player}
-      style={styles.poster}
-      testID="proof-video"
-    />
   );
 }
 

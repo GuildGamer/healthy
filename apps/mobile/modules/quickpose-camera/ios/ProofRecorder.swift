@@ -5,15 +5,15 @@ import UIKit
 import VideoToolbox
 
 /**
- * Writes a muted HEVC clip of the camera with QuickPose's skeleton on top.
+ * Writes a muted HEVC clip of the plain camera image. The skeleton stays on
+ * the live preview only.
  *
- * Overlay (logo label, verification code, live rep count, date) is burned in
- * before encoding so the exported file is self-evidencing. A poster JPEG is
+ * Proof chrome (wordmark, verification code, live rep count, date) is burned
+ * in before encoding so the exported file is self-evidencing. A poster JPEG is
  * captured from the first written frame.
  *
  * Camera frames are not mirrored (QuickPose keeps ML input raw) but the front
- * preview and QuickPose's overlay are, so a front-camera frame is mirrored
- * before the overlay is drawn on it.
+ * preview is, so a front-camera frame is mirrored to match what the person saw.
  */
 final class ProofRecorder {
   struct Overlay {
@@ -115,7 +115,7 @@ final class ProofRecorder {
 
   /// Appends one composited frame. Safe to call from the QuickPose frame callback.
   /// A frame without a camera image is skipped rather than written as black.
-  func append(cameraFrame: CVPixelBuffer?, overlayImage: UIImage?) {
+  func append(cameraFrame: CVPixelBuffer?) {
     guard isRecording, let writer, writer.status == .writing, let cameraFrame else { return }
     let elapsedSeconds = CACurrentMediaTime() - startedAt
 
@@ -128,7 +128,6 @@ final class ProofRecorder {
 
       let composed = Self.compose(
         camera: camera,
-        overlay: overlayImage,
         proof: self.overlay,
         size: CGSize(width: Self.targetWidth, height: Self.targetHeight)
       )
@@ -268,7 +267,6 @@ final class ProofRecorder {
 
   private static func compose(
     camera: UIImage,
-    overlay: UIImage?,
     proof: Overlay,
     size: CGSize
   ) -> UIImage {
@@ -281,10 +279,6 @@ final class ProofRecorder {
       context.fill(CGRect(origin: .zero, size: size))
 
       drawAspectFill(camera, in: CGRect(origin: .zero, size: size))
-      if let overlay {
-        drawAspectFill(overlay, in: CGRect(origin: .zero, size: size))
-      }
-
       drawProofChrome(proof, in: CGRect(origin: .zero, size: size))
     }
   }
@@ -301,105 +295,133 @@ final class ProofRecorder {
     image.draw(in: CGRect(origin: origin, size: drawSize))
   }
 
+  private enum Chrome {
+    static let edgeInset: CGFloat = 28
+    static let topInset: CGFloat = 40
+    static let bottomInset: CGFloat = 56
+    static let chipPadding = UIEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
+    static let chipCornerRadius: CGFloat = 14
+    static let chipFill = UIColor.black.withAlphaComponent(0.55)
+    static let lineGap: CGFloat = 3
+    static let pipSize: CGFloat = 12
+    static let pipGap: CGFloat = 10
+
+    static let brandFont = UIFont.systemFont(ofSize: 20, weight: .heavy)
+    static let codeFont = UIFont.monospacedSystemFont(ofSize: 20, weight: .semibold)
+    static let urlFont = UIFont.systemFont(ofSize: 14, weight: .medium)
+    static let countFont = UIFont.systemFont(ofSize: 28, weight: .bold)
+    static let dateFont = UIFont.systemFont(ofSize: 16, weight: .medium)
+
+    static let dateFormatter: DateFormatter = {
+      let formatter = DateFormatter()
+      formatter.dateStyle = .medium
+      formatter.timeStyle = .none
+      return formatter
+    }()
+  }
+
   private static func drawProofChrome(_ proof: Overlay, in rect: CGRect) {
-    let padding: CGFloat = 24
-    let chipHeight: CGFloat = 36
+    drawBrandChip(in: rect)
+    drawCodeChip(code: proof.code, in: rect)
+    drawCountChip(proof, in: rect)
+  }
 
-    // Top-left: Healthy wordmark chip
+  /// Top-left: recording pip and wordmark.
+  private static func drawBrandChip(in rect: CGRect) {
     let brand = "Healthy" as NSString
-    let brandAttrs: [NSAttributedString.Key: Any] = [
-      .font: UIFont.systemFont(ofSize: 16, weight: .heavy),
-      .foregroundColor: UIColor.white,
-    ]
-    let brandSize = brand.size(withAttributes: brandAttrs)
-    let brandRect = CGRect(
-      x: padding,
-      y: padding + 8,
-      width: brandSize.width + 24,
-      height: chipHeight
+    let attributes = textAttributes(font: Chrome.brandFont)
+    let textSize = brand.size(withAttributes: attributes)
+    let padding = Chrome.chipPadding
+    let chip = CGRect(
+      x: Chrome.edgeInset,
+      y: Chrome.topInset,
+      width: padding.left + Chrome.pipSize + Chrome.pipGap + textSize.width + padding.right,
+      height: padding.top + textSize.height + padding.bottom
     )
-    let brandPath = UIBezierPath(roundedRect: brandRect, cornerRadius: 10)
-    UIColor.black.withAlphaComponent(0.55).setFill()
-    brandPath.fill()
-    brand.draw(
-      at: CGPoint(x: brandRect.minX + 12, y: brandRect.midY - brandSize.height / 2),
-      withAttributes: brandAttrs
-    )
+    fillChip(chip)
 
-    // Top-right: code + verify URL so anyone watching knows where to check it
-    let codeLine = proof.code as NSString
-    let urlLine = "gethealthyapp.com/v/\(proof.code)" as NSString
-    let codeAttrs: [NSAttributedString.Key: Any] = [
-      .font: UIFont.monospacedSystemFont(ofSize: 15, weight: .semibold),
-      .foregroundColor: UIColor.white,
-    ]
-    let urlAttrs: [NSAttributedString.Key: Any] = [
-      .font: UIFont.systemFont(ofSize: 11, weight: .medium),
-      .foregroundColor: UIColor.white.withAlphaComponent(0.85),
-    ]
-    let codeSize = codeLine.size(withAttributes: codeAttrs)
-    let urlSize = urlLine.size(withAttributes: urlAttrs)
-    let chipWidth = max(codeSize.width, urlSize.width) + 24
-    let chipBlockHeight = codeSize.height + urlSize.height + 14
-    let codeRect = CGRect(
-      x: rect.width - padding - chipWidth,
-      y: padding + 8,
-      width: chipWidth,
-      height: max(chipHeight, chipBlockHeight)
+    let pip = CGRect(
+      x: chip.minX + padding.left,
+      y: chip.midY - Chrome.pipSize / 2,
+      width: Chrome.pipSize,
+      height: Chrome.pipSize
     )
-    let codePath = UIBezierPath(roundedRect: codeRect, cornerRadius: 10)
-    UIColor.black.withAlphaComponent(0.55).setFill()
-    codePath.fill()
-    let codeY = codeRect.minY + 7
-    codeLine.draw(
-      at: CGPoint(x: codeRect.maxX - 12 - codeSize.width, y: codeY),
-      withAttributes: codeAttrs
-    )
-    urlLine.draw(
-      at: CGPoint(x: codeRect.maxX - 12 - urlSize.width, y: codeY + codeSize.height + 2),
-      withAttributes: urlAttrs
-    )
-
-    // Bottom-centre: live count + label + date
-    let dateFormatter = DateFormatter()
-    dateFormatter.dateStyle = .medium
-    dateFormatter.timeStyle = .none
-    let dateLine = dateFormatter.string(from: Date())
-    let countLine = "\(proof.count)  ·  \(proof.label)" as NSString
-    let countAttrs: [NSAttributedString.Key: Any] = [
-      .font: UIFont.systemFont(ofSize: 22, weight: .bold),
-      .foregroundColor: UIColor.white,
-    ]
-    let dateAttrs: [NSAttributedString.Key: Any] = [
-      .font: UIFont.systemFont(ofSize: 13, weight: .medium),
-      .foregroundColor: UIColor.white.withAlphaComponent(0.85),
-    ]
-    let countSize = countLine.size(withAttributes: countAttrs)
-    let dateSize = (dateLine as NSString).size(withAttributes: dateAttrs)
-    let blockWidth = max(countSize.width, dateSize.width) + 32
-    let blockHeight = countSize.height + dateSize.height + 20
-    let blockRect = CGRect(
-      x: (rect.width - blockWidth) / 2,
-      y: rect.height - padding - blockHeight - 24,
-      width: blockWidth,
-      height: blockHeight
-    )
-    let blockPath = UIBezierPath(roundedRect: blockRect, cornerRadius: 14)
-    UIColor.black.withAlphaComponent(0.55).setFill()
-    blockPath.fill()
-    countLine.draw(
-      at: CGPoint(x: blockRect.midX - countSize.width / 2, y: blockRect.minY + 8),
-      withAttributes: countAttrs
-    )
-    (dateLine as NSString).draw(
-      at: CGPoint(x: blockRect.midX - dateSize.width / 2, y: blockRect.minY + 8 + countSize.height + 2),
-      withAttributes: dateAttrs
-    )
-
-    // Recording pip
-    let pip = CGRect(x: rect.width - padding - 14, y: padding + 54, width: 10, height: 10)
     UIColor.systemRed.setFill()
     UIBezierPath(ovalIn: pip).fill()
+
+    brand.draw(
+      at: CGPoint(x: pip.maxX + Chrome.pipGap, y: chip.midY - textSize.height / 2),
+      withAttributes: attributes
+    )
+  }
+
+  /// Top-right: code and verify URL so anyone watching knows where to check it.
+  private static func drawCodeChip(code: String, in rect: CGRect) {
+    let codeLine = code as NSString
+    let urlLine = "gethealthyapp.com/v/\(code)" as NSString
+    let codeAttributes = textAttributes(font: Chrome.codeFont)
+    let urlAttributes = textAttributes(font: Chrome.urlFont, alpha: 0.85)
+    let codeSize = codeLine.size(withAttributes: codeAttributes)
+    let urlSize = urlLine.size(withAttributes: urlAttributes)
+    let padding = Chrome.chipPadding
+    let width = padding.left + max(codeSize.width, urlSize.width) + padding.right
+    let chip = CGRect(
+      x: rect.width - Chrome.edgeInset - width,
+      y: Chrome.topInset,
+      width: width,
+      height: padding.top + codeSize.height + Chrome.lineGap + urlSize.height + padding.bottom
+    )
+    fillChip(chip)
+
+    let rightEdge = chip.maxX - padding.right
+    let codeTop = chip.minY + padding.top
+    codeLine.draw(
+      at: CGPoint(x: rightEdge - codeSize.width, y: codeTop),
+      withAttributes: codeAttributes
+    )
+    urlLine.draw(
+      at: CGPoint(x: rightEdge - urlSize.width, y: codeTop + codeSize.height + Chrome.lineGap),
+      withAttributes: urlAttributes
+    )
+  }
+
+  /// Bottom-centre: live count, label, and date.
+  private static func drawCountChip(_ proof: Overlay, in rect: CGRect) {
+    let countLine = "\(proof.count)  ·  \(proof.label)" as NSString
+    let dateLine = Chrome.dateFormatter.string(from: Date()) as NSString
+    let countAttributes = textAttributes(font: Chrome.countFont)
+    let dateAttributes = textAttributes(font: Chrome.dateFont, alpha: 0.85)
+    let countSize = countLine.size(withAttributes: countAttributes)
+    let dateSize = dateLine.size(withAttributes: dateAttributes)
+    let padding = Chrome.chipPadding
+    let width = padding.left + max(countSize.width, dateSize.width) + padding.right
+    let height = padding.top + countSize.height + Chrome.lineGap + dateSize.height + padding.bottom
+    let chip = CGRect(
+      x: (rect.width - width) / 2,
+      y: rect.height - Chrome.bottomInset - height,
+      width: width,
+      height: height
+    )
+    fillChip(chip)
+
+    let countTop = chip.minY + padding.top
+    countLine.draw(
+      at: CGPoint(x: chip.midX - countSize.width / 2, y: countTop),
+      withAttributes: countAttributes
+    )
+    dateLine.draw(
+      at: CGPoint(x: chip.midX - dateSize.width / 2, y: countTop + countSize.height + Chrome.lineGap),
+      withAttributes: dateAttributes
+    )
+  }
+
+  private static func fillChip(_ chip: CGRect) {
+    Chrome.chipFill.setFill()
+    UIBezierPath(roundedRect: chip, cornerRadius: Chrome.chipCornerRadius).fill()
+  }
+
+  private static func textAttributes(font: UIFont, alpha: CGFloat = 1) -> [NSAttributedString.Key: Any] {
+    [.font: font, .foregroundColor: UIColor.white.withAlphaComponent(alpha)]
   }
 
   private static func pixelBuffer(from image: UIImage) -> CVPixelBuffer? {

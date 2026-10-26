@@ -1,3 +1,4 @@
+import { PROOF_CLIP_POSTER_MAX_BYTES } from '@product/contract/proof-clip-limits';
 import { apiClient } from '@/lib/api';
 import {
   getLocalProofClip,
@@ -36,10 +37,12 @@ export async function uploadProofClip(input: {
     }
   }
 
+  const poster = await readPoster(local.posterUri);
   const urls = await apiClient.requestProofClipUpload({
     clipId: input.clipId,
     videoByteSize: local.byteSize,
-    posterByteSize: undefined,
+    posterByteSize: poster?.size,
+    visibility: input.visibility,
   });
 
   const videoResponse = await fetch(local.fileUri);
@@ -53,13 +56,11 @@ export async function uploadProofClip(input: {
     throw new Error('Could not upload the clip. Try again.');
   }
 
-  if (urls.poster && local.posterUri) {
-    const posterResponse = await fetch(local.posterUri);
-    const posterBlob = await posterResponse.blob();
+  if (urls.poster && poster) {
     const putPoster = await fetch(urls.poster.url, {
       method: 'PUT',
       headers: urls.poster.headers,
-      body: posterBlob,
+      body: poster,
     });
     if (!putPoster.ok) {
       throw new Error('Could not upload the poster. Try again.');
@@ -70,6 +71,23 @@ export async function uploadProofClip(input: {
     clipId: input.clipId,
     visibility: input.visibility,
   });
+}
+
+/** The poster is optional: a missing or oversized one never blocks the clip. */
+async function readPoster(posterUri: string | null): Promise<Blob | null> {
+  if (!posterUri) {
+    return null;
+  }
+  try {
+    const response = await fetch(posterUri);
+    const blob = await response.blob();
+    if (blob.size === 0 || blob.size > PROOF_CLIP_POSTER_MAX_BYTES) {
+      return null;
+    }
+    return blob;
+  } catch {
+    return null;
+  }
 }
 
 export async function discardLocalProofClip(clipId: string): Promise<void> {

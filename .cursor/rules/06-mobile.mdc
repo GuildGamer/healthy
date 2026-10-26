@@ -59,6 +59,11 @@ screen that already solves the same shape and match it.
 
 - Never snapshot `AVCaptureVideoPreviewLayer` (`render(in:)` draws black).
   Recorded frames come from the capture output via `CameraFrameTap`.
+- Proof clips are plain camera footage plus the proof chrome (code, count,
+  date). The QuickPose skeleton belongs to the live preview, never the file.
+- The server can refuse a publish (for example the daily group cap). Check
+  every refusal before any bytes upload, and show the person why in their
+  words; a raw or generic error is not done.
 - Recording changes are not done until seen on a real device: the clip shows
   the person, plays at real speed, and stays under the contract's size and
   duration caps.

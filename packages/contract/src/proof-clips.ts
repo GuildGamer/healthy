@@ -13,13 +13,18 @@ export {
   PROOF_CODE_BODY_LENGTH,
 } from './proof-code.js';
 
-import { PROOF_CLIP_MAX_BYTES, PROOF_CLIP_MAX_DURATION_SECONDS } from './proof-clip-limits.js';
+import {
+  PROOF_CLIP_MAX_BYTES,
+  PROOF_CLIP_MAX_DURATION_SECONDS,
+  PROOF_CLIP_POSTER_MAX_BYTES,
+} from './proof-clip-limits.js';
 
 export {
   PROOF_CLIP_GROUP_RETENTION_DAYS,
   PROOF_CLIP_HARD_RETENTION_DAYS,
   PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_MAX_DURATION_SECONDS,
+  PROOF_CLIP_POSTER_MAX_BYTES,
   PROOF_CLIP_RESERVE_WINDOW_MINUTES,
   PROOF_CLIP_SIGNED_URL_TTL_SECONDS,
   PROOF_CLIP_SOLO_RETENTION_DAYS,
@@ -105,7 +110,9 @@ export const recordProofClipOutputSchema = z.object({
 export const requestProofClipUploadInputSchema = z.object({
   clipId: z.string().min(1),
   videoByteSize: z.number().int().positive().max(PROOF_CLIP_MAX_BYTES),
-  posterByteSize: z.number().int().positive().max(512_000).optional(),
+  posterByteSize: z.number().int().positive().max(PROOF_CLIP_POSTER_MAX_BYTES).optional(),
+  /** Lets the server refuse a group post before any bytes are uploaded. */
+  visibility: proofClipVisibilitySchema.optional(),
 });
 
 export const presignedPutSchema = z.object({

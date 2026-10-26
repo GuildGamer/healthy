@@ -121,6 +121,8 @@ export const POSE_COPY = {
   proofShare: 'Share clip',
   proofPostToGroup: 'Post to group',
   proofPublishFailed: 'Could not share the clip. Try again.',
+  proofAlreadyPostedToday:
+    'You already posted a clip to this group today. Save this one to Photos instead.',
   proofDiscard: 'Discard',
   proofWatch: 'Watch your proof clip',
   saveToPhotos: 'Save to Photos',

@@ -4,7 +4,7 @@ import QuickPoseCore
 /**
  * Sits between the camera and QuickPose. Every frame still reaches QuickPose
  * unchanged; while a proof clip records, the newest camera frame is also kept
- * so the clip shows the person, not just the skeleton.
+ * so the clip is real camera footage.
  *
  * `AVCaptureVideoPreviewLayer` cannot be snapshotted (`render(in:)` draws
  * black), so the clip has to be built from these buffers.

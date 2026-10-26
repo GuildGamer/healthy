@@ -152,7 +152,12 @@ export class ProofClipsService {
 
   async requestUpload(
     currentUser: AuthenticatedUser | null | undefined,
-    input: { clipId: string; videoByteSize: number; posterByteSize?: number },
+    input: {
+      clipId: string;
+      videoByteSize: number;
+      posterByteSize?: number;
+      visibility?: 'group' | 'shared';
+    },
   ) {
     const user = requireUser(currentUser);
     const clip = await this.requireOwnedClip(user.id, input.clipId);
@@ -165,6 +170,9 @@ export class ProofClipsService {
     }
     if (input.videoByteSize > PROOF_CLIP_MAX_BYTES) {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_UPLOAD_SIZE_MISMATCH });
+    }
+    if (input.visibility === 'group' && clip.status === 'recorded') {
+      await this.assertCanPostToGroup(user.id, clip);
     }
 
     this.requireStorage();
@@ -237,10 +245,7 @@ export class ProofClipsService {
     }
 
     if (input.visibility === 'group') {
-      if (!clip.matchId) {
-        throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_CONTEXT_NOT_FOUND });
-      }
-      await this.assertDailyPostCap(user.id, clip.matchId, clip.recordedAt);
+      await this.assertCanPostToGroup(user.id, clip);
     }
 
     this.requireStorage();
@@ -425,14 +430,18 @@ export class ProofClipsService {
   private async verifyOutcomeFor(
     clip: DbProofClip,
   ): Promise<VerifyProofCodeOutput> {
+    if (clip.status === 'reserved' || clip.status === 'recorded') {
+      return { outcome: 'not_shared' };
+    }
+    if (!clip.recordedAt) {
+      return { outcome: 'not_found' };
+    }
+
     if (
       clip.status === 'expired' ||
       !clip.videoKey ||
       (clip.expiresAt != null && clip.expiresAt.getTime() <= Date.now())
     ) {
-      if (!clip.recordedAt) {
-        return { outcome: 'not_found' };
-      }
       return {
         outcome: 'original_expired',
         metric: clip.metric,
@@ -442,7 +451,7 @@ export class ProofClipsService {
       };
     }
 
-    if (clip.status !== 'ready' || !clip.recordedAt) {
+    if (clip.status !== 'ready') {
       return { outcome: 'not_found' };
     }
 
@@ -639,6 +648,13 @@ export class ProofClipsService {
     return match.participants.some((p) => p.userId === userId && p.acceptedAt != null);
   }
 
+  private async assertCanPostToGroup(userId: string, clip: DbProofClip): Promise<void> {
+    if (!clip.matchId || !clip.recordedAt) {
+      throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_CONTEXT_NOT_FOUND });
+    }
+    await this.assertDailyPostCap(userId, clip.matchId, clip.recordedAt);
+  }
+
   private async assertDailyPostCap(
     userId: string,
     matchId: string,
@@ -656,7 +672,7 @@ export class ProofClipsService {
       },
     });
     if (existing > 0) {
-      throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_DAILY_CAP });
+      throw new ORPCError('CONFLICT', { message: PROOF_CLIP_DAILY_CAP });
     }
   }
 
