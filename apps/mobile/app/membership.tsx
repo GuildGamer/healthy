@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PricingScreen } from '@/components/membership';
+import { challengesTabHref } from '@/lib/challenges-tab';
 import { goBackOrHome } from '@/lib/go-back';
 
 export default function Membership() {
@@ -12,7 +13,7 @@ export default function Membership() {
     <PricingScreen
       onClose={() => {
         if (source === 'success') {
-          router.replace('/(tabs)/challenges');
+          router.replace(challengesTabHref('mine'));
           return;
         }
 

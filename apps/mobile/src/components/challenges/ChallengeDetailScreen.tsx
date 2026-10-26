@@ -19,6 +19,7 @@ import { WeekStrip } from '@/components/home/WeekStrip';
 import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
+import { challengesTabHref } from '@/lib/challenges-tab';
 import { useLiveTodaySteps } from '@/lib/use-live-today-steps';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { rewardCornerLabel } from './catalog-layout';
@@ -59,7 +60,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.nav}>
-        <DeckPageNav onBack={() => goBackOrHome('/(tabs)/challenges')} />
+        <DeckPageNav onBack={() => goBackOrHome(challengesTabHref('mine'))} />
       </View>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
@@ -272,7 +273,7 @@ function RemoveChallenge({ challenge }: { challenge: CatalogChallenge }) {
   function remove() {
     confirmRemoval(challenge.title, () =>
       removeChallenge.mutate(challenge.challengeId, {
-        onSuccess: () => goBackOrHome('/(tabs)/challenges'),
+        onSuccess: () => goBackOrHome(challengesTabHref('mine')),
       }),
     );
   }

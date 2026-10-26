@@ -151,16 +151,16 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
         <View style={styles.rows}>
           <CreateSettingRow
             isFirst
-            label={CREATE_COPY.howYouWin}
-            onPress={() => setOpenSheet('mode')}
-            testID="match-create-mode"
-            value={MATCH_MODE_LABEL[group.rules.scoringMode]}
-          />
-          <CreateSettingRow
             label={CREATE_COPY.activity}
             onPress={() => setOpenSheet('activity')}
             testID="match-create-activity"
             value={activityLabel(group.activityChoice)}
+          />
+          <CreateSettingRow
+            label={CREATE_COPY.howYouWin}
+            onPress={() => setOpenSheet('mode')}
+            testID="match-create-mode"
+            value={MATCH_MODE_LABEL[group.rules.scoringMode]}
           />
           <CreateSettingRow
             label={CREATE_COPY.howLong}

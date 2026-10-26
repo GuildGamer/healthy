@@ -1,4 +1,5 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
+import { challengesTabHref } from '@/lib/challenges-tab';
 import { ScreenLoader } from '@/components/feedback';
 import { ChallengeHistoryScreen } from '@/components/challenges';
 import { useSession } from '@/lib/auth-client';
@@ -16,7 +17,7 @@ export default function ChallengeHistoryRoute() {
   }
 
   if (!challengeId) {
-    return <Redirect href="/(tabs)/challenges" />;
+    return <Redirect href={challengesTabHref('mine')} />;
   }
 
   return <ChallengeHistoryScreen challengeId={challengeId} />;

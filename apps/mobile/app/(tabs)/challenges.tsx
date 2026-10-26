@@ -1,26 +1,31 @@
-import { Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLoader } from '@/components/feedback';
 import { ChallengesHeader, ChallengesScreen } from '@/components/challenges';
 import { MatchesListScreen } from '@/components/matches';
 import { useSession } from '@/lib/auth-client';
+import {
+  CHALLENGES_SEGMENT_PARAM,
+  CHALLENGES_SEGMENTS,
+  type ChallengesSegment,
+  parseChallengesSegment,
+} from '@/lib/challenges-tab';
 import { type Theme, useThemedStyles } from '@/theme';
-
-type ChallengesSegment = 'mine' | 'groups';
-
-const SEGMENTS = [
-  { id: 'mine', label: 'Mine' },
-  { id: 'groups', label: 'Groups' },
-] as const satisfies readonly { id: ChallengesSegment; label: string }[];
 
 export default function ChallengesTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { data: session, isPending } = useSession();
-  const [segment, setSegment] = useState<ChallengesSegment>('mine');
+  const params = useLocalSearchParams<{ [CHALLENGES_SEGMENT_PARAM]?: string }>();
+  const requestedSegment = parseChallengesSegment(params[CHALLENGES_SEGMENT_PARAM]);
+  const [segment, setSegment] = useState<ChallengesSegment>(requestedSegment);
+
+  useEffect(() => {
+    setSegment(requestedSegment);
+  }, [requestedSegment]);
 
   if (isPending) {
     return <ScreenLoader />;
@@ -40,7 +45,7 @@ export default function ChallengesTab() {
         }
         onSelectSegment={setSegment}
         segment={segment}
-        segments={SEGMENTS}
+        segments={CHALLENGES_SEGMENTS}
       />
       {segment === 'mine' ? <ChallengesScreen /> : <MatchesListScreen />}
     </View>

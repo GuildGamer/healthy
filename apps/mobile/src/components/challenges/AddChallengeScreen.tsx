@@ -9,6 +9,7 @@ import { DeckNoteCard, DeckPageNav, DeckToast, useDeckToast } from '@/components
 import { healthCategoryName } from '@/constants/health-categories';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
+import { challengesTabHref } from '@/lib/challenges-tab';
 import { type Theme, useThemedStyles } from '@/theme';
 import {
   addedToastMessage,
@@ -55,7 +56,7 @@ export function AddChallengeScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.nav}>
         <DeckPageNav
-          onBack={() => goBackOrHome('/(tabs)/challenges')}
+          onBack={() => goBackOrHome(challengesTabHref('mine'))}
           testID="manage-challenges-screen"
           title={CATALOG_COPY.title}
         />
