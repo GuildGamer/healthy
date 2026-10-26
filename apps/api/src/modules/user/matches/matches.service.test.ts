@@ -431,6 +431,31 @@ describe('MatchesService', () => {
     expect(analytics.track).not.toHaveBeenCalled();
   });
 
+  it('public preview carries the host photo and the host-written title', async () => {
+    const service = createService(
+      createPrismaMock(
+        loadedMatch({
+          title: '  Push-up Sunday ',
+          hostUser: userWithProfile(host.id, 'Ada', 'data:image/jpeg;base64,ada'),
+        }),
+      ),
+    );
+
+    await expect(service.publicPreview('invite_token_1', 'link_preview')).resolves.toMatchObject({
+      hostImage: 'data:image/jpeg;base64,ada',
+      title: 'Push-up Sunday',
+    });
+  });
+
+  it('public preview never derives a title from the other participants', async () => {
+    const service = createService(createPrismaMock(loadedMatch({ title: null })));
+
+    await expect(service.publicPreview('invite_token_1', 'link_preview')).resolves.toMatchObject({
+      hostImage: null,
+      title: null,
+    });
+  });
+
   it('lets a guest join an open match under the cap', async () => {
     const prisma = createPrismaMock();
     const analytics = createAnalyticsSpy();

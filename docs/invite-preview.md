@@ -9,7 +9,7 @@ on demand by
 It is the first thing most new members ever see of Healthy, so it is a product
 surface, not a meta tag. It follows [`design-direction.md`](design-direction.md).
 
-## Why it is being redesigned
+## Why it was redesigned
 
 - It predates the October overhaul: its own navy-to-green gradient, Inter from
   a CDN, "HEALTHY" as small grey caps — it matches neither the old nor the new
@@ -75,12 +75,15 @@ tap away on the join screen, so the card does not repeat them.
 
 ### Data
 
-Available today from the public invite preview: host first name, metric,
-scoring mode, host score, status, end time.
+From the public invite preview: host first name, host photo, contest title,
+metric, scoring mode, host score, status, end time. Photo and title are shown
+to anyone holding the link. The title is only the host-written one: the
+derived title names the other participants, so a blank title falls back to
+the activity ("Push-up contest").
 
-Needs a small contract and API addition before build: **contest title** and
-**host photo URL**. Both are shown to anyone holding the link; the title is
-host-written text, so it stays plain text and is never the hero.
+The host photo is embedded only as an uploaded PNG/JPEG data URL or fetched
+from Google's profile photo host; anything else draws the initials disc, so
+the renderer never fetches an arbitrary URL.
 
 ## Chosen direction: the invite card
 
@@ -132,12 +135,13 @@ At thumbnail size:
 
 ## Build
 
-1. Add `title` and `hostImage` to the public invite preview contract and API.
-2. Bundle Inter and Archivo Black with the website; drop the CDN fetch.
-3. Rebuild `og.png.ts` as the square invite card, with the states above, and
-   update the page's `og:image` size tags. The website
-   is a standalone deploy with vendored brand tokens, so the night activity
-   colours are copied in alongside them, not imported from `@product/brand`. A
-   photo that fails to load falls back to the initials disc instead of failing
-   the image.
-4. Unit-test the text helpers (the activity-and-time line, truncation).
+Built. The route `og.png.ts` stays thin; the pieces live in the website:
+
+- `src/lib/invite-card.ts` — the text rules: colour kind, title and fallback,
+  title size, the activity-and-time line. Unit-tested.
+- `src/og/invite-card.ts` — the Satori layout and PNG render, with the
+  initials fallback when a photo will not draw.
+- `src/og/host-photo.ts` — the allow-listed photo loader.
+- `src/og/fonts/` — Inter 500/600/700 and Archivo Black, inlined at build.
+- `src/og/invite-card-palette.ts` — night deck colours vendored from
+  `packages/brand`; keep them in step when the brand palette changes.

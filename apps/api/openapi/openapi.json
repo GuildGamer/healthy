@@ -7485,6 +7485,28 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "hostImage": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "title": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "metric": {
                       "enum": [
                         "pushups",
@@ -7534,6 +7556,8 @@
                   "required": [
                     "token",
                     "hostDisplayName",
+                    "hostImage",
+                    "title",
                     "metric",
                     "scoringMode",
                     "hostScore",

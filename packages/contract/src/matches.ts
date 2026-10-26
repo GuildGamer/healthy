@@ -241,9 +241,8 @@ export const matchPreviewSchema = z.object({
   matchId: z.string().min(1),
   hostDisplayName: z.string().min(1),
   /**
-   * The host's profile photo, so the invite shows who is asking. Only the
-   * signed-in preview carries it: the host chose to hand this person the link,
-   * which the public card cannot know. Optional for older API builds.
+   * The host's profile photo, so the invite shows who is asking. Optional for
+   * older API builds.
    */
   hostImage: z.string().min(1).nullable().optional(),
   metric: matchMetricSchema,
@@ -270,6 +269,17 @@ export const matchPreviewSchema = z.object({
 export const publicMatchInvitePreviewSchema = z.object({
   token: z.string().min(1),
   hostDisplayName: z.string().min(1),
+  /**
+   * Profile photo URL or data URL, shown on the link preview to anyone holding
+   * the link. Null when the host has none.
+   */
+  hostImage: z.string().min(1).nullable(),
+  /**
+   * The host-written contest name. Null when the host left it blank: the
+   * derived title names the other participants, which the public card never
+   * shows.
+   */
+  title: z.string().min(1).nullable(),
   metric: matchMetricSchema,
   scoringMode: matchScoringModeSchema,
   hostScore: z.number().int().nonnegative().nullable(),

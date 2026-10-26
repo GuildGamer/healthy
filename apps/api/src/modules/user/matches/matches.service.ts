@@ -192,6 +192,10 @@ export class MatchesService {
     return seated;
   }
 
+  private hostImageFor(match: { hostUser: { image: string | null } }): string | null {
+    return match.hostUser.image?.trim() ? match.hostUser.image : null;
+  }
+
   private contestTitleFor(
     match: { title: string | null },
     opponentNames: string[],
@@ -347,7 +351,7 @@ export class MatchesService {
       token: live.inviteToken,
       matchId: live.id,
       hostDisplayName: groupNameFor(live.hostUser),
-      hostImage: live.hostUser.image?.trim() ? live.hostUser.image : null,
+      hostImage: this.hostImageFor(live),
       metric: live.metric,
       scoringMode: live.scoringMode,
       dailyScope: live.dailyScope,
@@ -402,8 +406,11 @@ export class MatchesService {
     return {
       token: match.inviteToken,
       hostDisplayName: groupNameFor(match.hostUser),
+      hostImage: this.hostImageFor(match),
+      title: match.title?.trim() || null,
       metric: match.metric,
-      scoringMode: match.scoringMode,      hostScore: this.hostScoreFor(match),
+      scoringMode: match.scoringMode,
+      hostScore: this.hostScoreFor(match),
       status: match.status,
       endsAt: match.endsAt.toISOString(),
     };
