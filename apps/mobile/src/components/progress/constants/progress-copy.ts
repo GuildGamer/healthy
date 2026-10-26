@@ -14,6 +14,8 @@ export const PROGRESS_COPY = {
   firstDayHistoryMeta: 'Your first day so far',
   leaderboardTitle: 'Leaderboard',
   tipsTitle: 'Tips',
+  verifyClipTitle: 'Verify a clip',
+  verifyClipMeta: 'Enter a code from a video',
   firstDayCardTitle: 'Each day you show up adds a row here.',
   firstDayCardBody: 'Tap a day to see what you did and what it earned.',
   thisWeek: 'This week',

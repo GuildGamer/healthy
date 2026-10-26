@@ -69,17 +69,19 @@ describe('YouProgress', () => {
     await cleanup();
   });
 
-  it('opens History, the leaderboard and Tips from their rows', async () => {
+  it('opens History, the leaderboard, Tips and Verify a clip from their rows', async () => {
     const { cleanup } = renderProgress();
 
     fireEvent.press(await screen.findByTestId('progress-open-history'));
     fireEvent.press(screen.getByTestId('progress-open-leaderboard'));
     fireEvent.press(screen.getByTestId('progress-open-tips'));
+    fireEvent.press(screen.getByTestId('progress-open-verify-clip'));
 
     expect(mockPush.mock.calls.map(([href]) => href)).toEqual([
       '/history',
       '/leaderboard',
       '/tips',
+      '/v/new',
     ]);
 
     await cleanup();

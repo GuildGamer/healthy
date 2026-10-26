@@ -1,8 +1,8 @@
 import type { MatchListItem } from '@product/client';
-import { spacing } from '@product/brand';
+import { fontSize, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { type Href, useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DeckNoteCard, DeckSectionTitle } from '@/components/deck';
 import { RefreshableScroll } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
@@ -93,7 +93,24 @@ function GroupsBody({
           summary={pastGroupsSummary(ended)}
         />
       ) : null}
+      <VerifyClipLink />
     </>
+  );
+}
+
+function VerifyClipLink() {
+  const styles = useThemedStyles(createStyles);
+  const router = useRouter();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push('/v/new' as Href)}
+      style={styles.verifyRow}
+      testID="matches-verify-clip"
+    >
+      <Text style={styles.verifyLabel}>{GROUPS_COPY.verifyClip}</Text>
+    </Pressable>
   );
 }
 
@@ -106,5 +123,13 @@ const createStyles = (theme: Theme) =>
     content: {
       paddingHorizontal: 20,
       paddingBottom: spacing.xl,
+    },
+    verifyRow: {
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    verifyLabel: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
     },
   });

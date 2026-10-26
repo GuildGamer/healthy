@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { DeckDisc, DeckListRow, DeckNoteCard } from '@/components/deck';
@@ -127,6 +127,13 @@ function ProgressLinks({
         onPress={() => router.push('/tips')}
         testID="progress-open-tips"
         title={PROGRESS_COPY.tipsTitle}
+      />
+      <DeckListRow
+        leading={<DeckDisc glyph="check" />}
+        meta={PROGRESS_COPY.verifyClipMeta}
+        onPress={() => router.push('/v/new' as Href)}
+        testID="progress-open-verify-clip"
+        title={PROGRESS_COPY.verifyClipTitle}
       />
     </View>
   );

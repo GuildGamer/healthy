@@ -16,6 +16,7 @@ export const GROUPS_COPY = {
   live: 'Live',
   doneTodayHint: 'Done today lit up',
   pastGroups: 'Past groups',
+  verifyClip: 'Got a code? Verify a clip',
   todayCount: (done: number, total: number) => `${done} of ${total} today`,
   loadFailedTitle: 'Your groups didn’t load.',
   loadFailedBody: 'Check your connection and try again.',

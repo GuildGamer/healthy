@@ -10,7 +10,10 @@ jest.mock('@/lib/api', () => ({
 }));
 
 const mockNavigate = jest.fn();
-jest.mock('expo-router', () => ({ useRouter: () => ({ navigate: mockNavigate }) }));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ navigate: mockNavigate, push: mockPush }),
+}));
 
 const mockedApi = apiClient as unknown as { listMyMatches: jest.Mock };
 
@@ -23,13 +26,16 @@ describe('MatchesListScreen', () => {
     mockedApi.listMyMatches.mockResolvedValue({ live: [listItem()], ended: [] });
     const view = renderWithClient(<MatchesListScreen />);
 
-    expect(await screen.findByText('Ada, Tunde')).toBeOnTheScreen();
+    expect(await screen.findByText('You, Ada, Tunde')).toBeOnTheScreen();
     expect(screen.getByText('2 of 3 today')).toBeOnTheScreen();
     expect(screen.getByText('2nd')).toBeOnTheScreen();
     expect(screen.getByTestId('match-faces-m1-tunde')).toBeOnTheScreen();
+    expect(screen.getByTestId('matches-verify-clip')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('open-match-m1'));
     expect(mockNavigate).toHaveBeenCalledWith('/matches/m1');
+    fireEvent.press(screen.getByTestId('matches-verify-clip'));
+    expect(mockPush).toHaveBeenCalledWith('/v/new');
     await view.cleanup();
   });
 
@@ -50,7 +56,8 @@ describe('MatchesListScreen', () => {
     mockedApi.listMyMatches.mockResolvedValue({ live: [], ended: [] });
     const view = renderWithClient(<MatchesListScreen />);
 
-    expect(await screen.findByText('Make a challenge a contest.')).toBeOnTheScreen();
+    expect(await screen.findByText('Challenge your friends.')).toBeOnTheScreen();
+    expect(screen.getByTestId('matches-verify-clip')).toBeOnTheScreen();
     fireEvent.press(screen.getByTestId('matches-empty-create'));
     expect(mockNavigate).toHaveBeenCalledWith('/matches/create');
     await view.cleanup();
