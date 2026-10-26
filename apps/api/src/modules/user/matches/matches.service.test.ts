@@ -619,6 +619,7 @@ describe('MatchesService', () => {
       actorDisplayName: 'Bee',
       actorScoreBefore: 0,
       actorScoreAfter: 18,
+      endsAt: board.endsAt,
       recipients: [{ userId: host.id, score: 0 }],
     });
   });

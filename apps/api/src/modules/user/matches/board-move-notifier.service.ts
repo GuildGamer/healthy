@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { matchTimeLeft } from '@product/contract';
 import type { PrismaClient } from '@product/db';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
 import {
   boardMoveIdempotencyKey,
-  boardMovePushBody,
-  boardMovePushTitle,
+  boardMovePushCopy,
   boardMoveUrgency,
 } from './constants/board-move-notification.js';
 
@@ -24,6 +24,8 @@ export type BoardMoveNotice = {
   actorScoreBefore: number;
   /** Actor's score after this event. */
   actorScoreAfter: number;
+  /** ISO end of the contest, for the time left in the body. */
+  endsAt: string;
   recipients: readonly BoardMoveRecipient[];
 };
 
@@ -40,7 +42,7 @@ export class BoardMoveNotifierService {
     private readonly delivery: EngagementDeliveryService,
   ) {}
 
-  async notifyParticipants(notice: BoardMoveNotice): Promise<void> {
+  async notifyParticipants(notice: BoardMoveNotice, now: Date = new Date()): Promise<void> {
     const recipients = notice.recipients.filter(
       (recipient) => recipient.userId !== notice.actorUserId,
     );
@@ -59,20 +61,24 @@ export class BoardMoveNotifierService {
       return;
     }
 
+    const timeLeft = matchTimeLeft(notice.endsAt, now);
     const rows = pending.map((recipient) => {
-      const urgency = boardMoveUrgency(
-        notice.actorScoreAfter,
-        recipient.score,
-        notice.actorScoreBefore,
-      );
+      const copy = boardMovePushCopy({
+        actorDisplayName: notice.actorDisplayName,
+        urgency: boardMoveUrgency(
+          notice.actorScoreAfter,
+          recipient.score,
+          notice.actorScoreBefore,
+        ),
+        actorScore: notice.actorScoreAfter,
+        recipientScore: recipient.score,
+        timeLeft,
+      });
       return {
         userId: recipient.userId,
         kind: 'social' as const,
-        title: boardMovePushTitle(urgency),
-        body: boardMovePushBody(notice.actorDisplayName, urgency, {
-          actorScore: notice.actorScoreAfter,
-          recipientScore: recipient.score,
-        }),
+        title: copy.title,
+        body: copy.body,
         payload: { matchId: notice.matchId },
         idempotencyKey: boardMoveIdempotencyKey(
           notice.matchId,

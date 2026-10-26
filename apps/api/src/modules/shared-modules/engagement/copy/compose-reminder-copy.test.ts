@@ -30,6 +30,7 @@ function context(overrides: Partial<ReminderContext> = {}): ReminderContext {
       status: 'pending',
     },
     benefitBody: null,
+    rivalry: null,
     ...overrides,
   };
 }
@@ -203,6 +204,37 @@ describe('composeReminderCopy', () => {
     expect(withBenefit!.body).toContain(truncateBenefitLine(benefit));
     expect(withoutBenefit!.templateKey).toBe('cadence.morning_nothing_done');
     expect(withoutBenefit!.body).not.toContain('Muscle-strengthening');
+  });
+
+  it('composes group copy without a greeting or tip, and points at the board', () => {
+    const composed = composeReminderCopy(
+      context({
+        benefitBody: 'Muscle-strengthening work helps every day.',
+        rivalry: {
+          matchId: 'm1',
+          situation: 'group_defend',
+          contestTitle: 'Push-up Sunday',
+          scoringMode: 'cumulative_total',
+          metric: 'pushups',
+          rivalName: 'Tunde',
+          rivalScore: 17,
+          yourScore: 20,
+          timeLeft: '1 day left',
+        },
+      }),
+    );
+
+    expect(composed).toMatchObject({
+      title: "Tunde's 3 behind you",
+      body: 'One set keeps it that way. 1 day left.',
+      situation: 'group_defend',
+      templateKey: 'cadence.group_defend',
+      matchId: 'm1',
+    });
+  });
+
+  it('leaves solo copy without a match id', () => {
+    expect(composeReminderCopy(context()).matchId).toBeNull();
   });
 
   it('truncates long benefit lines', () => {

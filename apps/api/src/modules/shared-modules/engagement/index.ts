@@ -22,4 +22,12 @@ export type {
   EngagementSendResult,
 } from './types/engagement-push.js';
 export { isQuietLocalMinute } from './policy/is-quiet-local-minute.js';
+export { REMINDER_RIVALRY_SOURCE } from './engagement.tokens.js';
+export { REMINDER_RIVALRY_SITUATIONS } from './types/reminder-rivalry.js';
+export type {
+  ReminderRivalry,
+  ReminderRivalryRequest,
+  ReminderRivalrySituation,
+  ReminderRivalrySource,
+} from './types/reminder-rivalry.js';
 

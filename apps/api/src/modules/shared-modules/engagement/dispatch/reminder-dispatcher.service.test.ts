@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { HABIT_SLOT_MINUTES } from '../constants/habit-slot-copy.js';
 import { TREATMENT_HABIT_SLOT_MINUTES } from '../policy/constants.js';
+import type { ReminderContext } from '../copy/types.js';
 import type { CadencePlan } from '../policy/engagement-policy.service.js';
 import type { EngagementSendInput } from '../types/engagement-push.js';
 import { ReminderDispatcherService } from './reminder-dispatcher.service.js';
@@ -188,34 +189,7 @@ function createPolicy(options?: {
   };
 }
 
-function createContexts(options?: {
-  contexts?: Map<
-    string,
-    {
-      userId: string;
-      dayKey: string;
-      localMinute: number;
-      nudgeKind: 'habit_slot' | 'clock_reminder' | 'in_progress_nudge';
-      firstName: string | null;
-      streakDays: number;
-      openCount: number;
-      doneCount: number;
-      missedYesterday: boolean;
-      firstWeek: boolean;
-      lead: {
-        challengeId: string;
-        slug: string;
-        title: string;
-        deviceMetric: string | null;
-        completionKind: string;
-        targetCount: number | null;
-        measuredCount: number | null;
-        status: 'pending' | 'in_progress' | 'awaiting_evidence' | 'completed' | null;
-      } | null;
-      benefitBody: string | null;
-    }
-  >;
-}) {
+function createContexts(options?: { contexts?: Map<string, ReminderContext> }) {
   return {
     loadMany: vi.fn().mockResolvedValue(options?.contexts ?? new Map()),
   };
@@ -678,6 +652,7 @@ describe('ReminderDispatcherService', () => {
               status: 'pending',
             },
             benefitBody: null,
+            rivalry: null,
           },
         ],
       ]),
@@ -709,6 +684,80 @@ describe('ReminderDispatcherService', () => {
           copyVersion: expect.stringMatching(/^v1[ab]$/),
         }),
       ],
+    });
+  });
+
+  it('treatment sends group copy to the board and spends that group in the inbox', async () => {
+    const morning = new Date('2026-08-29T08:02:00.000Z');
+    const prisma = createPrismaMock({
+      profiles: [{ userId: 'u1', timeZone: 'UTC' }],
+      enrollments: [
+        { userId: 'u1', challengeId: 'c1' },
+        { userId: 'u1', challengeId: 'c2' },
+      ],
+    });
+    const delivery = createDelivery({ sentCount: 1, usersWithDevice: ['u1'] });
+    const policy = createPolicy({
+      plans: new Map([['u1', treatmentPlan()]]),
+      lead: { leadChallengeId: 'c2', bodySuffix: ' (+1 more)' },
+    });
+    const contexts = createContexts({
+      contexts: new Map([
+        [
+          'u1:habit_slot:c2:',
+          {
+            userId: 'u1',
+            dayKey: '2026-08-29',
+            localMinute: 8 * 60,
+            nudgeKind: 'habit_slot',
+            firstName: 'Bee',
+            streakDays: 0,
+            openCount: 2,
+            doneCount: 0,
+            missedYesterday: false,
+            firstWeek: false,
+            lead: null,
+            benefitBody: null,
+            rivalry: {
+              matchId: 'm1',
+              situation: 'group_rival_moved',
+              contestTitle: 'Push-up Sunday',
+              scoringMode: 'cumulative_total',
+              metric: 'pushups',
+              rivalName: 'Ada',
+              rivalScore: 26,
+              yourScore: 20,
+              timeLeft: '1 day left',
+            },
+          },
+        ],
+      ]),
+    });
+    const service = new ReminderDispatcherService(
+      prisma as never,
+      delivery as never,
+      policy as never,
+      contexts as never,
+    );
+
+    await service.dispatchHabitSlots(morning);
+
+    expect(delivery.send).toHaveBeenCalledWith({
+      source: 'habit_slot',
+      audience: 'all_devices',
+      pushes: [
+        expect.objectContaining({
+          title: 'Ada scored today',
+          body: '26 to your 20 · 1 day left',
+          data: { matchId: 'm1' },
+          templateKey: 'cadence.group_rival_moved',
+          situation: 'group_rival_moved',
+        }),
+      ],
+    });
+    expect(prisma.notification.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ payload: { matchId: 'm1' } })],
+      skipDuplicates: true,
     });
   });
 
@@ -792,6 +841,7 @@ describe('ReminderDispatcherService', () => {
                 status: 'awaiting_evidence',
               },
               benefitBody: null,
+              rivalry: null,
             },
           ],
         ]),

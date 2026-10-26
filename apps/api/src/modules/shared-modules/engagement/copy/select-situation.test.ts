@@ -25,6 +25,7 @@ function context(overrides: Partial<ReminderContext> = {}): ReminderContext {
       status: 'pending',
     },
     benefitBody: null,
+    rivalry: null,
     ...overrides,
   };
 }
@@ -114,6 +115,43 @@ describe('selectSituation', () => {
         context({ localMinute: 19 * 60, streakDays: 0, openCount: 1 }),
       ),
     ).toBe('evening_open');
+  });
+
+  it('lets a live group outrank every solo situation in daily reminders', () => {
+    const rivalry = {
+      matchId: 'm1',
+      situation: 'group_closing' as const,
+      contestTitle: 'Push-up Sunday',
+      scoringMode: 'cumulative_total' as const,
+      metric: 'pushups' as const,
+      rivalName: 'Tunde',
+      rivalScore: 26,
+      yourScore: 20,
+      timeLeft: '5 hours left',
+    };
+
+    expect(selectSituation(context({ rivalry, missedYesterday: true }))).toBe('group_closing');
+    expect(
+      selectSituation(context({ rivalry, nudgeKind: 'clock_reminder' })),
+    ).toBe('group_closing');
+    expect(
+      selectSituation(
+        context({
+          rivalry,
+          nudgeKind: 'in_progress_nudge',
+          lead: {
+            challengeId: 'c1',
+            slug: 'twenty-push-ups',
+            title: 'Do 5 push-ups',
+            deviceMetric: 'pushups',
+            completionKind: 'check_in',
+            targetCount: 5,
+            measuredCount: null,
+            status: 'in_progress',
+          },
+        }),
+      ),
+    ).toBe('in_progress_none');
   });
 
   it('falls back to open_default', () => {

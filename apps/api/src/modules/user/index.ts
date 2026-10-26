@@ -6,7 +6,7 @@ import { EnrollmentsModule } from './enrollments/index.js';
 import { ExperimentsModule } from './experiments/index.js';
 import { FriendMilestonesModule } from './friend-milestones/index.js';
 import { LeaderboardModule } from './leaderboard/index.js';
-import { MatchesModule } from './matches/index.js';
+import { MatchesModule, MatchReminderRivalryModule } from './matches/index.js';
 import { MeModule } from './me/index.js';
 import { MembershipModule } from './membership/index.js';
 import { NotificationsModule } from './notifications/index.js';
@@ -28,6 +28,7 @@ export default [
   TodayModule,
   ProgressModule,
   MatchesModule,
+  MatchReminderRivalryModule,
   CrewsModule,
   FriendMilestonesModule,
   PracticeModule,

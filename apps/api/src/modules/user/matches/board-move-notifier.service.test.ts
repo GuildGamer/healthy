@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
+
+const NOW = new Date('2026-10-26T10:00:00.000Z');
 
 const notice = {
   matchId: 'm1',
@@ -8,6 +10,8 @@ const notice = {
   actorDisplayName: 'Bee',
   actorScoreBefore: 25,
   actorScoreAfter: 40,
+  // 26 hours after NOW.
+  endsAt: '2026-10-27T12:00:00.000Z',
   recipients: [
     { userId: 'bee', score: 40 },
     { userId: 'host', score: 30 },
@@ -45,7 +49,16 @@ function createService(
 }
 
 describe('BoardMoveNotifierService', () => {
-  it('skips the actor and uses urgent copy when they passed a mate', async () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('skips the actor and names the rival when they passed a mate', async () => {
     const prisma = createPrismaMock();
     const { service, delivery } = createService(prisma);
 
@@ -56,16 +69,16 @@ describe('BoardMoveNotifierService', () => {
         {
           userId: 'host',
           kind: 'social',
-          title: 'Stay ahead',
-          body: 'Bee just passed you, 40 to your 30.',
+          title: 'Bee passed you',
+          body: '40 to your 30 · 1 day left',
           payload: { matchId: 'm1' },
           idempotencyKey: 'match_board_move:m1:a1:host',
         },
         {
           userId: 'cam',
           kind: 'social',
-          title: 'See the board',
-          body: 'Bee just scored, 40 to your 100.',
+          title: 'Bee scored',
+          body: '40 to your 100 · 1 day left',
           payload: { matchId: 'm1' },
           idempotencyKey: 'match_board_move:m1:a1:cam',
         },
@@ -78,21 +91,21 @@ describe('BoardMoveNotifierService', () => {
       pushes: [
         {
           userId: 'host',
-          title: 'Stay ahead',
-          body: 'Bee just passed you, 40 to your 30.',
+          title: 'Bee passed you',
+          body: '40 to your 30 · 1 day left',
           data: { matchId: 'm1' },
         },
         {
           userId: 'cam',
-          title: 'See the board',
-          body: 'Bee just scored, 40 to your 100.',
+          title: 'Bee scored',
+          body: '40 to your 100 · 1 day left',
           data: { matchId: 'm1' },
         },
       ],
     });
   });
 
-  it('uses on-your-heels copy when the actor is close behind', async () => {
+  it('uses closing-in copy when the actor is close behind', async () => {
     const prisma = createPrismaMock();
     const { service } = createService(prisma);
 
@@ -107,15 +120,15 @@ describe('BoardMoveNotifierService', () => {
       data: [
         expect.objectContaining({
           userId: 'host',
-          title: 'Stay ahead',
-          body: 'Bee is on your heels, 28 to your 30.',
+          title: "Bee's closing in",
+          body: '28 to your 30 · 1 day left',
         }),
       ],
       skipDuplicates: true,
     });
   });
 
-  it('uses matched-you copy when scores are tied', async () => {
+  it('uses caught-you copy when scores are tied', async () => {
     const prisma = createPrismaMock();
     const { service } = createService(prisma);
 
@@ -129,8 +142,8 @@ describe('BoardMoveNotifierService', () => {
     expect(prisma.notification.createMany).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({
-          title: 'Stay ahead',
-          body: 'Bee matched you, 30 to your 30.',
+          title: 'Bee caught you',
+          body: 'Both on 30 · 1 day left',
         }),
       ],
       skipDuplicates: true,

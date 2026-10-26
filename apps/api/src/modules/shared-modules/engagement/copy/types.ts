@@ -1,4 +1,10 @@
+import {
+  REMINDER_RIVALRY_SITUATIONS,
+  type ReminderRivalry,
+} from '../types/reminder-rivalry.js';
+
 export const REMINDER_SITUATIONS = [
+  ...REMINDER_RIVALRY_SITUATIONS,
   'awaiting_evidence',
   'in_progress_partial',
   'in_progress_none',
@@ -43,6 +49,8 @@ export type ReminderContext = {
   lead: ReminderLeadChallenge | null;
   /** Linked tip body for occasional "why it matters" push append. */
   benefitBody: string | null;
+  /** A live group with something at stake; outranks every solo situation. */
+  rivalry: ReminderRivalry | null;
 };
 
 export type ComposedReminderCopy = {
@@ -51,4 +59,6 @@ export type ComposedReminderCopy = {
   situation: ReminderSituation;
   templateKey: string;
   copyVersion: 'v1a' | 'v1b';
+  /** Set when the copy is about a group, so the push opens its board. */
+  matchId: string | null;
 };

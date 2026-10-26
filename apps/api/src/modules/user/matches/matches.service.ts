@@ -58,6 +58,7 @@ import { doneTodayUserIds } from './match-today.js';
 import { createInviteToken } from './match-token.js';
 import { matchLengthBounds } from './match-window.js';
 import type { LoadedMatch } from './types/loaded-match.js';
+import type { ReminderContest } from './types/reminder-contest.js';
 import type { ScoredMatch } from './types/scored-match.js';
 
 function scoringRulesFor(match: LoadedMatch): MatchScoringRules {
@@ -493,8 +494,37 @@ export class MatchesService {
     return { live, ended };
   }
 
+  /**
+   * Live contests the member has accepted, with who moved today, for the daily
+   * reminder to pick a rival from. A pending seat is never read: the member has
+   * not agreed to play, so nothing about the group may be pushed to them.
+   */
+  async liveContestsForReminders(userId: string, now: Date): Promise<ReminderContest[]> {
+    const rows = await this.prisma.matchParticipant.findMany({
+      where: {
+        userId,
+        acceptedAt: { not: null },
+        match: { status: 'open', endsAt: { gt: now } },
+      },
+      include: { match: { include: matchInclude } },
+    });
+
+    return Promise.all(
+      rows.map(async (row) => {
+        const scored = await this.scoreMatch(row.match);
+        return {
+          item: this.listItemFrom(row.match, userId, scored),
+          doneTodayUserIds: scored.doneTodayUserIds,
+        };
+      }),
+    );
+  }
+
   private async buildListItem(match: LoadedMatch, viewerId: string): Promise<MatchListItem> {
-    const scored = await this.scoreMatch(match);
+    return this.listItemFrom(match, viewerId, await this.scoreMatch(match));
+  }
+
+  private listItemFrom(match: LoadedMatch, viewerId: string, scored: ScoredMatch): MatchListItem {
     // The list lights faces but takes no taps, so it never reads reactions.
     const board = this.boardFrom(match, viewerId, scored, new Map());
 
@@ -971,6 +1001,7 @@ export class MatchesService {
         actorDisplayName: actorStanding.displayName,
         actorScoreBefore,
         actorScoreAfter: actorStanding.score,
+        endsAt: board.endsAt,
         recipients,
       });
     } catch (error) {

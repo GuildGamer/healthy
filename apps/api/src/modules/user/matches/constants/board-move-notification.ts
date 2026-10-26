@@ -1,18 +1,31 @@
 /**
- * Copy for when a group mate's score moves the board. Urgent voice when they
- * are close to, tied with, or ahead of the recipient; lighter otherwise.
- * Titles stay action verbs; bodies name the actor and scores when known.
+ * Copy for when a group mate's score moves the board. The title names the
+ * rival and what they did to you; the body carries both scores and the time
+ * left, so the stakes read from the lock screen without opening the app.
  */
-
-export const BOARD_MOVE_URGENT_TITLE = 'Stay ahead';
-export const BOARD_MOVE_ROUTINE_TITLE = 'See the board';
 
 export type BoardMoveUrgency = 'ahead' | 'tied' | 'close' | 'routine';
 
-export type BoardMoveScores = {
+export type BoardMoveCopyInput = {
+  actorDisplayName: string;
+  urgency: BoardMoveUrgency;
   actorScore: number;
   recipientScore: number;
+  /** "1 day left", from `matchTimeLeft`. */
+  timeLeft: string;
 };
+
+export type BoardMoveCopy = {
+  title: string;
+  body: string;
+};
+
+/** A trailing score is close when within 10% of the higher one, or 5 points. */
+export function isWithinCloseMargin(trailingScore: number, higherScore: number): boolean {
+  const gap = higherScore - trailingScore;
+  const closeMargin = Math.max(5, Math.ceil(higherScore * 0.1));
+  return gap > 0 && gap <= closeMargin;
+}
 
 /**
  * How near the actor is to the recipient after this scoring event.
@@ -41,45 +54,39 @@ export function boardMoveUrgency(
     return 'routine';
   }
 
-  const gap = recipientScore - actorScoreAfter;
-  const closeMargin = Math.max(5, Math.ceil(recipientScore * 0.1));
-
-  if (gap > 0 && gap <= closeMargin) {
-    return 'close';
-  }
-
-  return 'routine';
+  return isWithinCloseMargin(actorScoreAfter, recipientScore) ? 'close' : 'routine';
 }
 
-export function boardMovePushTitle(urgency: BoardMoveUrgency): string {
-  return urgency === 'routine' ? BOARD_MOVE_ROUTINE_TITLE : BOARD_MOVE_URGENT_TITLE;
-}
-
-function scoreTail(scores: BoardMoveScores | undefined): string {
-  if (!scores || scores.actorScore <= 0) {
-    return '';
-  }
-
-  return `, ${scores.actorScore} to your ${scores.recipientScore}`;
-}
-
-export function boardMovePushBody(
-  actorDisplayName: string,
-  urgency: BoardMoveUrgency,
-  scores?: BoardMoveScores,
-): string {
-  const tail = scoreTail(scores);
-
+function boardMoveTitle(actorDisplayName: string, urgency: BoardMoveUrgency): string {
   switch (urgency) {
     case 'ahead':
-      return `${actorDisplayName} just passed you${tail}.`;
+      return `${actorDisplayName} passed you`;
     case 'tied':
-      return `${actorDisplayName} matched you${tail}.`;
+      return `${actorDisplayName} caught you`;
     case 'close':
-      return `${actorDisplayName} is on your heels${tail}.`;
+      return `${actorDisplayName}'s closing in`;
     case 'routine':
-      return `${actorDisplayName} just scored${tail}.`;
+      return `${actorDisplayName} scored`;
   }
+}
+
+function boardMoveBody(input: BoardMoveCopyInput): string {
+  if (input.urgency === 'tied') {
+    return `Both on ${input.recipientScore} · ${input.timeLeft}`;
+  }
+
+  if (input.actorScore <= 0) {
+    return input.timeLeft;
+  }
+
+  return `${input.actorScore} to your ${input.recipientScore} · ${input.timeLeft}`;
+}
+
+export function boardMovePushCopy(input: BoardMoveCopyInput): BoardMoveCopy {
+  return {
+    title: boardMoveTitle(input.actorDisplayName, input.urgency),
+    body: boardMoveBody(input),
+  };
 }
 
 export function boardMoveIdempotencyKey(

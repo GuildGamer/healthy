@@ -1,10 +1,16 @@
 import type { ReminderContext, ReminderSituation } from './types.js';
 
 /**
- * Priority: awaiting_evidence → in_progress_* → missed_yesterday →
- * first_week → time-of-day habit situations → open_default.
+ * Priority: a live group with something at stake → awaiting_evidence →
+ * in_progress_* → missed_yesterday → first_week → time-of-day habit
+ * situations → open_default. An in-progress nudge is about the occurrence
+ * already started, so it never switches to a group.
  */
 export function selectSituation(context: ReminderContext): ReminderSituation {
+  if (context.rivalry && context.nudgeKind !== 'in_progress_nudge') {
+    return context.rivalry.situation;
+  }
+
   if (context.nudgeKind === 'in_progress_nudge') {
     if (context.lead?.status === 'awaiting_evidence') {
       return 'awaiting_evidence';

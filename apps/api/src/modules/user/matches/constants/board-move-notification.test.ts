@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BOARD_MOVE_ROUTINE_TITLE,
-  BOARD_MOVE_URGENT_TITLE,
   boardMoveIdempotencyKey,
-  boardMovePushBody,
-  boardMovePushTitle,
+  boardMovePushCopy,
   boardMoveUrgency,
 } from './board-move-notification.js';
 
@@ -38,34 +35,58 @@ describe('boardMoveUrgency', () => {
   });
 });
 
-describe('boardMovePush copy', () => {
-  it('uses urgent Stay ahead copy when they passed you', () => {
-    expect(boardMovePushTitle('ahead')).toBe(BOARD_MOVE_URGENT_TITLE);
-    expect(boardMovePushBody('Bee', 'ahead')).toBe('Bee just passed you.');
+describe('boardMovePushCopy', () => {
+  const base = {
+    actorDisplayName: 'Bee',
+    actorScore: 42,
+    recipientScore: 40,
+    timeLeft: '1 day left',
+  };
+
+  it('names the rival in the title when they passed you', () => {
+    expect(boardMovePushCopy({ ...base, urgency: 'ahead' })).toEqual({
+      title: 'Bee passed you',
+      body: '42 to your 40 · 1 day left',
+    });
+  });
+
+  it('says both scores are level when they caught you', () => {
     expect(
-      boardMovePushBody('Bee', 'ahead', { actorScore: 42, recipientScore: 40 }),
-    ).toBe('Bee just passed you, 42 to your 40.');
+      boardMovePushCopy({ ...base, urgency: 'tied', actorScore: 40 }),
+    ).toEqual({
+      title: 'Bee caught you',
+      body: 'Both on 40 · 1 day left',
+    });
   });
 
-  it('uses urgent Stay ahead copy when they matched you', () => {
-    expect(boardMovePushTitle('tied')).toBe(BOARD_MOVE_URGENT_TITLE);
-    expect(boardMovePushBody('Bee', 'tied')).toBe('Bee matched you.');
+  it('warns that they are closing in when close behind', () => {
+    expect(
+      boardMovePushCopy({ ...base, urgency: 'close', actorScore: 36 }),
+    ).toEqual({
+      title: "Bee's closing in",
+      body: '36 to your 40 · 1 day left',
+    });
   });
 
-  it('uses urgent Stay ahead copy when they are on your heels', () => {
-    expect(boardMovePushTitle('close')).toBe(BOARD_MOVE_URGENT_TITLE);
-    expect(boardMovePushBody('Bee', 'close')).toBe('Bee is on your heels.');
+  it('keeps a routine move plain', () => {
+    expect(
+      boardMovePushCopy({ ...base, urgency: 'routine', actorScore: 12 }),
+    ).toEqual({
+      title: 'Bee scored',
+      body: '12 to your 40 · 1 day left',
+    });
   });
 
-  it('uses lighter See the board copy for a routine update', () => {
-    expect(boardMovePushTitle('routine')).toBe(BOARD_MOVE_ROUTINE_TITLE);
-    expect(boardMovePushBody('Bee', 'routine')).toBe('Bee just scored.');
+  it('drops the score line when the actor has nothing on the board', () => {
+    expect(
+      boardMovePushCopy({ ...base, urgency: 'routine', actorScore: 0 }).body,
+    ).toBe('1 day left');
   });
 
   it('never uses log wording', () => {
     for (const urgency of ['ahead', 'tied', 'close', 'routine'] as const) {
-      const text = `${boardMovePushTitle(urgency)} ${boardMovePushBody('Bee', urgency)}`;
-      expect(text.toLowerCase()).not.toContain('log');
+      const copy = boardMovePushCopy({ ...base, urgency });
+      expect(`${copy.title} ${copy.body}`.toLowerCase()).not.toContain('log');
     }
   });
 });

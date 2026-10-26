@@ -14,8 +14,7 @@ import { CrewsService } from '../crews/index.js';
 import { groupNameFor } from '../../../shared/utils/group-name.js';
 import {
   FRIEND_MILESTONE_INACTIVE_MS,
-  FRIEND_MILESTONE_PUSH_TITLE,
-  friendMilestonePushBody,
+  friendMilestonePushCopy,
 } from './constants/friend-milestone.js';
 
 export type FriendMilestoneNotice = {
@@ -59,7 +58,7 @@ export class FriendMilestoneNotifierService {
     }
 
     const actorName = groupNameFor(actor);
-    const body = friendMilestonePushBody(actorName, notice.milestoneKey);
+    const copy = friendMilestonePushCopy(actorName, notice.milestoneKey);
     const candidates = [...recipientIds];
 
     const eligible = await this.filterEligible(candidates, now);
@@ -87,8 +86,8 @@ export class FriendMilestoneNotifierService {
           {
             userId: recipientId,
             kind: 'social' as const,
-            title: FRIEND_MILESTONE_PUSH_TITLE,
-            body,
+            title: copy.title,
+            body: copy.body,
             payload: {
               destination: 'match_create',
               withUserId: notice.actorUserId,
@@ -114,8 +113,8 @@ export class FriendMilestoneNotifierService {
         audience: 'group_opt_in',
         pushes: toNotify.map((userId) => ({
           userId,
-          title: FRIEND_MILESTONE_PUSH_TITLE,
-          body,
+          title: copy.title,
+          body: copy.body,
           data: {
             destination: 'match_create',
             withUserId: notice.actorUserId,

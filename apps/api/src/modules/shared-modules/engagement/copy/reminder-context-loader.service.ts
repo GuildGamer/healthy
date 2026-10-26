@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { resolveEnrollmentTargetCount } from '@product/contract';
 import type { PrismaClient } from '@product/db';
 import {
@@ -6,6 +6,11 @@ import {
   previousDayKey,
 } from '../../../../shared/utils/day-key.js';
 import { PRISMA } from '../../database/prisma.tokens.js';
+import { REMINDER_RIVALRY_SOURCE } from '../engagement.tokens.js';
+import type {
+  ReminderRivalry,
+  ReminderRivalrySource,
+} from '../types/reminder-rivalry.js';
 import { firstNameFromDisplay } from './starter-steps.js';
 import type {
   ReminderContext,
@@ -27,9 +32,22 @@ export type ReminderContextRequest = {
 
 const FIRST_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Nudges that may speak for a group. An in-progress nudge stays on its occurrence. */
+const RIVALRY_NUDGE_KINDS: ReadonlySet<ReminderNudgeKind> = new Set([
+  'habit_slot',
+  'clock_reminder',
+]);
+
 @Injectable()
 export class ReminderContextLoaderService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  private readonly logger = new Logger(ReminderContextLoaderService.name);
+
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Optional()
+    @Inject(REMINDER_RIVALRY_SOURCE)
+    private readonly rivalrySource: ReminderRivalrySource | null = null,
+  ) {}
 
   async loadMany(
     requests: readonly ReminderContextRequest[],
@@ -128,7 +146,7 @@ export class ReminderContextLoaderService {
       ),
     ];
 
-    const [completed, benefitTips, activityLogs] = await Promise.all([
+    const [completed, benefitTips, activityLogs, rivalries] = await Promise.all([
       this.prisma.userChallenge.findMany({
         where: {
           userId: { in: userIds },
@@ -175,6 +193,7 @@ export class ReminderContextLoaderService {
               createdAt: true,
             },
           }),
+      this.loadRivalries(requests, now),
     ]);
 
     for (const request of requests) {
@@ -230,10 +249,42 @@ export class ReminderContextLoaderService {
         firstWeek,
         lead,
         benefitBody: benefitBodyForLead(benefitTips, lead),
+        rivalry: RIVALRY_NUDGE_KINDS.has(request.nudgeKind)
+          ? (rivalries.get(request.userId) ?? null)
+          : null,
       });
     }
 
     return result;
+  }
+
+  /**
+   * A failed group read must not cost anyone their reminder, so it degrades to
+   * solo copy for the whole batch.
+   */
+  private async loadRivalries(
+    requests: readonly ReminderContextRequest[],
+    now: Date,
+  ): Promise<Map<string, ReminderRivalry>> {
+    const rivalryRequests = uniqueByUser(
+      requests.filter((request) => RIVALRY_NUDGE_KINDS.has(request.nudgeKind)),
+    );
+    if (!this.rivalrySource || rivalryRequests.length === 0) {
+      return new Map();
+    }
+
+    try {
+      return await this.rivalrySource.loadMany(
+        rivalryRequests.map((request) => ({
+          userId: request.userId,
+          timeZone: request.timeZone,
+        })),
+        now,
+      );
+    } catch (error) {
+      this.logger.error('Could not load group rivalries for reminders', error);
+      return new Map();
+    }
   }
 
   private buildLead(input: {
@@ -351,6 +402,16 @@ export function contextKey(request: Pick<ReminderContextRequest, 'userId' | 'nud
     request.leadChallengeId ?? '',
     request.userChallengeId ?? '',
   ].join(':');
+}
+
+function uniqueByUser<T extends { userId: string }>(items: readonly T[]): T[] {
+  const byUser = new Map<string, T>();
+  for (const item of items) {
+    if (!byUser.has(item.userId)) {
+      byUser.set(item.userId, item);
+    }
+  }
+  return [...byUser.values()];
 }
 
 function groupBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, T[]> {

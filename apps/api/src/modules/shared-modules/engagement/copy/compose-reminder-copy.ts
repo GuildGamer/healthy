@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { rivalryCopy } from './rivalry-copy.js';
 import { firstNameFromDisplay, starterStepLabel } from './starter-steps.js';
 import { selectSituation } from './select-situation.js';
 import type {
@@ -18,6 +19,18 @@ export function composeReminderCopy(
     context.dayKey,
     situation,
   );
+
+  if (context.rivalry && situation === context.rivalry.situation) {
+    // The rival's name already carries the push; no greeting, no tip line.
+    return {
+      ...rivalryCopy(context.rivalry),
+      situation,
+      templateKey: `cadence.${situation}`,
+      copyVersion,
+      matchId: context.rivalry.matchId,
+    };
+  }
+
   const firstName =
     copyVersion === 'v1a' ? context.firstName : null;
   const step = starterStepLabel({
@@ -52,6 +65,7 @@ export function composeReminderCopy(
     situation,
     templateKey,
     copyVersion,
+    matchId: null,
   };
 }
 
@@ -202,6 +216,10 @@ function copyForSituation(
         body: `${capitalize(input.step)} before bed?`,
       };
 
+    case 'group_closing':
+    case 'group_streak_gap':
+    case 'group_rival_moved':
+    case 'group_defend':
     case 'open_default':
       return {
         title: withName('Got a few minutes?', input.firstName),

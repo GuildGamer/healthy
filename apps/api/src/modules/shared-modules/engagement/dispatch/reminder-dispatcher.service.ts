@@ -64,7 +64,20 @@ type HabitSlotPrepared = HabitSlotCandidate & {
   templateKey?: string;
   situation?: string;
   copyVersion?: string;
+  /** Set when the copy is about a group; the push then opens its board. */
+  matchId?: string;
 };
+
+/**
+ * Where a reminder lands. Group copy opens the board, and the inbox row carries
+ * the match id, which is what counts it as that group's push for the day.
+ */
+function reminderDestination(
+  matchId: string | undefined,
+  fallback: Record<string, string>,
+): Record<string, string> {
+  return matchId ? { matchId } : fallback;
+}
 
 export type HabitSlotDispatchSummary = DispatchSummaryDto & {
   /** Users who received a habit slot this run — skip their same-minute reminders. */
@@ -208,6 +221,7 @@ export class ReminderDispatcherService {
       let templateKey: string | undefined;
       let situation: string | undefined;
       let copyVersion: string | undefined;
+      let matchId: string | undefined;
 
       if (isTreatmentVariant(entry.plan?.variantKey)) {
         const loaded = treatmentContexts.get(
@@ -220,8 +234,10 @@ export class ReminderDispatcherService {
         );
         if (loaded) {
           const composed = composeReminderCopy(loaded);
+          matchId = composed.matchId ?? undefined;
           title = composed.title;
-          body = `${composed.body}${openSuffix}`;
+          // "+2 more" counts today's challenges, which group copy is not about.
+          body = matchId ? composed.body : `${composed.body}${openSuffix}`;
           templateKey = composed.templateKey;
           situation = composed.situation;
           copyVersion = composed.copyVersion;
@@ -236,12 +252,13 @@ export class ReminderDispatcherService {
         templateKey,
         situation,
         copyVersion,
+        matchId,
       });
 
-      const data: Record<string, string> = { destination: 'today' };
-      if (leadChallengeId) {
-        data.challengeId = leadChallengeId;
-      }
+      const data = reminderDestination(matchId, {
+        destination: 'today',
+        ...(leadChallengeId ? { challengeId: leadChallengeId } : {}),
+      });
 
       pushes.push({
         userId: entry.item.userId,
@@ -280,12 +297,12 @@ export class ReminderDispatcherService {
           kind: 'reminder' as const,
           title: item.title,
           body: item.body,
-          payload: {
-            destination: 'today' as const,
+          payload: reminderDestination(item.matchId, {
+            destination: 'today',
             ...(item.leadChallengeId
               ? { challengeId: item.leadChallengeId }
               : {}),
-          },
+          }),
           idempotencyKey: habitSlotIdempotencyKey(
             item.userId,
             item.dayKey,
@@ -672,6 +689,7 @@ export class ReminderDispatcherService {
       templateKey?: string;
       situation?: string;
       copyVersion?: string;
+      matchId?: string;
     };
 
     const prepared: PreparedClock[] = due.map((item) => {
@@ -708,6 +726,7 @@ export class ReminderDispatcherService {
         templateKey: composed.templateKey,
         situation: composed.situation,
         copyVersion: composed.copyVersion,
+        matchId: composed.matchId ?? undefined,
       };
     });
 
@@ -715,11 +734,11 @@ export class ReminderDispatcherService {
       userId: item.userId,
       title: item.title,
       body: item.body,
-      data: {
+      data: reminderDestination(item.matchId, {
         destination: 'challenge',
         challengeId: item.challengeId,
         periodKey: item.periodKey,
-      },
+      }),
       leadChallengeId: item.challengeId,
       templateKey: item.templateKey,
       situation: item.situation,
@@ -744,7 +763,7 @@ export class ReminderDispatcherService {
 
   private async recordClockDeliveries(
     due: ReadonlyArray<
-      DueReminder & { title: string; body: string }
+      DueReminder & { title: string; body: string; matchId?: string }
     >,
   ): Promise<void> {
     await this.prisma.reminderDelivery.createMany({
@@ -765,10 +784,10 @@ export class ReminderDispatcherService {
         kind: 'reminder' as const,
         title: item.title,
         body: item.body,
-        payload: {
-          destination: 'challenge' as const,
+        payload: reminderDestination(item.matchId, {
+          destination: 'challenge',
           challengeId: item.challengeId,
-        },
+        }),
         idempotencyKey: `reminder:${item.reminderId}:${item.periodKey}`,
       })),
       skipDuplicates: true,
