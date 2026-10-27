@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server';
 import {
   displayChallengeTitle,
   fieldProgress,
+  isPoseMetric,
   practiceActivityReason,
   resolveEnrollmentTargetCount,
   resolveEnrollmentTargetDuration,
@@ -130,6 +131,17 @@ function captureForAssignment(assignment: {
   });
 }
 
+/** Walk and camera-counted exercises keep their name; everything else stays out of the friend flow. */
+function successPayloadMetric(
+  deviceMetric: string | null | undefined,
+): NonNullable<NotificationPayload['metric']> {
+  if (deviceMetric === 'walk') {
+    return deviceMetric;
+  }
+
+  return deviceMetric && isPoseMetric(deviceMetric) ? deviceMetric : 'other';
+}
+
 /**
  * Inbox + Expo push payload that reopens `/challenge/success`. Every value is
  * a string so the same object fits Expo push `data`.
@@ -143,10 +155,7 @@ function completionSuccessPayload(input: {
   targetCount: number | null;
   deviceMetric: string | null | undefined;
 }): NotificationPayload {
-  const metric =
-    input.deviceMetric === 'pushups' || input.deviceMetric === 'walk'
-      ? input.deviceMetric
-      : 'other';
+  const metric = successPayloadMetric(input.deviceMetric);
 
   const payload: NotificationPayload = {
     userChallengeId: input.userChallengeId,

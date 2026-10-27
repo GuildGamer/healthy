@@ -6,7 +6,6 @@ import {
   isPoseMetric,
   isScoringModeAllowedForMetric,
 } from '@product/contract/match-board';
-import { Platform } from 'react-native';
 import type { ChallengeIconName } from '@/components/challenges/challenge-icon';
 import { PUSHUP_ICON_NAME, WALK_ICON_NAME } from '@/components/challenges/challenge-icon';
 
@@ -134,11 +133,6 @@ export const MATCH_POSE_METRICS = [
 
 /** What the create screen starts on, and the safe assumption for old data. */
 export const MATCH_DEFAULT_METRIC: MatchMetric = 'pushups';
-
-/** Camera exercises are iPhone-only for now, so Android hosts start on the one activity they can do. */
-export function matchCreateDefaultMetric(): MatchMetric {
-  return Platform.OS === 'android' ? 'walk' : MATCH_DEFAULT_METRIC;
-}
 
 /**
  * A streak can score any daily challenge the member finishes. That stays the

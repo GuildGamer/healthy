@@ -3,7 +3,7 @@ import {
   isScoringModeAllowedForMetric,
   matchScoringModeSchema,
 } from '@product/contract/match-board';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { DeckButton, DeckSheetModal } from '@/components/deck';
 import type { GlyphName } from '@/components/icons';
 import { type GroupRules, scoringModeHint } from './group-rule-copy';
@@ -86,9 +86,6 @@ const ACTIVITY_GLYPH: Record<MatchActivityChoice, GlyphName> = {
   any_daily: 'calendar',
 };
 
-const POSE_UNAVAILABLE_HINT =
-  Platform.OS === 'android' ? 'iPhone only for now' : 'Sets counted by the camera';
-
 /** What counts. An open streak is only on offer when the group is won on days. */
 export function ActivitySheet({
   visible,
@@ -115,21 +112,10 @@ export function ActivitySheet({
       visible={visible}
     >
       {choices.map((choice) => {
-        const isPose = choice !== 'walk' && choice !== MATCH_ANY_DAILY_CHOICE;
-        const hint = isPose
-          ? choice === 'plank'
-            ? Platform.OS === 'android'
-              ? 'iPhone only for now'
-              : ACTIVITY_HINT.plank
-            : POSE_UNAVAILABLE_HINT
-          : ACTIVITY_HINT[choice];
-        const isDisabled = isPose && Platform.OS === 'android';
-
         return (
           <SheetChoice
             glyph={ACTIVITY_GLYPH[choice]}
-            hint={hint}
-            isDisabled={isDisabled}
+            hint={ACTIVITY_HINT[choice]}
             isSelected={activityChoice === choice}
             key={choice}
             onPress={() => onChoose(choice)}

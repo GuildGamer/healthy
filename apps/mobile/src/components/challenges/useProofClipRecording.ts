@@ -3,7 +3,7 @@ import type { ReserveProofClipInput } from '@product/contract';
 import { PROOF_CLIP_MAX_DURATION_SECONDS } from '@product/contract/proof-clip-limits';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ProofRecordingConfig } from 'quickpose-camera';
+import { canRecordProofClips, type ProofRecordingConfig } from 'quickpose-camera';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
 import {
@@ -85,6 +85,7 @@ export function useProofClipRecording(
   getRepCount: () => number,
 ): ProofClipRecording {
   const queryClient = useQueryClient();
+  const isSupported = canRecordProofClips();
   const meQuery = useQuery({
     queryKey: ['me'],
     queryFn: () => apiClient.me(),
@@ -120,13 +121,17 @@ export function useProofClipRecording(
   contextRef.current = context;
 
   useEffect(() => {
+    if (!isSupported) {
+      return;
+    }
+
     void getProofRecordingEnabled().then((enabled) => {
       setRecordProof(enabled);
       statusRef.current = enabled ? 'armed' : 'off';
       setStatus(enabled ? 'armed' : 'off');
     });
     void hasSeenProofExplainer().then((seen) => setShowProofExplainer(!seen));
-  }, []);
+  }, [isSupported]);
 
   const releaseHeldReservation = useCallback(() => {
     const held = heldRef.current;
@@ -458,6 +463,7 @@ export function useProofClipRecording(
   }, [releaseHeldReservation, setStatusSync]);
 
   return {
+    isSupported,
     status,
     recordProof,
     showProofExplainer,

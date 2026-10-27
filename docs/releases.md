@@ -27,6 +27,8 @@ Native modules such as `expo-iap`, `expo-store-review`, `expo-splash-screen`, `e
 
 **Sleep from Apple Health / Health Connect** is a store-build change: new native modules, HealthKit entitlement + usage strings on iOS, and Health Connect sleep permission on Android. Ship a new binary; do not rely on OTA for that release. App Store / Play privacy nutrition labels must list Sleep as a collected health type (read-only; Healthy never writes to the health store).
 
+**Android push and camera counting** are build-time too. Push tokens need Firebase: create an EAS `file` variable `GOOGLE_SERVICES_JSON` with the `google-services.json` for `com.healthyapp.app`, and upload the FCM V1 service-account key under `eas credentials -p android` → Push Notifications. Without the file the build succeeds but Android gets no reminders. QuickPose counting and proof clips on Android ship in the binary (the `quickpose-camera` module), and the QuickPose key must be enabled for the Android package.
+
 The native splash (background, icon, corner radius) is generated at prebuild from the `expo-splash-screen` plugin config in `app.config.ts`. Changing it needs a new binary, not an update; on a stale install the native splash simply auto-hides early and the animated `SplashScreen` replays.
 
 ### Store / internal testing

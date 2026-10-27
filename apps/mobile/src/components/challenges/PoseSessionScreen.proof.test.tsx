@@ -73,6 +73,7 @@ function baseSession(overrides: Record<string, unknown> = {}) {
     isStarting: false,
     isSaving: false,
     saveFailed: false,
+    canRecordProof: true,
     recordProof: true,
     showProofExplainer: false,
     proofRecording: { code: 'ABCD-EFG', label: 'Push-ups' },
@@ -148,5 +149,24 @@ describe('PoseSessionScreen proof surfaces', () => {
     renderScreen();
 
     expect(screen.getByTestId('proof-clip-failed')).toBeOnTheScreen();
+  });
+
+  it('offers the proof clip switch during setup where clips can be recorded', () => {
+    mockSession.mockReturnValue(baseSession({ phase: 'setup', proofStatus: 'armed' }));
+
+    renderScreen();
+
+    expect(screen.getByTestId('proof-record-chip')).toBeOnTheScreen();
+  });
+
+  it('leaves the proof clip switch out where the camera cannot record clips', () => {
+    mockSession.mockReturnValue(
+      baseSession({ phase: 'setup', proofStatus: 'off', canRecordProof: false, recordProof: false }),
+    );
+
+    renderScreen();
+
+    expect(screen.queryByTestId('proof-record-chip')).toBeNull();
+    expect(screen.getByTestId('start-pose')).toBeOnTheScreen();
   });
 });

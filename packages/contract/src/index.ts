@@ -51,6 +51,7 @@ import {
   reactToMatchMemberContract,
   submitMatchAttemptContract,
 } from './matches.js';
+import { POSE_METRICS } from './match-board.js';
 import { getMembershipOfferContract, syncApplePurchaseContract } from './membership.js';
 import { getPracticeTotalsContract, recordPracticeSessionContract } from './practice.js';
 import {
@@ -469,8 +470,8 @@ export const notificationPayloadSchema = z
     streak: z.string().min(1),
     count: z.string().min(1),
     target: z.string().min(1),
-    /** `pushups`, `walk`, or `other` — all strings for Expo push `data`. */
-    metric: z.enum(['pushups', 'walk', 'other']),
+    /** `walk`, a camera-counted exercise, or `other` — all strings for Expo push `data`. */
+    metric: z.enum(['walk', 'other', ...POSE_METRICS]),
   })
   .partial();
 

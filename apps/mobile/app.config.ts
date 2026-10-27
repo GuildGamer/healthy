@@ -26,6 +26,13 @@ const IOS_BUNDLE_IDENTIFIER = process.env.IOS_BUNDLE_IDENTIFIER?.trim() || 'com.
 const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE?.trim() || 'com.healthyapp.app';
 /** CFBundleVersion. Codemagic sets this before prebuild; local builds stay on 1. */
 const IOS_BUILD_NUMBER = process.env.IOS_BUILD_NUMBER?.trim() || '1';
+/**
+ * Path to the Firebase `google-services.json` that Android needs for push
+ * tokens (FCM). On EAS it comes from a `file` environment variable, so the
+ * file stays out of git; locally, point it at a downloaded copy. Without it
+ * the build still succeeds, but Android installs get no reminders.
+ */
+const GOOGLE_SERVICES_FILE = process.env.GOOGLE_SERVICES_JSON?.trim() || undefined;
 /** EAS project that hosts updates for this app. */
 const EAS_PROJECT_ID = 'be6f70ce-9076-4d48-8d07-b841eb0dce17';
 
@@ -79,6 +86,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#3DDC97',
     },
     package: ANDROID_PACKAGE,
+    googleServicesFile: GOOGLE_SERVICES_FILE,
     intentFilters: [
       {
         action: 'VIEW',
@@ -108,6 +116,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'ACTIVITY_RECOGNITION',
       // Health Connect sleep read (declared; runtime grant via the library).
       'android.permission.health.READ_SLEEP',
+    ],
+    // Plugins add these by default, but Healthy records no audio, and saving
+    // clips or picking a profile photo needs no media read access on Android
+    // 13+ (system photo picker, add-only saves). Play reviews broad photo and
+    // video access, so keep them out. Android 12 and older still use
+    // READ/WRITE_EXTERNAL_STORAGE for the same two flows.
+    blockedPermissions: [
+      'android.permission.RECORD_AUDIO',
+      'android.permission.READ_MEDIA_AUDIO',
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.READ_MEDIA_VIDEO',
+      'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
     ],
   },
   plugins: [
@@ -150,6 +170,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         android: {
           minSdkVersion: 26,
+          // QuickPose's MediaPipe AAR bundles its own C++ runtime beside
+          // React Native's; without this the APK fails to package.
+          packagingOptions: {
+            pickFirst: ['**/libc++_shared.so'],
+          },
         },
         ios: {
           deploymentTarget: '15.1',
@@ -201,6 +226,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         cameraPermission: 'Healthy uses the camera for gym proof and your profile photo.',
         photosPermission: 'Healthy uses your photos so you can set a profile picture.',
+        microphonePermission: false,
       },
     ],
     [

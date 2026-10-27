@@ -245,8 +245,12 @@ function PoseSetupHint({ session }: { session: PoseSession }) {
       <Text style={styles.hintSub} testID="pose-status">
         {sub}
       </Text>
-      <View style={styles.setupDivider} />
-      <ProofClipRow session={session} />
+      {session.canRecordProof ? (
+        <>
+          <View style={styles.setupDivider} />
+          <ProofClipRow session={session} />
+        </>
+      ) : null}
       <DeckButton
         label={POSE_COPY.startNow}
         loading={session.isStarting}

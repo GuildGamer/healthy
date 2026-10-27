@@ -13,3 +13,22 @@ android {
     versionName "0.0.1"
   }
 }
+
+// QuickPose publishes its AARs without a dependency list; these are the ones
+// its Android README requires alongside quickpose-core and quickpose-mp.
+dependencies {
+  def camerax_version = "1.4.1"
+
+  implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.1"
+  implementation "androidx.camera:camera-core:$camerax_version"
+  implementation "androidx.camera:camera-camera2:$camerax_version"
+  implementation "androidx.camera:camera-lifecycle:$camerax_version"
+  implementation "androidx.camera:camera-view:$camerax_version"
+  implementation "com.google.flogger:flogger:0.8"
+  implementation "com.google.flogger:flogger-system-backend:0.8"
+  implementation "com.google.guava:guava:27.0.1-android"
+  implementation "com.google.protobuf:protobuf-javalite:3.19.1"
+
+  implementation "ai.quickpose:quickpose-mp:0.6"
+  implementation "ai.quickpose:quickpose-core:0.25"
+}

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { canRecordProofClips } from 'quickpose-camera';
 import { createElement, type ReactNode } from 'react';
 import { apiClient } from '@/lib/api';
 import { saveLocalProofClip } from '@/lib/proof-clip-store';
@@ -99,6 +100,24 @@ describe('useProofClipRecording', () => {
     expect(result.current.proofRecording).toEqual(
       expect.objectContaining({ code: 'ABCD-EFG' }),
     );
+  });
+
+  it('keeps recording off and holds no code where the camera cannot write clips', async () => {
+    jest.mocked(canRecordProofClips).mockReturnValue(false);
+    try {
+      const { result } = renderHook(() => useProofClipRecording(context, () => 0), { wrapper });
+
+      act(() => {
+        result.current.armForCounting();
+      });
+
+      expect(result.current.isSupported).toBe(false);
+      expect(result.current.recordProof).toBe(false);
+      expect(result.current.status).toBe('off');
+      expect(mockedApi.reserveProofClip).not.toHaveBeenCalled();
+    } finally {
+      jest.mocked(canRecordProofClips).mockReturnValue(true);
+    }
   });
 
   it('does not hold a code before the context is known', async () => {

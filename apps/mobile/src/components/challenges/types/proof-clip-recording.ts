@@ -33,6 +33,8 @@ export type ProofClipContext = {
 };
 
 export type ProofClipRecording = {
+  /** False where the camera view cannot write clips; recording then stays off. */
+  isSupported: boolean;
   status: ProofClipStatus;
   recordProof: boolean;
   showProofExplainer: boolean;

@@ -1,5 +1,4 @@
 import type { MatchBoard } from '@product/client';
-import { Platform } from 'react-native';
 import {
   createPrefillFrom,
   createPrefillParams,
@@ -32,13 +31,6 @@ function finished(days: number, overrides: Partial<MatchBoard> = {}): MatchBoard
   };
 }
 
-function setPlatformOs(os: typeof Platform.OS) {
-  Object.defineProperty(Platform, 'OS', {
-    configurable: true,
-    get: () => os,
-  });
-}
-
 describe('rerunLengthFor', () => {
   it('brings a preset back as itself', () => {
     expect(rerunLengthFor(finished(7))).toEqual({ kind: 'preset', window: 'week' });
@@ -65,28 +57,12 @@ describe('rerunCreateInput', () => {
 });
 
 describe('createPrefillFrom', () => {
-  const originalOs = Platform.OS;
-
-  afterEach(() => {
-    setPlatformOs(originalOs);
-  });
-
   it('opens fresh on a 7-day push-up total', () => {
-    setPlatformOs('ios');
     expect(createPrefillFrom({})).toMatchObject({
       metric: 'pushups',
       scoringMode: 'cumulative_total',
       length: { kind: 'preset', window: 'week' },
       crewId: null,
-    });
-  });
-
-  it('opens fresh on walking on Android, where camera exercises are unavailable', () => {
-    setPlatformOs('android');
-    expect(createPrefillFrom({})).toMatchObject({
-      metric: 'walk',
-      scoringMode: 'cumulative_total',
-      length: { kind: 'preset', window: 'week' },
     });
   });
 

@@ -13,7 +13,7 @@ import {
   matchLengthInput,
 } from './match-length';
 import type { GroupRules } from './group-rule-copy';
-import { matchCreateDefaultMetric, legalScoringModeFor } from './match-metric';
+import { legalScoringModeFor, MATCH_DEFAULT_METRIC } from './match-metric';
 
 const DAY_MS = 86_400_000;
 
@@ -91,7 +91,7 @@ export type CreatePrefill = GroupRules & {
 function defaultPrefill(): CreatePrefill {
   return {
     scoringMode: 'cumulative_total',
-    metric: matchCreateDefaultMetric(),
+    metric: MATCH_DEFAULT_METRIC,
     dailyScope: 'any_challenge',
     length: { kind: 'preset', window: 'week' },
     crewId: null,

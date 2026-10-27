@@ -41,7 +41,7 @@ export type QuickPoseCameraViewProps = {
   useFrontCamera?: boolean;
   style?: StyleProp<ViewStyle>;
   onUpdate?: (event: QuickPoseCameraUpdateEvent) => void;
-  /** When set, the native view records a muted HEVC proof clip. */
+  /** When set, the native view records a muted proof clip (HEVC on iOS, H.264 on Android). */
   proofRecording?: ProofRecordingConfig | null;
   /** Live rep count burned into the proof overlay. */
   proofCount?: number;
@@ -63,4 +63,9 @@ const nativeModule = requireOptionalNativeModule<{ proofClipsDirectoryUri?: stri
 /** This install's folder for finished proof clips, or null where the native side does not record. */
 export function proofClipsDirectoryUri(): string | null {
   return nativeModule?.proofClipsDirectoryUri || null;
+}
+
+/** Whether this platform's camera view writes proof clips (iOS and Android; not web). */
+export function canRecordProofClips(): boolean {
+  return proofClipsDirectoryUri() !== null;
 }

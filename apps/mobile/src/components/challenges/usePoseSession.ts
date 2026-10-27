@@ -45,15 +45,15 @@ export type QuickPoseCameraProps = {
 };
 
 const LIVE_CAMERA_NOT_READY = 'Live camera is not ready yet. Wait a moment and try again.';
-const IPHONE_ONLY = 'Camera counting is iPhone only for now.';
+const PHONE_ONLY = 'Camera counting needs the Healthy phone app.';
 
 function useQuickPoseCamera() {
   const [camera, setCamera] = useState<ComponentType<QuickPoseCameraProps> | null>(null);
   const [detail, setDetail] = useState('Checking pose camera…');
 
   useEffect(() => {
-    if (Platform.OS !== 'ios') {
-      setDetail(IPHONE_ONLY);
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      setDetail(PHONE_ONLY);
       return;
     }
 
@@ -504,6 +504,7 @@ export function usePoseSession(props: PoseSessionProps) {
     isStarting: startOccurrence.isPending,
     isSaving: submitSet.isPending,
     saveFailed: submitSet.isError,
+    canRecordProof: proof.isSupported,
     recordProof: proof.recordProof,
     showProofExplainer: proof.showProofExplainer,
     proofRecording: proof.proofRecording,

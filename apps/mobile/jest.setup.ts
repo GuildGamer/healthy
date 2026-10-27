@@ -158,6 +158,7 @@ jest.mock('quickpose-camera', () => {
   return {
     QuickPoseCameraView: MockQuickPoseCameraView,
     proofClipsDirectoryUri: jest.fn(() => null),
+    canRecordProofClips: jest.fn(() => true),
   };
 });
 
