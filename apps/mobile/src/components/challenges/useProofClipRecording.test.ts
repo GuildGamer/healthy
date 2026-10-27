@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { createElement, type ReactNode } from 'react';
 import { apiClient } from '@/lib/api';
 import { saveLocalProofClip } from '@/lib/proof-clip-store';
 import { useProofClipRecording } from './useProofClipRecording';
@@ -8,6 +10,8 @@ jest.mock('@/lib/api', () => ({
     reserveProofClip: jest.fn(),
     recordProofClip: jest.fn(),
     removeProofClip: jest.fn(),
+    me: jest.fn(async () => ({ proofClipAudience: 'anyone' })),
+    updateProofClipAudience: jest.fn(async () => ({ proofClipAudience: 'anyone' })),
   },
 }));
 
@@ -48,8 +52,15 @@ function reservation(clipId = 'clip-1') {
   };
 }
 
+function wrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  return createElement(QueryClientProvider, { client }, children);
+}
+
 async function renderArmed(getRepCount: () => number, hookContext = context) {
-  const rendered = renderHook(() => useProofClipRecording(hookContext, getRepCount));
+  const rendered = renderHook(() => useProofClipRecording(hookContext, getRepCount), { wrapper });
   await waitFor(() => expect(rendered.result.current.recordProof).toBe(true));
   return rendered;
 }

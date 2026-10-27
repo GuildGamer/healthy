@@ -43,6 +43,14 @@ export class ProofClipsController {
     });
   }
 
+  @Implement(appContract.setProofClipAudience)
+  setProofClipAudience(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.setProofClipAudience).handler(async ({ input }) => {
+      return this.proofClipsService.setAudience(user, input);
+    });
+  }
+
   @Implement(appContract.getProofClip)
   getProofClip(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;

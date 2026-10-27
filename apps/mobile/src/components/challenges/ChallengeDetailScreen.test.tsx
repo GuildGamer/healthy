@@ -27,6 +27,7 @@ jest.mock('@/lib/api', () => ({
     setChallengeEnrollment: jest.fn(),
     addChallengeReminder: jest.fn(),
     removeChallengeReminder: jest.fn(),
+    getPracticeTotals: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -194,6 +195,41 @@ describe('ChallengeDetailScreen', () => {
     fireEvent.press(await screen.findByTestId('detail-history'));
 
     expect(useRouter().push).toHaveBeenCalledWith('/challenge/push/history');
+    await view.settle();
+  });
+
+  it('offers no extra set before today’s is done', async () => {
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
+
+    await screen.findByTestId('challenge-settings');
+
+    expect(screen.queryByTestId('detail-practice-again')).toBeNull();
+    expect(mockedApi.getPracticeTotals).not.toHaveBeenCalled();
+    await view.settle();
+  });
+
+  it('offers another set once today’s is done, with today’s extras under it', async () => {
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [
+        todayChallenge({
+          id: 'uc-push',
+          challengeId: 'push',
+          capture: PUSHUPS_TWENTY,
+          status: 'completed',
+        }),
+      ],
+      completedCount: 1,
+      totalCount: 1,
+    });
+    mockedApi.getPracticeTotals.mockResolvedValue({ todayCount: 15, todaySessions: 2 });
+    const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
+
+    expect(await screen.findByText('15 reps in 2 extra sets today')).toBeOnTheScreen();
+    expect(mockedApi.getPracticeTotals).toHaveBeenCalledWith({ metric: 'pushups' });
+
+    fireEvent.press(screen.getByTestId('detail-practice-again'));
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/push/practice');
     await view.settle();
   });
 });

@@ -59,12 +59,14 @@ import {
   completeProofClipUploadContract,
   getProofClipContract,
   listMatchProofClipsContract,
+  proofClipAudienceSchema,
   publicVerifyProofCodeContract,
   recordProofClipContract,
   removeProofClipContract,
   reportProofClipContract,
   requestProofClipUploadContract,
   reserveProofClipContract,
+  setProofClipAudienceContract,
   unblockUserContract,
   verifyProofCodeContract,
 } from './proof-clips.js';
@@ -346,6 +348,11 @@ export const meOutputSchema = z.object({
   hasMembership: z.boolean(),
   /** Reminder slots allowed per challenge for this member. */
   maxRemindersPerChallenge: z.number().int().positive(),
+  /**
+   * Who may watch new proof clips by default. Null until the person answers
+   * the one-time sheet.
+   */
+  proofClipAudience: proofClipAudienceSchema.nullable(),
 });
 
 export const updateCategoriesInputSchema = z.object({
@@ -807,6 +814,15 @@ export const updateHealthLinkContract = oc
   .input(updateHealthLinkInputSchema)
   .output(meOutputSchema);
 
+export const updateProofClipAudienceInputSchema = z.object({
+  audience: proofClipAudienceSchema,
+});
+
+export const updateProofClipAudienceContract = oc
+  .route({ method: 'PUT', path: '/me/proof-clip-audience' })
+  .input(updateProofClipAudienceInputSchema)
+  .output(meOutputSchema);
+
 export const listNotificationsContract = oc
   .route({ method: 'GET', path: '/notifications' })
   .output(listNotificationsOutputSchema);
@@ -906,6 +922,7 @@ export const appContract = {
   updateReminder: updateReminderContract,
   updateNotificationSettings: updateNotificationSettingsContract,
   updateHealthLink: updateHealthLinkContract,
+  updateProofClipAudience: updateProofClipAudienceContract,
   deleteAccount: deleteAccountContract,
   updateDisplayName: updateDisplayNameContract,
   listNotifications: listNotificationsContract,
@@ -955,6 +972,7 @@ export const appContract = {
   recordProofClip: recordProofClipContract,
   requestProofClipUpload: requestProofClipUploadContract,
   completeProofClipUpload: completeProofClipUploadContract,
+  setProofClipAudience: setProofClipAudienceContract,
   getProofClip: getProofClipContract,
   listMatchProofClips: listMatchProofClipsContract,
   verifyProofCode: verifyProofCodeContract,
@@ -1125,6 +1143,8 @@ export {
   normaliseProofCode,
   proofCodeCheckCharacter,
   toDisplayProofCode,
+  audienceFromVisibility,
+  resolveProofClipUploadIntent,
   blockUserContract,
   completeProofClipUploadContract,
   getProofClipContract,
@@ -1135,16 +1155,20 @@ export {
   reportProofClipContract,
   requestProofClipUploadContract,
   reserveProofClipContract,
+  setProofClipAudienceContract,
   unblockUserContract,
   verifyProofCodeContract,
+  proofClipAudienceSchema,
 } from './proof-clips.js';
 export type {
   ActivityProofClip,
   ProofClip,
+  ProofClipAudience,
   ProofClipReportReason,
   ProofClipStatus,
   ProofClipVisibility,
   RecordProofClipInput,
   ReserveProofClipInput,
+  SetProofClipAudienceInput,
   VerifyProofCodeOutput,
 } from './proof-clips.js';

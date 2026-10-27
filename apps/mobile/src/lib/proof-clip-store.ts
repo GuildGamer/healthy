@@ -24,6 +24,14 @@ export type LocalProofClip = {
    * the record call when this is false.
    */
   serverRecorded: boolean;
+  /**
+   * Queued after Save to Photos when audience is anyone. Retried on app open
+   * and reconnect so the code becomes checkable without blocking the save.
+   */
+  pendingUpload?: {
+    audience: 'anyone' | 'only_me';
+    postToGroup: boolean;
+  } | null;
 };
 
 type Index = Record<string, LocalProofClip>;
@@ -112,6 +120,24 @@ export async function markLocalProofClipServerRecorded(clipId: string): Promise<
   }
   index[clipId] = { ...normalizeClip(existing), serverRecorded: true };
   await writeIndex(index);
+}
+
+export async function markLocalProofClipPendingUpload(
+  clipId: string,
+  pending: LocalProofClip['pendingUpload'],
+): Promise<void> {
+  const index = await readIndex();
+  const existing = index[clipId];
+  if (!existing) {
+    return;
+  }
+  index[clipId] = { ...normalizeClip(existing), pendingUpload: pending ?? null };
+  await writeIndex(index);
+}
+
+export async function listPendingProofClipUploads(): Promise<LocalProofClip[]> {
+  const clips = await listLocalProofClips();
+  return clips.filter((clip) => clip.pendingUpload != null);
 }
 
 export async function getLocalProofClip(clipId: string): Promise<LocalProofClip | null> {

@@ -5,5 +5,11 @@ export const ACTIVITY_PROOF_CLIP_ARGS = {
   where: { status: { in: ['recorded', 'ready', 'expired'] } },
   orderBy: { recordedAt: 'desc' },
   take: 1,
-  select: { id: true, code: true, status: true, visibility: true },
+  select: {
+    id: true,
+    code: true,
+    status: true,
+    audience: true,
+    postedToGroupAt: true,
+  },
 } satisfies Prisma.ProofClipFindManyArgs;

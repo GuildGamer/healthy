@@ -122,7 +122,8 @@ describe('buildProgressDayDetail', () => {
       id: 'clip-1',
       displayCode: 'H7K-29Q',
       status: 'ready',
-      visibility: 'group',
+      audience: 'anyone',
+      isPostedToGroup: true,
     };
     const detail = buildProgressDayDetail({
       dayKey: '2026-10-20',
@@ -141,13 +142,17 @@ describe('buildProgressDayDetail', () => {
           count: 12,
           durationSeconds: 40,
           createdAt: new Date('2026-10-20T09:00:00.000Z'),
-          proofClip: { ...clip, id: 'clip-2', visibility: null },
+          proofClip: { ...clip, id: 'clip-2', audience: null, isPostedToGroup: false },
         },
       ],
     });
 
     expect(detail.done[0]?.proofClip).toEqual(clip);
-    expect(detail.practice[0]?.proofClip).toMatchObject({ id: 'clip-2', visibility: null });
+    expect(detail.practice[0]?.proofClip).toMatchObject({
+      id: 'clip-2',
+      audience: null,
+      isPostedToGroup: false,
+    });
   });
 
   it('counts due and done daily challenges from the occurrences', () => {

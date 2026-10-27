@@ -1,3 +1,4 @@
+import type { ProofClipAudience } from '@product/client';
 import { PROOF_CLIP_POSTER_MAX_BYTES } from '@product/contract/proof-clip-limits';
 import { apiClient } from '@/lib/api';
 import {
@@ -6,15 +7,19 @@ import {
   removeLocalProofClip,
 } from '@/lib/proof-clip-store';
 
+export type UploadProofClipInput = {
+  clipId: string;
+  audience: ProofClipAudience;
+  /** Puts the clip on the group board. Distinct from who can check the code. */
+  postToGroup?: boolean;
+};
+
 /**
  * Uploads a local clip to object storage and marks it ready. Idempotent:
  * repeating complete is a no-op on the server. Retries `recordProofClip` when
  * the set finished offline or the earlier record call failed.
  */
-export async function uploadProofClip(input: {
-  clipId: string;
-  visibility: 'group' | 'shared';
-}): Promise<void> {
+export async function uploadProofClip(input: UploadProofClipInput): Promise<void> {
   const local = await getLocalProofClip(input.clipId);
   if (!local) {
     throw new Error('This clip is no longer on this phone.');
@@ -42,7 +47,8 @@ export async function uploadProofClip(input: {
     clipId: input.clipId,
     videoByteSize: local.byteSize,
     posterByteSize: poster?.size,
-    visibility: input.visibility,
+    audience: input.audience,
+    postToGroup: input.postToGroup === true,
   });
 
   const videoResponse = await fetch(local.fileUri);
@@ -69,7 +75,8 @@ export async function uploadProofClip(input: {
 
   await apiClient.completeProofClipUpload({
     clipId: input.clipId,
-    visibility: input.visibility,
+    audience: input.audience,
+    postToGroup: input.postToGroup === true,
   });
 }
 

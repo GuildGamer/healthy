@@ -22,6 +22,7 @@ type QuickPoseExerciseCameraProps = {
   proofRecording?: ProofRecordingConfig | null;
   proofCount?: number;
   finishProofToken?: number;
+  finishProofEndAtMs?: number;
   onProofRecorded?: (event: ProofRecordedEvent['nativeEvent']) => void;
   onProofRecordingError?: (message: string) => void;
 };
@@ -38,6 +39,7 @@ export function QuickPoseExerciseCamera({
   proofRecording = null,
   proofCount = 0,
   finishProofToken = 0,
+  finishProofEndAtMs = 0,
   onProofRecorded,
   onProofRecordingError,
 }: QuickPoseExerciseCameraProps) {
@@ -76,6 +78,7 @@ export function QuickPoseExerciseCamera({
           feedbacks: event.nativeEvent.feedbacks,
         });
       }}
+      finishProofEndAtMs={finishProofEndAtMs}
       finishProofToken={finishProofToken}
       proofCount={proofCount}
       proofRecording={proofRecording}

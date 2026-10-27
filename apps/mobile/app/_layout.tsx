@@ -4,12 +4,14 @@ import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { hideAsync, preventAutoHideAsync, setOptions } from 'expo-splash-screen';
 import { useCallback, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { NATIVE_SPLASH_FADE_MS, SplashScreen } from '@/components/auth';
 import { ToastProvider } from '@/components/forms';
 import {
   DECK_SHEET_SCREEN_OPTIONS,
   FULL_PHONE_SCREEN_OPTIONS,
 } from '@/components/navigation/screen-options';
+import { flushPendingProofUploads } from '@/lib/flush-pending-proof-uploads';
 import { useDisplayFont } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
@@ -56,6 +58,17 @@ export default function RootLayout() {
 
     void Linking.getInitialURL().then(handleUrl);
     const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => subscription.remove();
+  }, []);
+
+  // Save-queued proof uploads land once the person is back online.
+  useEffect(() => {
+    void flushPendingProofUploads();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void flushPendingProofUploads();
+      }
+    });
     return () => subscription.remove();
   }, []);
 

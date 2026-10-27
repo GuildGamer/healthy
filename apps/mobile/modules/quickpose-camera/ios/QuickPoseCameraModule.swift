@@ -35,6 +35,10 @@ public class QuickPoseCameraModule: Module {
         view.proofCount = count ?? 0
       }
 
+      Prop("finishProofEndAtMs") { (view: HealthyQuickPoseView, endAtMs: Double?) in
+        view.finishProofEndAtMs = endAtMs ?? 0
+      }
+
       Prop("finishProofToken") { (view: HealthyQuickPoseView, token: Int?) in
         view.finishProofToken = token ?? 0
       }

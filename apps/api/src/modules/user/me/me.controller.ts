@@ -70,6 +70,14 @@ export class MeController {
     });
   }
 
+  @Implement(appContract.updateProofClipAudience)
+  updateProofClipAudience(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.updateProofClipAudience).handler(async ({ input }) => {
+      return this.meService.updateProofClipAudience(user, input.audience);
+    });
+  }
+
   @Implement(appContract.updateNotificationSettings)
   updateNotificationSettings(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;

@@ -1,10 +1,16 @@
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
+import type { ProofClipAudience } from '@product/client';
+import { PROOF_CLIP_MAX_DURATION_SECONDS } from '@product/contract/proof-clip-limits';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck';
+import {
+  DeckButton,
+  DeckRoundButton,
+  DeckSheetMessage,
+} from '@/components/deck';
 import { type Theme, useThemedStyles } from '@/theme';
 import { POSE_COPY } from './constants/doing-copy';
+import { ProofClipAudienceControl } from './ProofClipAudienceControl';
 import { ProofPlayBadge } from './ProofPlayBadge';
-import type { ProofClipVisibility } from './types/proof-clip-recording';
 import { type ProofClipState, useProofClip } from './useProofClip';
 
 const PANEL_POSTER_MAX_HEIGHT = 220;
@@ -56,8 +62,14 @@ export function ProofClipHero({ proof, fill = false }: { proof: ProofClipState; 
   );
 }
 
-/** The one solid button is publishing; saving a copy is the icon beside it. */
-export function ProofClipPrimaryRow({ proof }: { proof: ProofClipState }) {
+/** Audience control plus Send/Post and Save. One solid button, quiet companions. */
+export function ProofClipPrimaryRow({
+  proof,
+  showNarrowedHint = false,
+}: {
+  proof: ProofClipState;
+  showNarrowedHint?: boolean;
+}) {
   const styles = useThemedStyles(createStyles);
 
   if (!proof.clip) {
@@ -66,28 +78,55 @@ export function ProofClipPrimaryRow({ proof }: { proof: ProofClipState }) {
 
   return (
     <View style={styles.primaryBlock}>
+      <ProofClipAudienceControl
+        onChange={(next) => void proof.setAudience(next)}
+        showNarrowedHint={showNarrowedHint}
+        value={proof.audience}
+      />
       <View style={styles.primaryRow}>
         <DeckButton
           isFlexible
-          label={proof.publishLabel}
+          label={proof.isBusy && proof.audience === 'anyone' ? proof.busyLabel : proof.primaryLabel}
           loading={proof.isBusy}
-          onPress={proof.publish}
-          testID="proof-publish"
+          onPress={proof.primary}
+          testID="proof-primary"
         />
+        {proof.isGroup ? (
+          <DeckRoundButton
+            accessibilityLabel={POSE_COPY.proofSend}
+            disabled={proof.isBusy}
+            glyph="share"
+            onPress={proof.send}
+            onSurface
+            testID="proof-send"
+          />
+        ) : null}
         <DeckRoundButton
-          accessibilityLabel={
-            proof.hasSavedToPhotos ? POSE_COPY.savedToPhotos : POSE_COPY.saveToPhotos
-          }
-          disabled={proof.isBusy || proof.hasSavedToPhotos}
-          glyph={proof.hasSavedToPhotos ? 'check' : 'download'}
+          accessibilityLabel={POSE_COPY.saveToPhotos}
+          disabled={proof.isBusy}
+          glyph="download"
           onPress={proof.saveToPhotos}
           onSurface
           testID="proof-save-photos"
         />
       </View>
-      {proof.savedHint ? (
-        <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-saved-hint">
-          {proof.savedHint}
+      {proof.allowSendWithoutCheck ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={proof.sendWithoutCheck}
+          testID="proof-send-without-check"
+        >
+          <Text style={styles.quietLink}>{POSE_COPY.proofSendWithoutCheck}</Text>
+        </Pressable>
+      ) : null}
+      {proof.statusLine ? (
+        <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-status-line">
+          {proof.statusLine}
+        </Text>
+      ) : null}
+      {proof.clip && proof.clip.durationSeconds >= PROOF_CLIP_MAX_DURATION_SECONDS ? (
+        <Text style={styles.hint} testID="proof-clip-capped">
+          {POSE_COPY.clipCapped(PROOF_CLIP_MAX_DURATION_SECONDS / 60, proof.clip.count)}
         </Text>
       ) : null}
     </View>
@@ -96,15 +135,21 @@ export function ProofClipPrimaryRow({ proof }: { proof: ProofClipState }) {
 
 type ProofClipActionsProps = {
   clipId: string | null;
-  visibility: ProofClipVisibility;
+  audience: ProofClipAudience;
+  isGroup?: boolean;
   /** True when recording was requested but the clip never landed on the phone. */
   failed?: boolean;
 };
 
 /** A compact clip block for a panel that has its own buttons below it. */
-export function ProofClipActions({ clipId, visibility, failed = false }: ProofClipActionsProps) {
+export function ProofClipActions({
+  clipId,
+  audience,
+  isGroup = false,
+  failed = false,
+}: ProofClipActionsProps) {
   const styles = useThemedStyles(createStyles);
-  const proof = useProofClip(clipId, visibility);
+  const proof = useProofClip(clipId, audience, { isGroup });
 
   if (failed || proof.isMissing) {
     return (
@@ -190,6 +235,12 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.muted,
       fontSize: fontSize.sm,
       textAlign: 'center',
+    },
+    quietLink: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
+      fontWeight: fontWeight.medium,
     },
     error: {
       color: theme.colors.danger,

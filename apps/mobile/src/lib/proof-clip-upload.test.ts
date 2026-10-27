@@ -74,13 +74,17 @@ describe('uploadProofClip', () => {
       expiresAt: new Date().toISOString(),
     });
 
-    await uploadProofClip({ clipId: 'clip-1', visibility: 'shared' });
+    await uploadProofClip({ clipId: 'clip-1', audience: 'anyone' });
 
     expect(mockedApi.recordProofClip).toHaveBeenCalledWith(
       expect.objectContaining({ clipId: 'clip-1', count: 10 }),
     );
     expect(mockedMark).toHaveBeenCalledWith('clip-1');
-    expect(mockedApi.completeProofClipUpload).toHaveBeenCalled();
+    expect(mockedApi.completeProofClipUpload).toHaveBeenCalledWith({
+      clipId: 'clip-1',
+      audience: 'anyone',
+      postToGroup: false,
+    });
   });
 
   it('skips recordProofClip when already server-recorded', async () => {
@@ -109,12 +113,12 @@ describe('uploadProofClip', () => {
       expiresAt: new Date().toISOString(),
     });
 
-    await uploadProofClip({ clipId: 'clip-1', visibility: 'group' });
+    await uploadProofClip({ clipId: 'clip-1', audience: 'only_me', postToGroup: true });
 
     expect(mockedApi.recordProofClip).not.toHaveBeenCalled();
   });
 
-  it('uploads the poster and sends visibility so the server can refuse early', async () => {
+  it('uploads the poster and sends audience so the server can refuse a board post early', async () => {
     mockedGetLocal.mockResolvedValue({
       clipId: 'clip-1',
       fileUri: 'file:///tmp/clip.mp4',
@@ -140,13 +144,14 @@ describe('uploadProofClip', () => {
       expiresAt: new Date().toISOString(),
     });
 
-    await uploadProofClip({ clipId: 'clip-1', visibility: 'group' });
+    await uploadProofClip({ clipId: 'clip-1', audience: 'only_me', postToGroup: true });
 
     expect(mockedApi.requestProofClipUpload).toHaveBeenCalledWith({
       clipId: 'clip-1',
       videoByteSize: 1024,
       posterByteSize: 5,
-      visibility: 'group',
+      audience: 'only_me',
+      postToGroup: true,
     });
     expect(global.fetch).toHaveBeenCalledWith(
       'https://upload.example/poster',

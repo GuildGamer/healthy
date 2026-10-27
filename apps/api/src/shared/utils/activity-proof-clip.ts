@@ -1,11 +1,12 @@
 import { type ActivityProofClip, toDisplayProofCode } from '@product/contract';
-import type { ProofClipStatus, ProofClipVisibility } from '@product/db';
+import type { ProofClipAudience, ProofClipStatus } from '@product/db';
 
 export type ActivityProofClipRow = {
   id: string;
   code: string;
   status: ProofClipStatus;
-  visibility: ProofClipVisibility | null;
+  audience: ProofClipAudience | null;
+  postedToGroupAt: Date | null;
 };
 
 function isListedStatus(status: ProofClipStatus): status is ActivityProofClip['status'] {
@@ -25,6 +26,7 @@ export function activityProofClipFrom(
     id: clip.id,
     displayCode: toDisplayProofCode(clip.code),
     status: clip.status,
-    visibility: clip.visibility,
+    audience: clip.audience,
+    isPostedToGroup: clip.postedToGroupAt != null,
   };
 }

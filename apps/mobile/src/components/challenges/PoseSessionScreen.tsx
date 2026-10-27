@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   type LayoutChangeEvent,
+  Pressable,
   StyleSheet,
   Switch,
   Text,
@@ -17,6 +18,7 @@ import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { POSE_COPY, SAVE_FAILED_MESSAGE } from './constants/doing-copy';
 import { PoseCountHud } from './PoseCountHud';
 import { ProofClipActions } from './ProofClipActions';
+import { ProofClipAudienceSheet } from './ProofClipAudienceSheet';
 import {
   poseCameraPlacement,
   poseCoachBanner,
@@ -66,7 +68,11 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
       {session.phase === 'counting' ? (
         <PoseCountHud
           count={session.snapshot.count}
-          meta={poseCoachBanner(session.snapshot)}
+          meta={
+            session.finishCountdown != null
+              ? POSE_COPY.finishingIn(session.finishCountdown)
+              : poseCoachBanner(session.snapshot)
+          }
           target={session.target}
         />
       ) : null}
@@ -79,6 +85,13 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
         mode={props.mode}
         onPanelLayout={(event) => setPanelHeight(event.nativeEvent.layout.height)}
         session={session}
+      />
+      <ProofClipAudienceSheet
+        onDismiss={session.closeAudienceSheet}
+        onDone={session.confirmAudienceSheet}
+        onSelect={session.setProofAudience}
+        selected={session.proofAudience}
+        visible={session.showAudienceSheet}
       />
     </View>
   );
@@ -105,6 +118,7 @@ function PoseCamera({ session }: { session: PoseSession }) {
         <QuickPoseCamera
           key={session.cameraSessionKey}
           metric={session.metric}
+          finishProofEndAtMs={session.finishProofEndAtMs}
           finishProofToken={session.finishProofToken}
           onProofRecorded={session.handleProofRecorded}
           onProofRecordingError={session.handleProofRecordingError}
@@ -203,9 +217,11 @@ function PoseBottom({
       {session.phase === 'counting' ? (
         <View style={styles.stop}>
           <DeckButton
-            label={POSE_COPY.stop}
-            onPress={session.stopCounting}
-            testID="stop-pose"
+            label={session.finishCountdown != null ? POSE_COPY.keepGoing : POSE_COPY.stop}
+            onPress={
+              session.finishCountdown != null ? session.keepGoing : session.stopCounting
+            }
+            testID={session.finishCountdown != null ? 'keep-going-pose' : 'stop-pose'}
             variant="cameraGlass"
           />
         </View>
@@ -246,6 +262,8 @@ function ProofClipRow({ session }: { session: PoseSession }) {
   const { camera, colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isOn = session.recordProof;
+  const audienceNote =
+    session.proofAudience === 'only_me' ? POSE_COPY.proofOnlyMeNote : POSE_COPY.proofAnyoneNote;
 
   return (
     <View style={styles.proofRow} testID="proof-record-chip">
@@ -254,9 +272,19 @@ function ProofClipRow({ session }: { session: PoseSession }) {
       </View>
       <View style={styles.proofText}>
         <Text style={styles.proofTitle}>{POSE_COPY.proofClip}</Text>
-        <Text style={styles.proofNote}>
-          {session.showProofExplainer ? POSE_COPY.proofHint : POSE_COPY.proofClipNote}
-        </Text>
+        {isOn ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={session.openAudienceSheet}
+            testID="proof-audience-note"
+          >
+            <Text style={styles.proofNote}>{audienceNote}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.proofNote}>
+            {session.showProofExplainer ? POSE_COPY.proofHint : POSE_COPY.proofClipNote}
+          </Text>
+        )}
       </View>
       <Switch
         accessibilityLabel={POSE_COPY.proofClip}
@@ -293,7 +321,6 @@ function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSession
     : session.target > 0
       ? poseShortLine({ count, target: session.target })
       : poseReviewTitle({ mode, count, meetsTarget: false });
-  const visibility = mode === 'match' ? 'group' : 'shared';
   const showProof =
     !canSave && (Boolean(session.proofClipId) || session.proofFailed);
 
@@ -306,9 +333,10 @@ function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSession
       <Text style={styles.panelSub}>{line}</Text>
       {showProof ? (
         <ProofClipActions
+          audience={session.proofAudience}
           clipId={session.proofClipId}
           failed={session.proofFailed && !session.proofClipId}
-          visibility={visibility}
+          isGroup={mode === 'match'}
         />
       ) : null}
       <View style={styles.panelAction}>

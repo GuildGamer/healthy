@@ -480,13 +480,25 @@ diff stays reviewable.
 
 An opt-in recording of a camera-counted set (solo or group). The clip burns in
 the Healthy logo, a server-issued verification code, and the live rep count.
-Clips stay on the phone until posted to a group or shared; cloud copies live in
-Cloudflare R2 and expire (30 days after last share/view for solo, 30 days after
-the contest ends for groups, hard cap 90 days). After expiry the hash, count and
-timestamps remain so the code can still verify that the set happened.
 
-Verify-by-code is signed-in only and returns activity, count, date and a
-playback URL — never a name or groups. Report and block ship with the feature.
+**Who can watch** is a consent setting with two values: *Anyone with the code*
+and *Only me*. Asked once when proof recording is first turned on, overridable
+per set on the finish screen, and changeable later from History or Settings.
+**Send** hands the video file to another app; it is not the same as who can
+watch. **Post to group** is the only action that puts a clip on the group board
+(`postedToGroupAt`) and uses the one-post-per-day cap.
+
+Nothing leaves the phone until the person sends, saves, or posts. *Anyone with
+the code* uploads the first time the clip leaves the phone. *Only me* never
+uploads unless the clip is posted to the group. Cloud copies live in Cloudflare
+R2 and expire (30 days after last share/view for solo, 30 days after the contest
+ends for groups, hard cap 90 days). After expiry the hash, count and timestamps
+remain so the code can still verify that the set happened.
+
+Verify-by-code returns one of: checks out, kept private, not uploaded yet, or
+removed — never a name or groups. Report and block ship with the feature.
+**Remove from Healthy** (History) marks the clip removed; the hourly sweep
+deletes the stored file.
 
 ## Not building
 

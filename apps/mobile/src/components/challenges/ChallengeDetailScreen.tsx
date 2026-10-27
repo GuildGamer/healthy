@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DeckNoteCard, DeckPageNav, DeckSheetMessage } from '@/components/deck';
+import { DeckButton, DeckNoteCard, DeckPageNav, DeckSheetMessage } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { weekDayKeys } from '@/components/home/day-keys';
 import { WeekStrip } from '@/components/home/WeekStrip';
@@ -31,6 +31,12 @@ import { confirmRemoval } from './confirm-removal';
 import { ROUTINE_COPY, SETTINGS_COPY } from './constants/routine-copy';
 import { WALK_COPY } from './constants/doing-copy';
 import { timesLabel } from './history-weeks';
+import {
+  PRACTICE_AGAIN_LABEL,
+  practiceMetric,
+  practiceRoute,
+  practiceTallyCopy,
+} from './practice-entry';
 import { stepsHeroValue } from './steps-hero';
 import type { SettingsSheet } from './types/settings-sheet';
 import {
@@ -188,6 +194,7 @@ function EnrolledSettings(props: SettingsBodyProps & { benefit: ReturnType<typeo
   return (
     <>
       <DetailHero {...props} frequency={frequency} />
+      <PracticeAgain occurrence={occurrence} />
       <WhyItMatters tip={benefit} />
       {hasSaveError ? <DeckSheetMessage message={SETTINGS_COPY.saveFailed} /> : null}
       <ScheduleSettings
@@ -266,6 +273,40 @@ function DetailHero({
   );
 }
 
+/** Today's set is done; more sets are free practice, with today's extras tallied under. */
+function PracticeAgain({ occurrence }: { occurrence: TodayChallenge | null }) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const metric = practiceMetric(occurrence);
+  const totalsQuery = useQuery({
+    queryKey: ['practice', 'totals', metric],
+    queryFn: () => apiClient.getPracticeTotals({ metric: metric! }),
+    enabled: metric !== null,
+  });
+
+  if (!metric || !occurrence) {
+    return null;
+  }
+
+  const tally = practiceTallyCopy(totalsQuery.data);
+
+  return (
+    <View style={styles.practice} testID="detail-practice">
+      <DeckButton
+        glyph="repeat"
+        label={PRACTICE_AGAIN_LABEL}
+        onPress={() => router.push(practiceRoute(occurrence.challengeId))}
+        testID="detail-practice-again"
+      />
+      {tally ? (
+        <Text style={styles.practiceTally} testID="detail-practice-tally">
+          {tally}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 function RemoveChallenge({ challenge }: { challenge: CatalogChallenge }) {
   const styles = useThemedStyles(createStyles);
   const removeChallenge = useRemoveChallenge();
@@ -311,6 +352,15 @@ const createStyles = (theme: Theme) =>
     content: {
       paddingHorizontal: 20,
       paddingTop: 14,
+    },
+    practice: {
+      marginTop: spacing.md,
+      gap: spacing.sm,
+    },
+    practiceTally: {
+      color: theme.colors.muted,
+      fontSize: fontSize.xs,
+      textAlign: 'center',
     },
     remove: {
       marginTop: spacing.lg,

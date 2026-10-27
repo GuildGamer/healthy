@@ -29,7 +29,11 @@ final class ProofRecorder {
   private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
   /// The clip's time zero. A session that starts before its first frame plays black until that frame.
   private var firstFrameAt: CFTimeInterval?
+  /// Wall-clock ms of the first written frame, for trim-to-last-rep.
+  private var firstFrameWallMs: Double?
   private var lastFrameSeconds: Double?
+  /// Optional end of the set in wall-clock ms; frames after this are dropped.
+  private var endAtWallMs: Double?
   /// One frame in flight at most: a queued frame holds a camera buffer, and a backlog starves the camera and QuickPose.
   private let inFlightLock = NSLock()
   private var isFrameInFlight = false
@@ -44,8 +48,8 @@ final class ProofRecorder {
 
   private static let targetWidth = 720
   private static let targetHeight = 1280
-  /// 90 s at this rate stays under the contract's PROOF_CLIP_MAX_BYTES (12 MB).
-  private static let bitRate = 1_000_000
+  /// 180 s at this rate stays under the contract's PROOF_CLIP_MAX_BYTES (16 MB).
+  private static let bitRate = 650_000
   private static let minimumFrameGapSeconds = 1.0 / 15.0
   private static let timescale: CMTimeScale = 600
 
@@ -101,7 +105,9 @@ final class ProofRecorder {
     input = videoInput
     adaptor = pixelAdaptor
     firstFrameAt = nil
+    firstFrameWallMs = nil
     lastFrameSeconds = nil
+    endAtWallMs = nil
     outputURL = videoURL
     posterURL = poster
     posterCaptured = false
@@ -109,6 +115,11 @@ final class ProofRecorder {
     self.maxDurationSeconds = maxDurationSeconds
     self.overlay = overlay
     isRecording = true
+  }
+
+  /// Trims standing-up after the last rep. Old clients omit this and keep the full clip.
+  func setEndAtWallMs(_ endAtMs: Double?) {
+    endAtWallMs = endAtMs
   }
 
   func updateOverlay(code: String? = nil, label: String? = nil, count: Int? = nil) {
@@ -130,6 +141,10 @@ final class ProofRecorder {
       guard self.isRecording else { return }
       guard let input = self.input, input.isReadyForMoreMediaData else { return }
       guard let adaptor = self.adaptor else { return }
+      let wallMs = Date().timeIntervalSince1970 * 1000
+      if let endAt = self.endAtWallMs, wallMs > endAt {
+        return
+      }
       let elapsedSeconds = self.firstFrameAt.map { capturedAt - $0 } ?? 0
       guard self.isDueForFrame(at: elapsedSeconds) else { return }
       guard let camera = self.cameraImage(from: cameraFrame) else { return }
@@ -146,6 +161,7 @@ final class ProofRecorder {
       if adaptor.append(buffer, withPresentationTime: time) {
         if self.firstFrameAt == nil {
           self.firstFrameAt = capturedAt
+          self.firstFrameWallMs = wallMs
         }
         self.lastFrameSeconds = elapsedSeconds
         if !self.posterCaptured, let posterURL = self.posterURL,
@@ -196,14 +212,25 @@ final class ProofRecorder {
     let durationSeconds: Int
   }
 
-  func finish(completion: @escaping (Result<FinishResult, Error>) -> Void) {
+  func finish(endAtWallMs: Double? = nil, completion: @escaping (Result<FinishResult, Error>) -> Void) {
     guard isRecording, let writer, let input, let outputURL else {
       completion(.failure(ProofRecorderError.notRecording))
       return
     }
 
+    if let endAtWallMs {
+      self.endAtWallMs = endAtWallMs
+    }
+
     let tempPosterURL = posterURL
     let posterWasCaptured = posterCaptured
+    let trimmedLastSeconds: Double = {
+      guard let endAt = self.endAtWallMs, let firstWall = self.firstFrameWallMs else {
+        return self.lastFrameSeconds ?? 0
+      }
+      let endSeconds = max(0, (endAt - firstWall) / 1000.0)
+      return min(self.lastFrameSeconds ?? endSeconds, endSeconds)
+    }()
     isRecording = false
     writeQueue.async {
       input.markAsFinished()
@@ -225,7 +252,7 @@ final class ProofRecorder {
           var digest = SHA256()
           digest.update(data: data)
           let hash = digest.finalize().map { String(format: "%02x", $0) }.joined()
-          let duration = max(1, Int((self.lastFrameSeconds ?? 0).rounded(.up)))
+          let duration = max(1, Int(trimmedLastSeconds.rounded(.up)))
           let result = FinishResult(
             fileURL: durableVideo,
             posterURL: durablePoster,

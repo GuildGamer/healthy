@@ -1,5 +1,5 @@
 import type { MatchMetric, TodayChallenge } from '@product/client';
-import { isPoseMetric } from '@product/contract/match-board';
+import { isPoseMetric, MATCH_METRIC_MEASURE } from '@product/contract/match-board';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ComponentType, useCallback, useEffect, useRef, useState } from 'react';
@@ -14,6 +14,7 @@ import type { QuickPoseExerciseUpdate } from '@/lib/pose/quickpose-exercise';
 import { trackEvent } from '@/lib/track-event';
 import { finishAndLeave } from './finish-challenge';
 import { partialSetSession, setSessionId } from './partial-session';
+import { setEndDecision } from './set-end-decision';
 import type { PoseSessionProps } from './types/pose-session';
 import type { ProofClipStatus } from './types/proof-clip-recording';
 import { refreshAfterCompletion } from './useCompleteChallenge';
@@ -32,6 +33,7 @@ export type QuickPoseCameraProps = {
   proofRecording?: ProofRecordingConfig | null;
   proofCount?: number;
   finishProofToken?: number;
+  finishProofEndAtMs?: number;
   onProofRecorded?: (event: {
     fileUri: string;
     sha256: string;
@@ -98,6 +100,7 @@ function useSubmitSet(
   metric: MatchMetric,
   proofClipIdRef: { current: string | null },
   proofFailedRef: { current: boolean },
+  proofAudienceRef: { current: string | null },
 ) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -162,6 +165,7 @@ function useSubmitSet(
       const proofParams = {
         ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
         ...(proofFailedRef.current && !proofClipIdRef.current ? { proofFailed: '1' } : {}),
+        ...(proofAudienceRef.current ? { proofAudience: proofAudienceRef.current } : {}),
       };
 
       if (submitted.mode === 'match' && props.mode === 'match') {
@@ -280,6 +284,10 @@ export function usePoseSession(props: PoseSessionProps) {
   const autoStartLockRef = useRef(false);
   const countRef = useRef(0);
   countRef.current = snapshot.count;
+  const lastRepAtRef = useRef<number | null>(null);
+  const lastSeenCountRef = useRef(0);
+  const [finishCountdown, setFinishCountdown] = useState<number | null>(null);
+  const keepGoingRef = useRef(false);
 
   const proof = useProofClipRecording(
     {
@@ -293,6 +301,8 @@ export function usePoseSession(props: PoseSessionProps) {
   );
   const proofFailedRef = useRef(false);
   proofFailedRef.current = proof.proofFailed;
+  const proofAudienceRef = useRef<string | null>(null);
+  proofAudienceRef.current = proof.audience;
 
   const submitSet = useSubmitSet(
     props,
@@ -300,6 +310,7 @@ export function usePoseSession(props: PoseSessionProps) {
     metric,
     proof.clipIdRef,
     proofFailedRef,
+    proofAudienceRef,
   );
   const { savePartial } = useSavePartialSession();
   const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
@@ -402,8 +413,9 @@ export function usePoseSession(props: PoseSessionProps) {
   }
 
   async function stopCounting() {
+    setFinishCountdown(null);
     stop();
-    proof.requestFinish();
+    proof.requestFinish({ lastRepAtMs: lastRepAtRef.current });
     setPhase('review');
 
     await proof.waitUntilSettled();
@@ -414,6 +426,65 @@ export function usePoseSession(props: PoseSessionProps) {
     }
 
     keepShortSet();
+  }
+
+  const stopCountingRef = useRef(stopCounting);
+  stopCountingRef.current = stopCounting;
+
+  useEffect(() => {
+    if (phase !== 'counting') {
+      lastRepAtRef.current = null;
+      lastSeenCountRef.current = 0;
+      setFinishCountdown(null);
+      return;
+    }
+
+    if (snapshot.count > lastSeenCountRef.current) {
+      lastRepAtRef.current = Date.now();
+      lastSeenCountRef.current = snapshot.count;
+      keepGoingRef.current = false;
+      setFinishCountdown(null);
+    }
+  }, [phase, snapshot.count]);
+
+  useEffect(() => {
+    if (phase !== 'counting' || MATCH_METRIC_MEASURE[metric] === 'seconds') {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      if (keepGoingRef.current) {
+        lastRepAtRef.current = Date.now();
+        keepGoingRef.current = false;
+        setFinishCountdown(null);
+        return;
+      }
+
+      const decision = setEndDecision({
+        count: countRef.current,
+        lastRepAtMs: lastRepAtRef.current,
+        nowMs: Date.now(),
+        bodyInFrame: snapshot.bodyInFrame,
+      });
+
+      if (decision.kind === 'none') {
+        setFinishCountdown(null);
+        return;
+      }
+      if (decision.kind === 'countdown') {
+        setFinishCountdown(decision.seconds);
+        return;
+      }
+      void stopCountingRef.current();
+    }, 250);
+
+    return () => clearInterval(timer);
+  }, [metric, phase, snapshot.bodyInFrame]);
+
+  function keepGoing() {
+    keepGoingRef.current = true;
+    lastRepAtRef.current = Date.now();
+    setFinishCountdown(null);
   }
 
   return {
@@ -439,14 +510,23 @@ export function usePoseSession(props: PoseSessionProps) {
     proofClipId: proof.proofClipId,
     proofStatus: proof.status as ProofClipStatus,
     proofFailed: proof.proofFailed,
+    proofAudience: proof.audience,
+    showAudienceSheet: proof.showAudienceSheet,
+    openAudienceSheet: proof.openAudienceSheet,
+    closeAudienceSheet: proof.closeAudienceSheet,
+    setProofAudience: proof.setAudience,
+    confirmAudienceSheet: proof.confirmAudienceSheet,
     proofCount: snapshot.count,
     finishProofToken: proof.finishProofToken,
+    finishProofEndAtMs: proof.finishProofEndAtMs,
     toggleRecordProof: proof.toggleRecordProof,
     handleProofRecorded: proof.handleProofRecorded,
     handleProofRecordingError: proof.handleProofRecordingError,
+    finishCountdown,
     startNow: () => beginCounting(),
     retry: () => beginCounting(),
     stopCounting: () => void stopCounting(),
+    keepGoing,
     save,
     leave: () => {
       stop();

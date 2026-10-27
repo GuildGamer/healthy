@@ -259,7 +259,8 @@ describe('DayDetailScreen', () => {
       id: 'clip-1',
       displayCode: 'H7K-29Q',
       status: 'ready' as const,
-      visibility: 'group' as const,
+      audience: 'anyone' as const,
+      isPostedToGroup: true,
     };
     const detail: ProgressDayDetail = {
       dayKey: '2026-10-20',
@@ -287,7 +288,7 @@ describe('DayDetailScreen', () => {
           count: 12,
           durationSeconds: 60,
           recordedAt: '2026-10-20T19:10:00.000Z',
-          proofClip: { ...clip, id: 'clip-2', visibility: null },
+          proofClip: { ...clip, id: 'clip-2', audience: null, isPostedToGroup: false },
         },
         {
           id: 'plain',
@@ -338,7 +339,13 @@ describe('DayDetailScreen', () => {
           completedAt: '2026-10-20T08:30:00.000Z',
           points: 150,
           share: { kind: 'reps', count: 20 },
-          proofClip: { id: 'clip-1', displayCode: 'H7K-29Q', status: 'ready', visibility: 'group' },
+          proofClip: {
+            id: 'clip-1',
+            displayCode: 'H7K-29Q',
+            status: 'ready',
+            audience: 'anyone',
+            isPostedToGroup: true,
+          },
         },
       ],
       missedPhotoChecks: [],
@@ -356,7 +363,7 @@ describe('DayDetailScreen', () => {
     expect(await screen.findByTestId('activity-detail-video')).toBeOnTheScreen();
     expect(mockedApi.getProofClip).toHaveBeenCalledWith({ clipId: 'clip-1' });
     expect(screen.getByTestId('activity-detail-code')).toHaveTextContent(
-      'H7K-29Q · Posted to your group',
+      'H7K-29Q · Anyone with the code',
     );
     expect(screen.getByTestId('activity-detail-amount')).toHaveTextContent('20 push-ups');
     expect(screen.queryByTestId('proof-publish')).toBeNull();

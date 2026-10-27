@@ -33,6 +33,7 @@ export function meFixture(overrides: Partial<MeOutput> = {}): MeOutput {
     healthLinkStatus: 'connected',
     hasMembership: false,
     maxRemindersPerChallenge: 1,
+    proofClipAudience: null,
     ...overrides,
   };
 }

@@ -47,6 +47,8 @@ export type QuickPoseCameraViewProps = {
   proofCount?: number;
   /** Increment to finish the in-flight recording (emits onProofRecorded). */
   finishProofToken?: number;
+  /** Wall-clock ms of the last rep plus a short tail. Trim standing-up off the end. */
+  finishProofEndAtMs?: number;
   onProofRecorded?: (event: ProofRecordedEvent) => void;
   onProofRecordingError?: (event: ProofRecordingErrorEvent) => void;
 };

@@ -58,6 +58,13 @@ export class ProofClipRetentionService {
             { status: 'ready', expiresAt: { lte: now } },
             { status: 'removed', OR: [{ videoKey: { not: null } }, { posterKey: { not: null } }] },
             { status: 'expired', OR: [{ videoKey: { not: null } }, { posterKey: { not: null } }] },
+            // Narrowed to only_me and never posted: nothing left for anyone to watch.
+            {
+              status: 'ready',
+              audience: 'only_me',
+              postedToGroupAt: null,
+              OR: [{ videoKey: { not: null } }, { posterKey: { not: null } }],
+            },
           ],
         },
         select: { id: true, videoKey: true, posterKey: true, status: true },

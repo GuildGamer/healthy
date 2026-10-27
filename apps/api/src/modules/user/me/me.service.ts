@@ -48,6 +48,7 @@ export class MeService {
         inProgressNudgeDelayMinutes: true,
         healthLinkStatus: true,
         membershipActive: true,
+        proofClipAudience: true,
       },
     });
 
@@ -81,7 +82,23 @@ export class MeService {
       healthLinkStatus: profile?.healthLinkStatus ?? 'unknown',
       hasMembership: membershipActive,
       maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
+      proofClipAudience: profile?.proofClipAudience ?? null,
     };
+  }
+
+  async updateProofClipAudience(
+    currentUser: AuthenticatedUser | null | undefined,
+    audience: 'anyone' | 'only_me',
+  ): Promise<MeDto> {
+    const user = requireUser(currentUser);
+
+    await this.prisma.userProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, proofClipAudience: audience },
+      update: { proofClipAudience: audience },
+    });
+
+    return this.getMe(user);
   }
 
   async updateHealthLink(

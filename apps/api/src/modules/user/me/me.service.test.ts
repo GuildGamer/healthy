@@ -89,6 +89,7 @@ describe('MeService', () => {
       healthLinkStatus: 'unknown',
       hasMembership: false,
       maxRemindersPerChallenge: 1,
+      proofClipAudience: null,
     });
   });
 
@@ -130,6 +131,7 @@ describe('MeService', () => {
       healthLinkStatus: 'unknown',
       hasMembership: false,
       maxRemindersPerChallenge: 1,
+      proofClipAudience: null,
     });
   });
 

@@ -37,6 +37,9 @@ final class HealthyQuickPoseView: ExpoView {
     }
   }
 
+  /// Wall-clock ms of the last rep plus a short tail. Old clients leave this nil.
+  var finishProofEndAtMs: Double = 0
+
   /// Incremented by JS to finish the in-flight recording (not cancel it).
   var finishProofToken: Int = 0 {
     didSet {
@@ -211,7 +214,8 @@ final class HealthyQuickPoseView: ExpoView {
   func finishProofRecording() {
     guard let recorder = proofRecorder, recorder.isRecording else { return }
     frameTap?.setKeepingFrames(false)
-    recorder.finish { [weak self] result in
+    let endAt = finishProofEndAtMs > 0 ? finishProofEndAtMs : nil
+    recorder.finish(endAtWallMs: endAt) { [weak self] result in
       DispatchQueue.main.async {
         self?.proofRecorder = nil
         switch result {

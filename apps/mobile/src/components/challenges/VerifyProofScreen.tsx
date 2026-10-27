@@ -141,11 +141,18 @@ function VerifyResult({ result }: { result: VerifyProofCodeOutput }) {
           <Text style={styles.outcome}>{VERIFY_COPY.removed}</Text>
         </View>
       );
-    case 'not_shared':
+    case 'private':
       return (
-        <View style={styles.outcomeBlock} testID="verify-not-shared">
-          <Text style={styles.outcome}>{VERIFY_COPY.notShared}</Text>
-          <Text style={styles.meta}>{VERIFY_COPY.notSharedBody}</Text>
+        <View style={styles.outcomeBlock} testID="verify-private">
+          <Text style={styles.outcome}>{VERIFY_COPY.private}</Text>
+          <Text style={styles.meta}>{VERIFY_COPY.privateBody}</Text>
+        </View>
+      );
+    case 'not_uploaded':
+      return (
+        <View style={styles.outcomeBlock} testID="verify-not-uploaded">
+          <Text style={styles.outcome}>{VERIFY_COPY.notUploaded}</Text>
+          <Text style={styles.meta}>{VERIFY_COPY.notUploadedBody}</Text>
         </View>
       );
     case 'not_found':

@@ -38,7 +38,11 @@ export const proofClipStatusSchema = z.enum([
   'removed',
 ]);
 
+/** Legacy. Prefer `audience` + `postToGroup`. */
 export const proofClipVisibilitySchema = z.enum(['group', 'shared']);
+
+/** Who may watch the clip when they look up its code. */
+export const proofClipAudienceSchema = z.enum(['anyone', 'only_me']);
 
 export const proofClipReportReasonSchema = z.enum([
   'inappropriate',
@@ -46,6 +50,53 @@ export const proofClipReportReasonSchema = z.enum([
   'harassment',
   'other',
 ]);
+
+/**
+ * Maps a legacy visibility choice onto the audience + board split so in-flight
+ * clients keep working for one release.
+ */
+export function audienceFromVisibility(
+  visibility: z.infer<typeof proofClipVisibilitySchema>,
+): {
+  audience: z.infer<typeof proofClipAudienceSchema>;
+  postToGroup: boolean;
+} {
+  if (visibility === 'group') {
+    return { audience: 'only_me', postToGroup: true };
+  }
+
+  return { audience: 'anyone', postToGroup: false };
+}
+
+/** Resolves upload intent: new fields win; visibility fills gaps for old clients. */
+export function resolveProofClipUploadIntent(input: {
+  audience?: z.infer<typeof proofClipAudienceSchema>;
+  postToGroup?: boolean;
+  visibility?: z.infer<typeof proofClipVisibilitySchema>;
+}): {
+  audience: z.infer<typeof proofClipAudienceSchema>;
+  postToGroup: boolean;
+} {
+  if (input.audience != null) {
+    return {
+      audience: input.audience,
+      postToGroup: input.postToGroup === true,
+    };
+  }
+
+  if (input.visibility != null) {
+    const fromVisibility = audienceFromVisibility(input.visibility);
+    return {
+      audience: fromVisibility.audience,
+      postToGroup: input.postToGroup ?? fromVisibility.postToGroup,
+    };
+  }
+
+  return {
+    audience: 'anyone',
+    postToGroup: input.postToGroup === true,
+  };
+}
 
 export const proofCodeSchema = z
   .string()
@@ -111,7 +162,10 @@ export const requestProofClipUploadInputSchema = z.object({
   clipId: z.string().min(1),
   videoByteSize: z.number().int().positive().max(PROOF_CLIP_MAX_BYTES),
   posterByteSize: z.number().int().positive().max(PROOF_CLIP_POSTER_MAX_BYTES).optional(),
-  /** Lets the server refuse a group post before any bytes are uploaded. */
+  audience: proofClipAudienceSchema.optional(),
+  /** Puts the clip on the group board. Distinct from who can check the code. */
+  postToGroup: z.boolean().optional(),
+  /** Legacy. Prefer `audience` + `postToGroup`. */
   visibility: proofClipVisibilitySchema.optional(),
 });
 
@@ -128,7 +182,12 @@ export const requestProofClipUploadOutputSchema = z.object({
 
 export const completeProofClipUploadInputSchema = z.object({
   clipId: z.string().min(1),
-  visibility: proofClipVisibilitySchema,
+  audience: proofClipAudienceSchema.optional(),
+  postToGroup: z.boolean().optional(),
+  /** Legacy. Prefer `audience` + `postToGroup`. Required when audience is absent. */
+  visibility: proofClipVisibilitySchema.optional(),
+}).refine((value) => value.audience != null || value.visibility != null, {
+  message: 'audience or visibility is required',
 });
 
 export const completeProofClipUploadOutputSchema = z.object({
@@ -151,6 +210,8 @@ export const proofClipSchema = z.object({
   sharedAt: z.string().datetime().nullable(),
   expiresAt: z.string().datetime().nullable(),
   attested: z.boolean(),
+  audience: proofClipAudienceSchema.nullable(),
+  isPostedToGroup: z.boolean(),
   /** Short-lived signed URL; null when the object has expired or was removed. */
   videoUrl: z.string().url().nullable(),
   posterUrl: z.string().url().nullable(),
@@ -166,7 +227,13 @@ export const activityProofClipSchema = z.object({
   displayCode: z.string().min(1),
   /** `recorded` is still only on the owner's phone; `expired` has lost its video. */
   status: z.enum(['recorded', 'ready', 'expired']),
-  visibility: proofClipVisibilitySchema.nullable(),
+  audience: proofClipAudienceSchema.nullable(),
+  isPostedToGroup: z.boolean(),
+});
+
+export const setProofClipAudienceInputSchema = z.object({
+  clipId: z.string().min(1),
+  audience: proofClipAudienceSchema,
 });
 
 export const getProofClipInputSchema = z.object({
@@ -217,8 +284,13 @@ export const verifyProofCodeOutputSchema = z.discriminatedUnion('outcome', [
   z.object({
     outcome: z.literal('removed'),
   }),
+  /** The owner keeps the clip to themselves. */
   z.object({
-    outcome: z.literal('not_shared'),
+    outcome: z.literal('private'),
+  }),
+  /** The code is real but the video has not reached Healthy yet. */
+  z.object({
+    outcome: z.literal('not_uploaded'),
   }),
   z.object({
     outcome: z.literal('not_found'),
@@ -281,6 +353,11 @@ export const publicVerifyProofCodeContract = oc
   .input(verifyProofCodeInputSchema)
   .output(verifyProofCodeOutputSchema);
 
+export const setProofClipAudienceContract = oc
+  .route({ method: 'POST', path: '/proof-clips/audience' })
+  .input(setProofClipAudienceInputSchema)
+  .output(proofClipSchema);
+
 export const removeProofClipContract = oc
   .route({ method: 'POST', path: '/proof-clips/remove' })
   .input(removeProofClipInputSchema)
@@ -307,9 +384,11 @@ export function toDisplayProofCode(code: string): string {
 
 export type ProofClipStatus = z.infer<typeof proofClipStatusSchema>;
 export type ProofClipVisibility = z.infer<typeof proofClipVisibilitySchema>;
+export type ProofClipAudience = z.infer<typeof proofClipAudienceSchema>;
 export type ProofClipReportReason = z.infer<typeof proofClipReportReasonSchema>;
 export type ProofClip = z.infer<typeof proofClipSchema>;
 export type ActivityProofClip = z.infer<typeof activityProofClipSchema>;
 export type ReserveProofClipInput = z.infer<typeof reserveProofClipInputSchema>;
 export type RecordProofClipInput = z.infer<typeof recordProofClipInputSchema>;
 export type VerifyProofCodeOutput = z.infer<typeof verifyProofCodeOutputSchema>;
+export type SetProofClipAudienceInput = z.infer<typeof setProofClipAudienceInputSchema>;

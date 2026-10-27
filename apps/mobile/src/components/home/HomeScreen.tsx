@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { completionRoute } from '@/components/challenges/completion-route';
+import { canPracticeAgain, practiceRoute } from '@/components/challenges/practice-entry';
 import { useAdvanceChallenge } from '@/components/challenges/useAdvanceChallenge';
 import { RefreshableScroll } from '@/components/feedback';
 import { Glyph } from '@/components/icons';
@@ -151,7 +152,7 @@ function DeckSection({
   const opensDayPage = useDayFinishedPage(finished.finish, deck.items, finished.dismiss);
   const items =
     finished.finish && !opensDayPage ? withFinishedCard(deck.items, finished.finish) : deck.items;
-  const openChallenge = useOpenChallenge();
+  const openDoneChallenge = useOpenDoneChallenge();
   const isShowingStaleCopy = challengesQuery.isError && challengesQuery.data !== undefined;
 
   return (
@@ -179,7 +180,7 @@ function DeckSection({
         key={items[0]?.type === 'finished' ? items[0].key : 'deck'}
         renderItem={renderItem}
       />
-      {deck.isDayDone ? null : <DoneChips items={deck.done} onOpen={openChallenge} />}
+      {deck.isDayDone ? null : <DoneChips items={deck.done} onOpen={openDoneChallenge} />}
       {deck.presence ? <PresenceLine now={now} presence={deck.presence} /> : null}
       {deck.showsMembershipLine ? <MembershipLine /> : null}
       {deck.isDayDone ? (
@@ -210,6 +211,20 @@ function DeckSection({
 function useOpenChallenge() {
   const router = useRouter();
   return (challengeId: string) => router.push(`/challenge/${challengeId}`);
+}
+
+/** A finished camera exercise goes straight to another set; anything else opens its page. */
+function useOpenDoneChallenge() {
+  const router = useRouter();
+  const openChallenge = useOpenChallenge();
+  return (challenge: TodayChallenge) => {
+    if (canPracticeAgain(challenge)) {
+      router.push(practiceRoute(challenge.challengeId));
+      return;
+    }
+
+    openChallenge(challenge.challengeId);
+  };
 }
 
 function useDeckItemRenderer(

@@ -161,6 +161,7 @@ export type {
   ProgressPracticeItem,
   ProgressShareResult,
   ActivityProofClip,
+  ProofClipAudience,
   LeaderboardEntry,
   LeaderboardPeriod,
   ListLeaderboardInput,

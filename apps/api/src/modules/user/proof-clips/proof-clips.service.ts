@@ -4,13 +4,19 @@ import { ORPCError } from '@orpc/server';
 import {
   mintProofCode,
   PROOF_CLIP_SIGNED_URL_TTL_SECONDS,
+  resolveProofClipUploadIntent,
   toDisplayProofCode,
   type ProofClip,
+  type ProofClipAudience,
   type RecordProofClipInput,
   type ReserveProofClipInput,
   type VerifyProofCodeOutput,
 } from '@product/contract';
-import type { PrismaClient, ProofClip as DbProofClip } from '@product/db';
+import type {
+  PrismaClient,
+  ProofClip as DbProofClip,
+  ProofClipVisibility,
+} from '@product/db';
 import {
   type AuthenticatedUser,
   requireUser,
@@ -59,6 +65,38 @@ function posterObjectKey(userId: string, clipId: string): string {
 
 function sha256HexToBase64(hex: string): string {
   return Buffer.from(hex, 'hex').toString('base64');
+}
+
+/** Audience with a one-release fallback for rows that still only have visibility. */
+function effectiveAudience(clip: Pick<DbProofClip, 'audience' | 'visibility'>): ProofClipAudience | null {
+  if (clip.audience) {
+    return clip.audience;
+  }
+  if (clip.visibility === 'shared') {
+    return 'anyone';
+  }
+  if (clip.visibility === 'group') {
+    return 'only_me';
+  }
+  return null;
+}
+
+function isPostedToGroup(clip: Pick<DbProofClip, 'postedToGroupAt' | 'visibility'>): boolean {
+  return clip.postedToGroupAt != null || clip.visibility === 'group';
+}
+
+/** Legacy mirror so in-flight clients that still read visibility keep working. */
+function legacyVisibilityFor(
+  audience: ProofClipAudience,
+  postToGroup: boolean,
+): ProofClipVisibility | null {
+  if (postToGroup) {
+    return 'group';
+  }
+  if (audience === 'anyone') {
+    return 'shared';
+  }
+  return null;
 }
 
 @Injectable()
@@ -157,11 +195,14 @@ export class ProofClipsService {
       clipId: string;
       videoByteSize: number;
       posterByteSize?: number;
+      audience?: ProofClipAudience;
+      postToGroup?: boolean;
       visibility?: 'group' | 'shared';
     },
   ) {
     const user = requireUser(currentUser);
     const clip = await this.requireOwnedClip(user.id, input.clipId);
+    const intent = resolveProofClipUploadIntent(input);
 
     if (clip.status !== 'recorded' && clip.status !== 'ready') {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_WRONG_STATUS });
@@ -172,7 +213,7 @@ export class ProofClipsService {
     if (input.videoByteSize > PROOF_CLIP_MAX_BYTES) {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_UPLOAD_SIZE_MISMATCH });
     }
-    if (input.visibility === 'group' && clip.status === 'recorded') {
+    if (intent.postToGroup && clip.status === 'recorded') {
       await this.assertCanPostToGroup(user.id, clip);
     }
 
@@ -220,20 +261,34 @@ export class ProofClipsService {
 
   async completeUpload(
     currentUser: AuthenticatedUser | null | undefined,
-    input: { clipId: string; visibility: 'group' | 'shared' },
+    input: {
+      clipId: string;
+      audience?: ProofClipAudience;
+      postToGroup?: boolean;
+      visibility?: 'group' | 'shared';
+    },
   ) {
     const user = requireUser(currentUser);
     const clip = await this.requireOwnedClip(user.id, input.clipId);
+    const intent = resolveProofClipUploadIntent(input);
+    const visibility = legacyVisibilityFor(intent.audience, intent.postToGroup);
 
     if (clip.status === 'ready') {
-      const nextVisibility =
-        clip.visibility === 'shared' ? 'shared' : input.visibility;
-      if (nextVisibility !== clip.visibility) {
-        await this.prisma.proofClip.update({
-          where: { id: clip.id },
-          data: { visibility: nextVisibility },
-        });
-      }
+      const nextAudience =
+        effectiveAudience(clip) === 'anyone' ? 'anyone' : intent.audience;
+      const nextPost =
+        isPostedToGroup(clip) || intent.postToGroup
+          ? (clip.postedToGroupAt ?? new Date())
+          : null;
+      const nextVisibility = legacyVisibilityFor(nextAudience, nextPost != null);
+      await this.prisma.proofClip.update({
+        where: { id: clip.id },
+        data: {
+          audience: nextAudience,
+          postedToGroupAt: nextPost,
+          visibility: nextVisibility,
+        },
+      });
       return {
         clipId: clip.id,
         status: 'ready' as const,
@@ -245,7 +300,7 @@ export class ProofClipsService {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_WRONG_STATUS });
     }
 
-    if (input.visibility === 'group') {
+    if (intent.postToGroup) {
       await this.assertCanPostToGroup(user.id, clip);
     }
 
@@ -285,7 +340,9 @@ export class ProofClipsService {
       where: { id: clip.id },
       data: {
         status: 'ready',
-        visibility: input.visibility,
+        audience: intent.audience,
+        postedToGroupAt: intent.postToGroup ? now : null,
+        visibility,
         sharedAt,
         expiresAt,
       },
@@ -296,6 +353,34 @@ export class ProofClipsService {
       status: 'ready' as const,
       expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  /**
+   * Narrows or widens who may watch. Takes effect immediately for verify;
+   * already-issued signed URLs lapse within the signed-URL TTL.
+   */
+  async setAudience(
+    currentUser: AuthenticatedUser | null | undefined,
+    input: { clipId: string; audience: ProofClipAudience },
+  ): Promise<ProofClip> {
+    const user = requireUser(currentUser);
+    const clip = await this.requireOwnedClip(user.id, input.clipId);
+    const posted = isPostedToGroup(clip);
+    const visibility = legacyVisibilityFor(input.audience, posted);
+
+    const updated = await this.prisma.proofClip.update({
+      where: { id: clip.id },
+      data: {
+        audience: input.audience,
+        visibility,
+        // Only_me clips that were never posted are swept of their objects.
+        ...(input.audience === 'only_me' && !posted && clip.status === 'ready'
+          ? { expiresAt: new Date() }
+          : {}),
+      },
+    });
+
+    return this.present(updated, user.id);
   }
 
   async get(
@@ -346,6 +431,7 @@ export class ProofClipsService {
       where: {
         matchId: input.matchId,
         status: 'ready',
+        postedToGroupAt: { not: null },
         userId: { notIn: [...blocked] },
         recordedAt,
       },
@@ -388,12 +474,19 @@ export class ProofClipsService {
     }
 
     const isOwner = clip.userId === user.id;
+    const audience = effectiveAudience(clip);
+    const posted = isPostedToGroup(clip);
     const isParticipant =
-      clip.matchId != null && (await this.isAcceptedParticipant(user.id, clip.matchId));
-    const isPubliclyShared = clip.visibility === 'shared';
+      posted &&
+      clip.matchId != null &&
+      (await this.isAcceptedParticipant(user.id, clip.matchId));
 
-    if (!isOwner && !isParticipant && !isPubliclyShared) {
-      return { outcome: 'not_shared' };
+    if (audience === 'only_me' && !isOwner && !isParticipant) {
+      return { outcome: 'private' };
+    }
+
+    if (!isOwner && !isParticipant && audience !== 'anyone') {
+      return { outcome: 'private' };
     }
 
     const outcome = await this.verifyOutcomeFor(clip);
@@ -404,10 +497,9 @@ export class ProofClipsService {
   }
 
   /**
-   * Anonymous verify for website visitors. Only clips posted with
-   * `visibility: shared` succeed; group-only and unset clips return
-   * `not_shared`. Does not touch lastViewedAt so anonymous traffic cannot
-   * extend retention.
+   * Anonymous verify. Only clips with audience `anyone` that have been
+   * uploaded succeed. Does not touch lastViewedAt so anonymous traffic
+   * cannot extend retention.
    */
   async verifyPublic(
     code: string,
@@ -425,8 +517,8 @@ export class ProofClipsService {
     if (clip.status === 'removed') {
       return { outcome: 'removed' };
     }
-    if (clip.visibility !== 'shared') {
-      return { outcome: 'not_shared' };
+    if (effectiveAudience(clip) !== 'anyone') {
+      return { outcome: 'private' };
     }
 
     return this.verifyOutcomeFor(clip);
@@ -436,7 +528,7 @@ export class ProofClipsService {
     clip: DbProofClip,
   ): Promise<VerifyProofCodeOutput> {
     if (clip.status === 'reserved' || clip.status === 'recorded') {
-      return { outcome: 'not_shared' };
+      return { outcome: 'not_uploaded' };
     }
     if (!clip.recordedAt) {
       return { outcome: 'not_found' };
@@ -628,11 +720,15 @@ export class ProofClipsService {
       throw new ORPCError('NOT_FOUND', { message: PROOF_CLIP_NOT_FOUND });
     }
 
-    if (clip.matchId && (await this.isAcceptedParticipant(viewerId, clip.matchId))) {
+    if (
+      isPostedToGroup(clip) &&
+      clip.matchId &&
+      (await this.isAcceptedParticipant(viewerId, clip.matchId))
+    ) {
       return;
     }
 
-    if (clip.sharedAt != null && clip.status === 'ready') {
+    if (effectiveAudience(clip) === 'anyone' && clip.status === 'ready') {
       return;
     }
 
@@ -673,6 +769,7 @@ export class ProofClipsService {
         userId,
         matchId,
         status: 'ready',
+        postedToGroupAt: { not: null },
         recordedAt: { gte: start, lte: end },
       },
     });
@@ -737,6 +834,8 @@ export class ProofClipsService {
       sharedAt: clip.sharedAt?.toISOString() ?? null,
       expiresAt: clip.expiresAt?.toISOString() ?? null,
       attested: clip.attested,
+      audience: effectiveAudience(clip),
+      isPostedToGroup: isPostedToGroup(clip),
       videoUrl: urls.videoUrl,
       posterUrl: urls.posterUrl,
       isOwner: clip.userId === viewerId,

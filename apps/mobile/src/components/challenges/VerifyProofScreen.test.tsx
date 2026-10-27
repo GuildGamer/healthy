@@ -74,7 +74,8 @@ describe('VerifyProofScreen', () => {
   });
 
   it.each([
-    ['not_shared', 'Not shared yet'],
+    ['private', 'Kept private'],
+    ['not_uploaded', 'Almost there'],
     ['not_found', 'No clip found'],
   ] as const)('explains a %s code instead of asking to check it', async (outcome, title) => {
     verifyProofCode.mockResolvedValue({ outcome });

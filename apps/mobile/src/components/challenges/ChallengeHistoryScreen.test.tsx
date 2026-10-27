@@ -173,7 +173,8 @@ describe('ChallengeHistoryScreen', () => {
             id: 'clip-1',
             displayCode: 'H7K-29Q',
             status: 'ready',
-            visibility: 'shared',
+            audience: 'anyone',
+            isPostedToGroup: false,
           },
         }),
         entry({

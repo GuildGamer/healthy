@@ -101,6 +101,7 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
     healthLinkStatus: 'unknown',
     hasMembership: true,
     maxRemindersPerChallenge: 1,
+    proofClipAudience: null,
     ...overrides,
   };
 }
@@ -229,6 +230,32 @@ describe('HomeScreen', () => {
     expect(screen.getByTestId('home-done-uc2')).toBeOnTheScreen();
     expect(screen.getByText('+150')).toBeOnTheScreen();
     expect(screen.queryByText('Rank 4 this week')).toBeNull();
+
+    await cleanup();
+  });
+
+  it('starts another set from a finished push-up chip, and opens other finished ones', async () => {
+    givenChallenges([
+      todayChallenge({ id: 'uc1', title: 'Alpha' }),
+      todayChallenge({
+        id: 'uc-push',
+        challengeId: 'push',
+        title: 'Do 20 push-ups',
+        status: 'completed',
+        capture: pushups,
+      }),
+      todayChallenge({ id: 'uc-walk', challengeId: 'walk', title: 'Walk', status: 'completed' }),
+    ]);
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByTestId('home-done-again-uc-push')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-done-again-uc-walk')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('home-done-uc-push'));
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/push/practice');
+
+    fireEvent.press(screen.getByTestId('home-done-uc-walk'));
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/walk');
 
     await cleanup();
   });

@@ -62,6 +62,8 @@ type ChallengeSuccessScreenProps = {
   proofClipId?: string;
   /** Recording was on but the clip never landed on the phone. */
   proofFailed?: boolean;
+  /** Who may watch this set’s clip by its code. */
+  proofAudience?: 'anyone' | 'only_me';
 };
 
 /**
@@ -206,6 +208,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     glasses,
     proofClipId,
     proofFailed = false,
+    proofAudience = 'anyone',
   } = props;
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
@@ -226,7 +229,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     practice,
   });
   const shareImage = useShareCardImage({ matchId, userChallengeId, practice });
-  const proof = useProofClip(proofClipId ?? null, isMatch ? 'group' : 'shared');
+  const proof = useProofClip(proofClipId ?? null, proofAudience, { isGroup: isMatch });
   const { me, leave } = useLeaveSuccess(matchId);
   const benefitTip = useSuccessBenefitTip({ challengeId, activityKey, practice, isMatch });
   const [photoUri] = useState(() => pendingSharePhotoFor(userChallengeId));

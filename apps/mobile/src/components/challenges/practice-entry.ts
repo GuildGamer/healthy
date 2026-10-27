@@ -1,10 +1,11 @@
 import type { ChallengeCaptureKind, UserChallengeStatus } from '@product/client';
-import { isPoseMetric } from '@product/contract/match-board';
+import { isPoseMetric, type POSE_METRICS } from '@product/contract/match-board';
 
 export const PRACTICE_AGAIN_LABEL = 'Another set';
 
-/** Short enough for the 88pt pill on a challenge row. */
-export const PRACTICE_AGAIN_SHORT_LABEL = 'Again';
+export const PRACTICE_AGAIN_HINT = 'Starts another set, for practice';
+
+type PoseMetric = (typeof POSE_METRICS)[number];
 
 type PracticeCandidate = {
   status: UserChallengeStatus;
@@ -13,15 +14,20 @@ type PracticeCandidate = {
 
 /**
  * Finishing the daily pose challenge ends the scoring, not the exercise.
- * A completed pose occurrence keeps offering free sets, which are recorded
- * as activity but earn no points and no streak.
+ * A completed pose occurrence keeps offering free sets of its exercise, which
+ * are recorded as activity but earn no points and no streak.
  */
-export function canPracticeAgain(occurrence: PracticeCandidate | null | undefined): boolean {
+export function practiceMetric(occurrence: PracticeCandidate | null | undefined): PoseMetric | null {
   if (!occurrence || occurrence.status !== 'completed') {
-    return false;
+    return null;
   }
 
-  return Boolean(occurrence.capture?.metric && isPoseMetric(occurrence.capture.metric));
+  const metric = occurrence.capture?.metric;
+  return metric && isPoseMetric(metric) ? metric : null;
+}
+
+export function canPracticeAgain(occurrence: PracticeCandidate | null | undefined): boolean {
+  return practiceMetric(occurrence) !== null;
 }
 
 export function practiceRoute(challengeId: string): `/challenge/${string}/practice` {

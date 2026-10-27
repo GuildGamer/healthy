@@ -1,10 +1,11 @@
 import type { ActivityProofClip } from '@product/client';
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useRouter } from 'expo-router';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckNoteCard, DeckPushedPage, DeckSheetMessage } from '@/components/deck';
 import { Loader } from '@/components/feedback';
 import { formatPointsDelta } from '@/components/points';
+import { apiClient } from '@/lib/api';
 import { type Theme, useThemedStyles } from '@/theme';
 import type { completionShareRoute } from './completion-poster';
 import { ACTIVITY_COPY, POSE_COPY } from './constants/doing-copy';
@@ -112,17 +113,54 @@ function ActivityContent({ detail }: { detail: ActivityDetail }) {
       </View>
       <View style={styles.actions}>
         {clip.proof.error ? <DeckSheetMessage message={clip.proof.error} /> : null}
-        {clip.canPublish ? <ProofClipPrimaryRow proof={clip.proof} /> : null}
+        {clip.canAct ? (
+          <ProofClipPrimaryRow proof={clip.proof} showNarrowedHint={clip.isUploaded} />
+        ) : null}
         {shareCard ? (
           <DeckButton
             label={ACTIVITY_COPY.shareCard}
             onPress={() => router.push(shareCard)}
             testID="activity-detail-share-card"
-            variant={clip.canPublish ? 'quiet' : 'primary'}
+            variant={clip.canAct ? 'quiet' : 'primary'}
           />
         ) : null}
+        {clip.isUploaded && clip.clipId ? <RemoveFromHealthy clipId={clip.clipId} /> : null}
       </View>
     </View>
+  );
+}
+
+function RemoveFromHealthy({ clipId }: { clipId: string }) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+
+  function confirm() {
+    Alert.alert(POSE_COPY.removeTitle, POSE_COPY.removeBody, [
+      { text: POSE_COPY.removeCancel, style: 'cancel' },
+      {
+        text: POSE_COPY.removeConfirm,
+        style: 'destructive',
+        onPress: () => {
+          void apiClient
+            .removeProofClip({ clipId })
+            .then(() => {
+              router.back();
+            })
+            .catch(() => undefined);
+        },
+      },
+    ]);
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={confirm}
+      style={styles.removeWrap}
+      testID="activity-remove-clip"
+    >
+      <Text style={styles.remove}>{POSE_COPY.removeFromHealthy}</Text>
+    </Pressable>
   );
 }
 
@@ -179,15 +217,9 @@ function ClipFrame({ clip }: { clip: ActivityClipState }) {
 }
 
 function clipCaption(clip: ActivityClipState): string {
-  if (clip.publishedAs === 'shared') {
-    return `${clip.displayCode} · ${POSE_COPY.proofSharedStatus}`;
-  }
-
-  if (clip.publishedAs === 'group') {
-    return `${clip.displayCode} · ${POSE_COPY.proofPostedStatus}`;
-  }
-
-  return clip.displayCode ?? '';
+  const audienceLabel =
+    clip.audience === 'only_me' ? POSE_COPY.proofOnlyMeStatus : POSE_COPY.proofAnyoneStatus;
+  return `${clip.displayCode} · ${audienceLabel}`;
 }
 
 const createStyles = (theme: Theme) =>
@@ -250,5 +282,14 @@ const createStyles = (theme: Theme) =>
     },
     actions: {
       gap: spacing.sm,
+    },
+    removeWrap: {
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    remove: {
+      color: theme.colors.danger,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
     },
   });

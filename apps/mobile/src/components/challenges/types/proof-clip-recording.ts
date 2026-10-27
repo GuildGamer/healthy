@@ -1,4 +1,4 @@
-import type { MatchMetric } from '@product/client';
+import type { MatchMetric, ProofClipAudience } from '@product/client';
 import type { ProofRecordingConfig } from 'quickpose-camera';
 import type { PoseSessionProps } from './pose-session';
 
@@ -14,9 +14,6 @@ export type ProofClipStatus =
   | 'discarded';
 
 export type ProofClipOutcome = 'saved' | 'failed' | 'discarded' | 'off';
-
-/** Group sets post to the board; solo sets are shared. */
-export type ProofClipVisibility = 'group' | 'shared';
 
 export type ProofRecordedEvent = {
   fileUri: string;
@@ -42,11 +39,18 @@ export type ProofClipRecording = {
   proofRecording: ProofRecordingConfig | null;
   proofClipId: string | null;
   finishProofToken: number;
+  finishProofEndAtMs: number;
   proofFailed: boolean;
+  audience: ProofClipAudience;
+  showAudienceSheet: boolean;
+  openAudienceSheet: () => void;
+  closeAudienceSheet: () => void;
+  setAudience: (audience: ProofClipAudience) => void;
+  confirmAudienceSheet: () => void;
   toggleRecordProof: (enabled: boolean) => void;
   /** Starts the clip without blocking counting; recording begins once the code is in hand. */
   armForCounting: () => void;
-  requestFinish: () => void;
+  requestFinish: (options?: { lastRepAtMs?: number | null }) => void;
   waitUntilSettled: () => Promise<ProofClipOutcome>;
   handleProofRecorded: (event: ProofRecordedEvent) => Promise<void>;
   handleProofRecordingError: (message: string) => void;

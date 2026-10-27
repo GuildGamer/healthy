@@ -52,6 +52,7 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
     healthLinkStatus: 'unknown',
     hasMembership: false,
     maxRemindersPerChallenge: 1,
+    proofClipAudience: null,
     ...overrides,
   };
 }

@@ -1,8 +1,7 @@
-import type { ActivityProofClip } from '@product/client';
+import type { ActivityProofClip, ProofClipAudience } from '@product/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { getLocalProofClip, listLocalProofClips } from '@/lib/proof-clip-store';
-import type { ProofClipVisibility } from './types/proof-clip-recording';
 import { useProofClip } from './useProofClip';
 
 /**
@@ -29,7 +28,8 @@ export function useActivityClip(summary: ActivityProofClip | null, userChallenge
     enabled: Boolean(clipId),
   });
   const local = localQuery.data ?? null;
-  const visibility: ProofClipVisibility = local?.matchId ? 'group' : 'shared';
+  const isGroup = Boolean(local?.matchId ?? summary?.isPostedToGroup);
+  const audience: ProofClipAudience = summary?.audience ?? 'anyone';
 
   const remoteQuery = useQuery({
     queryKey: ['proof-clip-remote', clipId],
@@ -38,7 +38,8 @@ export function useActivityClip(summary: ActivityProofClip | null, userChallenge
     retry: 1,
   });
 
-  const proof = useProofClip(clipId, visibility, {
+  const proof = useProofClip(clipId, audience, {
+    isGroup,
     onPublished: () => {
       void queryClient.invalidateQueries({ queryKey: ['progress'] });
       void queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] });
@@ -46,9 +47,7 @@ export function useActivityClip(summary: ActivityProofClip | null, userChallenge
   });
 
   const remote = remoteQuery.data ?? null;
-  const publishedAs: ProofClipVisibility | null = proof.hasPublished
-    ? visibility
-    : (summary?.visibility ?? null);
+  const isUploaded = summary?.status === 'ready' || proof.hasUploaded || remote != null;
 
   return {
     clipId,
@@ -56,8 +55,10 @@ export function useActivityClip(summary: ActivityProofClip | null, userChallenge
     videoUri: local?.fileUri ?? remote?.videoUrl ?? null,
     posterUri: local?.posterUri ?? remote?.posterUrl ?? null,
     displayCode: summary?.displayCode ?? local?.displayCode ?? remote?.displayCode ?? null,
-    publishedAs,
-    canPublish: Boolean(local) && !publishedAs,
+    audience: proof.audience,
+    isUploaded,
+    isPostedToGroup: summary?.isPostedToGroup === true || (proof.hasUploaded && isGroup),
+    canAct: Boolean(local) || isUploaded,
     isExpired: summary?.status === 'expired' && !local,
     isLoading: Boolean(clipId) && (localQuery.isPending || remoteQuery.isLoading),
   };

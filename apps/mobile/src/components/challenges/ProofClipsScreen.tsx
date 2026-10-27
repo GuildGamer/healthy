@@ -1,24 +1,40 @@
+import type { ProofClipAudience } from '@product/client';
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DeckPageNav } from '@/components/deck';
+import { DeckPageNav, DeckSelectRow } from '@/components/deck';
 import { Glyph } from '@/components/icons';
+import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { listLocalProofClips, type LocalProofClip } from '@/lib/proof-clip-store';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
+import { POSE_COPY } from './constants/doing-copy';
 import { ListSectionTitle } from './ListSectionTitle';
 
-/** Local proof clips still on this phone, newest first. */
+/** Local proof clips still on this phone, newest first, plus the default for new clips. */
 export function ProofClipsScreen() {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const queryClient = useQueryClient();
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+  });
   const clipsQuery = useQuery({
     queryKey: ['proof-clips-local'],
     queryFn: () => listLocalProofClips(),
   });
+  const updateAudience = useMutation({
+    mutationFn: (audience: ProofClipAudience) =>
+      apiClient.updateProofClipAudience({ audience }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
   const clips = clipsQuery.data ?? [];
+  const selected = meQuery.data?.proofClipAudience ?? 'anyone';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
@@ -29,9 +45,25 @@ export function ProofClipsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
         testID="proof-clips-screen"
       >
+        <ListSectionTitle isFirst label="New clips" />
+        <Text style={styles.sectionHint}>You can still change any single clip.</Text>
+        <DeckSelectRow
+          isFirst
+          isSelected={selected === 'anyone'}
+          onPress={() => updateAudience.mutate('anyone')}
+          testID="settings-proof-audience-anyone"
+          title={POSE_COPY.audienceAnyone}
+        />
+        <DeckSelectRow
+          isSelected={selected === 'only_me'}
+          meta={POSE_COPY.audienceOnlyMeSub}
+          onPress={() => updateAudience.mutate('only_me')}
+          testID="settings-proof-audience-only-me"
+          title={POSE_COPY.audienceOnlyMe}
+        />
+
         <ListSectionTitle
           corner={clips.length > 0 ? String(clips.length) : null}
-          isFirst
           label="On this phone"
         />
         {clipsQuery.isPending ? (
@@ -93,19 +125,23 @@ const createStyles = (theme: Theme) =>
     },
     content: {
       paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+    },
+    sectionHint: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      marginBottom: spacing.sm,
     },
     empty: {
       color: theme.colors.muted,
-      fontSize: fontSize.sm,
-      paddingHorizontal: spacing.xs,
-      marginTop: spacing.sm,
+      fontSize: fontSize.md,
+      paddingVertical: spacing.md,
     },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
       paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xs,
     },
     divider: {
       borderTopWidth: StyleSheet.hairlineWidth,
@@ -116,17 +152,16 @@ const createStyles = (theme: Theme) =>
     },
     rowText: {
       flex: 1,
-      minWidth: 0,
+      gap: 2,
     },
     code: {
       color: theme.colors.text,
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
       letterSpacing: 1,
     },
     meta: {
       color: theme.colors.muted,
-      fontSize: fontSize.xs,
-      marginTop: 2,
+      fontSize: fontSize.sm,
     },
   });

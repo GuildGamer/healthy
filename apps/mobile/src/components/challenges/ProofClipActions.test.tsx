@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import type { ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { ProofClipActions } from './ProofClipActions';
 
@@ -14,8 +16,21 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
 }));
 
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(async () => false),
+  shareAsync: jest.fn(),
+}));
+
+jest.mock('@/lib/api', () => ({
+  apiClient: {
+    setProofClipAudience: jest.fn(),
+    removeProofClip: jest.fn(),
+  },
+}));
+
 jest.mock('@/lib/proof-clip-store', () => ({
   getLocalProofClip: jest.fn(),
+  markLocalProofClipPendingUpload: jest.fn(async () => undefined),
 }));
 
 jest.mock('@/lib/proof-clip-upload', () => ({
@@ -39,7 +54,16 @@ const localClip = {
   fileUri: 'file:///tmp/clip.mp4',
   posterUri: null,
   displayCode: 'ABCD-EFG',
+  durationSeconds: 12,
+  count: 10,
 };
+
+function renderActions(element: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  return render(<QueryClientProvider client={client}>{element}</QueryClientProvider>);
+}
 
 describe('ProofClipActions', () => {
   beforeEach(() => {
@@ -53,7 +77,7 @@ describe('ProofClipActions', () => {
   it('shows an explicit failure message when the clip did not save', () => {
     useQuery.mockReturnValue({ isPending: false, data: null, refetch: jest.fn() });
 
-    render(<ProofClipActions clipId={null} failed visibility="shared" />);
+    renderActions(<ProofClipActions audience="anyone" clipId={null} failed />);
 
     expect(screen.getByTestId('proof-clip-failed')).toHaveTextContent(
       'Your proof clip didn’t save.',
@@ -63,26 +87,21 @@ describe('ProofClipActions', () => {
   it('shows actions when a local clip is present', () => {
     useQuery.mockReturnValue({
       isPending: false,
-      data: {
-        clipId: 'clip-1',
-        fileUri: 'file:///tmp/clip.mp4',
-        posterUri: null,
-        displayCode: 'ABCD-EFG',
-      },
+      data: localClip,
       refetch: jest.fn(),
     });
 
-    render(<ProofClipActions clipId="clip-1" visibility="group" />);
+    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />);
 
     expect(screen.getByTestId('proof-clip-actions')).toBeOnTheScreen();
-    expect(screen.getByTestId('proof-publish')).toHaveTextContent('Post to group');
+    expect(screen.getByTestId('proof-primary')).toHaveTextContent('Post to group');
     expect(screen.getByTestId('proof-save-photos')).toBeOnTheScreen();
   });
 
   it('shows failure when the clip id is set but nothing is on the phone', () => {
     useQuery.mockReturnValue({ isPending: false, data: null, refetch: jest.fn() });
 
-    render(<ProofClipActions clipId="clip-missing" visibility="shared" />);
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-missing" />);
 
     expect(screen.getByTestId('proof-clip-failed')).toBeOnTheScreen();
   });
@@ -91,10 +110,10 @@ describe('ProofClipActions', () => {
     useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     uploadProofClip.mockRejectedValue(new Error('PUT https://bucket/abc 403 SignatureDoesNotMatch'));
 
-    render(<ProofClipActions clipId="clip-1" visibility="shared" />);
-    fireEvent.press(screen.getByTestId('proof-publish'));
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />);
+    fireEvent.press(screen.getByTestId('proof-primary'));
 
-    expect(await screen.findByText('Could not share the clip. Try again.')).toBeOnTheScreen();
+    expect(await screen.findByText('Could not upload the clip. Try again.')).toBeOnTheScreen();
     expect(screen.queryByText(/SignatureDoesNotMatch/)).toBeNull();
   });
 
@@ -106,8 +125,8 @@ describe('ProofClipActions', () => {
       }),
     );
 
-    render(<ProofClipActions clipId="clip-1" visibility="group" />);
-    fireEvent.press(screen.getByTestId('proof-publish'));
+    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />);
+    fireEvent.press(screen.getByTestId('proof-primary'));
 
     expect(
       await screen.findByText(
@@ -116,18 +135,19 @@ describe('ProofClipActions', () => {
     ).toBeOnTheScreen();
   });
 
-  it('says a Photos copy still needs sharing before its code checks out', async () => {
+  it('updates the status line after saving to Photos', async () => {
     useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
+    uploadProofClip.mockResolvedValue(undefined);
 
-    render(<ProofClipActions clipId="clip-1" visibility="shared" />);
-    expect(screen.queryByTestId('proof-saved-hint')).toBeNull();
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />);
+    expect(screen.queryByTestId('proof-status-line')).toBeNull();
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('proof-save-photos'));
     });
 
-    expect(screen.getByTestId('proof-saved-hint')).toHaveTextContent(
-      'Saved to Photos. Share the clip too so anyone can check its code.',
+    expect(screen.getByTestId('proof-status-line')).toHaveTextContent(
+      'Saved to Photos. Anyone with the code can watch.',
     );
   });
 
@@ -137,7 +157,7 @@ describe('ProofClipActions', () => {
       buttons?.[1]?.onPress?.();
     });
 
-    render(<ProofClipActions clipId="clip-1" visibility="shared" />);
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />);
     await act(async () => {
       fireEvent.press(screen.getByTestId('proof-discard'));
     });

@@ -1,6 +1,7 @@
-import type { MatchMetric } from '@product/client';
+import type { MatchMetric, ProofClipAudience } from '@product/client';
 import type { ReserveProofClipInput } from '@product/contract';
 import { PROOF_CLIP_MAX_DURATION_SECONDS } from '@product/contract/proof-clip-limits';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProofRecordingConfig } from 'quickpose-camera';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
@@ -83,13 +84,30 @@ export function useProofClipRecording(
   context: ProofClipContext,
   getRepCount: () => number,
 ): ProofClipRecording {
+  const queryClient = useQueryClient();
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+  });
+  const profileAudience = meQuery.data?.proofClipAudience ?? null;
+
   const [status, setStatus] = useState<ProofClipStatus>('off');
   const [recordProof, setRecordProof] = useState(false);
   const [showProofExplainer, setShowProofExplainer] = useState(false);
   const [proofRecording, setProofRecording] = useState<ProofRecordingConfig | null>(null);
   const [proofClipId, setProofClipId] = useState<string | null>(null);
   const [finishProofToken, setFinishProofToken] = useState(0);
+  const [finishProofEndAtMs, setFinishProofEndAtMs] = useState(0);
   const [proofFailed, setProofFailed] = useState(false);
+  const [audience, setAudience] = useState<ProofClipAudience>('anyone');
+  const [showAudienceSheet, setShowAudienceSheet] = useState(false);
+  const [audienceSheetIsDefault, setAudienceSheetIsDefault] = useState(false);
+
+  useEffect(() => {
+    if (profileAudience) {
+      setAudience(profileAudience);
+    }
+  }, [profileAudience]);
 
   const statusRef = useRef<ProofClipStatus>('off');
   const clipIdRef = useRef<string | null>(null);
@@ -182,6 +200,11 @@ export function useProofClipRecording(
         if (statusRef.current === 'off') {
           setStatusSync('armed');
         }
+        if (profileAudience == null) {
+          setAudience('anyone');
+          setAudienceSheetIsDefault(true);
+          setShowAudienceSheet(true);
+        }
         return;
       }
 
@@ -190,8 +213,30 @@ export function useProofClipRecording(
         setStatusSync('off');
       }
     },
-    [releaseHeldReservation, setStatusSync],
+    [profileAudience, releaseHeldReservation, setStatusSync],
   );
+
+  const openAudienceSheet = useCallback(() => {
+    setAudienceSheetIsDefault(false);
+    setShowAudienceSheet(true);
+  }, []);
+
+  const closeAudienceSheet = useCallback(() => {
+    setShowAudienceSheet(false);
+  }, []);
+
+  const confirmAudienceSheet = useCallback(() => {
+    setShowAudienceSheet(false);
+    if (!audienceSheetIsDefault) {
+      return;
+    }
+    void apiClient
+      .updateProofClipAudience({ audience })
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ['me'] });
+      })
+      .catch(() => undefined);
+  }, [audience, audienceSheetIsDefault, queryClient]);
 
   /** The held code when it still matches this set and has time left; otherwise a fresh one. */
   const takeReservation = useCallback(async (): Promise<Reservation> => {
@@ -264,17 +309,26 @@ export function useProofClipRecording(
     markFailed();
   }, [markFailed]);
 
-  const requestFinish = useCallback(() => {
-    if (statusRef.current === 'reserving') {
-      abandonReserving();
-      return;
-    }
-    if (statusRef.current !== 'recording' || !clipIdRef.current) {
-      return;
-    }
-    setStatusSync('finalizing');
-    setFinishProofToken((token) => token + 1);
-  }, [abandonReserving, setStatusSync]);
+  const requestFinish = useCallback(
+    (options?: { lastRepAtMs?: number | null }) => {
+      const lastRepAtMs = options?.lastRepAtMs;
+      if (typeof lastRepAtMs === 'number' && Number.isFinite(lastRepAtMs)) {
+        setFinishProofEndAtMs(lastRepAtMs + 1_500);
+      } else {
+        setFinishProofEndAtMs(0);
+      }
+      if (statusRef.current === 'reserving') {
+        abandonReserving();
+        return;
+      }
+      if (statusRef.current !== 'recording' || !clipIdRef.current) {
+        return;
+      }
+      setStatusSync('finalizing');
+      setFinishProofToken((token) => token + 1);
+    },
+    [abandonReserving, setStatusSync],
+  );
 
   const waitUntilSettled = useCallback((): Promise<ProofClipOutcome> => {
     if (statusRef.current === 'reserving') {
@@ -410,7 +464,14 @@ export function useProofClipRecording(
     proofRecording,
     proofClipId,
     finishProofToken,
+    finishProofEndAtMs,
     proofFailed,
+    audience,
+    showAudienceSheet,
+    openAudienceSheet,
+    closeAudienceSheet,
+    setAudience,
+    confirmAudienceSheet,
     toggleRecordProof,
     armForCounting,
     requestFinish,

@@ -120,7 +120,7 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
 
     expect(await screen.findByTestId('proof-clip-hero')).toBeOnTheScreen();
     expect(screen.getByText('42BW-A7J4')).toBeOnTheScreen();
-    expect(screen.getByTestId('proof-publish')).toHaveTextContent('Share clip');
+    expect(screen.getByTestId('proof-primary')).toHaveTextContent('Send');
     expect(screen.getByLabelText('Save to Photos')).toBeOnTheScreen();
     expect(screen.queryByTestId('share-poster-image')).toBeNull();
     expect(screen.queryByTestId('challenge-success-share')).toBeNull();

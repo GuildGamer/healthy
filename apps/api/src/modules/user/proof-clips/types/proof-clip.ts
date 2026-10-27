@@ -1,4 +1,9 @@
-import type { DeviceMetric, ProofClipStatus, ProofClipVisibility } from '@product/db';
+import type {
+  DeviceMetric,
+  ProofClipAudience,
+  ProofClipStatus,
+  ProofClipVisibility,
+} from '@product/db';
 
 export type ProofClipRow = {
   id: string;
@@ -16,6 +21,8 @@ export type ProofClipRow = {
   videoKey: string | null;
   posterKey: string | null;
   visibility: ProofClipVisibility | null;
+  audience: ProofClipAudience | null;
+  postedToGroupAt: Date | null;
   sharedAt: Date | null;
   lastViewedAt: Date | null;
   expiresAt: Date | null;

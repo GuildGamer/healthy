@@ -150,6 +150,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -173,7 +187,8 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -322,6 +337,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -345,7 +374,8 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -485,6 +515,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -508,7 +552,8 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -648,6 +693,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -671,7 +730,8 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -815,6 +875,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -838,7 +912,8 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -1001,6 +1076,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -1024,7 +1113,8 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -1166,6 +1256,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -1189,7 +1293,188 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/proof-clip-audience": {
+      "put": {
+        "operationId": "updateProofClipAudience",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "audience": {
+                    "enum": [
+                      "anyone",
+                      "only_me"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "audience"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "hypertension",
+                          "diabetes",
+                          "asthma",
+                          "general"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "pointsBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currentStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "streakLapsedYesterday": {
+                      "type": "boolean"
+                    },
+                    "bestStreakDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "countryCode": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "reminderEnabled": {
+                      "type": "boolean"
+                    },
+                    "reminderMinute": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "evidenceRemindersEnabled": {
+                      "type": "boolean"
+                    },
+                    "promotionalMessagesEnabled": {
+                      "type": "boolean"
+                    },
+                    "showOnLeaderboard": {
+                      "type": "boolean"
+                    },
+                    "groupNotificationsEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeEnabled": {
+                      "type": "boolean"
+                    },
+                    "inProgressNudgeDelayMinutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 1440
+                    },
+                    "healthLinkStatus": {
+                      "enum": [
+                        "unknown",
+                        "connected",
+                        "denied"
+                      ],
+                      "type": "string"
+                    },
+                    "hasMembership": {
+                      "type": "boolean"
+                    },
+                    "maxRemindersPerChallenge": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "categories",
+                    "pointsBalance",
+                    "currentStreakDays",
+                    "streakLapsedYesterday",
+                    "bestStreakDays",
+                    "timeZone",
+                    "displayName",
+                    "reminderEnabled",
+                    "reminderMinute",
+                    "evidenceRemindersEnabled",
+                    "promotionalMessagesEnabled",
+                    "showOnLeaderboard",
+                    "groupNotificationsEnabled",
+                    "inProgressNudgeEnabled",
+                    "inProgressNudgeDelayMinutes",
+                    "healthLinkStatus",
+                    "hasMembership",
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -1355,6 +1640,20 @@
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "proofClipAudience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -1378,7 +1677,8 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
-                    "maxRemindersPerChallenge"
+                    "maxRemindersPerChallenge",
+                    "proofClipAudience"
                   ]
                 }
               }
@@ -5702,12 +6002,12 @@
                                     ],
                                     "type": "string"
                                   },
-                                  "visibility": {
+                                  "audience": {
                                     "anyOf": [
                                       {
                                         "enum": [
-                                          "group",
-                                          "shared"
+                                          "anyone",
+                                          "only_me"
                                         ],
                                         "type": "string"
                                       },
@@ -5715,13 +6015,17 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "isPostedToGroup": {
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
                                   "id",
                                   "displayCode",
                                   "status",
-                                  "visibility"
+                                  "audience",
+                                  "isPostedToGroup"
                                 ]
                               },
                               {
@@ -11046,12 +11350,12 @@
                                     ],
                                     "type": "string"
                                   },
-                                  "visibility": {
+                                  "audience": {
                                     "anyOf": [
                                       {
                                         "enum": [
-                                          "group",
-                                          "shared"
+                                          "anyone",
+                                          "only_me"
                                         ],
                                         "type": "string"
                                       },
@@ -11059,13 +11363,17 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "isPostedToGroup": {
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
                                   "id",
                                   "displayCode",
                                   "status",
-                                  "visibility"
+                                  "audience",
+                                  "isPostedToGroup"
                                 ]
                               },
                               {
@@ -11325,12 +11633,12 @@
                                     ],
                                     "type": "string"
                                   },
-                                  "visibility": {
+                                  "audience": {
                                     "anyOf": [
                                       {
                                         "enum": [
-                                          "group",
-                                          "shared"
+                                          "anyone",
+                                          "only_me"
                                         ],
                                         "type": "string"
                                       },
@@ -11338,13 +11646,17 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "isPostedToGroup": {
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
                                   "id",
                                   "displayCode",
                                   "status",
-                                  "visibility"
+                                  "audience",
+                                  "isPostedToGroup"
                                 ]
                               },
                               {
@@ -11560,12 +11872,12 @@
                   "byteSize": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 12582912
+                    "maximum": 16777216
                   },
                   "durationSeconds": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 90
+                    "maximum": 180
                   },
                   "count": {
                     "type": "integer",
@@ -11646,12 +11958,22 @@
                   "videoByteSize": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 12582912
+                    "maximum": 16777216
                   },
                   "posterByteSize": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 512000
+                  },
+                  "audience": {
+                    "enum": [
+                      "anyone",
+                      "only_me"
+                    ],
+                    "type": "string"
+                  },
+                  "postToGroup": {
+                    "type": "boolean"
                   },
                   "visibility": {
                     "enum": [
@@ -11758,6 +12080,16 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "audience": {
+                    "enum": [
+                      "anyone",
+                      "only_me"
+                    ],
+                    "type": "string"
+                  },
+                  "postToGroup": {
+                    "type": "boolean"
+                  },
                   "visibility": {
                     "enum": [
                       "group",
@@ -11767,8 +12099,7 @@
                   }
                 },
                 "required": [
-                  "clipId",
-                  "visibility"
+                  "clipId"
                 ]
               }
             }
@@ -11798,6 +12129,229 @@
                     "clipId",
                     "status",
                     "expiresAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proof-clips/audience": {
+      "post": {
+        "operationId": "setProofClipAudience",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "audience": {
+                    "enum": [
+                      "anyone",
+                      "only_me"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clipId",
+                  "audience"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "code": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "displayCode": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "enum": [
+                        "reserved",
+                        "recorded",
+                        "ready",
+                        "expired",
+                        "removed"
+                      ],
+                      "type": "string"
+                    },
+                    "metric": {
+                      "enum": [
+                        "walk",
+                        "run",
+                        "cycle",
+                        "steps",
+                        "sleep",
+                        "weight",
+                        "heart_rate",
+                        "pushups",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
+                      ],
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "durationSeconds": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "matchId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "userChallengeId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "recordedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sharedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expiresAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "attested": {
+                      "type": "boolean"
+                    },
+                    "audience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "isPostedToGroup": {
+                      "type": "boolean"
+                    },
+                    "videoUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "posterUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "isOwner": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "displayCode",
+                    "status",
+                    "metric",
+                    "count",
+                    "durationSeconds",
+                    "matchId",
+                    "userChallengeId",
+                    "recordedAt",
+                    "sharedAt",
+                    "expiresAt",
+                    "attested",
+                    "audience",
+                    "isPostedToGroup",
+                    "videoUrl",
+                    "posterUrl",
+                    "isOwner"
                   ]
                 }
               }
@@ -11943,6 +12497,23 @@
                     "attested": {
                       "type": "boolean"
                     },
+                    "audience": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "anyone",
+                            "only_me"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "isPostedToGroup": {
+                      "type": "boolean"
+                    },
                     "videoUrl": {
                       "anyOf": [
                         {
@@ -11983,6 +12554,8 @@
                     "sharedAt",
                     "expiresAt",
                     "attested",
+                    "audience",
+                    "isPostedToGroup",
                     "videoUrl",
                     "posterUrl",
                     "isOwner"
@@ -12155,6 +12728,23 @@
                           "attested": {
                             "type": "boolean"
                           },
+                          "audience": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "anyone",
+                                  "only_me"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "isPostedToGroup": {
+                            "type": "boolean"
+                          },
                           "videoUrl": {
                             "anyOf": [
                               {
@@ -12203,6 +12793,8 @@
                           "sharedAt",
                           "expiresAt",
                           "attested",
+                          "audience",
+                          "isPostedToGroup",
                           "videoUrl",
                           "posterUrl",
                           "isOwner",
@@ -12383,7 +12975,18 @@
                       "type": "object",
                       "properties": {
                         "outcome": {
-                          "const": "not_shared"
+                          "const": "private"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "not_uploaded"
                         }
                       },
                       "required": [
@@ -12564,7 +13167,18 @@
                       "type": "object",
                       "properties": {
                         "outcome": {
-                          "const": "not_shared"
+                          "const": "private"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "not_uploaded"
                         }
                       },
                       "required": [

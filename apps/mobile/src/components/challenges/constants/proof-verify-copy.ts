@@ -6,8 +6,11 @@ export const VERIFY_COPY = {
   verified: 'Verified',
   expired: 'Original expired',
   removed: 'Removed by owner',
-  notShared: 'Not shared yet',
-  notSharedBody: 'This clip exists but has not been shared, so it cannot be verified yet.',
+  private: 'Kept private',
+  privateBody: 'This is a real Healthy clip, but its owner keeps it to themselves.',
+  notUploaded: 'Almost there',
+  notUploadedBody:
+    'This clip’s code is real but it hasn’t reached Healthy yet. Try again in a minute.',
   notFound: 'No clip found',
   notFoundBody: 'No Healthy clip has this code. Check it matches the video.',
   checkAnother: 'Check another',

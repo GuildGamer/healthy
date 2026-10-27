@@ -125,6 +125,8 @@ model UserProfile {
   inProgressNudgeDelayMinutes Int              @default(30)
   /// Opt-out. Hidden users still see the board; others do not see them on it.
   showOnLeaderboard           Boolean          @default(true)
+  /// Who may watch new proof clips by default. Null until asked once.
+  proofClipAudience           ProofClipAudience?
   /// Pushes from groups: cheers, nudges, board moves, seats and joins. The
   /// inbox row is still written when this is off.
   groupNotificationsEnabled   Boolean          @default(true)
@@ -1086,11 +1088,16 @@ enum ProofClipReportReason {
   other
 }
 
-/// Where the owner posted the clip. Null until upload completes; null and
-/// `group` stay private to participants. Only `shared` is publicly verifiable.
+/// Legacy: where the owner posted the clip. Prefer `audience` + `postedToGroupAt`.
 enum ProofClipVisibility {
   group
   shared
+}
+
+/// Who may watch this clip when they look up its code.
+enum ProofClipAudience {
+  anyone
+  only_me
 }
 
 /// Camera-counted set recording. Video bytes live in object storage; this row
@@ -1119,9 +1126,13 @@ model ProofClip {
   byteSize        Int?
   videoKey        String?
   posterKey       String?
-  /// Null until upload completes. Only `shared` is publicly verifiable by code.
+  /// Legacy mirror of audience/board. Kept for one release of in-flight clients.
   visibility      ProofClipVisibility?
-  /// Set when the owner posts to a group or exports/shares (drives retention).
+  /// Who may watch when they look up the code. Set before or at upload.
+  audience        ProofClipAudience?
+  /// The only fact that puts a clip on the group board. Distinct from audience.
+  postedToGroupAt DateTime?
+  /// Set when the owner posts to a group or lets others watch (drives retention).
   sharedAt        DateTime?
   lastViewedAt    DateTime?
   expiresAt       DateTime?
@@ -1139,6 +1150,7 @@ model ProofClip {
   @@index([userId, createdAt])
   @@index([userChallengeId])
   @@index([deviceActivityLogId])
+  @@index([matchId, postedToGroupAt])
   @@map("proof_clips")
 }
 
