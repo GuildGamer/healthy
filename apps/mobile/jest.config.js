@@ -29,7 +29,6 @@ module.exports = {
       '<rootDir>/../../packages/contract/src/proof-clip-limits.ts',
     '^@product/contract/proof-code$': '<rootDir>/../../packages/contract/src/proof-code.ts',
     '^@product/contract$': '<rootDir>/../../packages/contract/src/index.ts',
-    '\\.tflite$': '<rootDir>/jest.tflite-mock.js',
   },
   // Empty ignore list forces Babel to transform pnpm-nested Expo/RN packages.
   transformIgnorePatterns: [

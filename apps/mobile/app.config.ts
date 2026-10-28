@@ -175,6 +175,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           packagingOptions: {
             pickFirst: ['**/libc++_shared.so'],
           },
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
         },
         ios: {
           deploymentTarget: '15.1',
@@ -196,21 +198,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
             },
           ],
         },
-      },
-    ],
-    [
-      'react-native-vision-camera',
-      {
-        cameraPermissionText:
-          'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
-        enableMicrophonePermission: false,
-      },
-    ],
-    [
-      'react-native-fast-tflite',
-      {
-        enableCoreMLDelegate: true,
-        enableAndroidGpuLibraries: true,
       },
     ],
     [

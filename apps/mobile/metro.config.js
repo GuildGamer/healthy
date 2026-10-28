@@ -6,9 +6,6 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-// Bundle TensorFlow Lite models for on-device MoveNet.
-config.resolver.assetExts.push('tflite');
-
 // Metro does not reliably honor package.json "exports" subpaths for workspace
 // packages. Jest maps this the same way in jest.config.js.
 const contractSubpathSources = Object.fromEntries(
