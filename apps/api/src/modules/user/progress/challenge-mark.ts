@@ -17,6 +17,8 @@ type MarkedOccurrence = {
     select: typeof ENROLLMENT_GOAL_SELECT;
   }> | null;
   challenge: Prisma.ChallengeGetPayload<{ select: typeof CHALLENGE_MARK_SELECT }>;
+  /** Present on completed History rows; used to name push-ups by measured reps. */
+  deviceActivityLog?: { metric: string; count: number | null } | null;
 };
 
 export function challengeMarkFor(occurrence: MarkedOccurrence): ChallengeMark {
@@ -50,14 +52,36 @@ export function photoCheckOutcomeFor(occurrence: {
   };
 }
 
-/** The name the member knows it by: their own push-up target, not the catalog's. */
+/**
+ * Completed History names push-ups by measured reps when a device log exists.
+ * Otherwise (and for live surfaces that omit the log) the enrollment goal wins.
+ */
 export function challengeTitleFor(occurrence: MarkedOccurrence): string {
+  const measured = measuredPushupCount(occurrence.deviceActivityLog);
+  const count =
+    measured ??
+    resolveEnrollmentTargetCount(
+      occurrence.challenge.targetCount,
+      occurrence.enrollment?.targetCount,
+    );
+
   return displayChallengeTitle({
     title: occurrence.challenge.title,
     metric: occurrence.challenge.deviceMetric,
-    count: resolveEnrollmentTargetCount(
-      occurrence.challenge.targetCount,
-      occurrence.enrollment?.targetCount,
-    ),
+    count,
   });
+}
+
+function measuredPushupCount(
+  activity: MarkedOccurrence['deviceActivityLog'],
+): number | null {
+  if (!activity || activity.metric !== 'pushups') {
+    return null;
+  }
+
+  if (activity.count == null || activity.count <= 0) {
+    return null;
+  }
+
+  return activity.count;
 }

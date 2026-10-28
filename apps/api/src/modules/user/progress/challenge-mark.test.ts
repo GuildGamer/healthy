@@ -55,7 +55,7 @@ describe('challengeMarkFor', () => {
 });
 
 describe('challengeTitleFor', () => {
-  it('names push-ups by the person’s own count', () => {
+  it('names push-ups by the person’s own goal when no activity was logged', () => {
     const title = challengeTitleFor({
       challengeId: 'pushups',
       enrollment: { targetCount: 12, targetDurationMinutes: null },
@@ -63,5 +63,27 @@ describe('challengeTitleFor', () => {
     });
 
     expect(title).toBe('Do 12 push-ups');
+  });
+
+  it('names completed push-ups by measured reps, not a later goal', () => {
+    const title = challengeTitleFor({
+      challengeId: 'pushups',
+      enrollment: { targetCount: 10, targetDurationMinutes: null },
+      challenge: pushupChallenge,
+      deviceActivityLog: { metric: 'pushups', count: 60 },
+    });
+
+    expect(title).toBe('Do 60 push-ups');
+  });
+
+  it('keeps a walk on its catalog title', () => {
+    const title = challengeTitleFor({
+      challengeId: 'walk',
+      enrollment: { targetCount: null, targetDurationMinutes: 25 },
+      challenge: walkChallenge,
+      deviceActivityLog: { metric: 'walk', count: null },
+    });
+
+    expect(title).toBe('Ten-minute walk');
   });
 });
