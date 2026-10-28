@@ -20,8 +20,9 @@ import kotlin.math.min
  * burned in before encoding, and a poster JPEG comes from the first frame.
  *
  * Frames are copied from the camera surface (what the person sees), capped
- * at 15 fps, with at most one frame in flight so capture never backs up the
- * camera or QuickPose. Call from the main thread; encoding runs on its own.
+ * to the configured frame rate, with at most one frame in flight so capture
+ * never backs up the camera or QuickPose. Call from the main thread; encoding
+ * runs on its own.
  */
 internal class ProofRecorder(private val context: Context) {
   data class FinishResult(
@@ -32,12 +33,21 @@ internal class ProofRecorder(private val context: Context) {
     val durationSeconds: Int,
   )
 
+  data class Encoding(
+    val bitRate: Int,
+    val frameRate: Int,
+    val width: Int,
+    val height: Int,
+  )
+
   /** State of one clip. Touched only on the recorder thread after `start`. */
   private class Clip(
     val videoFile: File,
     val posterFile: File,
     val encoder: ProofClipEncoder,
+    val frame: Bitmap,
     val maxDurationSeconds: Double,
+    val minimumFrameGapNanos: Long,
   ) {
     var firstFrameAtNanos: Long? = null
     var firstFrameWallMs: Long? = null
@@ -48,9 +58,9 @@ internal class ProofRecorder(private val context: Context) {
   private val thread = HandlerThread("healthy.proof-recorder").apply { start() }
   private val handler = Handler(thread.looper)
   private val isFrameInFlight = AtomicBoolean(false)
-  private val frame: Bitmap by lazy { Bitmap.createBitmap(TARGET_WIDTH, TARGET_HEIGHT, Bitmap.Config.ARGB_8888) }
   private var clip: Clip? = null
   private var lastCaptureRequestNanos = 0L
+  private var minimumFrameGapNanos = NANOS_PER_SECOND_LONG / DEFAULT_FRAME_RATE
 
   @Volatile
   var isRecording = false
@@ -63,18 +73,25 @@ internal class ProofRecorder(private val context: Context) {
   @Volatile
   private var endAtWallMs: Long? = null
 
-  fun start(initialOverlay: ProofOverlay, maxDurationSeconds: Double) {
+  fun start(initialOverlay: ProofOverlay, maxDurationSeconds: Double, encoding: Encoding) {
     cancel()
+    val width = evenInRange(encoding.width, DEFAULT_WIDTH, WIDTH_MIN, WIDTH_MAX)
+    val height = evenInRange(encoding.height, DEFAULT_HEIGHT, HEIGHT_MIN, HEIGHT_MAX)
+    val bitRate = clamp(encoding.bitRate, DEFAULT_BIT_RATE, BIT_RATE_MIN, BIT_RATE_MAX)
+    val frameRate = clamp(encoding.frameRate, DEFAULT_FRAME_RATE, FRAME_RATE_MIN, FRAME_RATE_MAX)
     val stamp = System.currentTimeMillis()
     val directory = File(context.cacheDir, PROOF_CLIPS_FOLDER).apply { mkdirs() }
     val videoFile = File(directory, "clip-$stamp.mp4")
     val posterFile = File(directory, "poster-$stamp.jpg")
-    val encoder = ProofClipEncoder(videoFile, TARGET_WIDTH, TARGET_HEIGHT)
+    val frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val encoder = ProofClipEncoder(videoFile, width, height, bitRate, frameRate)
+    val gapNanos = NANOS_PER_SECOND_LONG / frameRate
 
     overlay = initialOverlay
     endAtWallMs = null
     lastCaptureRequestNanos = 0L
-    val nextClip = Clip(videoFile, posterFile, encoder, maxDurationSeconds)
+    minimumFrameGapNanos = gapNanos
+    val nextClip = Clip(videoFile, posterFile, encoder, frame, maxDurationSeconds, gapNanos)
     handler.post { clip = nextClip }
     isRecording = true
   }
@@ -92,7 +109,7 @@ internal class ProofRecorder(private val context: Context) {
   fun captureFrom(cameraSurface: SurfaceView) {
     if (!isRecording) return
     val requestedAtNanos = SystemClock.elapsedRealtimeNanos()
-    if (requestedAtNanos - lastCaptureRequestNanos < MINIMUM_FRAME_GAP_NANOS) return
+    if (requestedAtNanos - lastCaptureRequestNanos < minimumFrameGapNanos) return
     if (!isFrameInFlight.compareAndSet(false, true)) return
     lastCaptureRequestNanos = requestedAtNanos
 
@@ -140,6 +157,7 @@ internal class ProofRecorder(private val context: Context) {
       val cancelled = clip ?: return@post
       clip = null
       cancelled.encoder.release()
+      cancelled.frame.recycle()
       cancelled.videoFile.delete()
       cancelled.posterFile.delete()
     }
@@ -160,9 +178,9 @@ internal class ProofRecorder(private val context: Context) {
     val elapsedSeconds = active.firstFrameAtNanos?.let { (capturedAtNanos - it) / NANOS_PER_SECOND } ?: 0.0
     if (elapsedSeconds > active.maxDurationSeconds) return
 
-    ProofChrome.compose(frame, cameraImage, overlay)
+    ProofChrome.compose(active.frame, cameraImage, overlay)
     try {
-      active.encoder.drawFrame(frame)
+      active.encoder.drawFrame(active.frame)
     } catch (error: Exception) {
       return
     }
@@ -179,13 +197,14 @@ internal class ProofRecorder(private val context: Context) {
     if (active.isPosterCaptured) return
     active.isPosterCaptured = runCatching {
       active.posterFile.outputStream().use { stream ->
-        frame.compress(Bitmap.CompressFormat.JPEG, POSTER_JPEG_QUALITY, stream)
+        active.frame.compress(Bitmap.CompressFormat.JPEG, POSTER_JPEG_QUALITY, stream)
       }
     }.getOrDefault(false)
   }
 
   private fun finishClip(finished: Clip): FinishResult {
     val hasFrames = finished.encoder.finish()
+    finished.frame.recycle()
     if (!hasFrames) {
       finished.videoFile.delete()
       finished.posterFile.delete()
@@ -233,12 +252,22 @@ internal class ProofRecorder(private val context: Context) {
 
   companion object {
     private const val PROOF_CLIPS_FOLDER = "proof-clips"
-    private const val TARGET_WIDTH = 720
-    private const val TARGET_HEIGHT = 1280
+    private const val DEFAULT_WIDTH = 720
+    private const val DEFAULT_HEIGHT = 1280
+    private const val DEFAULT_BIT_RATE = 1_500_000
+    private const val DEFAULT_FRAME_RATE = 24
+    private const val BIT_RATE_MIN = 200_000
+    private const val BIT_RATE_MAX = 1_500_000
+    private const val FRAME_RATE_MIN = 15
+    private const val FRAME_RATE_MAX = 30
+    private const val WIDTH_MIN = 480
+    private const val WIDTH_MAX = 720
+    private const val HEIGHT_MIN = 854
+    private const val HEIGHT_MAX = 1280
     private const val POSTER_JPEG_QUALITY = 70
     private const val NANOS_PER_SECOND = 1_000_000_000.0
+    private const val NANOS_PER_SECOND_LONG = 1_000_000_000L
     private const val MILLIS_PER_SECOND = 1_000.0
-    private const val MINIMUM_FRAME_GAP_NANOS = 1_000_000_000L / 15
     private const val HASH_BUFFER_BYTES = 64 * 1024
 
     /**
@@ -248,6 +277,12 @@ internal class ProofRecorder(private val context: Context) {
      */
     fun durableDirectory(context: Context): File =
       File(context.noBackupFilesDir, PROOF_CLIPS_FOLDER).apply { mkdirs() }
+
+    private fun evenInRange(value: Int, fallback: Int, min: Int, max: Int): Int =
+      if (value in min..max && value % 2 == 0) value else fallback
+
+    private fun clamp(value: Int, fallback: Int, min: Int, max: Int): Int =
+      if (value in min..max) value else fallback
 
     private fun sha256Hex(file: File): String {
       val digest = MessageDigest.getInstance("SHA-256")

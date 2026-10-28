@@ -208,17 +208,36 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       return
     }
 
-    startProofRecording(ProofOverlay(code, label, proofCount), maxDurationSeconds)
+    startProofRecording(
+      ProofOverlay(code, label, proofCount),
+      maxDurationSeconds,
+      ProofRecorder.Encoding(
+        bitRate = intValue(config["bitRate"], DEFAULT_BIT_RATE),
+        frameRate = intValue(config["frameRate"], DEFAULT_FRAME_RATE),
+        width = intValue(config["width"], DEFAULT_WIDTH),
+        height = intValue(config["height"], DEFAULT_HEIGHT),
+      ),
+    )
   }
 
-  private fun startProofRecording(overlay: ProofOverlay, maxDurationSeconds: Double) {
+  private fun startProofRecording(
+    overlay: ProofOverlay,
+    maxDurationSeconds: Double,
+    encoding: ProofRecorder.Encoding,
+  ) {
     val recorder = proofRecorder ?: ProofRecorder(context).also { proofRecorder = it }
     try {
-      recorder.start(overlay, maxDurationSeconds)
+      recorder.start(overlay, maxDurationSeconds, encoding)
     } catch (error: Exception) {
       onProofRecordingError(mapOf("message" to START_FAILED))
     }
   }
+
+  private fun intValue(raw: Any?, fallback: Int): Int =
+    when (raw) {
+      is Number -> raw.toInt()
+      else -> fallback
+    }
 
   /** Ends the clip and emits `onProofRecorded` with file URIs and the hash. */
   private fun finishProofRecording() {
@@ -290,5 +309,9 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   private companion object {
     const val START_FAILED = "Could not start proof recording."
     const val FINISH_FAILED = "Could not finish proof recording."
+    const val DEFAULT_BIT_RATE = 1_500_000
+    const val DEFAULT_FRAME_RATE = 24
+    const val DEFAULT_WIDTH = 720
+    const val DEFAULT_HEIGHT = 1280
   }
 }

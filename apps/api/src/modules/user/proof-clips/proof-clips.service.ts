@@ -23,6 +23,10 @@ import {
 } from '../../../shared/types/authenticated-user.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { groupNameFor } from '../../../shared/utils/group-name.js';
+import {
+  ENVIRONMENT,
+  type Environment,
+} from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
   OBJECT_STORAGE,
@@ -104,6 +108,7 @@ export class ProofClipsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    @Inject(ENVIRONMENT) private readonly environment: Environment,
     private readonly verifyRateLimiter: ProofCodeVerifyRateLimiter,
   ) {}
 
@@ -145,6 +150,7 @@ export class ProofClipsService {
       code: clip.code,
       displayCode: toDisplayProofCode(clip.code),
       reservedUntil: reservedUntil.toISOString(),
+      encoding: this.environment.proofClipEncoding,
     };
   }
 

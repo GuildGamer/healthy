@@ -13,10 +13,17 @@ import java.io.File
  * which stamps them with the time they were posted, so playback runs at the
  * speed the set happened. Use from a single thread.
  */
-internal class ProofClipEncoder(outputFile: File, width: Int, height: Int) {
+internal class ProofClipEncoder(
+  outputFile: File,
+  width: Int,
+  height: Int,
+  bitRate: Int,
+  frameRate: Int,
+) {
   private val muxer = MediaMuxer(outputFile.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
   private val codec: MediaCodec = createCodecOrRelease(muxer)
-  private val inputSurface: Surface = startCodecOrRelease(codec, muxer, width, height)
+  private val inputSurface: Surface =
+    startCodecOrRelease(codec, muxer, width, height, bitRate, frameRate)
   private val bufferInfo = MediaCodec.BufferInfo()
   private var trackIndex = -1
   private var isMuxerStarted = false
@@ -106,9 +113,6 @@ internal class ProofClipEncoder(outputFile: File, width: Int, height: Int) {
 
   private companion object {
     const val MIME_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC
-    /** 180 s at this rate stays under the contract's PROOF_CLIP_MAX_BYTES (16 MB). */
-    const val BIT_RATE = 650_000
-    const val FRAME_RATE = 15
     const val KEYFRAME_INTERVAL_SECONDS = 1
     const val END_OF_STREAM_TIMEOUT_US = 10_000L
     const val MAX_END_OF_STREAM_IDLE_DRAINS = 100
@@ -122,9 +126,21 @@ internal class ProofClipEncoder(outputFile: File, width: Int, height: Int) {
       }
 
     /** Configures and starts the encoder, returning its input surface. Releases both on failure. */
-    fun startCodecOrRelease(codec: MediaCodec, muxer: MediaMuxer, width: Int, height: Int): Surface =
+    fun startCodecOrRelease(
+      codec: MediaCodec,
+      muxer: MediaMuxer,
+      width: Int,
+      height: Int,
+      bitRate: Int,
+      frameRate: Int,
+    ): Surface =
       try {
-        codec.configure(videoFormat(width, height), null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        codec.configure(
+          videoFormat(width, height, bitRate, frameRate),
+          null,
+          null,
+          MediaCodec.CONFIGURE_FLAG_ENCODE,
+        )
         val surface = codec.createInputSurface()
         codec.start()
         surface
@@ -134,11 +150,11 @@ internal class ProofClipEncoder(outputFile: File, width: Int, height: Int) {
         throw error
       }
 
-    fun videoFormat(width: Int, height: Int): MediaFormat =
+    fun videoFormat(width: Int, height: Int, bitRate: Int, frameRate: Int): MediaFormat =
       MediaFormat.createVideoFormat(MIME_TYPE, width, height).apply {
         setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
-        setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE)
+        setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+        setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
         setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, KEYFRAME_INTERVAL_SECONDS)
       }
   }

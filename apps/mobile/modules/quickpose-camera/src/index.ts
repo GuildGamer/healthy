@@ -32,6 +32,14 @@ export type ProofRecordingConfig = {
   label: string;
   /** Frames past this are dropped so the clip stays within what the API accepts. */
   maxDurationSeconds: number;
+  /** Average video bitrate in bits per second. */
+  bitRate: number;
+  /** Target frames per second for the written clip. */
+  frameRate: number;
+  /** Encoded frame width in pixels (even). */
+  width: number;
+  /** Encoded frame height in pixels (even). */
+  height: number;
 };
 
 export type QuickPoseCameraViewProps = {

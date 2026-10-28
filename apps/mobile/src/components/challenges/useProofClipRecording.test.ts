@@ -50,6 +50,12 @@ function reservation(clipId = 'clip-1') {
     code: 'ABCDEFG',
     displayCode: 'ABCD-EFG',
     reservedUntil: new Date(Date.now() + 30 * 60_000).toISOString(),
+    encoding: {
+      bitRate: 1_500_000,
+      frameRate: 24,
+      width: 720,
+      height: 1280,
+    },
   };
 }
 
@@ -98,7 +104,34 @@ describe('useProofClipRecording', () => {
 
     expect(mockedApi.reserveProofClip).toHaveBeenCalledTimes(1);
     expect(result.current.proofRecording).toEqual(
-      expect.objectContaining({ code: 'ABCD-EFG' }),
+      expect.objectContaining({
+        code: 'ABCD-EFG',
+        bitRate: 1_500_000,
+        frameRate: 24,
+        width: 720,
+        height: 1280,
+      }),
+    );
+  });
+
+  it('falls back to on-device defaults when reserve omits encoding', async () => {
+    mockedApi.reserveProofClip.mockResolvedValue({
+      clipId: 'clip-1',
+      code: 'ABCDEFG',
+      displayCode: 'ABCD-EFG',
+      reservedUntil: new Date(Date.now() + 30 * 60_000).toISOString(),
+    });
+    const { result } = await renderArmed(() => 0);
+    await startRecording(result);
+
+    expect(result.current.proofRecording).toEqual(
+      expect.objectContaining({
+        code: 'ABCD-EFG',
+        bitRate: 1_500_000,
+        frameRate: 24,
+        width: 720,
+        height: 1280,
+      }),
     );
   });
 

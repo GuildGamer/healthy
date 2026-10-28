@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { canRecordProofClips, type ProofRecordingConfig } from 'quickpose-camera';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
+import { resolveProofClipEncoding } from '@/lib/proof-clip-encoding';
 import {
   getProofRecordingEnabled,
   hasSeenProofExplainer,
@@ -293,10 +294,15 @@ export function useProofClipRecording(
         }
         clipIdRef.current = reservation.clipId;
         metaRef.current = { code: reservation.code, displayCode: reservation.displayCode };
+        const encoding = resolveProofClipEncoding(reservation.encoding);
         setProofRecording({
           code: reservation.displayCode,
           label: MATCH_METRIC_LABEL[metric as MatchMetric],
           maxDurationSeconds: PROOF_CLIP_MAX_DURATION_SECONDS,
+          bitRate: encoding.bitRate,
+          frameRate: encoding.frameRate,
+          width: encoding.width,
+          height: encoding.height,
         });
         setStatusSync('recording');
       },

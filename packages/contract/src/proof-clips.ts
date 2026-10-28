@@ -14,21 +14,44 @@ export {
 } from './proof-code.js';
 
 import {
+  PROOF_CLIP_BIT_RATE_MAX,
+  PROOF_CLIP_BIT_RATE_MIN,
+  PROOF_CLIP_DEFAULT_ENCODING,
+  PROOF_CLIP_FRAME_RATE_MAX,
+  PROOF_CLIP_FRAME_RATE_MIN,
+  PROOF_CLIP_HEIGHT_MAX,
+  PROOF_CLIP_HEIGHT_MIN,
   PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_MAX_DURATION_SECONDS,
   PROOF_CLIP_POSTER_MAX_BYTES,
+  PROOF_CLIP_WIDTH_MAX,
+  PROOF_CLIP_WIDTH_MIN,
 } from './proof-clip-limits.js';
 
 export {
+  PROOF_CLIP_BIT_RATE_MAX,
+  PROOF_CLIP_BIT_RATE_MIN,
+  PROOF_CLIP_DEFAULT_BIT_RATE,
+  PROOF_CLIP_DEFAULT_ENCODING,
+  PROOF_CLIP_DEFAULT_FRAME_RATE,
+  PROOF_CLIP_DEFAULT_HEIGHT,
+  PROOF_CLIP_DEFAULT_WIDTH,
+  PROOF_CLIP_FRAME_RATE_MAX,
+  PROOF_CLIP_FRAME_RATE_MIN,
   PROOF_CLIP_GROUP_RETENTION_DAYS,
   PROOF_CLIP_HARD_RETENTION_DAYS,
+  PROOF_CLIP_HEIGHT_MAX,
+  PROOF_CLIP_HEIGHT_MIN,
   PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_MAX_DURATION_SECONDS,
   PROOF_CLIP_POSTER_MAX_BYTES,
   PROOF_CLIP_RESERVE_WINDOW_MINUTES,
   PROOF_CLIP_SIGNED_URL_TTL_SECONDS,
   PROOF_CLIP_SOLO_RETENTION_DAYS,
+  PROOF_CLIP_WIDTH_MAX,
+  PROOF_CLIP_WIDTH_MIN,
 } from './proof-clip-limits.js';
+export type { ProofClipEncodingLimits } from './proof-clip-limits.js';
 
 export const proofClipStatusSchema = z.enum([
   'reserved',
@@ -131,12 +154,32 @@ export const reserveProofClipInputSchema = z.object({
   metric: deviceMetricSchema,
 });
 
+/** On-device encoder settings the phone may take from reserve or its own defaults. */
+export const proofClipEncodingSchema = z.object({
+  bitRate: z.number().int().min(PROOF_CLIP_BIT_RATE_MIN).max(PROOF_CLIP_BIT_RATE_MAX),
+  frameRate: z.number().int().min(PROOF_CLIP_FRAME_RATE_MIN).max(PROOF_CLIP_FRAME_RATE_MAX),
+  width: z
+    .number()
+    .int()
+    .min(PROOF_CLIP_WIDTH_MIN)
+    .max(PROOF_CLIP_WIDTH_MAX)
+    .refine((value) => value % 2 === 0, { message: 'width must be even' }),
+  height: z
+    .number()
+    .int()
+    .min(PROOF_CLIP_HEIGHT_MIN)
+    .max(PROOF_CLIP_HEIGHT_MAX)
+    .refine((value) => value % 2 === 0, { message: 'height must be even' }),
+});
+
 export const reserveProofClipOutputSchema = z.object({
   clipId: z.string().min(1),
   code: z.string().min(1),
   /** Display form with hyphen, e.g. `7KQ4-M2XD`. */
   displayCode: z.string().min(1),
   reservedUntil: z.string().datetime(),
+  /** Present when the API ships an encoder profile; older servers omit it. */
+  encoding: proofClipEncodingSchema.optional(),
 });
 
 export const recordProofClipInputSchema = z.object({
@@ -385,10 +428,12 @@ export function toDisplayProofCode(code: string): string {
 export type ProofClipStatus = z.infer<typeof proofClipStatusSchema>;
 export type ProofClipVisibility = z.infer<typeof proofClipVisibilitySchema>;
 export type ProofClipAudience = z.infer<typeof proofClipAudienceSchema>;
+export type ProofClipEncoding = z.infer<typeof proofClipEncodingSchema>;
 export type ProofClipReportReason = z.infer<typeof proofClipReportReasonSchema>;
 export type ProofClip = z.infer<typeof proofClipSchema>;
 export type ActivityProofClip = z.infer<typeof activityProofClipSchema>;
 export type ReserveProofClipInput = z.infer<typeof reserveProofClipInputSchema>;
+export type ReserveProofClipOutput = z.infer<typeof reserveProofClipOutputSchema>;
 export type RecordProofClipInput = z.infer<typeof recordProofClipInputSchema>;
 export type VerifyProofCodeOutput = z.infer<typeof verifyProofCodeOutputSchema>;
 export type SetProofClipAudienceInput = z.infer<typeof setProofClipAudienceInputSchema>;

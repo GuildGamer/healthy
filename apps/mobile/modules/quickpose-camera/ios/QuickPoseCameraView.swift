@@ -200,7 +200,13 @@ final class HealthyQuickPoseView: ExpoView {
           count: proofCount
         ),
         mirrorsCamera: useFrontCamera,
-        maxDurationSeconds: maxDurationSeconds
+        maxDurationSeconds: maxDurationSeconds,
+        encoding: ProofRecorder.Encoding(
+          bitRate: Self.intValue(config["bitRate"], fallback: 1_500_000),
+          frameRate: Self.doubleValue(config["frameRate"], fallback: 24),
+          width: Self.intValue(config["width"], fallback: 720),
+          height: Self.intValue(config["height"], fallback: 1280)
+        )
       )
       proofRecorder = recorder
       frameTap?.setKeepingFrames(true)
@@ -208,6 +214,20 @@ final class HealthyQuickPoseView: ExpoView {
       onProofRecordingError(["message": "Could not start proof recording."])
       proofRecorder = nil
     }
+  }
+
+  private static func intValue(_ raw: Any?, fallback: Int) -> Int {
+    if let value = raw as? Int { return value }
+    if let value = raw as? Double { return Int(value) }
+    if let value = raw as? NSNumber { return value.intValue }
+    return fallback
+  }
+
+  private static func doubleValue(_ raw: Any?, fallback: Double) -> Double {
+    if let value = raw as? Double { return value }
+    if let value = raw as? Int { return Double(value) }
+    if let value = raw as? NSNumber { return value.doubleValue }
+    return fallback
   }
 
   /// Ends the clip and emits `onProofRecorded` with file URIs and the hash.

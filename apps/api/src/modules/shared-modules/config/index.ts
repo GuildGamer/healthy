@@ -7,6 +7,7 @@ export type {
   EvidenceVisionProvider,
   MailConfig,
   MailProvider,
+  ProofClipEncodingConfig,
   SchedulerMode,
 } from './environment.js';
 export { readEnvironment } from './environment.js';

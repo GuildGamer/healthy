@@ -11843,6 +11843,37 @@
                     "reservedUntil": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "encoding": {
+                      "type": "object",
+                      "properties": {
+                        "bitRate": {
+                          "type": "integer",
+                          "minimum": 200000,
+                          "maximum": 1500000
+                        },
+                        "frameRate": {
+                          "type": "integer",
+                          "minimum": 15,
+                          "maximum": 30
+                        },
+                        "width": {
+                          "type": "integer",
+                          "minimum": 480,
+                          "maximum": 720
+                        },
+                        "height": {
+                          "type": "integer",
+                          "minimum": 854,
+                          "maximum": 1280
+                        }
+                      },
+                      "required": [
+                        "bitRate",
+                        "frameRate",
+                        "width",
+                        "height"
+                      ]
                     }
                   },
                   "required": [
@@ -11879,7 +11910,7 @@
                   "byteSize": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 16777216
+                    "maximum": 41943040
                   },
                   "durationSeconds": {
                     "type": "integer",
@@ -11965,7 +11996,7 @@
                   "videoByteSize": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 16777216
+                    "maximum": 41943040
                   },
                   "posterByteSize": {
                     "type": "integer",

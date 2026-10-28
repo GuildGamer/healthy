@@ -46,15 +46,46 @@ final class ProofRecorder {
   private let writeQueue = DispatchQueue(label: "healthy.proof-recorder")
   private let imageContext = CIContext()
 
-  private static let targetWidth = 720
-  private static let targetHeight = 1280
-  /// 180 s at this rate stays under the contract's PROOF_CLIP_MAX_BYTES (16 MB).
-  private static let bitRate = 650_000
-  private static let minimumFrameGapSeconds = 1.0 / 15.0
+  /// Balanced defaults when the JS config omits a field (1.5 Mbps, 24 fps, 720×1280).
+  private static let defaultWidth = 720
+  private static let defaultHeight = 1280
+  private static let defaultBitRate = 1_500_000
+  private static let defaultFrameRate = 24.0
   private static let timescale: CMTimeScale = 600
 
-  func start(overlay: Overlay, mirrorsCamera: Bool, maxDurationSeconds: Double) throws {
+  private var targetWidth = ProofRecorder.defaultWidth
+  private var targetHeight = ProofRecorder.defaultHeight
+  private var minimumFrameGapSeconds = 1.0 / ProofRecorder.defaultFrameRate
+
+  struct Encoding {
+    var bitRate: Int
+    var frameRate: Double
+    var width: Int
+    var height: Int
+  }
+
+  func start(
+    overlay: Overlay,
+    mirrorsCamera: Bool,
+    maxDurationSeconds: Double,
+    encoding: Encoding
+  ) throws {
     stopWithoutFinishing()
+
+    let width = Self.evenInRange(encoding.width, default: Self.defaultWidth, min: 480, max: 720)
+    let height = Self.evenInRange(encoding.height, default: Self.defaultHeight, min: 854, max: 1280)
+    let bitRate = Self.clamped(
+      encoding.bitRate,
+      default: Self.defaultBitRate,
+      min: 200_000,
+      max: 1_500_000
+    )
+    let frameRate = Self.clamped(
+      encoding.frameRate,
+      default: Self.defaultFrameRate,
+      min: 15,
+      max: 30
+    )
 
     let directory = FileManager.default.temporaryDirectory
       .appendingPathComponent("proof-clips", isDirectory: true)
@@ -71,10 +102,10 @@ final class ProofRecorder {
     let assetWriter = try AVAssetWriter(outputURL: videoURL, fileType: .mp4)
     let settings: [String: Any] = [
       AVVideoCodecKey: AVVideoCodecType.hevc,
-      AVVideoWidthKey: Self.targetWidth,
-      AVVideoHeightKey: Self.targetHeight,
+      AVVideoWidthKey: width,
+      AVVideoHeightKey: height,
       AVVideoCompressionPropertiesKey: [
-        AVVideoAverageBitRateKey: Self.bitRate,
+        AVVideoAverageBitRateKey: bitRate,
         AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main_AutoLevel,
       ],
     ]
@@ -86,8 +117,8 @@ final class ProofRecorder {
       assetWriterInput: videoInput,
       sourcePixelBufferAttributes: [
         kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-        kCVPixelBufferWidthKey as String: Self.targetWidth,
-        kCVPixelBufferHeightKey as String: Self.targetHeight,
+        kCVPixelBufferWidthKey as String: width,
+        kCVPixelBufferHeightKey as String: height,
       ]
     )
 
@@ -114,7 +145,25 @@ final class ProofRecorder {
     self.mirrorsCamera = mirrorsCamera
     self.maxDurationSeconds = maxDurationSeconds
     self.overlay = overlay
+    targetWidth = width
+    targetHeight = height
+    minimumFrameGapSeconds = 1.0 / frameRate
     isRecording = true
+  }
+
+  private static func evenInRange(_ value: Int, default fallback: Int, min: Int, max: Int) -> Int {
+    guard value >= min, value <= max, value % 2 == 0 else { return fallback }
+    return value
+  }
+
+  private static func clamped(_ value: Int, default fallback: Int, min: Int, max: Int) -> Int {
+    guard value >= min, value <= max else { return fallback }
+    return value
+  }
+
+  private static func clamped(_ value: Double, default fallback: Double, min: Double, max: Double) -> Double {
+    guard value >= min, value <= max else { return fallback }
+    return value
   }
 
   /// Trims standing-up after the last rep. Old clients omit this and keep the full clip.
@@ -152,7 +201,7 @@ final class ProofRecorder {
       let composed = Self.compose(
         camera: camera,
         proof: self.overlay,
-        size: CGSize(width: Self.targetWidth, height: Self.targetHeight)
+        size: CGSize(width: self.targetWidth, height: self.targetHeight)
       )
 
       guard let buffer = Self.pixelBuffer(from: composed) else { return }
@@ -188,11 +237,11 @@ final class ProofRecorder {
     inFlightLock.unlock()
   }
 
-  /// Real elapsed time keeps playback at the speed it happened; the gap caps the clip at 15 fps.
+  /// Real elapsed time keeps playback at the speed it happened; the gap caps the clip to the target fps.
   private func isDueForFrame(at elapsedSeconds: Double) -> Bool {
     guard elapsedSeconds <= maxDurationSeconds else { return false }
     guard let lastFrameSeconds else { return true }
-    return elapsedSeconds - lastFrameSeconds >= Self.minimumFrameGapSeconds
+    return elapsedSeconds - lastFrameSeconds >= minimumFrameGapSeconds
   }
 
   private func cameraImage(from frame: CVPixelBuffer) -> UIImage? {

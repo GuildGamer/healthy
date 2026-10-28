@@ -82,6 +82,25 @@ function createHarness(initial?: ClipRow) {
         }
         return current;
       }),
+      create: vi.fn().mockImplementation(async ({ data }: { data: Partial<ClipRow> }) => {
+        current = clip({
+          id: 'reserved-clip',
+          status: 'reserved',
+          sha256: null,
+          byteSize: null,
+          videoKey: null,
+          posterKey: null,
+          audience: null,
+          visibility: null,
+          sharedAt: null,
+          expiresAt: null,
+          recordedAt: null,
+          attested: false,
+          count: 0,
+          ...data,
+        });
+        return current;
+      }),
       update: vi.fn().mockImplementation(async ({ data }: { data: Partial<ClipRow> }) => {
         current = { ...current, ...data };
         return current;
@@ -105,6 +124,14 @@ function createHarness(initial?: ClipRow) {
   const service = new ProofClipsService(
     prisma as never,
     storage as never,
+    {
+      proofClipEncoding: {
+        bitRate: 1_500_000,
+        frameRate: 24,
+        width: 720,
+        height: 1280,
+      },
+    } as never,
     new ProofCodeVerifyRateLimiter(),
   );
 
@@ -118,6 +145,27 @@ function createHarness(initial?: ClipRow) {
     },
   };
 }
+
+describe('ProofClipsService.reserve', () => {
+  it('returns the injected encoding profile with the code', async () => {
+    const { service } = createHarness();
+
+    await expect(
+      service.reserve(owner, {
+        context: { kind: 'practice', challengeId: 'challenge-1' },
+        metric: 'pushups',
+      }),
+    ).resolves.toMatchObject({
+      clipId: 'reserved-clip',
+      encoding: {
+        bitRate: 1_500_000,
+        frameRate: 24,
+        width: 720,
+        height: 1280,
+      },
+    });
+  });
+});
 
 describe('ProofClipsService.verifyPublic', () => {
   it('verifies a clip anyone may watch', async () => {

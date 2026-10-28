@@ -17,6 +17,38 @@ describe('readEnvironment', () => {
     expect(environment.websiteUrl).toBe('https://www.gethealthyapp.com');
     expect(environment.adminBootstrapEmail).toBeNull();
     expect(environment.testingMembership).toBe(true);
+    expect(environment.proofClipEncoding).toEqual({
+      bitRate: 1_500_000,
+      frameRate: 24,
+      width: 720,
+      height: 1280,
+    });
+  });
+
+  it('keeps a valid proof-clip encoding override', () => {
+    const environment = readEnvironment({
+      PROOF_CLIP_BIT_RATE: '800000',
+      PROOF_CLIP_FRAME_RATE: '20',
+      PROOF_CLIP_WIDTH: '640',
+      PROOF_CLIP_HEIGHT: '1136',
+    });
+
+    expect(environment.proofClipEncoding).toEqual({
+      bitRate: 800_000,
+      frameRate: 20,
+      width: 640,
+      height: 1136,
+    });
+  });
+
+  it('refuses an out-of-range proof-clip bitrate', () => {
+    expect(() => readEnvironment({ PROOF_CLIP_BIT_RATE: '2000000' })).toThrow(
+      /PROOF_CLIP_BIT_RATE/,
+    );
+  });
+
+  it('refuses an odd proof-clip width', () => {
+    expect(() => readEnvironment({ PROOF_CLIP_WIDTH: '721' })).toThrow(/PROOF_CLIP_WIDTH/);
   });
 
   const deployedStorage = {

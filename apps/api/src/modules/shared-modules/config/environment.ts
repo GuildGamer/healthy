@@ -3,6 +3,18 @@
  * `environment.isProd`, never `process.env.NODE_ENV === 'production'`.
  */
 
+import {
+  PROOF_CLIP_BIT_RATE_MAX,
+  PROOF_CLIP_BIT_RATE_MIN,
+  PROOF_CLIP_DEFAULT_ENCODING,
+  PROOF_CLIP_FRAME_RATE_MAX,
+  PROOF_CLIP_FRAME_RATE_MIN,
+  PROOF_CLIP_HEIGHT_MAX,
+  PROOF_CLIP_HEIGHT_MIN,
+  PROOF_CLIP_WIDTH_MAX,
+  PROOF_CLIP_WIDTH_MIN,
+  type ProofClipEncoding,
+} from '@product/contract';
 import { readTestingMembership } from '../../../shared/membership/testing-membership.js';
 
 /**
@@ -103,6 +115,9 @@ export type S3StorageConfig = {
 
 export type StorageConfig = { mode: 'disabled' } | S3StorageConfig;
 
+/** Encoder settings returned on proof-clip reserve. Env overrides the contract defaults. */
+export type ProofClipEncodingConfig = ProofClipEncoding;
+
 export type Environment = {
   isProd: boolean;
   isLocal: boolean;
@@ -130,6 +145,8 @@ export type Environment = {
    * call sites.
    */
   testingMembership: boolean;
+  /** Bitrate, frame rate, and size the phone uses when it records a proof clip. */
+  proofClipEncoding: ProofClipEncodingConfig;
 };
 
 function readOptional(value: string | undefined): string | null {
@@ -403,6 +420,77 @@ function isStorageProvider(value: string): value is StorageProvider {
   return (storageProviders as readonly string[]).includes(value);
 }
 
+function readOptionalInt(
+  value: string | undefined,
+  name: string,
+  min: number,
+  max: number,
+): number | null {
+  const configured = readConfigured(value);
+  if (!configured) {
+    return null;
+  }
+
+  const parsed = Number(configured);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw new Error(`${name} must be an integer from ${min} to ${max}, got '${value}'`);
+  }
+  return parsed;
+}
+
+function readEvenDimension(
+  value: string | undefined,
+  name: string,
+  min: number,
+  max: number,
+): number | null {
+  const parsed = readOptionalInt(value, name, min, max);
+  if (parsed === null) {
+    return null;
+  }
+  if (parsed % 2 !== 0) {
+    throw new Error(`${name} must be even, got '${value}'`);
+  }
+  return parsed;
+}
+
+/**
+ * Unset keys keep the contract defaults. A set value outside the allowed range
+ * refuses to boot so a typo cannot ship a soft or oversized clip profile.
+ */
+function readProofClipEncoding(source: NodeJS.ProcessEnv): ProofClipEncodingConfig {
+  const bitRate =
+    readOptionalInt(
+      source.PROOF_CLIP_BIT_RATE,
+      'PROOF_CLIP_BIT_RATE',
+      PROOF_CLIP_BIT_RATE_MIN,
+      PROOF_CLIP_BIT_RATE_MAX,
+    ) ?? PROOF_CLIP_DEFAULT_ENCODING.bitRate;
+  const frameRate =
+    readOptionalInt(
+      source.PROOF_CLIP_FRAME_RATE,
+      'PROOF_CLIP_FRAME_RATE',
+      PROOF_CLIP_FRAME_RATE_MIN,
+      PROOF_CLIP_FRAME_RATE_MAX,
+    ) ?? PROOF_CLIP_DEFAULT_ENCODING.frameRate;
+  const width =
+    readEvenDimension(
+      source.PROOF_CLIP_WIDTH,
+      'PROOF_CLIP_WIDTH',
+      PROOF_CLIP_WIDTH_MIN,
+      PROOF_CLIP_WIDTH_MAX,
+    ) ?? PROOF_CLIP_DEFAULT_ENCODING.width;
+  const height =
+    readEvenDimension(
+      source.PROOF_CLIP_HEIGHT,
+      'PROOF_CLIP_HEIGHT',
+      PROOF_CLIP_HEIGHT_MIN,
+      PROOF_CLIP_HEIGHT_MAX,
+    ) ?? PROOF_CLIP_DEFAULT_ENCODING.height;
+
+  return { bitRate, frameRate, width, height };
+}
+
 function readStorage(
   source: NodeJS.ProcessEnv,
   requiresStorage: boolean,
@@ -493,5 +581,6 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     adminBootstrapEmail: readOptional(source.ADMIN_BOOTSTRAP_EMAIL),
     adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
     testingMembership: readTestingMembership(source),
+    proofClipEncoding: readProofClipEncoding(source),
   };
 }
