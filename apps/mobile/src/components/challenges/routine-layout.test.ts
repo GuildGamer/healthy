@@ -1,6 +1,6 @@
 import { occurrenceDetail, todayChallenge } from '@/components/home/testing/today-fixtures';
-import { buildRoutine, periodEndLabel } from './routine-layout';
-import { catalogChallenge, WALK_TEN } from './testing/catalog-fixtures';
+import { buildRoutine, periodEndLabel, routineState } from './routine-layout';
+import { catalogChallenge, PUSHUPS_TWENTY, WALK_TEN } from './testing/catalog-fixtures';
 
 function localIso(hours: number, minutes: number): string {
   return new Date(2026, 9, 22, hours, minutes).toISOString();
@@ -80,6 +80,30 @@ describe('buildRoutine', () => {
     });
   });
 
+  it('treats a goal already met as done, even before the occurrence is claimed', () => {
+    const routine = buildRoutine({
+      catalog: [
+        catalogChallenge({
+          challengeId: 'push',
+          isEnrolled: true,
+          capture: PUSHUPS_TWENTY,
+        }),
+      ],
+      occurrences: [
+        todayChallenge({
+          id: 'uc-push',
+          challengeId: 'push',
+          capture: PUSHUPS_TWENTY,
+          status: 'in_progress',
+        }),
+      ],
+      details: [occurrenceDetail({ userChallengeId: 'uc-push', bestMeasuredInPeriod: 20 })],
+    });
+
+    expect(routine.groups[0]?.rows[0]).toMatchObject({ state: 'done', meta: 'Done' });
+    expect(routine.groups[0]?.doneCount).toBe(1);
+  });
+
   it('gives an open daily its reminder, and an open weekly the day it is due', () => {
     const routine = buildRoutine({
       catalog: [
@@ -108,6 +132,21 @@ describe('buildRoutine', () => {
 
   it('is empty with nothing signed up, paused or not', () => {
     expect(buildRoutine({ catalog: [], occurrences: [], details: [] }).isEmpty).toBe(true);
+  });
+});
+
+describe('routineState', () => {
+  it('stays part while a photo is still outstanding', () => {
+    expect(
+      routineState(
+        todayChallenge({
+          id: 'uc-push',
+          capture: PUSHUPS_TWENTY,
+          status: 'awaiting_evidence',
+        }),
+        occurrenceDetail({ userChallengeId: 'uc-push', bestMeasuredInPeriod: 20 }),
+      ),
+    ).toBe('part');
   });
 });
 

@@ -1,7 +1,7 @@
 import { listPendingProofClipUploads, markLocalProofClipPendingUpload } from '@/lib/proof-clip-store';
 import { uploadProofClip } from '@/lib/proof-clip-upload';
 
-/** Retries Save-queued uploads on app open and reconnect. */
+/** Retries Anyone uploads queued after a set or Save, on app open and reconnect. */
 export async function flushPendingProofUploads(): Promise<void> {
   const pending = await listPendingProofClipUploads();
   for (const clip of pending) {

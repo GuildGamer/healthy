@@ -3,6 +3,7 @@ import { PROOF_CLIP_POSTER_MAX_BYTES } from '@product/contract/proof-clip-limits
 import { apiClient } from '@/lib/api';
 import {
   getLocalProofClip,
+  markLocalProofClipPendingUpload,
   markLocalProofClipServerRecorded,
   removeLocalProofClip,
 } from '@/lib/proof-clip-store';
@@ -78,6 +79,28 @@ export async function uploadProofClip(input: UploadProofClipInput): Promise<void
     audience: input.audience,
     postToGroup: input.postToGroup === true,
   });
+}
+
+/**
+ * Queues an Anyone upload and starts it. On failure the pending flag stays so
+ * app open / reconnect can retry. Does not post to a group board.
+ */
+export async function queueAnyoneProofClipUpload(clipId: string): Promise<boolean> {
+  await markLocalProofClipPendingUpload(clipId, {
+    audience: 'anyone',
+    postToGroup: false,
+  });
+  try {
+    await uploadProofClip({
+      clipId,
+      audience: 'anyone',
+      postToGroup: false,
+    });
+    await markLocalProofClipPendingUpload(clipId, null);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The poster is optional: a missing or oversized one never blocks the clip. */

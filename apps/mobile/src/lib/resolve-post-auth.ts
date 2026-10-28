@@ -1,9 +1,15 @@
+import type { MeOutput } from '@product/client';
 import { apiClient } from './api';
 import { getSessionData, isEmailVerified, waitForSession } from './auth-client';
 import { claimDeferredInviteToken, isMatchInviteToken } from './deferred-invite';
 import { peekPendingMatchToken, takePendingMatchToken } from './pending-match-token';
 import { postAuthRoute, type PostAuthHref } from './post-auth-route';
 import { hasAnsweredRemindersIntro } from './reminders-intro';
+
+export type ResolvePostAuthOptions = {
+  /** Called whenever `/me` is loaded so the caller can seed React Query. */
+  onMe?: (me: MeOutput) => void;
+};
 
 /**
  * Load session + `/me` and pick the next onboarding / app route.
@@ -14,7 +20,9 @@ import { hasAnsweredRemindersIntro } from './reminders-intro';
  *
  * Enrolls fitness defaults once when the profile has no categories yet.
  */
-export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
+export async function resolvePostAuthHref(
+  options: ResolvePostAuthOptions = {},
+): Promise<PostAuthHref | null> {
   await claimDeferredInviteToken();
 
   const hasSession = await waitForSession();
@@ -24,11 +32,13 @@ export async function resolvePostAuthHref(): Promise<PostAuthHref | null> {
 
   const session = await getSessionData();
   let me = await apiClient.me();
+  options.onMe?.(me);
   const name = me.name ?? session?.user.name;
 
   if (me.categories.length === 0 && Boolean(name?.trim())) {
     try {
       me = await apiClient.updateCategories({ categories: ['general'] });
+      options.onMe?.(me);
     } catch {
       // Fail soft: Today can still show FirstRunCard until the next launch.
     }

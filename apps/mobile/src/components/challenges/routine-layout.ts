@@ -67,14 +67,39 @@ export function routineState(
     return 'done';
   }
 
+  // A photo still outstanding is not finished, even when the measure already hits.
+  if (occurrence.status === 'awaiting_evidence') {
+    return 'part';
+  }
+
+  if (goalIsMet(occurrence, detail)) {
+    return 'done';
+  }
+
   const hasStarted =
     occurrence.status === 'in_progress' ||
-    occurrence.status === 'awaiting_evidence' ||
     occurrence.progress.filled > 0 ||
     (occurrence.completionKind === 'water' && waterGlassCount(occurrence) > 0) ||
     (detail?.bestMeasuredInPeriod ?? 0) > 0;
 
   return hasStarted ? 'part' : 'open';
+}
+
+/** Same bar Today's ring uses: measured progress has reached the goal. */
+function goalIsMet(
+  occurrence: TodayChallenge,
+  detail: TodayOccurrenceDetail | null,
+): boolean {
+  if (occurrence.completionKind === 'water') {
+    return waterGlassCount(occurrence) >= waterGlassGoal(occurrence);
+  }
+
+  const goal = challengeGoal(occurrence);
+  if (!goal) {
+    return false;
+  }
+
+  return (detail?.bestMeasuredInPeriod ?? 0) >= goal.amount;
 }
 
 function routineMeta(

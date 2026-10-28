@@ -17,6 +17,7 @@ import {
   markLocalProofClipServerRecorded,
   saveLocalProofClip,
 } from '@/lib/proof-clip-store';
+import { queueAnyoneProofClipUpload } from '@/lib/proof-clip-upload';
 import type {
   ProofClipContext,
   ProofClipOutcome,
@@ -120,6 +121,8 @@ export function useProofClipRecording(
   const generationRef = useRef(0);
   const contextRef = useRef(context);
   contextRef.current = context;
+  const audienceRef = useRef(audience);
+  audienceRef.current = audience;
 
   useEffect(() => {
     if (!isSupported) {
@@ -425,6 +428,10 @@ export function useProofClipRecording(
           await markLocalProofClipServerRecorded(clipId);
         } catch {
           // Local clip is already saved; upload will retry recordProofClip.
+        }
+
+        if (audienceRef.current === 'anyone') {
+          void queueAnyoneProofClipUpload(clipId);
         }
       } catch {
         markFailed();

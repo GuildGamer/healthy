@@ -1,6 +1,13 @@
 import type { ProgressDayDetail } from '@product/client';
 import { formatPointsDelta } from '@/components/points';
-import { dayDetailTotal, daySentence, missedPhotoReason, practiceAmount } from './progress-labels';
+import {
+  dayDetailTotal,
+  daySentence,
+  doneAmount,
+  doneMeta,
+  missedPhotoReason,
+  practiceAmount,
+} from './progress-labels';
 
 const capture = {
   kind: 'self_report' as const,
@@ -85,5 +92,20 @@ describe('day detail labels', () => {
   it('shows reps for push-up practice and no points for anything else', () => {
     expect(practiceAmount({ metric: 'pushups', count: 14 })).toBe('14 reps');
     expect(practiceAmount({ metric: 'walk', count: null })).toBe('No points');
+  });
+
+  it('shows the measured finish, and points when there is nothing to measure', () => {
+    expect(doneAmount({ share: { kind: 'reps', count: 60 }, points: 30 })).toBe('60 reps');
+    expect(doneAmount({ share: { kind: 'reps', count: 1 }, points: 30 })).toBe('1 rep');
+    expect(doneAmount({ share: { kind: 'minutes', minutes: 20 }, points: 100 })).toBe('20 min');
+    expect(doneAmount({ share: { kind: 'glasses', count: 6 }, points: 50 })).toBe('6 glasses');
+    expect(doneAmount({ share: { kind: 'gym' }, points: 150 })).toBe('+150');
+    expect(doneAmount({ share: null, points: 20 })).toBe('+20');
+  });
+
+  it('puts points beside the clock on a done row', () => {
+    expect(doneMeta({ completedAt: '2026-10-28T17:30:00.000Z', points: 30 })).toMatch(
+      / · \+30$/,
+    );
   });
 });

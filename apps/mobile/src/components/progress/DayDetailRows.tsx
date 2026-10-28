@@ -10,7 +10,13 @@ import {
 } from '@/components/deck';
 import { formatPointsDelta } from '@/components/points';
 import { PROGRESS_COPY } from './constants/progress-copy';
-import { clockTime, missedPhotoReason, practiceAmount } from './progress-labels';
+import {
+  clockTime,
+  doneAmount,
+  doneMeta,
+  missedPhotoReason,
+  practiceAmount,
+} from './progress-labels';
 
 function activityRoute(dayKey: string, itemId: string) {
   return {
@@ -41,11 +47,11 @@ export function DayDoneRows({
           leading={
             <DeckDisc glyph={item.proofClip ? 'play' : undefined} kind={deckCardKindFor(item)} />
           }
-          meta={clockTime(item.completedAt)}
+          meta={doneMeta(item)}
           onPress={() => router.push(activityRoute(dayKey, item.userChallengeId))}
           testID={`history-done-${item.userChallengeId}`}
           title={item.title}
-          trailing={<DeckRowAmount text={formatPointsDelta(item.points)} />}
+          trailing={<DeckRowAmount text={doneAmount(item)} />}
         />
       ))}
     </>

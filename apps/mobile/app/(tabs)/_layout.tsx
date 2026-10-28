@@ -40,8 +40,10 @@ export default function TabsLayout() {
 
   useEffect(() => {
     if (sessionUserId) {
+      // Index already resolved and marked this user — do not pay for /me again.
       if (isTabsGateAllowed(sessionUserId)) {
         setGateHref('/(tabs)');
+        return;
       }
 
       let cancelled = false;

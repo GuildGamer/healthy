@@ -1,11 +1,13 @@
 import type {
   ProgressDay,
   ProgressDayDetail,
+  ProgressDoneItem,
   ProgressMissedPhotoCheck,
   ProgressPracticeItem,
+  ProgressShareResult,
 } from '@product/client';
 import { dayKeyName, shiftDayKey } from '@/components/home/day-keys';
-import { formatPoints } from '@/components/points';
+import { formatPoints, formatPointsDelta } from '@/components/points';
 import { formatClockTime } from '@/lib/clock-time';
 import { DAYS_PER_WEEK, PROGRESS_COPY } from './constants/progress-copy';
 import type { WeekSummary } from './types/progress';
@@ -150,6 +152,37 @@ export function practiceAmount(item: Pick<ProgressPracticeItem, 'metric' | 'coun
   }
 
   return item.count === 1 ? '1 rep' : `${item.count} reps`;
+}
+
+/** What was measured on a finish; points only when there is nothing to measure. */
+export function doneAmount(item: Pick<ProgressDoneItem, 'share' | 'points'>): string {
+  const measured = shareAmount(item.share);
+  return measured ?? formatPointsDelta(item.points);
+}
+
+function shareAmount(share: ProgressShareResult | null): string | null {
+  if (!share) {
+    return null;
+  }
+
+  if (share.kind === 'reps') {
+    return share.count === 1 ? '1 rep' : `${share.count} reps`;
+  }
+
+  if (share.kind === 'minutes') {
+    return share.minutes === 1 ? '1 min' : `${share.minutes} min`;
+  }
+
+  if (share.kind === 'glasses') {
+    return share.count === 1 ? '1 glass' : `${share.count} glasses`;
+  }
+
+  return null;
+}
+
+/** Clock plus points earned, so the trailing amount can stay the measurement. */
+export function doneMeta(item: Pick<ProgressDoneItem, 'completedAt' | 'points'>): string {
+  return `${clockTime(item.completedAt)} · ${formatPointsDelta(item.points)}`;
 }
 
 /** What a practice set measured: its reps, or how long it lasted when it counts none. */

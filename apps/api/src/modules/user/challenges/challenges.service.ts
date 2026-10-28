@@ -220,14 +220,13 @@ export class ChallengesService {
     currentUser: AuthenticatedUser | null | undefined,
   ): Promise<ListTodayChallengesDto> {
     const user = requireUser(currentUser);
-    const [timeZone, membershipActive] = await Promise.all([
-      this.timeZoneFor(user.id),
-      this.membershipActiveFor(user.id),
-    ]);
+    const { timeZone, membershipActive } = await this.profileAccessFor(user.id);
     const window = this.dueWindow(timeZone);
 
-    await this.settleExpiredEvidence(user.id);
-    await this.materialiseDueOccurrences(user.id, window, membershipActive);
+    await Promise.all([
+      this.settleExpiredEvidence(user.id),
+      this.materialiseDueOccurrences(user.id, window, membershipActive),
+    ]);
 
     const assignments = await this.prisma.userChallenge.findMany({
       where: {
@@ -628,6 +627,7 @@ export class ChallengesService {
         data: {
           pointsBalance: { increment: rewardPoints },
           currentStreakDays: nextStreak,
+          bestStreakDays: Math.max(profileBefore.bestStreakDays, nextStreak),
         },
       });
 
@@ -667,8 +667,13 @@ export class ChallengesService {
     });
 
     if (result.fresh) {
-      await this.sendCompletionPush(user.id, pushTitle, pushBody, result.payload);
-      await this.notifyFriendStreakMilestone(user.id, result.currentStreakDays);
+      // Inbox is already written; push and social fan-out must not block complete.
+      void this.sendCompletionPush(user.id, pushTitle, pushBody, result.payload).catch(
+        (error: unknown) => {
+          this.logger.error('Completion push failed after a successful complete', error);
+        },
+      );
+      void this.notifyFriendStreakMilestone(user.id, result.currentStreakDays);
     }
 
     return result.dto;
@@ -1053,12 +1058,24 @@ export class ChallengesService {
   }
 
   private async timeZoneFor(userId: string): Promise<string> {
+    const profile = await this.profileAccessFor(userId);
+    return profile.timeZone;
+  }
+
+  /** One profile read for the fields Today needs on every list. */
+  private async profileAccessFor(userId: string): Promise<{
+    timeZone: string;
+    membershipActive: boolean;
+  }> {
     const profile = await this.prisma.userProfile.findUnique({
       where: { userId },
-      select: { timeZone: true },
+      select: { timeZone: true, membershipActive: true },
     });
 
-    return profile?.timeZone ?? DEFAULT_TIME_ZONE;
+    return {
+      timeZone: profile?.timeZone ?? DEFAULT_TIME_ZONE,
+      membershipActive: effectiveMembershipActive(profile?.membershipActive),
+    };
   }
 
   private async findOwnedAssignment(userId: string, userChallengeId: string) {

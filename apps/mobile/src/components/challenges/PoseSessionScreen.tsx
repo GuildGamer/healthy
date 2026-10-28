@@ -67,7 +67,7 @@ export function PoseSessionScreen(props: PoseSessionScreenProps) {
       ) : null}
       {session.phase === 'counting' ? (
         <PoseCountHud
-          count={session.snapshot.count}
+          count={session.count}
           meta={
             session.finishCountdown != null
               ? POSE_COPY.finishingIn(session.finishCountdown)
@@ -305,7 +305,7 @@ function ProofClipRow({ session }: { session: PoseSession }) {
 function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSessionProps['mode'] }) {
   const { camera } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { count } = session.snapshot;
+  const count = session.count;
   const finalizing = session.proofStatus === 'finalizing';
 
   if (session.isSaving || finalizing) {

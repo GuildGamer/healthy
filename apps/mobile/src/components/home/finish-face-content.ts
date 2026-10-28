@@ -1,4 +1,4 @@
-import type { SharePoster } from '@/components/challenges';
+import type { SharePoster } from '@/components/challenges/types/share-poster';
 import type { DeckCardKind, DoneFaceHeadline, DoneFaceProof } from '@/components/deck';
 import type { ChallengeFinish, ChallengeFinishOutcome } from '@/lib/challenge-finish-session';
 import { FINISH_COPY } from './constants/finish-copy';

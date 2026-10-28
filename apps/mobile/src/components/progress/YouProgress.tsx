@@ -14,20 +14,22 @@ import { WeekCard } from './WeekCard';
 import { buildWeekSummary } from './week-summary';
 import { youStats } from './you-stats';
 
-/** Everything the progress half of You reads, refetched whenever the tab comes back. */
+/** Everything the progress half of You reads; refetches on focus only when stale. */
 function useYouProgress() {
   const meQuery = useMeQuery();
   const daysQuery = useProgressDays();
   const boardQuery = useWeeklyBoard();
   const tipsQuery = useQuery({ queryKey: ['tips'], queryFn: () => apiClient.listTips() });
-  const { refetch: refetchDays } = daysQuery;
-  const { refetch: refetchBoard } = boardQuery;
 
   useFocusEffect(
     useCallback(() => {
-      void refetchDays();
-      void refetchBoard();
-    }, [refetchDays, refetchBoard]),
+      if (daysQuery.isStale) {
+        void daysQuery.refetch();
+      }
+      if (boardQuery.isStale) {
+        void boardQuery.refetch();
+      }
+    }, [boardQuery, daysQuery]),
   );
 
   const me = meQuery.data;

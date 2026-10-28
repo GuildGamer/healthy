@@ -66,6 +66,7 @@ function baseSession(overrides: Record<string, unknown> = {}) {
       phase: 'up',
       bodyInFrame: true,
     },
+    count: 5,
     phase: 'review',
     target: 20,
     meetsTarget: false,

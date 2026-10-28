@@ -8,6 +8,7 @@ type ProfileFixture = {
   healthCategories: string[];
   pointsBalance: number;
   currentStreakDays: number;
+  bestStreakDays?: number;
   timeZone: string;
   countryCode?: string | null;
   reminderEnabled?: boolean;
@@ -42,6 +43,7 @@ function createPrismaMock(
     userProfile: {
       findUnique: vi.fn().mockResolvedValue(profile),
       upsert: vi.fn().mockResolvedValue(profile),
+      update: vi.fn().mockResolvedValue(profile),
     },
     userChallenge: {
       findFirst: vi
@@ -211,6 +213,30 @@ describe('MeService', () => {
       distinct: ['periodKey'],
       select: { periodKey: true },
     });
+    expect(prisma.userProfile.update).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      data: { bestStreakDays: 4 },
+    });
+  });
+
+  it('reads a stored best streak without scanning history', async () => {
+    const prisma = createPrismaMock(
+      {
+        healthCategories: [],
+        pointsBalance: 0,
+        currentStreakDays: 2,
+        bestStreakDays: 12,
+        timeZone: 'UTC',
+      },
+      todayKey(),
+    );
+    const service = new MeService(prisma as never, createEnrollmentsMock() as never);
+
+    await expect(service.getMe(user)).resolves.toMatchObject({
+      currentStreakDays: 2,
+      bestStreakDays: 12,
+    });
+    expect(prisma.userChallenge.findMany).not.toHaveBeenCalled();
   });
 
   it('never reports a best run shorter than the live one', async () => {

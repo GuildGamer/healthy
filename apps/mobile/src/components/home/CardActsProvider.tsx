@@ -1,14 +1,14 @@
 import type { TodayChallenge } from '@product/client';
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import { WATER_UNDO_MS } from '@/components/challenges/constants/water';
+import { finishOnCard } from '@/components/challenges/finish-challenge';
+import { useCompleteChallenge } from '@/components/challenges/useCompleteChallenge';
+import { useWaterGlasses } from '@/components/challenges/useWaterGlasses';
 import {
-  finishOnCard,
   glassLoggedLine,
-  useCompleteChallenge,
-  useWaterGlasses,
   waterGlassCount,
   waterGlassGoal,
-} from '@/components/challenges';
-import { WATER_UNDO_MS } from '@/components/challenges/constants/water';
+} from '@/components/challenges/water-glasses';
 import { FINISH_COPY } from './constants/finish-copy';
 import type { CardActs, CardToast } from './types/card-acts';
 

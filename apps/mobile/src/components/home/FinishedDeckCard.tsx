@@ -1,11 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import {
-  FRIEND_CHALLENGE_COPY,
-  friendChallengeSpec,
-  sharePosterParams,
-  useFriendChallenge,
-} from '@/components/challenges';
+import { FRIEND_CHALLENGE_COPY } from '@/components/challenges/constants/friend-challenge';
+import { friendChallengeSpec } from '@/components/challenges/friend-challenge';
+import { sharePosterParams } from '@/components/challenges/share-poster';
+import { useFriendChallenge } from '@/components/challenges/useFriendChallenge';
 import { DECK_KIND_GLYPH, DeckDoneFace, DeckEyebrow } from '@/components/deck';
 import { healthCategoryName } from '@/constants/health-categories';
 import { useTheme } from '@/theme';

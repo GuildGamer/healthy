@@ -35,6 +35,7 @@ export class MeService {
         healthCategories: true,
         pointsBalance: true,
         currentStreakDays: true,
+        bestStreakDays: true,
         timeZone: true,
         countryCode: true,
         displayName: true,
@@ -54,10 +55,12 @@ export class MeService {
 
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
     const membershipActive = effectiveMembershipActive(profile?.membershipActive);
-    const [streak, longestRunDays] = await Promise.all([
-      this.streakStatus(user.id, profile?.currentStreakDays ?? 0, timeZone),
-      this.longestRewardedDailyRun(user.id),
-    ]);
+    const streak = await this.streakStatus(user.id, profile?.currentStreakDays ?? 0, timeZone);
+    const bestStreakDays = await this.resolvedBestStreakDays(
+      user.id,
+      profile?.bestStreakDays ?? 0,
+      streak.currentStreakDays,
+    );
 
     return {
       id: user.id,
@@ -67,7 +70,7 @@ export class MeService {
       pointsBalance: profile?.pointsBalance ?? 0,
       currentStreakDays: streak.currentStreakDays,
       streakLapsedYesterday: streak.streakLapsedYesterday,
-      bestStreakDays: Math.max(longestRunDays, streak.currentStreakDays),
+      bestStreakDays,
       timeZone,
       countryCode: normalizeCountryCode(profile?.countryCode ?? ''),
       displayName: publicNameFor(user.id, profile?.displayName),
@@ -339,9 +342,33 @@ export class MeService {
   }
 
   /**
-   * Derived from history rather than stored, so it is right for runs that
-   * ended before anything tracked a record. A penalized day never extended a
-   * streak, so it does not extend this one; legacy rows with no outcome did.
+   * Prefer the persisted record. When it is still zero (pre-column installs),
+   * scan history once, store the result, and never scan again for that user.
+   */
+  private async resolvedBestStreakDays(
+    userId: string,
+    storedBest: number,
+    currentStreakDays: number,
+  ): Promise<number> {
+    if (storedBest > 0) {
+      return Math.max(storedBest, currentStreakDays);
+    }
+
+    const computed = await this.longestRewardedDailyRun(userId);
+    const bestStreakDays = Math.max(computed, currentStreakDays);
+    if (bestStreakDays > 0) {
+      await this.prisma.userProfile.update({
+        where: { userId },
+        data: { bestStreakDays },
+      });
+    }
+
+    return bestStreakDays;
+  }
+
+  /**
+   * Derived from history for the one-shot backfill. A penalized day never
+   * extended a streak; legacy rows with no outcome did.
    */
   private async longestRewardedDailyRun(userId: string): Promise<number> {
     const days = await this.prisma.userChallenge.findMany({

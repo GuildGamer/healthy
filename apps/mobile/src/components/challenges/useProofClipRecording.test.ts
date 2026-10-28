@@ -4,6 +4,7 @@ import { canRecordProofClips } from 'quickpose-camera';
 import { createElement, type ReactNode } from 'react';
 import { apiClient } from '@/lib/api';
 import { saveLocalProofClip } from '@/lib/proof-clip-store';
+import { queueAnyoneProofClipUpload } from '@/lib/proof-clip-upload';
 import { useProofClipRecording } from './useProofClipRecording';
 
 jest.mock('@/lib/api', () => ({
@@ -28,6 +29,10 @@ jest.mock('@/lib/proof-clip-store', () => ({
   markLocalProofClipServerRecorded: jest.fn(async () => undefined),
 }));
 
+jest.mock('@/lib/proof-clip-upload', () => ({
+  queueAnyoneProofClipUpload: jest.fn(async () => true),
+}));
+
 const mockedApi = apiClient as unknown as {
   reserveProofClip: jest.Mock;
   recordProofClip: jest.Mock;
@@ -35,6 +40,9 @@ const mockedApi = apiClient as unknown as {
 };
 
 const mockedSaveLocal = saveLocalProofClip as jest.MockedFunction<typeof saveLocalProofClip>;
+const mockedQueueUpload = queueAnyoneProofClipUpload as jest.MockedFunction<
+  typeof queueAnyoneProofClipUpload
+>;
 
 const context = {
   props: { mode: 'challenge' as const, challengeId: 'ch-1' },
@@ -237,6 +245,46 @@ describe('useProofClipRecording', () => {
     expect(mockedSaveLocal).toHaveBeenCalledWith(
       expect.objectContaining({ clipId: 'clip-1', serverRecorded: false, count: 12 }),
     );
+  });
+
+  it('queues an Anyone upload once the local clip is saved', async () => {
+    const { result } = await renderArmed(() => 12);
+    await startRecording(result);
+    act(() => {
+      result.current.requestFinish();
+    });
+
+    await act(async () => {
+      await result.current.handleProofRecorded({
+        fileUri: 'file:///tmp/clip.mp4',
+        sha256: 'a'.repeat(64),
+        byteSize: 2048,
+        durationSeconds: 15,
+      });
+    });
+
+    expect(mockedQueueUpload).toHaveBeenCalledWith('clip-1');
+  });
+
+  it('does not upload when audience is Only me', async () => {
+    mockedApi.me.mockResolvedValueOnce({ proofClipAudience: 'only_me' });
+    const { result } = await renderArmed(() => 12);
+    await waitFor(() => expect(result.current.audience).toBe('only_me'));
+    await startRecording(result);
+    act(() => {
+      result.current.requestFinish();
+    });
+
+    await act(async () => {
+      await result.current.handleProofRecorded({
+        fileUri: 'file:///tmp/clip.mp4',
+        sha256: 'a'.repeat(64),
+        byteSize: 2048,
+        durationSeconds: 15,
+      });
+    });
+
+    expect(mockedQueueUpload).not.toHaveBeenCalled();
   });
 
   it('saves locally even when recordProofClip rejects', async () => {

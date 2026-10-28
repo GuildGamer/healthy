@@ -14,6 +14,7 @@ import type { QuickPoseExerciseUpdate } from '@/lib/pose/quickpose-exercise';
 import { trackEvent } from '@/lib/track-event';
 import { finishAndLeave } from './finish-challenge';
 import { partialSetSession, setSessionId } from './partial-session';
+import { poseDisplayCount, poseMeetsTarget } from './pose-session-count';
 import { setEndDecision } from './set-end-decision';
 import type { PoseSessionProps } from './types/pose-session';
 import type { ProofClipStatus } from './types/proof-clip-recording';
@@ -284,6 +285,9 @@ export function usePoseSession(props: PoseSessionProps) {
   const autoStartLockRef = useRef(false);
   const countRef = useRef(0);
   countRef.current = snapshot.count;
+  const frozenCountRef = useRef<number | null>(null);
+  const frozenElapsedRef = useRef<number | null>(null);
+  const [frozenCount, setFrozenCount] = useState<number | null>(null);
   const lastRepAtRef = useRef<number | null>(null);
   const lastSeenCountRef = useRef(0);
   const [finishCountdown, setFinishCountdown] = useState<number | null>(null);
@@ -297,7 +301,7 @@ export function usePoseSession(props: PoseSessionProps) {
       matchId,
       isReady: isMatch ? matchQuery.isSuccess : !isPending,
     },
-    () => countRef.current,
+    () => frozenCountRef.current ?? countRef.current,
   );
   const proofFailedRef = useRef(false);
   proofFailedRef.current = proof.proofFailed;
@@ -314,7 +318,8 @@ export function usePoseSession(props: PoseSessionProps) {
   );
   const { savePartial } = useSavePartialSession();
   const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
-  const meetsTarget = isUnscored ? snapshot.count > 0 : target > 0 && snapshot.count >= target;
+  const count = poseDisplayCount(frozenCount, snapshot.count);
+  const meetsTarget = poseMeetsTarget({ count, target, isUnscored });
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -358,6 +363,9 @@ export function usePoseSession(props: PoseSessionProps) {
       const preserveCounter = options?.preserveCounter === true;
       autoStartLockRef.current = true;
       startedAtRef.current = new Date().toISOString();
+      frozenCountRef.current = null;
+      frozenElapsedRef.current = null;
+      setFrozenCount(null);
       // Remounting the camera mid-rep drops landmarks — only reset on manual start.
       if (!preserveCounter) {
         setCameraSessionKey((current) => current + 1);
@@ -388,21 +396,21 @@ export function usePoseSession(props: PoseSessionProps) {
 
   function save() {
     submitSet.mutate({
-      reps: snapshot.count,
-      durationSeconds: elapsedSeconds,
+      reps: poseDisplayCount(frozenCountRef.current, countRef.current),
+      durationSeconds: frozenElapsedRef.current ?? elapsedSeconds,
       startedAt: startedAtRef.current ?? new Date().toISOString(),
     });
   }
 
   /** A daily set that fell short still counts as progress on Today's card. */
-  function keepShortSet() {
+  function keepShortSet(result: { count: number; elapsedSeconds: number }) {
     if (props.mode !== 'challenge' || !occurrence) {
       return;
     }
 
     const partial = partialSetSession(occurrence, {
-      count: snapshot.count,
-      durationSeconds: elapsedSeconds,
+      count: result.count,
+      durationSeconds: result.elapsedSeconds,
       startedAt: startedAtRef.current ?? new Date().toISOString(),
       endedAt: new Date().toISOString(),
     });
@@ -414,18 +422,31 @@ export function usePoseSession(props: PoseSessionProps) {
 
   async function stopCounting() {
     setFinishCountdown(null);
+    // Match beginCounting: sync the ref before any await so late frames are ignored.
+    phaseRef.current = 'review';
+    const stopped = {
+      count: countRef.current,
+      elapsedSeconds,
+    };
+    frozenCountRef.current = stopped.count;
+    frozenElapsedRef.current = stopped.elapsedSeconds;
+    setFrozenCount(stopped.count);
     stop();
     proof.requestFinish({ lastRepAtMs: lastRepAtRef.current });
     setPhase('review');
 
     await proof.waitUntilSettled();
 
-    if (meetsTarget) {
-      save();
+    if (poseMeetsTarget({ count: stopped.count, target, isUnscored })) {
+      submitSet.mutate({
+        reps: stopped.count,
+        durationSeconds: stopped.elapsedSeconds,
+        startedAt: startedAtRef.current ?? new Date().toISOString(),
+      });
       return;
     }
 
-    keepShortSet();
+    keepShortSet(stopped);
   }
 
   const stopCountingRef = useRef(stopCounting);
@@ -497,6 +518,7 @@ export function usePoseSession(props: PoseSessionProps) {
     cameraSessionKey,
     handleQuickPoseUpdate,
     snapshot,
+    count,
     phase,
     target,
     meetsTarget,
@@ -517,7 +539,7 @@ export function usePoseSession(props: PoseSessionProps) {
     closeAudienceSheet: proof.closeAudienceSheet,
     setProofAudience: proof.setAudience,
     confirmAudienceSheet: proof.confirmAudienceSheet,
-    proofCount: snapshot.count,
+    proofCount: count,
     finishProofToken: proof.finishProofToken,
     finishProofEndAtMs: proof.finishProofEndAtMs,
     toggleRecordProof: proof.toggleRecordProof,

@@ -488,12 +488,14 @@ per set on the finish screen, and changeable later from History or Settings.
 watch. **Post to group** is the only action that puts a clip on the group board
 (`postedToGroupAt`) and uses the one-post-per-day cap.
 
-Nothing leaves the phone until the person sends, saves, or posts. *Anyone with
-the code* uploads the first time the clip leaves the phone. *Only me* never
-uploads unless the clip is posted to the group. Cloud copies live in Cloudflare
-R2 and expire (30 days after last share/view for solo, 30 days after the contest
-ends for groups, hard cap 90 days). After expiry the hash, count and timestamps
-remain so the code can still verify that the set happened.
+*Anyone with the code* uploads as soon as the set is saved on the phone, so the
+code becomes checkable without sending. *Only me* never uploads unless the
+person posts to the group or switches the audience to Anyone. **Send** still
+hands the file to another app; it is not what makes the code work. Cloud copies
+live in Cloudflare R2 and expire (30 days after last share/view for solo, 30
+days after the contest ends for groups, hard cap 90 days). After expiry the
+hash, count and timestamps remain so the code can still verify that the set
+happened.
 
 Verify-by-code returns one of: checks out, kept private, not uploaded yet, or
 removed — never a name or groups. Report and block ship with the feature.

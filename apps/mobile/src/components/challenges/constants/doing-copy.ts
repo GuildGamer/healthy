@@ -112,7 +112,8 @@ export const POSE_COPY = {
   proofClip: 'Proof clip',
   proofClipNote: 'Films you and the count',
   proofRecording: 'REC',
-  proofHint: 'Films you and the count. It stays on this phone until you send, save, or post it.',
+  proofHint:
+    'Films you and the count. Anyone with the code can watch once the set ends. Only me keeps it on this phone.',
   proofFailed: 'Your proof clip didn’t save.',
   proofDiscardTitle: 'Discard this proof clip?',
   proofDiscardBody: 'It will be removed from this phone.',

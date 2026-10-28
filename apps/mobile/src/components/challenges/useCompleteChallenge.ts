@@ -9,14 +9,12 @@ type CompleteChallengeVariables = {
   payload: CompletionPayload;
 };
 
-/** Everything a finish can move: points, today, history, activity, and any live group. */
+/** Points and Today's board. History / You / matches refetch when those screens open. */
 export function refreshAfterCompletion(queryClient: QueryClient): void {
   void Promise.all([
     queryClient.invalidateQueries({ queryKey: ['me'] }),
     queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
-    queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] }),
-    queryClient.invalidateQueries({ queryKey: ['activity'] }),
-    queryClient.invalidateQueries({ queryKey: ['matches'] }),
+    queryClient.invalidateQueries({ queryKey: ['home', 'bootstrap'] }),
   ]);
 }
 

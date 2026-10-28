@@ -17,6 +17,8 @@ import {
 } from '../../../shared/membership/entitlements.js';
 import { CONDITION_FEATURES_ENABLED } from '../../../shared/constants/product-scope.js';
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { DEFAULT_TIME_ZONE } from '../../../shared/utils/day-key.js';
+import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
   FRIEND_LADDER_MILESTONE_KEY,
@@ -166,7 +168,7 @@ export class EnrollmentsService {
         where: {
           userId_challengeId: { userId: user.id, challengeId: challenge.id },
         },
-        select: { id: true, isActive: true, targetCount: true },
+        select: { id: true, isActive: true, targetCount: true, frequency: true },
       }),
     ]);
 
@@ -186,6 +188,7 @@ export class EnrollmentsService {
     this.assertGoalFits(challenge, goal);
 
     const chosenFrequency = frequency ?? challenge.defaultFrequency;
+    const cadenceChanged = existing != null && existing.frequency !== chosenFrequency;
 
     const enrollment = await this.prisma.challengeEnrollment.upsert({
       where: {
@@ -213,6 +216,12 @@ export class EnrollmentsService {
       await this.reminders.seedDefaultReminders(user.id, [enrollment.id]);
     }
 
+    // Open occurrences keep the cadence snapped at materialise time. Moving the
+    // enrolment must move (or retire) those rows so Today matches Settings.
+    if (isEnrolled && cadenceChanged) {
+      await this.syncOpenOccurrenceCadence(user.id, challenge.id, chosenFrequency);
+    }
+
     const previousTarget = existing?.targetCount ?? null;
     const nextTarget = goal.targetCount;
     const ladderBump =
@@ -227,6 +236,63 @@ export class EnrollmentsService {
     }
 
     return this.listCatalog(user);
+  }
+
+  /**
+   * Moves open period rows onto the new cadence. Completed history stays put.
+   * When the new period key is already taken, obsolete open rows are deleted.
+   */
+  private async syncOpenOccurrenceCadence(
+    userId: string,
+    challengeId: string,
+    frequency: ChallengeFrequency,
+  ): Promise<void> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { timeZone: true },
+    });
+    const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
+    const nextPeriodKey = periodKeyFor(frequency, timeZone);
+
+    const openRows = await this.prisma.userChallenge.findMany({
+      where: {
+        userId,
+        challengeId,
+        status: { not: 'completed' },
+      },
+      select: { id: true, frequency: true, periodKey: true },
+    });
+
+    if (openRows.length === 0) {
+      return;
+    }
+
+    const occupyingTarget = await this.prisma.userChallenge.findUnique({
+      where: {
+        userId_challengeId_periodKey: { userId, challengeId, periodKey: nextPeriodKey },
+      },
+      select: { id: true },
+    });
+
+    let ownerId = occupyingTarget?.id ?? null;
+
+    for (const row of openRows) {
+      if (row.frequency === frequency && row.periodKey === nextPeriodKey) {
+        ownerId = row.id;
+        continue;
+      }
+
+      if (ownerId === null || ownerId === row.id) {
+        await this.prisma.userChallenge.update({
+          where: { id: row.id },
+          data: { frequency, periodKey: nextPeriodKey },
+        });
+        ownerId = row.id;
+        continue;
+      }
+
+      await this.prisma.userChallenge.delete({ where: { id: row.id } });
+    }
   }
 
   private async notifyFriendLadderMilestone(actorUserId: string): Promise<void> {

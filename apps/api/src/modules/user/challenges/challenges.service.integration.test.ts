@@ -2,6 +2,7 @@ import type { ChallengeCompletionKind, ChallengeFrequency, PrismaClient } from '
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
+import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
 import { PracticeService } from '../practice/practice.service.js';
@@ -269,6 +270,23 @@ describe('ChallengesService against Postgres', () => {
 
     expect(weekly!.frequency).toBe('weekly');
     expect(new Date(`${weekly!.periodKey}T00:00:00.000Z`).getUTCDay()).toBe(1);
+  });
+
+  it('moves Today onto the new cadence after a frequency change', async () => {
+    await seedEnrolledUser([{ slug: 'pushups', defaultFrequency: 'monthly' }]);
+    const [monthly] = (await challenges.listToday(user)).challenges;
+    expect(monthly!.frequency).toBe('monthly');
+
+    await enrollments.setEnrollment(user, monthly!.challengeId, true, 'daily');
+
+    const after = await challenges.listToday(user);
+    expect(after.challenges).toHaveLength(1);
+    expect(after.challenges[0]).toMatchObject({
+      challengeId: monthly!.challengeId,
+      frequency: 'daily',
+      id: monthly!.id,
+      periodKey: periodKeyFor('daily', 'UTC'),
+    });
   });
 
   it('leaves the streak alone when a weekly challenge is completed', async () => {

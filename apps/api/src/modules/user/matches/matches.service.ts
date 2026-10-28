@@ -485,12 +485,14 @@ export class MatchesService {
       orderBy: { joinedAt: 'desc' },
     });
 
+    const items = await Promise.all(
+      rows.map(async (row) => this.buildListItem(await this.settleIfDue(row.match), user.id)),
+    );
+
     const live: ListMyMatchesOutput['live'] = [];
     const ended: ListMyMatchesOutput['ended'] = [];
 
-    for (const row of rows) {
-      const item = await this.buildListItem(await this.settleIfDue(row.match), user.id);
-
+    for (const item of items) {
       if (item.status === 'open') {
         live.push(item);
       } else {

@@ -1,6 +1,10 @@
 import { apiClient } from '@/lib/api';
-import { getLocalProofClip, markLocalProofClipServerRecorded } from '@/lib/proof-clip-store';
-import { uploadProofClip } from './proof-clip-upload';
+import {
+  getLocalProofClip,
+  markLocalProofClipPendingUpload,
+  markLocalProofClipServerRecorded,
+} from '@/lib/proof-clip-store';
+import { queueAnyoneProofClipUpload, uploadProofClip } from './proof-clip-upload';
 
 jest.mock('@/lib/api', () => ({
   apiClient: {
@@ -14,6 +18,7 @@ jest.mock('@/lib/api', () => ({
 jest.mock('@/lib/proof-clip-store', () => ({
   getLocalProofClip: jest.fn(),
   markLocalProofClipServerRecorded: jest.fn(),
+  markLocalProofClipPendingUpload: jest.fn(),
   removeLocalProofClip: jest.fn(),
 }));
 
@@ -27,6 +32,27 @@ const mockedGetLocal = getLocalProofClip as jest.MockedFunction<typeof getLocalP
 const mockedMark = markLocalProofClipServerRecorded as jest.MockedFunction<
   typeof markLocalProofClipServerRecorded
 >;
+const mockedPending = markLocalProofClipPendingUpload as jest.MockedFunction<
+  typeof markLocalProofClipPendingUpload
+>;
+
+function localClip(overrides: { serverRecorded?: boolean } = {}) {
+  return {
+    clipId: 'clip-1',
+    fileUri: 'file:///tmp/clip.mp4',
+    posterUri: null,
+    sha256: 'a'.repeat(64),
+    byteSize: 1024,
+    durationSeconds: 12,
+    count: 10,
+    code: 'ABCDEFG',
+    displayCode: 'ABCD-EFG',
+    recordedAt: new Date().toISOString(),
+    userChallengeId: null,
+    matchId: null,
+    serverRecorded: overrides.serverRecorded ?? true,
+  };
+}
 
 describe('uploadProofClip', () => {
   beforeEach(() => {
@@ -157,5 +183,55 @@ describe('uploadProofClip', () => {
       'https://upload.example/poster',
       expect.objectContaining({ method: 'PUT' }),
     );
+  });
+});
+
+describe('queueAnyoneProofClipUpload', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith('file://')) {
+        return {
+          ok: true,
+          blob: async () => new Blob(['video']),
+        } as Response;
+      }
+      return { ok: true } as Response;
+    }) as typeof fetch;
+  });
+
+  it('clears the pending flag when upload succeeds', async () => {
+    mockedGetLocal.mockResolvedValue(localClip());
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: null,
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await expect(queueAnyoneProofClipUpload('clip-1')).resolves.toBe(true);
+
+    expect(mockedPending).toHaveBeenCalledWith('clip-1', {
+      audience: 'anyone',
+      postToGroup: false,
+    });
+    expect(mockedPending).toHaveBeenLastCalledWith('clip-1', null);
+  });
+
+  it('leaves the pending flag when upload fails', async () => {
+    mockedGetLocal.mockResolvedValue(localClip({ serverRecorded: false }));
+    mockedApi.recordProofClip.mockRejectedValue(new Error('expired'));
+
+    await expect(queueAnyoneProofClipUpload('clip-1')).resolves.toBe(false);
+
+    expect(mockedPending).toHaveBeenCalledWith('clip-1', {
+      audience: 'anyone',
+      postToGroup: false,
+    });
+    expect(mockedPending).not.toHaveBeenCalledWith('clip-1', null);
   });
 });

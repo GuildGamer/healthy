@@ -29,6 +29,7 @@ jest.mock('@/lib/api', () => ({
   API_BASE_URL: 'http://localhost:3000',
   apiClient: {
     me: jest.fn(),
+    getHomeBootstrap: jest.fn(),
     listTodayChallenges: jest.fn(),
     getTodayDetails: jest.fn(),
     listNotifications: jest.fn(),
@@ -107,12 +108,18 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
 }
 
 function givenChallenges(challenges: ReturnType<typeof todayChallenge>[]) {
-  mockedApi.listTodayChallenges.mockResolvedValue({
+  const today = {
     dayKey: '2026-08-28',
     challenges,
     completedCount: challenges.filter((item) => item.status === 'completed').length,
     totalCount: challenges.length,
-  });
+  };
+  mockedApi.listTodayChallenges.mockResolvedValue(today);
+  mockedApi.getHomeBootstrap.mockImplementation(async () => ({
+    me: await mockedApi.me(),
+    today,
+    details: await mockedApi.getTodayDetails(),
+  }));
 }
 
 function renderHome() {
@@ -276,23 +283,27 @@ describe('HomeScreen', () => {
   });
 
   it('shows a still skeleton of the deck while today loads', async () => {
-    let resolveToday: (value: unknown) => void = () => undefined;
-    mockedApi.listTodayChallenges.mockReturnValue(
+    let resolveBootstrap: (value: unknown) => void = () => undefined;
+    mockedApi.getHomeBootstrap.mockReturnValue(
       new Promise((resolve) => {
-        resolveToday = resolve;
+        resolveBootstrap = resolve;
       }),
     );
     const { cleanup } = renderHome();
 
     expect(await screen.findByTestId('home-deck-loading')).toBeOnTheScreen();
-    resolveToday({ dayKey: '2026-08-28', challenges: [], completedCount: 0, totalCount: 0 });
+    resolveBootstrap({
+      me: me(),
+      today: { dayKey: '2026-08-28', challenges: [], completedCount: 0, totalCount: 0 },
+      details: todayDetails([]),
+    });
     expect(await screen.findByText('Nothing on today yet.')).toBeOnTheScreen();
 
     await cleanup();
   });
 
   it('puts one calm card in the deck when today fails to load', async () => {
-    mockedApi.listTodayChallenges.mockRejectedValueOnce(new Error('offline'));
+    mockedApi.getHomeBootstrap.mockRejectedValueOnce(new Error('offline'));
     const { cleanup } = renderHome();
 
     expect(await screen.findByText('Today didn’t load.')).toBeOnTheScreen();

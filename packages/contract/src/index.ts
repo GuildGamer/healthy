@@ -72,7 +72,7 @@ import {
   verifyProofCodeContract,
 } from './proof-clips.js';
 import { getProgressDayContract, listProgressDaysContract } from './progress.js';
-import { getTodayDetailsContract } from './today.js';
+import { getTodayDetailsContract, todayDetailsSchema } from './today.js';
 
 export {
   getTodayDetailsContract,
@@ -573,6 +573,16 @@ export const listTodayChallengesOutputSchema = z.object({
   totalCount: z.number().int().nonnegative(),
 });
 
+/**
+ * One authenticated round-trip for Today's critical path: profile, due
+ * challenges, and the per-card detail that fills the deck.
+ */
+export const homeBootstrapOutputSchema = z.object({
+  me: meOutputSchema,
+  today: listTodayChallengesOutputSchema,
+  details: todayDetailsSchema,
+});
+
 /** A catalog challenge paired with the caller's opt-in state for it. */
 export const catalogChallengeSchema = z.object({
   challengeId: z.string(),
@@ -836,6 +846,10 @@ export const listTodayChallengesContract = oc
   .route({ method: 'GET', path: '/challenges/today' })
   .output(listTodayChallengesOutputSchema);
 
+export const getHomeBootstrapContract = oc
+  .route({ method: 'GET', path: '/home/bootstrap' })
+  .output(homeBootstrapOutputSchema);
+
 export const startChallengeContract = oc
   .route({ method: 'POST', path: '/challenges/start' })
   .input(startChallengeInputSchema)
@@ -967,6 +981,7 @@ export const appContract = {
   recordPracticeSession: recordPracticeSessionContract,
   getPracticeTotals: getPracticeTotalsContract,
   getTodayDetails: getTodayDetailsContract,
+  getHomeBootstrap: getHomeBootstrapContract,
   listProgressDays: listProgressDaysContract,
   getProgressDay: getProgressDayContract,
   reserveProofClip: reserveProofClipContract,
@@ -1012,6 +1027,7 @@ export type ListStarterChallengesOutput = z.infer<typeof listStarterChallengesOu
 export type ChallengeCatalogOutput = z.infer<typeof challengeCatalogOutputSchema>;
 export type SetChallengeEnrollmentInput = z.infer<typeof setChallengeEnrollmentInputSchema>;
 export type ListTodayChallengesOutput = z.infer<typeof listTodayChallengesOutputSchema>;
+export type HomeBootstrapOutput = z.infer<typeof homeBootstrapOutputSchema>;
 export type StartChallengeInput = z.infer<typeof startChallengeInputSchema>;
 export type StartChallengeOutput = z.infer<typeof startChallengeOutputSchema>;
 export type CompleteChallengeInput = z.infer<typeof completeChallengeInputSchema>;

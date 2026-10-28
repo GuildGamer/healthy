@@ -35,6 +35,7 @@ jest.mock('@/lib/proof-clip-store', () => ({
 
 jest.mock('@/lib/proof-clip-upload', () => ({
   uploadProofClip: jest.fn(),
+  queueAnyoneProofClipUpload: jest.fn(async () => true),
   discardLocalProofClip: jest.fn(async () => undefined),
 }));
 
@@ -45,8 +46,11 @@ jest.mock('./save-proof-to-photos', () => ({
 const { useQuery } = jest.requireMock('@tanstack/react-query') as {
   useQuery: jest.Mock;
 };
-const { uploadProofClip } = jest.requireMock('@/lib/proof-clip-upload') as {
+const { uploadProofClip, queueAnyoneProofClipUpload } = jest.requireMock(
+  '@/lib/proof-clip-upload',
+) as {
   uploadProofClip: jest.Mock;
+  queueAnyoneProofClipUpload: jest.Mock;
 };
 
 const localClip = {
@@ -137,7 +141,7 @@ describe('ProofClipActions', () => {
 
   it('updates the status line after saving to Photos', async () => {
     useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
-    uploadProofClip.mockResolvedValue(undefined);
+    queueAnyoneProofClipUpload.mockResolvedValue(true);
 
     renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />);
     expect(screen.queryByTestId('proof-status-line')).toBeNull();
@@ -146,9 +150,23 @@ describe('ProofClipActions', () => {
       fireEvent.press(screen.getByTestId('proof-save-photos'));
     });
 
+    expect(queueAnyoneProofClipUpload).toHaveBeenCalledWith('clip-1');
     expect(screen.getByTestId('proof-status-line')).toHaveTextContent(
       'Saved to Photos. Anyone with the code can watch.',
     );
+  });
+
+  it('uploads when audience flips to Anyone before the clip is cloud-ready', async () => {
+    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
+    queueAnyoneProofClipUpload.mockResolvedValue(true);
+
+    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('proof-audience-control-anyone'));
+    });
+
+    expect(queueAnyoneProofClipUpload).toHaveBeenCalledWith('clip-1');
   });
 
   it('treats a discarded clip as gone, not as a failed save', async () => {

@@ -139,6 +139,7 @@ export type {
   ListChallengeHistoryInput,
   ListChallengeHistoryOutput,
   ListNotificationsOutput,
+  HomeBootstrapOutput,
   ListTodayChallengesOutput,
   MeOutput,
   NotificationKind,

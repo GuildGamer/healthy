@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/server';
 import { DEFAULT_CHALLENGE_ICON } from '@product/contract';
 import { describe, expect, it, vi } from 'vitest';
+import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from './enrollments.service.js';
 
 const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
@@ -52,6 +53,14 @@ function createPrismaMock(options: {
   }>;
   challenge?: Record<string, unknown> | null;
   membershipActive?: boolean;
+  existingEnrollment?: {
+    id: string;
+    isActive: boolean;
+    targetCount: number | null;
+    frequency: string;
+  } | null;
+  openOccurrences?: Array<{ id: string; frequency: string; periodKey: string }>;
+  occupyingOccurrenceId?: string | null;
 }) {
   return {
     userProfile: {
@@ -63,6 +72,7 @@ function createPrismaMock(options: {
         return Promise.resolve({
           healthCategories: options.categories ?? ['general'],
           membershipActive: options.membershipActive ?? false,
+          timeZone: 'UTC',
         });
       }),
     },
@@ -87,9 +97,21 @@ function createPrismaMock(options: {
           reminders: [],
         })),
       ),
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn().mockResolvedValue(
+        options.existingEnrollment === undefined ? null : options.existingEnrollment,
+      ),
       upsert: vi.fn().mockResolvedValue({ id: 'e1' }),
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    userChallenge: {
+      findMany: vi.fn().mockResolvedValue(options.openOccurrences ?? []),
+      findUnique: vi.fn().mockResolvedValue(
+        options.occupyingOccurrenceId
+          ? { id: options.occupyingOccurrenceId }
+          : null,
+      ),
+      update: vi.fn().mockResolvedValue({}),
+      delete: vi.fn().mockResolvedValue({}),
     },
   };
 }
@@ -393,6 +415,70 @@ describe('EnrollmentsService.setEnrollment', () => {
       { update: { isActive: boolean } },
     ];
     expect(argument.update.isActive).toBe(false);
+  });
+
+  it('moves an open occurrence onto the new cadence', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+      existingEnrollment: {
+        id: 'e1',
+        isActive: true,
+        targetCount: null,
+        frequency: 'monthly',
+      },
+      openOccurrences: [{ id: 'uc-month', frequency: 'monthly', periodKey: '2026-10-01' }],
+    });
+
+    await createService(prisma).setEnrollment(user, 'c1', true, 'daily');
+
+    expect(prisma.userChallenge.update).toHaveBeenCalledWith({
+      where: { id: 'uc-month' },
+      data: {
+        frequency: 'daily',
+        periodKey: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      },
+    });
+    expect(prisma.userChallenge.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes an obsolete open occurrence when the new period key is taken', async () => {
+    const todayKey = periodKeyFor('daily', 'UTC');
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+      existingEnrollment: {
+        id: 'e1',
+        isActive: true,
+        targetCount: null,
+        frequency: 'monthly',
+      },
+      openOccurrences: [
+        { id: 'uc-day', frequency: 'daily', periodKey: todayKey },
+        { id: 'uc-month', frequency: 'monthly', periodKey: '2026-10-01' },
+      ],
+      occupyingOccurrenceId: 'uc-day',
+    });
+
+    await createService(prisma).setEnrollment(user, 'c1', true, 'daily');
+
+    expect(prisma.userChallenge.delete).toHaveBeenCalledWith({ where: { id: 'uc-month' } });
+    expect(prisma.userChallenge.update).not.toHaveBeenCalled();
+  });
+
+  it('leaves open occurrences alone when the cadence did not change', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+      existingEnrollment: {
+        id: 'e1',
+        isActive: true,
+        targetCount: null,
+        frequency: 'daily',
+      },
+      openOccurrences: [{ id: 'uc1', frequency: 'daily', periodKey: '2026-10-28' }],
+    });
+
+    await createService(prisma).setEnrollment(user, 'c1', true, 'daily');
+
+    expect(prisma.userChallenge.findMany).not.toHaveBeenCalled();
   });
 });
 

@@ -7,7 +7,11 @@ import * as Sharing from 'expo-sharing';
 import { apiClient } from '@/lib/api';
 import { getLocalProofClip, markLocalProofClipPendingUpload } from '@/lib/proof-clip-store';
 import { isGroupPostCapError } from '@/lib/proof-clip-errors';
-import { discardLocalProofClip, uploadProofClip } from '@/lib/proof-clip-upload';
+import {
+  discardLocalProofClip,
+  queueAnyoneProofClipUpload,
+  uploadProofClip,
+} from '@/lib/proof-clip-upload';
 import { POSE_COPY } from './constants/doing-copy';
 import { saveProofToPhotos } from './save-proof-to-photos';
 
@@ -22,8 +26,9 @@ type UseProofClipOptions = {
 };
 
 /**
- * One set's local proof clip and what can be done with it. Upload happens when
- * the person sends, saves (anyone), or posts — never just because the set ended.
+ * One set's local proof clip and what can be done with it. Anyone clips upload
+ * when the set ends (or when audience flips to Anyone). Only me stays local
+ * until they post to a group. Send still shares the file.
  */
 export function useProofClip(
   clipId: string | null,
@@ -52,7 +57,19 @@ export function useProofClip(
 
   async function setAudience(next: ProofClipAudience) {
     setAudienceState(next);
-    if (!clipId || !hasUploaded) {
+    if (!clipId) {
+      return;
+    }
+    if (!hasUploaded) {
+      if (next === 'anyone') {
+        void queueAnyoneProofClipUpload(clipId).then((ok) => {
+          if (ok) {
+            setHasUploaded(true);
+            void queryClient.invalidateQueries({ queryKey: ['progress'] });
+            void queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] });
+          }
+        });
+      }
       return;
     }
     try {
@@ -181,12 +198,9 @@ export function useProofClip(
       }
       setStatusLine(audience === 'anyone' ? POSE_COPY.savedAnyone : POSE_COPY.savedOnlyMe);
       if (audience === 'anyone') {
-        await markLocalProofClipPendingUpload(clipId, {
-          audience: 'anyone',
-          postToGroup: false,
-        });
-        void uploadIfNeeded(false).then((ok) => {
+        void queueAnyoneProofClipUpload(clipId).then((ok) => {
           if (ok) {
+            setHasUploaded(true);
             setStatusLine(POSE_COPY.savedAnyone);
           }
         });
