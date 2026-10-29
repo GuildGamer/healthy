@@ -283,6 +283,20 @@ export const getProofClipInputSchema = z.object({
   clipId: z.string().min(1),
 });
 
+/**
+ * Booleans on GET routes arrive as query strings. Do not use `z.coerce.boolean()`:
+ * `Boolean("false")` is true in JS, so coerce would accept `"false"` as true.
+ */
+const queryBooleanSchema = z.preprocess((value) => {
+  if (value === 'true') {
+    return true;
+  }
+  if (value === 'false') {
+    return false;
+  }
+  return value;
+}, z.boolean());
+
 export const listMatchProofClipsInputSchema = z.object({
   matchId: z.string().min(1),
   /** Contest local day `YYYY-MM-DD`. Defaults to today in the match zone. */
@@ -291,7 +305,7 @@ export const listMatchProofClipsInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   /** Every day of the contest, newest first — for a finished group looking back. */
-  allDays: z.boolean().optional(),
+  allDays: queryBooleanSchema.optional(),
 });
 
 export const listMatchProofClipsOutputSchema = z.object({
