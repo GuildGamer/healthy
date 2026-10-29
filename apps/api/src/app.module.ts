@@ -1,8 +1,13 @@
-import { Module } from '@nestjs/common';
+import {
+  Module,
+  type MiddlewareConsumer,
+  type NestModule,
+} from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ORPCModule } from '@orpc/nest';
 import { onError } from '@orpc/server';
 import modules from './modules/index.js';
+import { requestLogger } from './shared/http/index.js';
 
 @Module({
   imports: [
@@ -24,4 +29,8 @@ import modules from './modules/index.js';
     ...modules,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(requestLogger).forRoutes('*path');
+  }
+}
