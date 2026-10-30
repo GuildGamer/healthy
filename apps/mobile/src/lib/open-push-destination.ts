@@ -24,6 +24,10 @@ export function hrefForPushData(data: unknown): Href {
   const userChallengeId = readTrimmedString(payload, 'userChallengeId');
   const destination = typeof payload.destination === 'string' ? payload.destination : '';
 
+  if (destination === 'match_result' && matchId.length > 0) {
+    return `/matches/${matchId}/result`;
+  }
+
   if (matchId.length > 0) {
     // Board lives under `/matches/[matchId]`. `/match/[token]` is the invite.
     return `/matches/${matchId}`;
@@ -82,6 +86,10 @@ export function isNavigablePushData(data: unknown): boolean {
   const destination = typeof payload.destination === 'string' ? payload.destination : '';
 
   if (matchId.length > 0) {
+    return true;
+  }
+
+  if (destination === 'match_result') {
     return true;
   }
 

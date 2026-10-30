@@ -8,6 +8,7 @@ export const ENGAGEMENT_SOURCES = [
   'match_reaction',
   'crew_seat',
   'friend_milestone',
+  'match_settled',
   'completion',
   'admin_broadcast',
 ] as const;

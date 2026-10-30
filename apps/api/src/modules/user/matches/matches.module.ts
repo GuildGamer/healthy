@@ -7,6 +7,7 @@ import { BoardMoveNotifierService } from './board-move-notifier.service.js';
 import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
 import { MatchReactionNotifierService } from './match-reaction-notifier.service.js';
 import { MatchReactionsService } from './match-reactions.service.js';
+import { MatchSettledNotifierService } from './match-settled-notifier.service.js';
 import { MatchesController } from './matches.controller.js';
 import { MatchesService } from './matches.service.js';
 
@@ -19,6 +20,7 @@ import { MatchesService } from './matches.service.js';
     BoardMoveNotifierService,
     MatchReactionsService,
     MatchReactionNotifierService,
+    MatchSettledNotifierService,
   ],
   exports: [MatchesService],
 })

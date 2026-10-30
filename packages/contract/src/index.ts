@@ -461,7 +461,15 @@ export const notificationPayloadSchema = z
   .object({
     matchId: z.string().min(1),
     challengeId: z.string().min(1),
-    destination: z.enum(['today', 'challenges', 'challenge']),
+    destination: z.enum([
+      'today',
+      'challenges',
+      'challenge',
+      /** Friend-milestone CTA: open create with a seated acquaintance. */
+      'match_create',
+      /** Settled group: open the final board / result screen. */
+      'match_result',
+    ]),
     /** Occurrence id — opens the completion / share screen when present. */
     userChallengeId: z.string().min(1),
     /** Challenge display name for the share card (not the inbox title). */

@@ -41,6 +41,12 @@ describe('hrefForPushData', () => {
     expect(hrefForPushData({ matchId: 'm1' })).toBe('/matches/m1');
   });
 
+  it('opens the result screen when a settled group push arrives', () => {
+    expect(hrefForPushData({ matchId: 'm1', destination: 'match_result' })).toBe(
+      '/matches/m1/result',
+    );
+  });
+
   it('opens create with a seated acquaintance from a friend milestone', () => {
     expect(
       hrefForPushData({ destination: 'match_create', withUserId: 'bee' }),
@@ -88,6 +94,7 @@ describe('isNavigablePushData', () => {
 
   it('is true for match, challenge, today, and completion destinations', () => {
     expect(isNavigablePushData({ matchId: 'm1' })).toBe(true);
+    expect(isNavigablePushData({ destination: 'match_result', matchId: 'm1' })).toBe(true);
     expect(isNavigablePushData({ destination: 'match_create' })).toBe(true);
     expect(isNavigablePushData({ destination: 'challenge', challengeId: 'c1' })).toBe(true);
     expect(isNavigablePushData({ destination: 'today' })).toBe(true);

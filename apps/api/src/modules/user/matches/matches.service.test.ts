@@ -288,6 +288,10 @@ function createStreakSpy() {
   };
 }
 
+function createMatchSettledSpy() {
+  return { notifyParticipants: vi.fn().mockResolvedValue(undefined) };
+}
+
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   notifier: ReturnType<typeof createNotifierSpy> = createNotifierSpy(),
@@ -296,6 +300,7 @@ function createService(
   boardMove: ReturnType<typeof createBoardMoveSpy> = createBoardMoveSpy(),
   reactionNotifier: ReturnType<typeof createReactionNotifierSpy> = createReactionNotifierSpy(),
   streak: ReturnType<typeof createStreakSpy> = createStreakSpy(),
+  matchSettled: ReturnType<typeof createMatchSettledSpy> = createMatchSettledSpy(),
 ): MatchesService {
   return new MatchesService(
     prisma as never,
@@ -308,6 +313,7 @@ function createService(
     new MatchReactionsService(prisma as never),
     reactionNotifier as never,
     streak as never,
+    matchSettled as never,
   );
 }
 
@@ -603,6 +609,74 @@ describe('MatchesService', () => {
     ).rejects.toMatchObject({
       code: 'BAD_REQUEST',
       message: MATCH_NOT_OPEN,
+    });
+  });
+
+  it('notifies accepted members once when this call settles the contest', async () => {
+    const match = loadedMatch({
+      title: 'Push-up Sunday',
+      endsAt: new Date('2020-01-01T00:00:00.000Z'),
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+        {
+          id: 'p3',
+          matchId: 'm1',
+          userId: 'pending',
+          joinedAt: new Date(),
+          acceptedAt: null,
+          user: userWithProfile('pending', 'Cam'),
+        },
+      ],
+      attempts: [
+        {
+          id: 'a1',
+          matchId: 'm1',
+          userId: host.id,
+          count: 30,
+          durationSeconds: 40,
+          source: 'in_app_pose',
+          recordedAt: new Date('2019-12-31T12:00:00.000Z'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    const matchSettled = createMatchSettledSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      createBoardMoveSpy(),
+      createReactionNotifierSpy(),
+      createStreakSpy(),
+      matchSettled,
+    );
+
+    await service.get(host, 'm1');
+    await service.get(host, 'm1');
+
+    expect(matchSettled.notifyParticipants).toHaveBeenCalledTimes(1);
+    expect(matchSettled.notifyParticipants).toHaveBeenCalledWith({
+      matchId: 'm1',
+      contestTitle: 'Push-up Sunday',
+      winnerUserId: host.id,
+      winnerDisplayName: 'Ada',
+      recipientUserIds: [host.id, guest.id],
     });
   });
 

@@ -28,6 +28,7 @@ import { StreakService } from '../streak/index.js';
 import { groupNameFor } from '../../../shared/utils/group-name.js';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
 import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
+import { MatchSettledNotifierService } from './match-settled-notifier.service.js';
 import type {
   CreateMatchDto,
   CreateMatchInputDto,
@@ -115,6 +116,7 @@ export class MatchesService {
     private readonly matchReactions: MatchReactionsService,
     private readonly matchReactionNotifier: MatchReactionNotifierService,
     private readonly streak: StreakService,
+    private readonly matchSettledNotifier: MatchSettledNotifierService,
   ) {}
 
   private async trackMatchEvent(
@@ -794,7 +796,7 @@ export class MatchesService {
       scoringRulesFor(match),
     );
 
-    await this.prisma.match.updateMany({
+    const updated = await this.prisma.match.updateMany({
       where: { id: match.id, status: 'open' },
       data: {
         status: 'completed',
@@ -803,7 +805,38 @@ export class MatchesService {
       },
     });
 
-    return this.loadById(match.id);
+    const settled = await this.loadById(match.id);
+    if (updated.count === 1) {
+      void this.notifySettled(settled).catch((error: unknown) => {
+        this.logger.error(`Could not notify settlement for match ${match.id}`, error);
+      });
+    }
+
+    return settled;
+  }
+
+  /**
+   * One push per accepted member when this call settled the contest. Pending
+   * seats stay quiet; a failed push never undoes settlement.
+   */
+  private async notifySettled(match: LoadedMatch): Promise<void> {
+    const accepted = match.participants.filter((row) => row.acceptedAt !== null);
+    if (accepted.length === 0) {
+      return;
+    }
+
+    const winner = accepted.find((row) => row.userId === match.winnerUserId);
+    const opponentNames = accepted
+      .filter((row) => row.userId !== match.hostUserId)
+      .map((row) => groupNameFor(row.user));
+
+    await this.matchSettledNotifier.notifyParticipants({
+      matchId: match.id,
+      contestTitle: this.contestTitleFor(match, opponentNames),
+      winnerUserId: match.winnerUserId,
+      winnerDisplayName: winner ? groupNameFor(winner.user) : null,
+      recipientUserIds: accepted.map((row) => row.userId),
+    });
   }
 
   /**

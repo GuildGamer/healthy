@@ -1746,7 +1746,9 @@
                                     "enum": [
                                       "today",
                                       "challenges",
-                                      "challenge"
+                                      "challenge",
+                                      "match_create",
+                                      "match_result"
                                     ],
                                     "type": "string"
                                   },
