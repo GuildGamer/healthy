@@ -10,8 +10,8 @@ function readTrimmedString(payload: Record<string, unknown>, key: string): strin
 
 /**
  * Where a push should land. Habit slots open Today; a challenge reminder opens
- * Today on that challenge's card, where it can be done; completion success rows
- * reopen the share screen. Unknown payloads stay on the tabs home.
+ * that challenge's screen; completion success rows reopen the share screen.
+ * Unknown payloads stay on the tabs home.
  */
 export function hrefForPushData(data: unknown): Href {
   if (!data || typeof data !== 'object') {
@@ -53,6 +53,10 @@ export function hrefForPushData(data: unknown): Href {
 
   if (destination === 'challenges') {
     return '/(tabs)/challenges';
+  }
+
+  if (destination === 'challenge' && challengeId.length > 0) {
+    return `/challenge/${challengeId}`;
   }
 
   if (challengeId.length > 0) {

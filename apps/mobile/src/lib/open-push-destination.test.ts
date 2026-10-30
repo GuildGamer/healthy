@@ -18,12 +18,17 @@ describe('hrefForPushData', () => {
         challengeId: 'c1',
         engagementDeliveryId: 'delivery-1',
       }),
-    ).toEqual({ pathname: '/(tabs)', params: { focus: 'c1' } });
+    ).toBe('/challenge/c1');
   });
 
-  it('opens Today on the card of the challenge a reminder names', () => {
+  it('opens the challenge screen when a reminder names it', () => {
+    expect(hrefForPushData({ destination: 'challenge', challengeId: 'c1' })).toBe(
+      '/challenge/c1',
+    );
+  });
+
+  it('keeps Today focus when the destination is today or only a challenge id', () => {
     const onCard = { pathname: '/(tabs)', params: { focus: 'c1' } };
-    expect(hrefForPushData({ destination: 'challenge', challengeId: 'c1' })).toEqual(onCard);
     expect(hrefForPushData({ challengeId: 'c1' })).toEqual(onCard);
     expect(hrefForPushData({ destination: 'today', challengeId: 'c1' })).toEqual(onCard);
   });
