@@ -51,6 +51,7 @@ export class AdminAnalyticsService {
       profiles,
       signupRows,
       completionRows,
+      dayOneActivation,
     ] = await Promise.all([
       this.prisma.userProfile.count(),
       this.prisma.userProfile.count({ where: { deactivatedAt: null } }),
@@ -68,7 +69,7 @@ export class AdminAnalyticsService {
       }),
       this.prisma.userProfile.findMany({
         where: { deactivatedAt: null },
-        select: { countryCode: true, healthCategories: true },
+        select: { countryCode: true, userId: true },
       }),
       this.prisma.user.findMany({
         where: { createdAt: { gte: rangeStart } },
@@ -78,12 +79,10 @@ export class AdminAnalyticsService {
         where: { completedAt: { gte: rangeStart } },
         select: { completedAt: true },
       }),
+      this.dayOneActivationRate(),
     ]);
 
     const withCountry = profiles.filter((row) => row.countryCode != null).length;
-    const activated = profiles.filter(
-      (row) => row.healthCategories.length > 0,
-    ).length;
 
     return {
       generatedAt: now.toISOString(),
@@ -98,7 +97,7 @@ export class AdminAnalyticsService {
       completionRateInRange: rate(completionsInRange, occurrencesInRange),
       waitlistInRange,
       countryCaptureRate: rate(withCountry, profiles.length),
-      activationRate: rate(activated, profiles.length),
+      activationRate: dayOneActivation,
       topCountries: countryShares(
         profiles.map((row) => row.countryCode),
       ).slice(0, 5),
@@ -182,6 +181,7 @@ export class AdminAnalyticsService {
       verifiedInRange,
       profiles,
       activatedUsers,
+      dayOneActivation,
     ] = await Promise.all([
       this.prisma.waitlistEntry.count(),
       this.prisma.waitlistEntry.count({
@@ -200,7 +200,7 @@ export class AdminAnalyticsService {
       }),
       this.prisma.userProfile.findMany({
         where: { deactivatedAt: null },
-        select: { countryCode: true, healthCategories: true },
+        select: { countryCode: true },
       }),
       this.prisma.userChallenge.findMany({
         where: {
@@ -209,6 +209,7 @@ export class AdminAnalyticsService {
         select: { userId: true },
         distinct: ['userId'],
       }),
+      this.dayOneActivationRate(),
     ]);
 
     const sourceCounts = new Map<string, number>();
@@ -218,9 +219,6 @@ export class AdminAnalyticsService {
     }
 
     const withCountry = profiles.filter((row) => row.countryCode != null).length;
-    const activated = profiles.filter(
-      (row) => row.healthCategories.length > 0,
-    ).length;
 
     return {
       generatedAt: now.toISOString(),
@@ -237,7 +235,7 @@ export class AdminAnalyticsService {
         days,
       ),
       verifiedInRange,
-      activationRate: rate(activated, profiles.length),
+      activationRate: dayOneActivation,
       countryCaptureRate: rate(withCountry, profiles.length),
       activatedInRange: activatedUsers.length,
     };
@@ -560,7 +558,7 @@ export class AdminAnalyticsService {
       }),
       this.prisma.analyticsEvent.findMany({
         where: {
-          name: 'user_active',
+          name: { in: ['app_opened', 'user_active'] },
           occurredAt: { gte: rangeStart },
           userId: { not: null },
         },
@@ -659,5 +657,81 @@ export class AdminAnalyticsService {
       distinct: ['userId'],
     });
     return rows.length;
+  }
+
+  /**
+   * Share of active members who did a set or joined a contest within 24 hours
+   * of sign-up. Replaces the old “picked a health category” definition.
+   */
+  private async dayOneActivationRate(): Promise<number> {
+    const members = await this.prisma.user.findMany({
+      where: { profile: { deactivatedAt: null, deletedAt: null } },
+      select: { id: true, createdAt: true },
+    });
+    if (members.length === 0) {
+      return 0;
+    }
+
+    const userIds = members.map((member) => member.id);
+    const [completions, attempts, joins] = await Promise.all([
+      this.prisma.userChallenge.findMany({
+        where: {
+          userId: { in: userIds },
+          completedAt: { not: null },
+        },
+        select: { userId: true, completedAt: true },
+      }),
+      this.prisma.matchAttempt.findMany({
+        where: { userId: { in: userIds } },
+        select: { userId: true, recordedAt: true },
+      }),
+      this.prisma.matchParticipant.findMany({
+        where: {
+          userId: { in: userIds },
+          acceptedAt: { not: null },
+        },
+        select: {
+          userId: true,
+          acceptedAt: true,
+          match: { select: { hostUserId: true } },
+        },
+      }),
+    ]);
+
+    const firstActivity = new Map<string, number>();
+    const consider = (userId: string, at: Date | null | undefined) => {
+      if (!at) {
+        return;
+      }
+      const stamp = at.getTime();
+      const previous = firstActivity.get(userId);
+      if (previous == null || stamp < previous) {
+        firstActivity.set(userId, stamp);
+      }
+    };
+
+    for (const row of completions) {
+      consider(row.userId, row.completedAt);
+    }
+    for (const row of attempts) {
+      consider(row.userId, row.recordedAt);
+    }
+    for (const row of joins) {
+      if (row.userId === row.match.hostUserId) {
+        continue;
+      }
+      consider(row.userId, row.acceptedAt);
+    }
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    let activated = 0;
+    for (const member of members) {
+      const first = firstActivity.get(member.id);
+      if (first != null && first - member.createdAt.getTime() < dayMs) {
+        activated += 1;
+      }
+    }
+
+    return rate(activated, members.length);
   }
 }

@@ -202,10 +202,14 @@ export function useWalkSession(occurrence: TodayChallenge) {
     isSaving: complete.isPending,
     saveFailed: complete.isError,
     start: () =>
-      void recorder.start({ resume: false, beforeRecording: () => startOccurrence.mutateAsync() }),
+      void recorder.start({
+        resume: false,
+        beforeRecording: () => startOccurrence.mutateAsync(),
+        analytics: { context: 'challenge' },
+      }),
     resume: () => {
       setHasTriedToFinish(false);
-      void recorder.start({ resume: true });
+      void recorder.start({ resume: true, analytics: { context: 'challenge' } });
     },
     pause: () => void bank(),
     finish,

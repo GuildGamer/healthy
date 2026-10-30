@@ -5,6 +5,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeckButton, DeckNavButton } from '@/components/deck';
 import { Glyph, type GlyphName } from '@/components/icons';
+import { trackEvent } from '@/lib/analytics';
 import {
   CAMERA_FAILED_MESSAGE,
   type CapturedSelfie,
@@ -51,7 +52,15 @@ export function CaptureCameraScreen(props: CaptureCameraScreenProps) {
     return (
       <BlockedCamera
         message={CAMERA_FAILED_MESSAGE}
-        onAllow={() => void requestPermission()}
+        onAllow={() => {
+          void requestPermission().then((result) => {
+            trackEvent('permission_result', {
+              permission: 'camera',
+              granted: result.granted,
+              canAskAgain: result.canAskAgain,
+            });
+          });
+        }}
         onClose={props.onClose}
       />
     );

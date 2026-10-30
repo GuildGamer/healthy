@@ -15,6 +15,7 @@ import { flushPendingProofUploads } from '@/lib/flush-pending-proof-uploads';
 import { useDisplayFont } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
+import { useAnalyticsSession, useScreenAnalytics } from '@/lib/analytics';
 import { usePushResponse } from '@/lib/use-push-response';
 import { useUserActive } from '@/lib/use-user-active';
 import '@/lib/walk-background-location';
@@ -33,6 +34,8 @@ export default function RootLayout() {
   const hasLeftLaunchRoute = useHasLeftLaunchRoute();
   const [hasSplashExited, setHasSplashExited] = useState(false);
   usePushResponse(hasLeftLaunchRoute);
+  useAnalyticsSession();
+  useScreenAnalytics();
   useUserActive();
 
   // `index` resolves the session and redirects; a deep link that never

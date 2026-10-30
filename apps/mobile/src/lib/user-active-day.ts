@@ -6,14 +6,10 @@ export function localActiveDayKey(now: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * SecureStore keys allow letters, digits, `.`, `-` and `_` only.
+ * A colon would throw and silently drop the event.
+ */
 export function userActiveStorageKey(dayKey: string): string {
-  return `user_active_day:${dayKey}`;
-}
-
-/** True when this process has not yet recorded activity for `dayKey`. */
-export function shouldEmitUserActive(
-  storedDayKey: string | null,
-  dayKey: string,
-): boolean {
-  return storedDayKey !== dayKey;
+  return `user_active_day_${dayKey}`;
 }

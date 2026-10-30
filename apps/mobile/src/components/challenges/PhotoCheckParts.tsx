@@ -4,6 +4,7 @@ import type { RefObject } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckSheetSub, DeckSheetTitle } from '@/components/deck';
 import { Glyph, type GlyphName } from '@/components/icons';
+import { trackEvent } from '@/lib/analytics';
 import { isPhysicalDevice } from '@/lib/is-physical-device';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PHOTO_CHECK_COPY } from './constants/doing-copy';
@@ -57,7 +58,15 @@ function LiveCamera({ cameraRef }: { cameraRef: RefObject<CameraView | null> }) 
         <Text style={styles.previewNote}>{PHOTO_CHECK_COPY.cameraNeeded}</Text>
         <DeckButton
           label={PHOTO_CHECK_COPY.allowCamera}
-          onPress={() => void requestPermission()}
+          onPress={() => {
+            void requestPermission().then((result) => {
+              trackEvent('permission_result', {
+                permission: 'camera',
+                granted: result.granted,
+                canAskAgain: result.canAskAgain,
+              });
+            });
+          }}
           variant="cameraGlass"
         />
       </View>

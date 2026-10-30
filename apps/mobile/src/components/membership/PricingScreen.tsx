@@ -1,12 +1,13 @@
 import type { MembershipOffer, MembershipPaymentMethodId } from '@product/contract';
 import { formatMembershipAmount } from '@product/contract';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import { DeckButton } from '@/components/deck';
 import { Loader } from '@/components/feedback';
 import { InlineNotice } from '@/components/forms';
 import { SettingsGroup, SettingsLinkRow, SettingsNote } from '@/components/settings';
+import { trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { resolveAppleProductId } from '@/lib/apple-membership';
 import { AppleCheckoutFooter, PendingCheckoutFooter } from './CheckoutFooter';
@@ -109,6 +110,11 @@ function OfferView({
   const isAppleCheckout = Platform.OS === 'ios';
   const plan =
     offer.plans.find((candidate) => candidate.planId === selectedPlanId) ?? offer.plans[0];
+
+  useEffect(() => {
+    trackEvent('paywall_viewed', { source });
+  }, [source]);
+
   if (!plan) {
     return null;
   }
@@ -145,7 +151,17 @@ function OfferView({
         title={punctuateMembershipCopy(plan.headline?.trim() || fallbackHeadline)}
       />
       {offer.plans.length > 1 ? (
-        <PlanChoice onSelect={setSelectedPlanId} plans={offer.plans} selectedPlanId={plan.planId} />
+        <PlanChoice
+          onSelect={(planId) => {
+            setSelectedPlanId(planId);
+            const selected = offer.plans.find((candidate) => candidate.planId === planId);
+            if (selected) {
+              trackEvent('plan_selected', { planSlug: selected.slug });
+            }
+          }}
+          plans={offer.plans}
+          selectedPlanId={plan.planId}
+        />
       ) : null}
       {isAppleCheckout ? null : (
         <PaymentMethodChips

@@ -53,7 +53,7 @@ export default function GrowthAnalyticsPage() {
             value={data ? formatNumber(data.signupsInRange) : '—'}
           />
           <StatCard
-            hint={`First completers in range: ${data ? formatNumber(data.activatedInRange) : '—'}`}
+            hint={`First completers in range: ${data ? formatNumber(data.activatedInRange) : '—'} · day-one set or contest join`}
             label="Activation rate"
             value={data ? formatPercent(data.activationRate) : '—'}
           />

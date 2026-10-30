@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { requestReminderPermission } from '@/lib/notifications';
 import { markRemindersIntroAnswered } from '@/lib/reminders-intro';
@@ -43,6 +44,7 @@ export function useAnswerRemindersIntro(reminderMinute: number | null, onAnswere
       const granted = await requestReminderPermission();
       if (granted) {
         await apiClient.updateReminder({ enabled: true, reminderMinute });
+        trackEvent('setting_changed', { setting: 'reminderEnabled', value: true });
         await queryClient.invalidateQueries({ queryKey: ['me'] });
       }
 
@@ -56,6 +58,7 @@ export function useAnswerRemindersIntro(reminderMinute: number | null, onAnswere
   }
 
   async function notNow() {
+    trackEvent('setting_changed', { setting: 'reminderEnabled', value: false });
     await markRemindersIntroAnswered();
     onAnswered();
   }

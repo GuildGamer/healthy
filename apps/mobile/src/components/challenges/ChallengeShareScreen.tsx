@@ -2,10 +2,11 @@ import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useRef, useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
+import { shareWithTracking, trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { clearPendingShareRoute } from '@/lib/share-card-session';
@@ -74,8 +75,15 @@ export function ChallengeShareScreen({
     setError(null);
     try {
       const sharedImage = await shareImage().catch(() => false);
-      if (!sharedImage) {
-        await Share.share({ message: posterShareText(poster) });
+      if (sharedImage) {
+        trackEvent('share_completed', {
+          surface: 'challenge_poster',
+          completed: true,
+        });
+      } else {
+        await shareWithTracking('challenge_poster', {
+          message: posterShareText(poster),
+        });
       }
     } catch {
       setError(SHARE_COPY.failed);

@@ -1,6 +1,7 @@
 import type { MeOutput, UpdateNotificationSettingsInput } from '@product/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { requestReminderPermission } from '@/lib/notifications';
 import { isMembershipRequiredError } from './membership-required';
@@ -58,6 +59,16 @@ export function useNotificationSettings(me: MeOutput | undefined) {
     const nudgeEnabled = hasMembership
       ? (change.inProgressNudgeEnabled ?? settings.inProgressNudgeEnabled)
       : false;
+
+    for (const [setting, value] of Object.entries(change)) {
+      if (value === undefined) {
+        continue;
+      }
+      trackEvent('setting_changed', {
+        setting,
+        value: typeof value === 'boolean' || typeof value === 'number' ? value : String(value),
+      });
+    }
 
     mutation.mutate({ ...settings, ...change, inProgressNudgeEnabled: nudgeEnabled });
   }

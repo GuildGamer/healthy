@@ -37,7 +37,10 @@ import {
   renameCrewContract,
   saveCrewContract,
 } from './crews.js';
-import { trackAnalyticsEventContract } from './analytics-events.js';
+import {
+  trackAnalyticsEventContract,
+  trackAnalyticsEventsBatchContract,
+} from './analytics-events.js';
 import { getExperimentAssignmentContract } from './experiments.js';
 import {
   cancelMatchContract,
@@ -981,6 +984,7 @@ export const appContract = {
   leaveMatch: leaveMatchContract,
   getExperimentAssignment: getExperimentAssignmentContract,
   trackAnalyticsEvent: trackAnalyticsEventContract,
+  trackAnalyticsEventsBatch: trackAnalyticsEventsBatchContract,
   listCrews: listCrewsContract,
   listAcquaintances: listAcquaintancesContract,
   saveCrew: saveCrewContract,
@@ -1118,10 +1122,18 @@ export type {
 
 export {
   ANALYTICS_EVENT_NAMES,
+  ANALYTICS_EVENT_PROPERTIES,
+  analyticsEventContextSchema,
   analyticsEventNameSchema,
   trackAnalyticsEventContract,
+  trackAnalyticsEventsBatchContract,
 } from './analytics-events.js';
-export type { AnalyticsEventName, TrackAnalyticsEventInput } from './analytics-events.js';
+export type {
+  AnalyticsEventContext,
+  AnalyticsEventName,
+  AnalyticsEventProperties,
+  TrackAnalyticsEventInput,
+} from './analytics-events.js';
 
 export {
   EXPERIMENT_KEYS,

@@ -52,6 +52,17 @@ export const auth = betterAuth({
             create: { userId: user.id },
             update: {},
           });
+          // Fire-and-forget: sign-up must not wait on analytics.
+          void prisma.analyticsEvent
+            .create({
+              data: {
+                name: 'sign_up_completed',
+                userId: user.id,
+                properties: {},
+                emitter: 'server',
+              },
+            })
+            .catch(() => undefined);
         },
       },
     },

@@ -1259,11 +1259,18 @@ model AnalyticsEvent {
   /// Client-generated id before auth, or web visitor id.
   anonymousId String?
   properties  Json     @default("{}")
+  /// One foreground session; used for “active in the last 2 hours” push rules.
+  sessionId   String?
+  platform    String?
+  appVersion  String?
+  /// Who wrote the event: mobile, web, or server.
+  emitter     String?
   occurredAt  DateTime @default(now())
   createdAt   DateTime @default(now())
 
   @@index([name, occurredAt])
   @@index([userId, occurredAt])
   @@index([anonymousId, occurredAt])
+  @@index([sessionId, occurredAt])
   @@map("analytics_events")
 }

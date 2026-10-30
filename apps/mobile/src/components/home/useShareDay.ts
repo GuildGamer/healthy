@@ -1,11 +1,12 @@
 import * as Sharing from 'expo-sharing';
 import { useRef, useState } from 'react';
-import { Share, type View } from 'react-native';
+import type { View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import {
   SHARE_CARD_EXPORT_HEIGHT,
   SHARE_CARD_EXPORT_WIDTH,
 } from '@/components/challenges/ChallengeShareCard';
+import { shareWithTracking, trackEvent } from '@/lib/analytics';
 
 const SHARE_DIALOG_TITLE = 'Share your day';
 
@@ -39,8 +40,10 @@ export function useShareDay(fallbackMessage: string, dialogTitle: string = SHARE
     setIsSharing(true);
     try {
       const sharedImage = await shareImage().catch(() => false);
-      if (!sharedImage) {
-        await Share.share({ message: fallbackMessage });
+      if (sharedImage) {
+        trackEvent('share_completed', { surface: 'day_card', completed: true });
+      } else {
+        await shareWithTracking('day_card', { message: fallbackMessage });
       }
     } finally {
       setIsSharing(false);

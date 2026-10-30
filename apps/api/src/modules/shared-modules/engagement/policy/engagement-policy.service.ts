@@ -221,7 +221,7 @@ export class EngagementPolicyService {
     const since = new Date(now.getTime() - RECENT_ACTIVITY_LOOKBACK_MS);
     const rows = await this.prisma.analyticsEvent.findMany({
       where: {
-        name: 'user_active',
+        name: { in: ['app_opened', 'user_active'] },
         userId: { in: [...userIds] },
         occurredAt: { gte: since },
       },

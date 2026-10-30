@@ -119,21 +119,19 @@ export class MatchesService {
     private readonly matchSettledNotifier: MatchSettledNotifierService,
   ) {}
 
-  private async trackMatchEvent(
+  private trackMatchEvent(
     user: AuthenticatedUser | null,
     name:
       | 'challenge_accepted'
       | 'challenge_recipient_signed_up'
-      | 'challenge_started_by_recipient'
-      | 'challenge_completed_by_recipient'
-      | 'invite_first_attempt',
+      | 'challenge_completed_by_recipient',
     match: Pick<
       LoadedMatch,
       'id' | 'inviteToken' | 'experimentId' | 'experimentVariantKey' | 'parentMatchId'
     >,
-  ): Promise<void> {
-    try {
-      await this.analyticsService.track(user, {
+  ): void {
+    void this.analyticsService
+      .track(user, {
         name,
         properties: {
           matchId: match.id,
@@ -142,10 +140,24 @@ export class MatchesService {
           experimentVariantKey: match.experimentVariantKey,
           parentMatchId: match.parentMatchId,
         },
+      })
+      .catch((error: unknown) => {
+        this.logger.error(`Could not track ${name} for match ${match.id}`, error);
       });
-    } catch (error) {
-      this.logger.error(`Could not track ${name} for match ${match.id}`, error);
+  }
+
+  /** Account younger than a day → treat join as invite-driven sign-up. */
+  private async isRecentSignUp(userId: string): Promise<boolean> {
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { createdAt: true },
+    });
+    if (!account) {
+      return false;
     }
+
+    const ageMs = Date.now() - account.createdAt.getTime();
+    return ageMs < 24 * 60 * 60 * 1000;
   }
 
   private inviteUrlFor(token: string): string {
@@ -463,8 +475,10 @@ export class MatchesService {
     }
 
     const joined = await this.loadByToken(token);
-    await this.trackMatchEvent(user, 'challenge_accepted', joined);
-    await this.trackMatchEvent(user, 'challenge_recipient_signed_up', joined);
+    this.trackMatchEvent(user, 'challenge_accepted', joined);
+    if (await this.isRecentSignUp(user.id)) {
+      this.trackMatchEvent(user, 'challenge_recipient_signed_up', joined);
+    }
     await this.notifyHostOfAcceptance(joined, user.id);
     return await this.buildBoard(joined, user.id);
   }
@@ -609,9 +623,7 @@ export class MatchesService {
     void this.streak.announceMilestone(user.id, streak);
 
     if (isRecipient && priorRecipientAttempts === 0) {
-      await this.trackMatchEvent(user, 'challenge_started_by_recipient', match);
-      await this.trackMatchEvent(user, 'challenge_completed_by_recipient', match);
-      await this.trackMatchEvent(user, 'invite_first_attempt', match);
+      this.trackMatchEvent(user, 'challenge_completed_by_recipient', match);
     }
 
     const fresh = await this.loadById(match.id);

@@ -151,7 +151,12 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
         {phase === 'idle' ? (
           <FormButton
             label={MATCH_WALK_START}
-            onPress={() => void recorder.start({ resume: false })}
+            onPress={() =>
+              void recorder.start({
+                resume: false,
+                analytics: { context: 'contest', matchId },
+              })
+            }
             testID="match-walk-start"
           />
         ) : null}
@@ -188,7 +193,10 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
             label={MATCH_WALK_RESUME}
             onPress={() => {
               setWalk(null);
-              void recorder.start({ resume: true });
+              void recorder.start({
+                resume: true,
+                analytics: { context: 'contest', matchId },
+              });
             }}
             testID="match-walk-resume"
             variant="secondary"

@@ -37,6 +37,8 @@ const mockedApi = apiClient as unknown as {
   reserveProofClip: jest.Mock;
   recordProofClip: jest.Mock;
   removeProofClip: jest.Mock;
+  me: jest.Mock;
+  updateProofClipAudience: jest.Mock;
 };
 
 const mockedSaveLocal = saveLocalProofClip as jest.MockedFunction<typeof saveLocalProofClip>;

@@ -1,5 +1,6 @@
 import type { MatchMetric, MatchScoringMode } from '@product/contract/match-board';
-import { Platform, Share, type ShareContent } from 'react-native';
+import { Platform, type ShareContent } from 'react-native';
+import { shareWithTracking } from '@/lib/analytics';
 import { inviteShareMessage } from './invite-message';
 
 export type ShareMatchLinkOptions = {
@@ -14,7 +15,7 @@ export type ShareMatchLinkOptions = {
 
 export async function shareMatchLink(options: ShareMatchLinkOptions): Promise<void> {
   const message = `${inviteShareMessage(options)}\n${options.url}`;
-  await Share.share(inviteShareContent(message, options.url));
+  await shareWithTracking('match_invite', inviteShareContent(message, options.url));
 }
 
 /**

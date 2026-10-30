@@ -4,6 +4,7 @@ import {
   startWalkLiveActivity,
   updateWalkLiveActivity,
 } from 'walk-live-activity';
+import { trackEvent } from '@/lib/analytics';
 import {
   NATIVE_MOVEMENT_UNAVAILABLE,
   loadLocationModule,
@@ -25,6 +26,11 @@ import { useTheme } from '@/theme';
 import { useWalkMotion } from './useWalkMotion';
 import { useWalkTimer } from './useWalkTimer';
 import { WALK_LOCATION_DENIED, type WalkPhase } from './walk-session-copy';
+
+export type WalkAnalyticsContext = {
+  context: 'challenge' | 'contest' | 'practice';
+  matchId?: string;
+};
 
 /**
  * A metre lands roughly every other stride, so the readout moves while the
@@ -68,7 +74,11 @@ export type WalkRecorder = {
    * Resuming keeps the banked time and the route already drawn — a walk that
    * came up short has to be extendable, not restarted from zero.
    */
-  start: (options: { resume: boolean; beforeRecording?: () => Promise<void> }) => Promise<void>;
+  start: (options: {
+    resume: boolean;
+    beforeRecording?: () => Promise<void>;
+    analytics?: WalkAnalyticsContext;
+  }) => Promise<void>;
   /** Holds the clock without ending the session or the lock-screen card. */
   pause: () => void;
   /** Clears a manual pause; the clock follows movement again. */
@@ -276,25 +286,40 @@ export function useWalkRecorder(): WalkRecorder {
     })();
   }, [elapsedSeconds, isClockPaused, phase, points, scheme]);
 
+  const analyticsRef = useRef<WalkAnalyticsContext>({ context: 'challenge' });
+
   const start = useCallback(
     async ({
       resume,
       beforeRecording,
+      analytics,
     }: {
       resume: boolean;
       beforeRecording?: () => Promise<void>;
+      analytics?: WalkAnalyticsContext;
     }) => {
       setError(null);
+      if (analytics) {
+        analyticsRef.current = analytics;
+      }
 
       const location = await loadLocationModule();
       if (!location) {
         setError(NATIVE_MOVEMENT_UNAVAILABLE);
+        trackEvent('client_error', {
+          surface: 'walk_start',
+          code: 'native_unavailable',
+        });
         return;
       }
 
       locationRef.current = location;
 
       const foreground = await location.requestForegroundPermissionsAsync();
+      trackEvent('permission_result', {
+        permission: 'location',
+        granted: foreground.status === location.PermissionStatus.GRANTED,
+      });
       if (foreground.status !== location.PermissionStatus.GRANTED) {
         setError(WALK_LOCATION_DENIED);
         return;
@@ -319,6 +344,15 @@ export function useWalkRecorder(): WalkRecorder {
 
       setUserPaused(false);
       setPhase('recording');
+      if (!resume) {
+        trackEvent('activity_session_started', {
+          metric: 'walk',
+          context: analyticsRef.current.context,
+          ...(analyticsRef.current.matchId
+            ? { matchId: analyticsRef.current.matchId }
+            : {}),
+        });
+      }
       await startMotion();
 
       stopWatching();
@@ -430,6 +464,16 @@ export function useWalkRecorder(): WalkRecorder {
     const durationSeconds = pauseTimer();
     const endedAt = new Date().toISOString();
     setPhase('review');
+    trackEvent('activity_session_ended', {
+      metric: 'walk',
+      context: analyticsRef.current.context,
+      outcome: 'saved',
+      count: durationSeconds,
+      durationSeconds,
+      ...(analyticsRef.current.matchId
+        ? { matchId: analyticsRef.current.matchId }
+        : {}),
+    });
 
     return {
       durationSeconds,
@@ -457,13 +501,23 @@ export function useWalkRecorder(): WalkRecorder {
   );
 
   const abandon = useCallback(() => {
+    trackEvent('activity_session_ended', {
+      metric: 'walk',
+      context: analyticsRef.current.context,
+      outcome: 'abandoned',
+      count: elapsedSeconds,
+      durationSeconds: elapsedSeconds,
+      ...(analyticsRef.current.matchId
+        ? { matchId: analyticsRef.current.matchId }
+        : {}),
+    });
     stopWatching();
     stopMotion();
     pauseTimer();
     endWalkLiveActivity();
     lastCardRef.current = null;
     setUserPaused(false);
-  }, [pauseTimer, stopMotion, stopWatching]);
+  }, [elapsedSeconds, pauseTimer, stopMotion, stopWatching]);
 
   return {
     phase,

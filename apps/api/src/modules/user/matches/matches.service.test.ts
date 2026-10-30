@@ -124,6 +124,12 @@ function createPrismaMock(match = loadedMatch()) {
   const current = { match };
   const prisma = {
     current,
+    user: {
+      findUnique: vi.fn().mockResolvedValue({
+        id: guest.id,
+        createdAt: new Date(Date.now() - 60 * 60 * 1000),
+      }),
+    },
     userProfile: {
       findUnique: vi.fn().mockResolvedValue(profile(host.id, 'Ada')),
     },
@@ -485,12 +491,37 @@ describe('MatchesService', () => {
       guest,
       expect.objectContaining({ name: 'challenge_accepted' }),
     );
+    expect(analytics.track).toHaveBeenCalledWith(
+      guest,
+      expect.objectContaining({ name: 'challenge_recipient_signed_up' }),
+    );
     expect(inviteAccepted.notifyHost).toHaveBeenCalledWith({
       matchId: 'm1',
       hostUserId: host.id,
       acceptedUserId: guest.id,
       acceptedDisplayName: 'Bee',
     });
+  });
+
+  it('skips challenge_recipient_signed_up for older accounts', async () => {
+    const prisma = createPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({
+      id: guest.id,
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    });
+    const analytics = createAnalyticsSpy();
+    const service = createService(prisma, createNotifierSpy(), analytics);
+
+    await service.join(guest, 'invite_token_1');
+
+    expect(analytics.track).toHaveBeenCalledWith(
+      guest,
+      expect.objectContaining({ name: 'challenge_accepted' }),
+    );
+    expect(analytics.track).not.toHaveBeenCalledWith(
+      guest,
+      expect.objectContaining({ name: 'challenge_recipient_signed_up' }),
+    );
   });
 
   it('still joins when the acceptance push fails', async () => {

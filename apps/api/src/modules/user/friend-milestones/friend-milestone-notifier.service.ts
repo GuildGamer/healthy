@@ -234,7 +234,7 @@ export class FriendMilestoneNotifierService {
     const [activeEvents, completions] = await Promise.all([
       this.prisma.analyticsEvent.findMany({
         where: {
-          name: 'user_active',
+          name: { in: ['app_opened', 'user_active'] },
           userId: { in: [...userIds] },
           occurredAt: { gte: since },
         },

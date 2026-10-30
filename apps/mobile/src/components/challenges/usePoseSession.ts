@@ -114,6 +114,7 @@ function useSubmitSet(
         return {
           mode: 'match' as const,
           reps,
+          durationSeconds,
           metric,
           result: await apiClient.submitMatchAttempt({
             matchId: props.matchId,
@@ -136,7 +137,7 @@ function useSubmitSet(
           externalId: `practice:${props.challengeId}:${startedAt}`,
           ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
         });
-        return { mode: 'practice' as const, reps };
+        return { mode: 'practice' as const, reps, durationSeconds };
       }
 
       if (!occurrence) {
@@ -162,6 +163,22 @@ function useSubmitSet(
       });
       return { mode: 'challenge' as const, reps, durationSeconds, result };
     },
+    onError: () => {
+      trackEvent('client_error', { surface: 'pose_submit', code: 'submit_failed' });
+      trackEvent('activity_session_ended', {
+        metric,
+        context:
+          props.mode === 'match'
+            ? 'contest'
+            : props.mode === 'practice'
+              ? 'practice'
+              : 'challenge',
+        outcome: 'failed',
+        count: 0,
+        durationSeconds: 0,
+        ...(props.mode === 'match' ? { matchId: props.matchId } : {}),
+      });
+    },
     onSuccess: (submitted) => {
       const proofParams = {
         ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
@@ -170,6 +187,14 @@ function useSubmitSet(
       };
 
       if (submitted.mode === 'match' && props.mode === 'match') {
+        trackEvent('activity_session_ended', {
+          metric: submitted.metric,
+          context: 'contest',
+          outcome: 'saved',
+          count: submitted.reps,
+          durationSeconds: submitted.durationSeconds,
+          matchId: props.matchId,
+        });
         void queryClient.invalidateQueries({ queryKey: ['matches'] });
         router.replace({
           pathname: '/challenge/success',
@@ -184,6 +209,13 @@ function useSubmitSet(
       }
 
       if (submitted.mode === 'practice') {
+        trackEvent('activity_session_ended', {
+          metric,
+          context: 'practice',
+          outcome: 'saved',
+          count: submitted.reps,
+          durationSeconds: submitted.durationSeconds,
+        });
         void queryClient.invalidateQueries({ queryKey: ['activity'] });
         void queryClient.invalidateQueries({ queryKey: ['practice'] });
         if (occurrence) {
@@ -220,6 +252,13 @@ function useSubmitSet(
       }
 
       refreshAfterCompletion(queryClient);
+      trackEvent('activity_session_ended', {
+        metric,
+        context: 'challenge',
+        outcome: 'saved',
+        count: submitted.reps,
+        durationSeconds: submitted.durationSeconds,
+      });
       trackEvent('challenge_completed', {
         user_challenge_id: occurrence?.id,
         challenge_goal: submitted.reps,
@@ -375,9 +414,19 @@ export function usePoseSession(props: PoseSessionProps) {
       start({ preserveCounter });
       setPhase('counting');
       proof.armForCounting();
+      trackEvent('activity_session_started', {
+        metric,
+        context:
+          props.mode === 'match'
+            ? 'contest'
+            : props.mode === 'practice'
+              ? 'practice'
+              : 'challenge',
+        ...(props.mode === 'match' ? { matchId: props.matchId } : {}),
+      });
       startOccurrence.mutate();
     },
-    [camera.isReady, occurrence, proof, props.mode, start, startOccurrence],
+    [camera.isReady, metric, occurrence, proof, props, start, startOccurrence],
   );
 
   useEffect(() => {
@@ -552,6 +601,21 @@ export function usePoseSession(props: PoseSessionProps) {
     keepGoing,
     save,
     leave: () => {
+      if (phaseRef.current === 'counting' || phaseRef.current === 'review') {
+        trackEvent('activity_session_ended', {
+          metric,
+          context:
+            props.mode === 'match'
+              ? 'contest'
+              : props.mode === 'practice'
+                ? 'practice'
+                : 'challenge',
+          outcome: 'abandoned',
+          count: countRef.current,
+          durationSeconds: frozenElapsedRef.current ?? elapsedSeconds,
+          ...(props.mode === 'match' ? { matchId: props.matchId } : {}),
+        });
+      }
       stop();
       void proof.discardReservation().finally(() => {
         goBackOrHome(props.mode === 'match' ? `/matches/${props.matchId}` : '/(tabs)');

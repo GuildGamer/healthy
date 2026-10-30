@@ -1,5 +1,6 @@
 import type { DeviceActivity, DeviceMetric, HealthLinkStatus } from '@product/client';
 import { Platform } from 'react-native';
+import { trackEvent } from '@/lib/analytics';
 import {
   aggregateLastNightSleep,
   lastNightSleepQueryBounds,
@@ -128,9 +129,24 @@ export async function requestMovementAccess(): Promise<
 
   const locationResult = location ? await location.requestForegroundPermissionsAsync() : null;
   const motion = pedometer ? await pedometer.requestPermissionsAsync() : null;
-  const granted =
-    locationResult?.status === location?.PermissionStatus.GRANTED || Boolean(motion?.granted);
+  const locationGranted =
+    locationResult?.status === location?.PermissionStatus.GRANTED;
+  const motionGranted = Boolean(motion?.granted);
 
+  if (location) {
+    trackEvent('permission_result', {
+      permission: 'location',
+      granted: Boolean(locationGranted),
+    });
+  }
+  if (pedometer) {
+    trackEvent('permission_result', {
+      permission: 'motion',
+      granted: motionGranted,
+    });
+  }
+
+  const granted = Boolean(locationGranted) || motionGranted;
   return granted ? 'connected' : 'denied';
 }
 
@@ -231,13 +247,16 @@ async function requestHealthKitSleepAccess(): Promise<'connected' | 'denied'> {
     const healthkit = await import('@kingstinct/react-native-healthkit');
     const available = await healthkit.isHealthDataAvailableAsync();
     if (!available) {
+      trackEvent('permission_result', { permission: 'health', granted: false });
       return 'denied';
     }
 
     await healthkit.requestAuthorization({ toRead: [HEALTHKIT_SLEEP_TYPE] });
     // HealthKit does not report read denial; a successful prompt counts as connected.
+    trackEvent('permission_result', { permission: 'health', granted: true });
     return 'connected';
   } catch {
+    trackEvent('permission_result', { permission: 'health', granted: false });
     return 'denied';
   }
 }

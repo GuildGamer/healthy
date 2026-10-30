@@ -2,8 +2,9 @@ import type { ProofClipAudience } from '@product/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Share } from 'react-native';
+import { Alert } from 'react-native';
 import * as Sharing from 'expo-sharing';
+import { shareWithTracking, trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { getLocalProofClip, markLocalProofClipPendingUpload } from '@/lib/proof-clip-store';
 import { isGroupPostCapError } from '@/lib/proof-clip-errors';
@@ -115,13 +116,14 @@ export function useProofClip(
       return;
     }
     if (!(await Sharing.isAvailableAsync())) {
-      await Share.share({ url: clip.fileUri });
+      await shareWithTracking('proof_clip', { url: clip.fileUri });
       return;
     }
     await Sharing.shareAsync(clip.fileUri, {
       mimeType: 'video/mp4',
       UTI: 'public.mpeg-4',
     });
+    trackEvent('share_completed', { surface: 'proof_clip', completed: true });
   }
 
   async function send() {

@@ -10199,7 +10199,19 @@
                       "push_opened",
                       "goal_ladder_offered",
                       "goal_ladder_accepted",
-                      "goal_ladder_declined"
+                      "goal_ladder_declined",
+                      "app_opened",
+                      "screen_viewed",
+                      "onboarding_step_viewed",
+                      "sign_up_completed",
+                      "permission_result",
+                      "activity_session_started",
+                      "activity_session_ended",
+                      "share_completed",
+                      "setting_changed",
+                      "paywall_viewed",
+                      "plan_selected",
+                      "client_error"
                     ],
                     "type": "string"
                   },
@@ -10216,10 +10228,181 @@
                   "occurredAt": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "context": {
+                    "type": "object",
+                    "properties": {
+                      "platform": {
+                        "enum": [
+                          "ios",
+                          "android",
+                          "web"
+                        ],
+                        "type": "string"
+                      },
+                      "appVersion": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "sessionId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "emitter": {
+                        "enum": [
+                          "mobile",
+                          "web",
+                          "server"
+                        ],
+                        "type": "string"
+                      }
+                    }
                   }
                 },
                 "required": [
                   "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/events/batch": {
+      "post": {
+        "operationId": "trackAnalyticsEventsBatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "enum": [
+                            "challenge_completed",
+                            "challenge_cta_viewed",
+                            "challenge_friend_clicked",
+                            "challenge_created",
+                            "challenge_share_sheet_opened",
+                            "challenge_link_copied",
+                            "challenge_shared",
+                            "challenge_link_opened",
+                            "challenge_recipient_signed_up",
+                            "challenge_accepted",
+                            "challenge_started_by_recipient",
+                            "challenge_completed_by_recipient",
+                            "challenge_again_clicked",
+                            "challenge_new_friend_clicked",
+                            "challenge_new_challenge_created",
+                            "deferred_invite_stashed",
+                            "deferred_invite_claimed",
+                            "invite_restored_on_launch",
+                            "invite_testflight_clicked",
+                            "invite_app_opened",
+                            "invite_auto_joined",
+                            "invite_first_attempt",
+                            "user_active",
+                            "push_opened",
+                            "goal_ladder_offered",
+                            "goal_ladder_accepted",
+                            "goal_ladder_declined",
+                            "app_opened",
+                            "screen_viewed",
+                            "onboarding_step_viewed",
+                            "sign_up_completed",
+                            "permission_result",
+                            "activity_session_started",
+                            "activity_session_ended",
+                            "share_completed",
+                            "setting_changed",
+                            "paywall_viewed",
+                            "plan_selected",
+                            "client_error"
+                          ],
+                          "type": "string"
+                        },
+                        "anonymousId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "properties": {
+                          "default": {},
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "occurredAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "context": {
+                          "type": "object",
+                          "properties": {
+                            "platform": {
+                              "enum": [
+                                "ios",
+                                "android",
+                                "web"
+                              ],
+                              "type": "string"
+                            },
+                            "appVersion": {
+                              "type": "string",
+                              "maxLength": 64
+                            },
+                            "sessionId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128
+                            },
+                            "emitter": {
+                              "enum": [
+                                "mobile",
+                                "web",
+                                "server"
+                              ],
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  }
+                },
+                "required": [
+                  "events"
                 ]
               }
             }

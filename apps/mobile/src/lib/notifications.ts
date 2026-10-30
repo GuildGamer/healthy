@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { trackEvent } from '@/lib/analytics';
 
 const ANDROID_CHANNEL_ID = 'daily-reminder';
 
@@ -20,10 +21,20 @@ export async function requestReminderPermission(): Promise<boolean> {
   }
 
   if (!current.canAskAgain) {
+    trackEvent('permission_result', {
+      permission: 'notifications',
+      granted: false,
+      canAskAgain: false,
+    });
     return false;
   }
 
   const requested = await Notifications.requestPermissionsAsync();
+  trackEvent('permission_result', {
+    permission: 'notifications',
+    granted: requested.granted,
+    canAskAgain: requested.canAskAgain,
+  });
   return requested.granted;
 }
 
