@@ -42,5 +42,5 @@ export function starterStepLabel(input: {
     return 'one glass';
   }
 
-  return 'one quick one';
+  return 'a quick one';
 }

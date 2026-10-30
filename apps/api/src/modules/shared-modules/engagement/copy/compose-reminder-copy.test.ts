@@ -243,4 +243,93 @@ describe('composeReminderCopy', () => {
     expect(truncateBenefitLine(long, 80).endsWith('…')).toBe(true);
     expect(truncateBenefitLine(long, 80).length).toBeLessThanOrEqual(80);
   });
+
+  it('keeps every situation free of em dashes and doubled words', () => {
+    const samples: ReminderContext[] = [
+      context({ firstWeek: true }),
+      context({ missedYesterday: true }),
+      context(),
+      context({ localMinute: 14 * 60, doneCount: 1, openCount: 1 }),
+      context({ localMinute: 14 * 60, doneCount: 1, openCount: 2 }),
+      context({ localMinute: 19 * 60, streakDays: 3, openCount: 1 }),
+      context({ localMinute: 19 * 60, streakDays: 0 }),
+      context({
+        nudgeKind: 'in_progress_nudge',
+        lead: {
+          challengeId: 'c1',
+          slug: 'log-water',
+          title: 'Drink water',
+          deviceMetric: null,
+          completionKind: 'check_in',
+          targetCount: null,
+          measuredCount: null,
+          status: 'in_progress',
+        },
+      }),
+      context({
+        nudgeKind: 'in_progress_nudge',
+        lead: {
+          challengeId: 'c1',
+          slug: 'twenty-push-ups',
+          title: 'Do 20 push-ups',
+          deviceMetric: 'pushups',
+          completionKind: 'check_in',
+          targetCount: 20,
+          measuredCount: 12,
+          status: 'in_progress',
+        },
+      }),
+      context({
+        nudgeKind: 'in_progress_nudge',
+        lead: {
+          challengeId: 'c1',
+          slug: 'gym-session',
+          title: 'Gym',
+          deviceMetric: null,
+          completionKind: 'evidence_photo',
+          targetCount: null,
+          measuredCount: null,
+          status: 'awaiting_evidence',
+        },
+      }),
+      context({
+        lead: {
+          challengeId: 'c1',
+          slug: 'drink-water',
+          title: 'Drink water',
+          deviceMetric: null,
+          completionKind: 'water',
+          targetCount: null,
+          measuredCount: null,
+          status: 'pending',
+        },
+        firstWeek: true,
+      }),
+    ];
+
+    for (const sample of samples) {
+      const composed = composeReminderCopy(sample);
+      expect(composed.title).not.toContain('—');
+      expect(composed.body).not.toContain('—');
+      expect(hasConsecutiveDuplicateWord(`${composed.title} ${composed.body}`)).toBe(
+        false,
+      );
+    }
+  });
 });
+
+function hasConsecutiveDuplicateWord(text: string): boolean {
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
+
+  for (let index = 1; index < words.length; index += 1) {
+    if (words[index] === words[index - 1]) {
+      return true;
+    }
+  }
+
+  return false;
+}

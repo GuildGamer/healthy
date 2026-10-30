@@ -14,7 +14,7 @@ describe('starterStepLabel', () => {
     ).toBe('one glass');
     expect(
       starterStepLabel({ deviceMetric: null, completionKind: 'check_in' }),
-    ).toBe('one quick one');
+    ).toBe('a quick one');
   });
 });
 

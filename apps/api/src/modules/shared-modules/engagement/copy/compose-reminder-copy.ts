@@ -154,14 +154,14 @@ function copyForSituation(
 
       return {
         title: withName("You're past halfway", input.firstName),
-        body: `A little more and you're done — ${input.step}.`,
+        body: `A little more and you're done: ${input.step}.`,
       };
     }
 
     case 'in_progress_none':
       return {
         title: withName('Pick up where you left off', input.firstName),
-        body: `Prop your phone — even ${input.step} counts.`,
+        body: `Prop your phone. Even ${input.step} counts.`,
       };
 
     case 'missed_yesterday':
@@ -173,7 +173,7 @@ function copyForSituation(
     case 'first_week':
       return {
         title: withName('Nice start', input.firstName),
-        body: `A quick ${input.step}?`,
+        body: `Try ${input.step} today?`,
       };
 
     case 'morning_nothing_done':
@@ -197,8 +197,8 @@ function copyForSituation(
         ),
         body:
           input.openCount === 1 && input.leadTitle
-            ? `Just ${shortLabel(input.leadTitle)} left — ${input.step}.`
-            : `${input.openCount} still open — ${input.step}.`,
+            ? `Just ${shortLabel(input.leadTitle)} left: ${input.step}.`
+            : `${input.openCount} still open. Start with ${input.step}.`,
       };
 
     case 'evening_streak':
