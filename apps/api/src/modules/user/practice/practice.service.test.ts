@@ -91,6 +91,20 @@ function createPrismaMock(
   };
 }
 
+function createStreakSpy() {
+  return {
+    recordActiveDay: vi.fn(async () => ({ currentStreakDays: 1, advanced: true })),
+    announceMilestone: vi.fn(async () => undefined),
+  };
+}
+
+function createService(
+  prisma: ReturnType<typeof createPrismaMock>,
+  streak: ReturnType<typeof createStreakSpy> = createStreakSpy(),
+): PracticeService {
+  return new PracticeService(prisma as never, streak as never);
+}
+
 const input = {
   metric: 'pushups',
   source: 'in_app_pose',
@@ -113,7 +127,7 @@ const walk = {
 
 describe('PracticeService.record', () => {
   it('rejects unauthenticated callers', async () => {
-    const service = new PracticeService(createPrismaMock() as never);
+    const service = createService(createPrismaMock());
 
     await expect(service.record(null, input)).rejects.toBeInstanceOf(ORPCError);
   });
@@ -123,7 +137,7 @@ describe('PracticeService.record', () => {
       unlockedChallenge: null,
       membershipActive: false,
     });
-    const service = new PracticeService(prisma as never);
+    const service = createService(prisma);
 
     await expect(service.record(user, input)).rejects.toBeInstanceOf(ORPCError);
     expect(prisma.deviceActivityLog.upsert).not.toHaveBeenCalled();
@@ -131,7 +145,7 @@ describe('PracticeService.record', () => {
 
   it('narrows the unlock lookup to free challenges without a membership', async () => {
     const prisma = createPrismaMock({ membershipActive: false });
-    await new PracticeService(prisma as never).record(user, input);
+    await createService(prisma).record(user, input);
 
     expect(prisma.challenge.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,7 +156,7 @@ describe('PracticeService.record', () => {
 
   it('leaves the unlock lookup open for a member', async () => {
     const prisma = createPrismaMock({ membershipActive: true });
-    await new PracticeService(prisma as never).record(user, input);
+    await createService(prisma).record(user, input);
 
     const where = prisma.challenge.findFirst.mock.calls[0]?.[0]?.where ?? {};
     expect(where).not.toHaveProperty('requiresMembership');
@@ -150,7 +164,7 @@ describe('PracticeService.record', () => {
 
   it('records the session against no occurrence, keyed for safe retries', async () => {
     const prisma = createPrismaMock();
-    const result = await new PracticeService(prisma as never).record(user, input);
+    const result = await createService(prisma).record(user, input);
 
     const call = prisma.deviceActivityLog.upsert.mock.calls[0]?.[0];
     expect(call?.where).toEqual({
@@ -169,7 +183,7 @@ describe('PracticeService.record', () => {
 
   it('records a walk that fell short in time and distance, with no reps', async () => {
     const prisma = createPrismaMock();
-    await new PracticeService(prisma as never).record(user, walk);
+    await createService(prisma).record(user, walk);
 
     expect(prisma.deviceActivityLog.upsert.mock.calls[0]?.[0]?.create).toMatchObject({
       userChallengeId: null,
@@ -191,7 +205,7 @@ describe('PracticeService.record', () => {
         endedAt: null,
       },
     });
-    await new PracticeService(prisma as never).record(user, walk);
+    await createService(prisma).record(user, walk);
 
     expect(prisma.deviceActivityLog.upsert.mock.calls[0]?.[0]?.update).toMatchObject({
       durationSeconds: 252,
@@ -208,7 +222,7 @@ describe('PracticeService.record', () => {
       endedAt: null,
     };
     const prisma = createPrismaMock({ stored });
-    await new PracticeService(prisma as never).record(user, walk);
+    await createService(prisma).record(user, walk);
 
     expect(prisma.deviceActivityLog.upsert.mock.calls[0]?.[0]?.update).toMatchObject({
       durationSeconds: 600,
@@ -226,14 +240,14 @@ describe('PracticeService.record', () => {
         endedAt: null,
       },
     });
-    await new PracticeService(prisma as never).record(user, walk);
+    await createService(prisma).record(user, walk);
 
     expect(prisma.deviceActivityLog.upsert).not.toHaveBeenCalled();
   });
 
   it('links the clip that filmed the set, only if it is still unclaimed and live', async () => {
     const prisma = createPrismaMock();
-    await new PracticeService(prisma as never).record(user, { ...input, proofClipId: 'clip-1' });
+    await createService(prisma).record(user, { ...input, proofClipId: 'clip-1' });
 
     expect(prisma.proofClip.updateMany).toHaveBeenCalledWith({
       where: {
@@ -248,7 +262,7 @@ describe('PracticeService.record', () => {
 
   it('links no clip when the set carried none', async () => {
     const prisma = createPrismaMock();
-    await new PracticeService(prisma as never).record(user, input);
+    await createService(prisma).record(user, input);
 
     expect(prisma.proofClip.updateMany).not.toHaveBeenCalled();
   });
@@ -263,17 +277,38 @@ describe('PracticeService.record', () => {
         endedAt: null,
       },
     });
-    await new PracticeService(prisma as never).record(user, { ...walk, proofClipId: 'clip-1' });
+    await createService(prisma).record(user, { ...walk, proofClipId: 'clip-1' });
 
     expect(prisma.proofClip.updateMany).not.toHaveBeenCalled();
   });
 
-  it('awards no points and touches no ledger or streak', async () => {
+  it('awards no points and touches no ledger', async () => {
     const prisma = createPrismaMock();
-    await new PracticeService(prisma as never).record(user, input);
+    await createService(prisma).record(user, input);
 
     expect(prisma).not.toHaveProperty('pointLedgerEntry');
     expect(prisma.userProfile).not.toHaveProperty('update');
+  });
+
+  it('counts the day toward the streak', async () => {
+    const streak = createStreakSpy();
+    await createService(createPrismaMock(), streak).record(user, input);
+
+    expect(streak.recordActiveDay).toHaveBeenCalledWith('u1');
+    expect(streak.announceMilestone).toHaveBeenCalledWith('u1', {
+      currentStreakDays: 1,
+      advanced: true,
+    });
+  });
+
+  it('records nothing toward the streak when the metric is locked', async () => {
+    const streak = createStreakSpy();
+    const prisma = createPrismaMock({ unlockedChallenge: null, membershipActive: false });
+
+    await expect(createService(prisma, streak).record(user, input)).rejects.toBeInstanceOf(
+      ORPCError,
+    );
+    expect(streak.recordActiveDay).not.toHaveBeenCalled();
   });
 });
 
@@ -288,14 +323,14 @@ describe('PracticeService.totals', () => {
       ],
     });
 
-    const totals = await new PracticeService(prisma as never).totals(user, 'pushups');
+    const totals = await createService(prisma).totals(user, 'pushups');
 
     expect(totals).toEqual({ todayCount: 24, todaySessions: 2 });
   });
 
   it('reads practice rows only, never challenge sessions', async () => {
     const prisma = createPrismaMock();
-    await new PracticeService(prisma as never).totals(user, 'pushups');
+    await createService(prisma).totals(user, 'pushups');
 
     expect(prisma.deviceActivityLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -307,7 +342,7 @@ describe('PracticeService.totals', () => {
   it('reports an empty day as zero rather than failing', async () => {
     const prisma = createPrismaMock({ existing: [] });
 
-    await expect(new PracticeService(prisma as never).totals(user, 'pushups')).resolves.toEqual({
+    await expect(createService(prisma).totals(user, 'pushups')).resolves.toEqual({
       todayCount: 0,
       todaySessions: 0,
     });

@@ -8,6 +8,7 @@ import { CrewsService } from '../crews/index.js';
 import { LeaderboardService } from '../leaderboard/leaderboard.service.js';
 import { MatchReactionsService } from '../matches/match-reactions.service.js';
 import { MatchesService } from '../matches/matches.service.js';
+import { StreakService } from '../streak/index.js';
 import { AccountDeletionService } from './account-deletion.service.js';
 
 const ada = { id: 'ada', email: 'ada@example.com', name: 'Ada Lovelace' };
@@ -30,6 +31,7 @@ function createMatchesService(client: PrismaClient): MatchesService {
     { notifyParticipants: vi.fn() } as never,
     new MatchReactionsService(client),
     { notify: vi.fn() } as never,
+    new StreakService(client),
   );
 }
 

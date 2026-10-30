@@ -108,6 +108,9 @@ model UserProfile {
   currentStreakDays           Int              @default(0)
   /// Longest unbroken rewarded daily run. Updated on complete; backfilled on first /me when 0.
   bestStreakDays              Int              @default(0)
+  /// Last local day (`YYYY-MM-DD`) with any logged activity: a challenge
+  /// completion, a contest set, or a practice session. Drives the streak.
+  lastActiveDayKey            String?
   /// IANA zone deciding when the user's challenge day rolls over.
   timeZone                    String           @default("UTC")
   /// ISO 3166-1 alpha-2 country chosen at sign-up (or later in profile).

@@ -6,6 +6,7 @@ import { challengeAccessFilter } from '../../../shared/membership/entitlements.j
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { StreakService } from '../streak/index.js';
 import { PRACTICE_TALLY_LOOKBACK_MS } from './constants/practice.js';
 import { PRACTICE_MEMBERSHIP_REQUIRED } from './errors/practice.errors.js';
 import type {
@@ -51,11 +52,15 @@ function longerOf(existing: MeasuredFields | null, incoming: MeasuredFields): Me
  * Measured sessions that are not a challenge's completion: extra sets, and
  * sets or walks that fell short. Persisted as a `DeviceActivityLog` with no
  * occurrence attached, so they share one history with challenge sessions and
- * count as Today's progress while staying out of the points ledger.
+ * count as Today's progress and the day's streak while staying out of the
+ * points ledger.
  */
 @Injectable()
 export class PracticeService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    private readonly streak: StreakService,
+  ) {}
 
   async record(
     currentUser: AuthenticatedUser | null | undefined,
@@ -67,6 +72,9 @@ export class PracticeService {
     if (input.proofClipId && !session.userChallengeId) {
       await this.linkProofClip(user.id, input.proofClipId, session.id);
     }
+
+    const streak = await this.streak.recordActiveDay(user.id);
+    void this.streak.announceMilestone(user.id, streak);
 
     return {
       session: toSessionDto(session),

@@ -59,7 +59,9 @@ describe('MeService against Postgres', () => {
         name: user.name,
         email: user.email,
         updatedAt: new Date(),
-        profile: { create: { timeZone: 'UTC', currentStreakDays: 3 } },
+        profile: {
+          create: { timeZone: 'UTC', currentStreakDays: 3, lastActiveDayKey: daysAgoKey(2) },
+        },
       },
     });
     const [walk, water] = await Promise.all(

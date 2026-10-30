@@ -2,6 +2,7 @@ import { ORPCError } from '@orpc/server';
 import { DEFAULT_CHALLENGE_ICON } from '@product/contract';
 import { describe, expect, it, vi } from 'vitest';
 import type { PracticeService } from '../practice/index.js';
+import { StreakService } from '../streak/index.js';
 import { ChallengesService } from './challenges.service.js';
 
 const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
@@ -18,6 +19,7 @@ function createService(
   return new ChallengesService(
     prisma as never,
     practice as PracticeService,
+    new StreakService(prisma as never),
     evidenceValidator as never,
     undefined,
     delivery as never,
@@ -569,6 +571,9 @@ function createCompletePrismaMock(assignment: ReturnType<typeof createAssignment
     userId: 'u1',
     pointsBalance: 20,
     currentStreakDays: 1,
+    bestStreakDays: 1,
+    lastActiveDayKey: null,
+    timeZone: TIME_ZONE,
     membershipActive: false,
   };
   const challengeLogUpsert = vi.fn().mockResolvedValue({});

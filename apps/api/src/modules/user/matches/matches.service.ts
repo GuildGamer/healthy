@@ -24,6 +24,7 @@ import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { AnalyticsService } from '../analytics/index.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
+import { StreakService } from '../streak/index.js';
 import { groupNameFor } from '../../../shared/utils/group-name.js';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
 import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
@@ -113,6 +114,7 @@ export class MatchesService {
     private readonly boardMoveNotifier: BoardMoveNotifierService,
     private readonly matchReactions: MatchReactionsService,
     private readonly matchReactionNotifier: MatchReactionNotifierService,
+    private readonly streak: StreakService,
   ) {}
 
   private async trackMatchEvent(
@@ -590,15 +592,19 @@ export class MatchesService {
 
     const scoreBefore = await this.viewerScore(match, user.id);
 
-    const attempt = await this.prisma.matchAttempt.create({
-      data: {
-        matchId: match.id,
-        userId: user.id,
-        count: input.count,
-        durationSeconds: input.durationSeconds,
-        source: input.source,
-      },
-    });
+    const { attempt, streak } = await this.prisma.$transaction(async (tx) => ({
+      attempt: await tx.matchAttempt.create({
+        data: {
+          matchId: match.id,
+          userId: user.id,
+          count: input.count,
+          durationSeconds: input.durationSeconds,
+          source: input.source,
+        },
+      }),
+      streak: await this.streak.recordActiveDay(user.id, tx),
+    }));
+    void this.streak.announceMilestone(user.id, streak);
 
     if (isRecipient && priorRecipientAttempts === 0) {
       await this.trackMatchEvent(user, 'challenge_started_by_recipient', match);

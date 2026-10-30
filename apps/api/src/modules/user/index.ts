@@ -15,6 +15,7 @@ import { ProgressModule } from './progress/index.js';
 import { ProofClipsModule } from './proof-clips/index.js';
 import { PushDevicesModule } from './push/index.js';
 import { RemindersModule } from './reminders/index.js';
+import { StreakModule } from './streak/index.js';
 import { TipsModule } from './tips/index.js';
 import { TodayModule } from './today/index.js';
 import { WaitlistModule } from './waitlist/index.js';
@@ -32,6 +33,7 @@ export default [
   MatchReminderRivalryModule,
   CrewsModule,
   FriendMilestonesModule,
+  StreakModule,
   PracticeModule,
   ProofClipsModule,
   NotificationsModule,

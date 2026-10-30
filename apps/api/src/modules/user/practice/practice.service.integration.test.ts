@@ -4,6 +4,7 @@ import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { ChallengesService } from '../challenges/challenges.service.js';
+import { StreakService } from '../streak/index.js';
 import { TodayService } from '../today/today.service.js';
 import { PracticeService } from './practice.service.js';
 
@@ -66,8 +67,9 @@ function walkSession(occurrenceId: string, startedAt: Date, durationSeconds: num
 
 beforeAll(() => {
   prisma = createTestPrismaClient();
-  practice = new PracticeService(prisma);
-  challenges = new ChallengesService(prisma, practice, undefined, () => 1);
+  const streak = new StreakService(prisma);
+  practice = new PracticeService(prisma, streak);
+  challenges = new ChallengesService(prisma, practice, streak, undefined, () => 1);
   today = new TodayService(prisma);
 });
 

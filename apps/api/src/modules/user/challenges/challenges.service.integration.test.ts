@@ -2,11 +2,13 @@ import type { ChallengeCompletionKind, ChallengeFrequency, PrismaClient } from '
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
+import { previousDayKey } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
 import { PracticeService } from '../practice/practice.service.js';
 import { RemindersService } from '../reminders/reminders.service.js';
+import { StreakService } from '../streak/index.js';
 import { TodayService } from '../today/today.service.js';
 import { ChallengesService } from './challenges.service.js';
 
@@ -14,6 +16,7 @@ const user = { id: 'u-integration', email: 'ada@example.com', name: 'Ada' };
 
 let prisma: PrismaClient;
 let challenges: ChallengesService;
+let streak: StreakService;
 let enrollments: EnrollmentsService;
 let me: MeService;
 let todayDetails: TodayService;
@@ -75,7 +78,8 @@ function dailySpecs(count: number): CatalogSpec[] {
 
 beforeAll(() => {
   prisma = createTestPrismaClient();
-  challenges = new ChallengesService(prisma, new PracticeService(prisma));
+  streak = new StreakService(prisma);
+  challenges = new ChallengesService(prisma, new PracticeService(prisma, streak), streak);
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
   me = new MeService(prisma, enrollments);
   todayDetails = new TodayService(prisma);
@@ -251,10 +255,10 @@ describe('ChallengesService against Postgres', () => {
     const [first] = (await challenges.listToday(user)).challenges;
     await challenges.complete(user, first!.id);
 
-    // Backdate the completion so today is well past the streak's grace day.
-    await prisma.userChallenge.update({
-      where: { id: first!.id },
-      data: { periodKey: '2020-01-01' },
+    // Backdate the active day so today is well past the streak's grace day.
+    await prisma.userProfile.update({
+      where: { userId: user.id },
+      data: { lastActiveDayKey: '2020-01-01' },
     });
 
     await expect(me.getMe(user)).resolves.toMatchObject({
@@ -289,17 +293,44 @@ describe('ChallengesService against Postgres', () => {
     });
   });
 
-  it('leaves the streak alone when a weekly challenge is completed', async () => {
+  it('counts the day when a weekly challenge is completed', async () => {
     await seedEnrolledUser([{ slug: 'weekly-review', defaultFrequency: 'weekly' }]);
     const [weekly] = (await challenges.listToday(user)).challenges;
 
     const result = await challenges.complete(user, weekly!.id);
 
     expect(result.pointsAwarded).toBe(20);
-    expect(result.currentStreakDays).toBe(0);
+    expect(result.currentStreakDays).toBe(1);
   });
 
-  it('counts only the daily completion when both cadences are finished', async () => {
+  it('continues a streak that a practice session kept alive yesterday', async () => {
+    await seedEnrolledUser(dailySpecs(1));
+    await prisma.userProfile.update({
+      where: { userId: user.id },
+      data: { currentStreakDays: 4, lastActiveDayKey: previousDayKey(periodKeyFor('daily', 'UTC')) },
+    });
+    const [first] = (await challenges.listToday(user)).challenges;
+
+    const result = await challenges.complete(user, first!.id);
+
+    expect(result.currentStreakDays).toBe(5);
+    await expect(me.getMe(user)).resolves.toMatchObject({
+      currentStreakDays: 5,
+      bestStreakDays: 5,
+    });
+  });
+
+  it('counts the day once when practice and a completion share it', async () => {
+    await seedEnrolledUser(dailySpecs(1));
+    const [first] = (await challenges.listToday(user)).challenges;
+
+    await streak.recordActiveDay(user.id);
+    const result = await challenges.complete(user, first!.id);
+
+    expect(result.currentStreakDays).toBe(1);
+  });
+
+  it('counts the day once when both cadences are finished', async () => {
     await seedEnrolledUser([
       { slug: 'daily-walk' },
       { slug: 'monthly-refill', defaultFrequency: 'monthly' },

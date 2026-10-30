@@ -27,7 +27,7 @@ import { ACTIVITY_PROOF_CLIP_ARGS } from '../../../shared/constants/activity-pro
 import { VISIBLE_OCCURRENCE_FILTER } from '../../../shared/constants/visible-occurrence.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { activityProofClipFrom } from '../../../shared/utils/activity-proof-clip.js';
-import { DEFAULT_TIME_ZONE, dayKeyFor, previousDayKey } from '../../../shared/utils/day-key.js';
+import { DEFAULT_TIME_ZONE } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import {
   canAccessChallenge,
@@ -41,12 +41,8 @@ import {
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
-import {
-  FriendMilestoneNotifierService,
-  friendStreakMilestoneKey,
-  isFriendStreakMilestone,
-} from '../friend-milestones/index.js';
 import { PracticeService } from '../practice/index.js';
+import { StreakService } from '../streak/index.js';
 import type {
   ActivityItemDto,
   CompleteChallengeDto,
@@ -198,6 +194,7 @@ export class ChallengesService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly practice: PracticeService,
+    private readonly streak: StreakService,
     @Inject(EVIDENCE_VALIDATOR)
     private readonly evidenceValidator: EvidenceValidator = createAcceptEvidenceValidator(),
     @Optional()
@@ -205,8 +202,6 @@ export class ChallengesService {
     surpriseRoll?: () => number,
     @Optional()
     private readonly delivery?: EngagementDeliveryService,
-    @Optional()
-    private readonly friendMilestones?: FriendMilestoneNotifierService,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }
@@ -510,8 +505,6 @@ export class ChallengesService {
     log: ChallengeLogPayload | null = null,
     activity: DeviceActivity | null = null,
   ): Promise<CompleteChallengeDto> {
-    const timeZone = await this.timeZoneFor(user.id);
-    const todayKey = dayKeyFor(timeZone);
     const idempotencyKey = `challenge_complete:${assignment.id}`;
     const rewardPoints = assignment.challenge.rewardPoints;
     const displayTitle = challengeDisplayTitle(assignment);
@@ -536,16 +529,6 @@ export class ChallengesService {
           dto: this.toCompleteDto(refreshed, profile, 0, 0),
         };
       }
-
-      const dailyDoneBefore = await tx.userChallenge.count({
-        where: {
-          userId: user.id,
-          frequency: 'daily',
-          periodKey: todayKey,
-          status: 'completed',
-          completionOutcome: { not: 'penalized' },
-        },
-      });
 
       const completed = await tx.userChallenge.update({
         where: { id: assignment.id },
@@ -608,27 +591,11 @@ export class ChallengesService {
         },
       });
 
-      const profileBefore = await tx.userProfile.upsert({
-        where: { userId: user.id },
-        create: { userId: user.id },
-        update: {},
-      });
-
-      const nextStreak = await this.nextStreakDays(tx, {
-        userId: user.id,
-        storedStreakDays: profileBefore.currentStreakDays,
-        completedFrequency: assignment.frequency,
-        isFirstDailyToday: dailyDoneBefore === 0,
-        todayKey,
-      });
+      const streak = await this.streak.recordActiveDay(user.id, tx);
 
       const profile = await tx.userProfile.update({
         where: { userId: user.id },
-        data: {
-          pointsBalance: { increment: rewardPoints },
-          currentStreakDays: nextStreak,
-          bestStreakDays: Math.max(profileBefore.bestStreakDays, nextStreak),
-        },
+        data: { pointsBalance: { increment: rewardPoints } },
       });
 
       const targetCount = resolveEnrollmentTargetCount(
@@ -639,7 +606,7 @@ export class ChallengesService {
         userChallengeId: assignment.id,
         title: displayTitle,
         pointsAwarded: rewardPoints,
-        currentStreakDays: nextStreak,
+        currentStreakDays: streak.currentStreakDays,
         count: activity?.count ?? null,
         targetCount,
         deviceMetric: assignment.challenge.deviceMetric,
@@ -662,7 +629,7 @@ export class ChallengesService {
         fresh: true as const,
         dto: this.toCompleteDto(completed, profile, rewardPoints, 0),
         payload,
-        currentStreakDays: nextStreak,
+        streak,
       };
     });
 
@@ -673,34 +640,10 @@ export class ChallengesService {
           this.logger.error('Completion push failed after a successful complete', error);
         },
       );
-      void this.notifyFriendStreakMilestone(user.id, result.currentStreakDays);
+      void this.streak.announceMilestone(user.id, result.streak);
     }
 
     return result.dto;
-  }
-
-  /**
-   * Rare streak gates only. A failed nudge must never undo a completion.
-   */
-  private async notifyFriendStreakMilestone(
-    actorUserId: string,
-    currentStreakDays: number,
-  ): Promise<void> {
-    if (!this.friendMilestones || !isFriendStreakMilestone(currentStreakDays)) {
-      return;
-    }
-
-    try {
-      await this.friendMilestones.notifyAcquaintances({
-        actorUserId,
-        milestoneKey: friendStreakMilestoneKey(currentStreakDays),
-      });
-    } catch (error) {
-      this.logger.error(
-        `Could not notify acquaintances of streak ${currentStreakDays}`,
-        error,
-      );
-    }
   }
 
   /**
@@ -977,34 +920,6 @@ export class ChallengesService {
    * Only daily challenges carry the streak. A monthly check-up completed once
    * should not imply a month of consecutive daily effort.
    */
-  private async nextStreakDays(
-    tx: Pick<PrismaClient, 'userChallenge'>,
-    input: {
-      userId: string;
-      storedStreakDays: number;
-      completedFrequency: ChallengeFrequency;
-      isFirstDailyToday: boolean;
-      todayKey: string;
-    },
-  ): Promise<number> {
-    if (input.completedFrequency !== 'daily' || !input.isFirstDailyToday) {
-      return input.storedStreakDays;
-    }
-
-    const continuedYesterday = await tx.userChallenge.findFirst({
-      where: {
-        userId: input.userId,
-        frequency: 'daily',
-        periodKey: previousDayKey(input.todayKey),
-        status: 'completed',
-        completionOutcome: { not: 'penalized' },
-      },
-      select: { id: true },
-    });
-
-    return continuedYesterday ? input.storedStreakDays + 1 : 1;
-  }
-
   /** Creates the occurrence rows for any enrolment whose period has opened. */
   private async materialiseDueOccurrences(
     userId: string,
@@ -1055,11 +970,6 @@ export class ChallengesService {
         { frequency: 'monthly' as const, periodKey: window.monthly },
       ],
     };
-  }
-
-  private async timeZoneFor(userId: string): Promise<string> {
-    const profile = await this.profileAccessFor(userId);
-    return profile.timeZone;
   }
 
   /** One profile read for the fields Today needs on every list. */

@@ -36,19 +36,17 @@ function daysAgoKey(days: number, timeZone = 'UTC'): string {
 
 function createPrismaMock(
   profile: ProfileFixture | null = null,
-  latestCompletionDayKey: string | null = null,
+  lastActiveDayKey: string | null = null,
   rewardedDailyDayKeys: string[] = [],
 ) {
+  const stored = profile ? { ...profile, lastActiveDayKey } : null;
   return {
     userProfile: {
-      findUnique: vi.fn().mockResolvedValue(profile),
-      upsert: vi.fn().mockResolvedValue(profile),
-      update: vi.fn().mockResolvedValue(profile),
+      findUnique: vi.fn().mockResolvedValue(stored),
+      upsert: vi.fn().mockResolvedValue(stored),
+      update: vi.fn().mockResolvedValue(stored),
     },
     userChallenge: {
-      findFirst: vi
-        .fn()
-        .mockResolvedValue(latestCompletionDayKey ? { periodKey: latestCompletionDayKey } : null),
       findMany: vi.fn().mockResolvedValue(rewardedDailyDayKeys.map((periodKey) => ({ periodKey }))),
     },
   };
@@ -137,7 +135,7 @@ describe('MeService', () => {
     });
   });
 
-  it('keeps the streak alive when the last completion was yesterday', async () => {
+  it('keeps the streak alive when the last activity was yesterday', async () => {
     const prisma = createPrismaMock(
       {
         healthCategories: [],
@@ -154,7 +152,7 @@ describe('MeService', () => {
     });
   });
 
-  it('expires a stale streak when the last completion is older than yesterday', async () => {
+  it('expires a stale streak when the last activity is older than yesterday', async () => {
     const prisma = createPrismaMock(
       {
         healthCategories: [],

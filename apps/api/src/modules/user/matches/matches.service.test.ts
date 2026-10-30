@@ -281,6 +281,13 @@ function createAnalyticsSpy() {
   return { track: vi.fn().mockResolvedValue({ ok: true as const }) };
 }
 
+function createStreakSpy() {
+  return {
+    recordActiveDay: vi.fn(async () => ({ currentStreakDays: 3, advanced: true })),
+    announceMilestone: vi.fn(async () => undefined),
+  };
+}
+
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   notifier: ReturnType<typeof createNotifierSpy> = createNotifierSpy(),
@@ -288,6 +295,7 @@ function createService(
   inviteAccepted: ReturnType<typeof createInviteAcceptedSpy> = createInviteAcceptedSpy(),
   boardMove: ReturnType<typeof createBoardMoveSpy> = createBoardMoveSpy(),
   reactionNotifier: ReturnType<typeof createReactionNotifierSpy> = createReactionNotifierSpy(),
+  streak: ReturnType<typeof createStreakSpy> = createStreakSpy(),
 ): MatchesService {
   return new MatchesService(
     prisma as never,
@@ -299,6 +307,7 @@ function createService(
     boardMove as never,
     new MatchReactionsService(prisma as never),
     reactionNotifier as never,
+    streak as never,
   );
 }
 
@@ -646,6 +655,54 @@ describe('MatchesService', () => {
       actorScoreAfter: 18,
       endsAt: board.endsAt,
       recipients: [{ userId: host.id, score: 0 }],
+    });
+  });
+
+  it('counts a contest set toward the member streak', async () => {
+    const prisma = createPrismaMock(
+      loadedMatch({
+        participants: [
+          {
+            id: 'p1',
+            matchId: 'm1',
+            userId: host.id,
+            joinedAt: new Date(),
+            acceptedAt: new Date(),
+            user: userWithProfile(host.id, 'Ada'),
+          },
+          {
+            id: 'p2',
+            matchId: 'm1',
+            userId: guest.id,
+            joinedAt: new Date(),
+            acceptedAt: new Date(),
+            user: userWithProfile(guest.id, 'Bee'),
+          },
+        ],
+      }),
+    );
+    const streak = createStreakSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      createBoardMoveSpy(),
+      createReactionNotifierSpy(),
+      streak,
+    );
+
+    await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 18,
+      durationSeconds: 40,
+      source: 'in_app_pose',
+    });
+
+    expect(streak.recordActiveDay).toHaveBeenCalledWith(guest.id, prisma);
+    expect(streak.announceMilestone).toHaveBeenCalledWith(guest.id, {
+      currentStreakDays: 3,
+      advanced: true,
     });
   });
 

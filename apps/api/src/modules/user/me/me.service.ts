@@ -10,14 +10,13 @@ import {
   DEFAULT_TIME_ZONE,
   dayKeyFor,
   isValidTimeZone,
-  previousDayKey,
 } from '../../../shared/utils/day-key.js';
 import { longestConsecutiveDayRun } from '../../../shared/utils/day-run.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
+import { streakStatusFor } from '../streak/index.js';
 import type { MeDto } from './dto/index.js';
-import type { StreakStatus } from './types/streak-status.js';
 
 @Injectable()
 export class MeService {
@@ -36,6 +35,7 @@ export class MeService {
         pointsBalance: true,
         currentStreakDays: true,
         bestStreakDays: true,
+        lastActiveDayKey: true,
         timeZone: true,
         countryCode: true,
         displayName: true,
@@ -55,7 +55,11 @@ export class MeService {
 
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
     const membershipActive = effectiveMembershipActive(profile?.membershipActive);
-    const streak = await this.streakStatus(user.id, profile?.currentStreakDays ?? 0, timeZone);
+    const streak = streakStatusFor({
+      storedStreakDays: profile?.currentStreakDays ?? 0,
+      lastActiveDayKey: profile?.lastActiveDayKey ?? null,
+      todayKey: dayKeyFor(timeZone),
+    });
     const bestStreakDays = await this.resolvedBestStreakDays(
       user.id,
       profile?.bestStreakDays ?? 0,
@@ -296,54 +300,10 @@ export class MeService {
   }
 
   /**
-   * `currentStreakDays` is only advanced when a challenge is completed, so a
-   * user who stops for a few days would otherwise keep seeing the streak they
-   * have already broken. Expire it on read instead of running a nightly job.
-   *
-   * Only daily completions count, matching how the streak is advanced — a
-   * weekly or monthly challenge finished yesterday says nothing about whether
-   * a daily habit is still unbroken.
-   *
-   * A run whose last day was the day before yesterday broke yesterday, which
-   * Today mentions once.
-   */
-  private async streakStatus(
-    userId: string,
-    storedStreakDays: number,
-    timeZone: string,
-  ): Promise<StreakStatus> {
-    const noStreak: StreakStatus = { currentStreakDays: 0, streakLapsedYesterday: false };
-    if (storedStreakDays === 0) {
-      return noStreak;
-    }
-
-    const latestCompletion = await this.prisma.userChallenge.findFirst({
-      where: { userId, status: 'completed', frequency: 'daily' },
-      orderBy: { periodKey: 'desc' },
-      select: { periodKey: true },
-    });
-
-    if (!latestCompletion) {
-      return noStreak;
-    }
-
-    const today = dayKeyFor(timeZone);
-    const yesterday = previousDayKey(today);
-    const isLive = latestCompletion.periodKey === today || latestCompletion.periodKey === yesterday;
-
-    if (isLive) {
-      return { currentStreakDays: storedStreakDays, streakLapsedYesterday: false };
-    }
-
-    return {
-      currentStreakDays: 0,
-      streakLapsedYesterday: latestCompletion.periodKey === previousDayKey(yesterday),
-    };
-  }
-
-  /**
    * Prefer the persisted record. When it is still zero (pre-column installs),
    * scan history once, store the result, and never scan again for that user.
+   * Rewarded daily completions were the only streak signal before every
+   * activity counted, so that is all the history scan needs.
    */
   private async resolvedBestStreakDays(
     userId: string,
