@@ -323,6 +323,149 @@ describe('ReminderDispatcherService', () => {
     });
   });
 
+  it('sends one push when two reminders share a person and minute', async () => {
+    const today = new Date('2026-08-29T19:05:00.000Z');
+    const prisma = createPrismaMock({
+      zones: ['UTC'],
+      reminders: [
+        {
+          id: 'r1',
+          userId: 'u1',
+          challengeId: 'c1',
+          title: 'Walk',
+          frequency: 'daily',
+        },
+        {
+          id: 'r2',
+          userId: 'u1',
+          challengeId: 'c2',
+          title: 'Push-ups',
+          frequency: 'daily',
+        },
+      ],
+    });
+    const delivery = createDelivery({ sentCount: 1, usersWithDevice: ['u1'] });
+    const service = new ReminderDispatcherService(
+      prisma as never,
+      delivery as never,
+      createPolicy() as never,
+      createContexts() as never,
+    );
+
+    await expect(service.dispatchDue(today)).resolves.toEqual({
+      dueCount: 2,
+      sentCount: 1,
+      suppressedCount: 0,
+    });
+
+    expect(delivery.send).toHaveBeenCalledTimes(1);
+    expect(delivery.send.mock.calls[0]?.[0].pushes).toHaveLength(1);
+    expect(prisma.reminderDelivery.createMany).toHaveBeenCalledWith({
+      data: [
+        { reminderId: 'r1', periodKey: '2026-08-29' },
+        { reminderId: 'r2', periodKey: '2026-08-29' },
+      ],
+      skipDuplicates: true,
+    });
+    expect(prisma.notification.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          userId: 'u1',
+          kind: 'reminder',
+          title: 'Do one now',
+          body: 'Walk',
+          payload: {
+            destination: 'challenge',
+            challengeId: 'c1',
+          },
+          idempotencyKey: 'reminder:r1:2026-08-29',
+        },
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it('does not resend after every reminder in the group was marked delivered', async () => {
+    const today = new Date('2026-08-29T19:05:00.000Z');
+    const prisma = createPrismaMock({
+      zones: ['UTC'],
+      reminders: [
+        {
+          id: 'r1',
+          userId: 'u1',
+          challengeId: 'c1',
+          title: 'Walk',
+          frequency: 'daily',
+        },
+        {
+          id: 'r2',
+          userId: 'u1',
+          challengeId: 'c2',
+          title: 'Push-ups',
+          frequency: 'daily',
+        },
+      ],
+      delivered: [
+        { reminderId: 'r1', periodKey: '2026-08-29' },
+        { reminderId: 'r2', periodKey: '2026-08-29' },
+      ],
+    });
+    const delivery = createDelivery();
+    const service = new ReminderDispatcherService(
+      prisma as never,
+      delivery as never,
+      createPolicy() as never,
+      createContexts() as never,
+    );
+
+    await expect(service.dispatchDue(today)).resolves.toEqual({
+      dueCount: 2,
+      sentCount: 0,
+      suppressedCount: 0,
+    });
+    expect(delivery.send).not.toHaveBeenCalled();
+  });
+
+  it('still sends one push per person when several people are due', async () => {
+    const today = new Date('2026-08-29T19:05:00.000Z');
+    const prisma = createPrismaMock({
+      zones: ['UTC'],
+      reminders: [
+        {
+          id: 'r1',
+          userId: 'u1',
+          challengeId: 'c1',
+          title: 'Walk',
+          frequency: 'daily',
+        },
+        {
+          id: 'r2',
+          userId: 'u2',
+          challengeId: 'c2',
+          title: 'Push-ups',
+          frequency: 'daily',
+        },
+      ],
+    });
+    const delivery = createDelivery({
+      sentCount: 2,
+      usersWithDevice: ['u1', 'u2'],
+    });
+    const service = new ReminderDispatcherService(
+      prisma as never,
+      delivery as never,
+      createPolicy() as never,
+      createContexts() as never,
+    );
+
+    await expect(service.dispatchDue(today)).resolves.toEqual({
+      dueCount: 2,
+      sentCount: 2,
+      suppressedCount: 0,
+    });
+    expect(delivery.send.mock.calls[0]?.[0].pushes).toHaveLength(2);
+  });
+
   it('sends one habit slot while a daily challenge is still open', async () => {
     const morning = new Date('2026-08-29T08:02:00.000Z');
     const prisma = createPrismaMock({

@@ -39,6 +39,13 @@ type DueReminder = {
   periodKey: string;
 };
 
+/** One push per person: the lead reminder carries the copy, every member is marked delivered. */
+type DueReminderGroup = {
+  userId: string;
+  lead: DueReminder;
+  members: DueReminder[];
+};
+
 type ReminderRow = {
   id: string;
   enrollment: {
@@ -322,10 +329,10 @@ export class ReminderDispatcherService {
   }
 
   /**
-   * Sends every reminder whose local minute has arrived and whose period is
-   * still open. Safe to call repeatedly and on overlapping windows: a delivery
-   * row is written per reminder and period, and only for messages the provider
-   * accepted, so a failed send is retried on the next run.
+   * Sends one clock reminder per person whose local minute has arrived and
+   * whose period is still open. Several enrolments at the same minute share
+   * one push; every reminder in the group is marked delivered so a retry
+   * cannot fire the rest a minute later.
    */
   async dispatchDue(
     now: Date = new Date(),
@@ -346,13 +353,18 @@ export class ReminderDispatcherService {
 
     const undelivered = await this.excludeAlreadyDelivered(due);
     const outstanding = await this.excludeCompleted(undelivered);
+    const groups = await this.assignClockLeads(this.groupDueByUser(outstanding), now);
     const policySuppressed = await this.applyCadenceBudget(
-      outstanding,
+      groups,
       now,
       (item) => item.userId,
     );
+    const allowedMemberCount = policySuppressed.allowed.reduce(
+      (count, group) => count + group.members.length,
+      0,
+    );
     const suppressedCount =
-      undelivered.length - outstanding.length + policySuppressed.suppressed;
+      undelivered.length - outstanding.length + (outstanding.length - allowedMemberCount);
 
     if (policySuppressed.allowed.length === 0) {
       return { dueCount: due.length, sentCount: 0, suppressedCount };
@@ -365,6 +377,62 @@ export class ReminderDispatcherService {
     );
 
     return { dueCount: due.length, sentCount, suppressedCount };
+  }
+
+  /** Buckets due reminders by person so each person gets at most one push. */
+  private groupDueByUser(
+    due: readonly DueReminder[],
+  ): Map<string, DueReminder[]> {
+    const byUser = new Map<string, DueReminder[]>();
+
+    for (const item of due) {
+      const members = byUser.get(item.userId) ?? [];
+      members.push(item);
+      byUser.set(item.userId, members);
+    }
+
+    return byUser;
+  }
+
+  /**
+   * Treatment picks the lead challenge; holdout keeps enrolment order.
+   * The lead is the only reminder that shapes the push copy.
+   */
+  private async assignClockLeads(
+    byUser: Map<string, DueReminder[]>,
+    now: Date,
+  ): Promise<DueReminderGroup[]> {
+    if (byUser.size === 0) {
+      return [];
+    }
+
+    const plans = await this.policy.cadencePlanFor([...byUser.keys()], now);
+    const groups: DueReminderGroup[] = [];
+
+    for (const [userId, members] of byUser) {
+      const first = members[0];
+      if (!first) {
+        continue;
+      }
+
+      let lead = first;
+      const plan = plans.get(userId);
+      if (isTreatmentVariant(plan?.variantKey) && members.length > 1) {
+        const { leadChallengeId } = await this.policy.pickLeadForOpenChallenges({
+          userId,
+          openChallengeIds: members.map((member) => member.challengeId),
+          timeZone: plan?.timeZone ?? 'UTC',
+          now,
+        });
+        lead =
+          members.find((member) => member.challengeId === leadChallengeId) ??
+          first;
+      }
+
+      groups.push({ userId, lead, members });
+    }
+
+    return groups;
   }
 
   /**
@@ -659,22 +727,23 @@ export class ReminderDispatcherService {
   }
 
   private async sendClockReminders(
-    due: readonly DueReminder[],
+    groups: readonly DueReminderGroup[],
     plans: Map<string, CadencePlan>,
     now: Date,
   ): Promise<number> {
-    const treatmentRequests: ReminderContextRequest[] = due
-      .filter((item) => isTreatmentVariant(plans.get(item.userId)?.variantKey))
-      .map((item) => {
-        const plan = plans.get(item.userId);
+    const treatmentRequests: ReminderContextRequest[] = groups
+      .filter((group) => isTreatmentVariant(plans.get(group.userId)?.variantKey))
+      .map((group) => {
+        const plan = plans.get(group.userId);
         return {
-          userId: item.userId,
+          userId: group.userId,
           dayKey: plan?.dayKey ?? dayKeyFor(plan?.timeZone ?? 'UTC', now),
-          localMinute: plan?.localMinute ?? localMinuteOfDay(plan?.timeZone ?? 'UTC', now),
+          localMinute:
+            plan?.localMinute ?? localMinuteOfDay(plan?.timeZone ?? 'UTC', now),
           timeZone: plan?.timeZone ?? 'UTC',
           nudgeKind: 'clock_reminder' as const,
-          openChallengeIds: [item.challengeId],
-          leadChallengeId: item.challengeId,
+          openChallengeIds: group.members.map((member) => member.challengeId),
+          leadChallengeId: group.lead.challengeId,
         };
       });
 
@@ -690,43 +759,52 @@ export class ReminderDispatcherService {
       situation?: string;
       copyVersion?: string;
       matchId?: string;
+      members: DueReminder[];
     };
 
-    const prepared: PreparedClock[] = due.map((item) => {
-      const plan = plans.get(item.userId);
+    const prepared: PreparedClock[] = groups.map((group) => {
+      const plan = plans.get(group.userId);
+      const openSuffix = isTreatmentVariant(plan?.variantKey)
+        ? moreOpenSuffix(group.members.length)
+        : '';
+
       if (!isTreatmentVariant(plan?.variantKey)) {
         return {
-          ...item,
+          ...group.lead,
           title: CHALLENGE_REMINDER_PUSH_TITLE,
-          body: item.challengeTitle,
+          body: group.lead.challengeTitle,
+          members: group.members,
         };
       }
 
       const loaded = treatmentContexts.get(
         contextKey({
-          userId: item.userId,
+          userId: group.userId,
           nudgeKind: 'clock_reminder',
-          leadChallengeId: item.challengeId,
+          leadChallengeId: group.lead.challengeId,
           userChallengeId: null,
         }),
       );
       if (!loaded) {
         return {
-          ...item,
+          ...group.lead,
           title: CHALLENGE_REMINDER_PUSH_TITLE,
-          body: item.challengeTitle,
+          body: `${group.lead.challengeTitle}${openSuffix}`,
+          members: group.members,
         };
       }
 
       const composed = composeReminderCopy(loaded);
+      const matchId = composed.matchId ?? undefined;
       return {
-        ...item,
+        ...group.lead,
         title: composed.title,
-        body: composed.body,
+        body: matchId ? composed.body : `${composed.body}${openSuffix}`,
         templateKey: composed.templateKey,
         situation: composed.situation,
         copyVersion: composed.copyVersion,
-        matchId: composed.matchId ?? undefined,
+        matchId,
+        members: group.members,
       };
     });
 
@@ -763,21 +841,27 @@ export class ReminderDispatcherService {
 
   private async recordClockDeliveries(
     due: ReadonlyArray<
-      DueReminder & { title: string; body: string; matchId?: string }
+      DueReminder & {
+        title: string;
+        body: string;
+        matchId?: string;
+        members: DueReminder[];
+      }
     >,
   ): Promise<void> {
     await this.prisma.reminderDelivery.createMany({
-      data: due.map((item) => ({
-        reminderId: item.reminderId,
-        periodKey: item.periodKey,
-      })),
+      data: due.flatMap((item) =>
+        item.members.map((member) => ({
+          reminderId: member.reminderId,
+          periodKey: member.periodKey,
+        })),
+      ),
       // Two overlapping runs can reach this point together; the unique key
       // decides which one wins and the other becomes a no-op.
       skipDuplicates: true,
     });
 
-    // The designed inbox is the in-app counterpart of the push. Same key as
-    // the delivery row, so a retry never duplicates the list item.
+    // One inbox row per person, keyed on the lead reminder.
     await this.prisma.notification.createMany({
       data: due.map((item) => ({
         userId: item.userId,
