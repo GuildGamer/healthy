@@ -156,11 +156,13 @@ function RootStack() {
       <Stack.Screen name="notifications" options={{ headerShown: false, title: 'Notifications' }} />
       <Stack.Screen name="settings" options={{ headerShown: false, title: 'Settings' }} />
       <Stack.Screen name="leaderboard" options={{ headerShown: false, title: 'This week' }} />
+      <Stack.Screen name="progress/reports" options={{ headerShown: false, title: 'Reports' }} />
       <Stack.Screen name="progress/report" options={{ headerShown: false, title: 'Report' }} />
       <Stack.Screen
         name="progress/metric/[metric]"
         options={{ headerShown: false, title: 'Activity' }}
       />
+
       <Stack.Screen
         name="manage-challenges"
         options={{ headerShown: false, title: 'Add a challenge' }}

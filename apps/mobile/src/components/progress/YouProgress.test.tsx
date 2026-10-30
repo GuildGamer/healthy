@@ -11,7 +11,6 @@ jest.mock('@/lib/api', () => ({
     listProgressDays: jest.fn(),
     listLeaderboard: jest.fn(),
     listTips: jest.fn(),
-    listChallengeCatalog: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -28,7 +27,6 @@ const mockedApi = apiClient as unknown as {
   listProgressDays: jest.Mock;
   listLeaderboard: jest.Mock;
   listTips: jest.Mock;
-  listChallengeCatalog: jest.Mock;
 };
 
 function renderProgress() {
@@ -54,7 +52,6 @@ beforeEach(() => {
   mockedApi.listProgressDays.mockResolvedValue(progressDays());
   mockedApi.listLeaderboard.mockResolvedValue(weeklyBoard());
   mockedApi.listTips.mockResolvedValue({ tips: [] });
-  mockedApi.listChallengeCatalog.mockResolvedValue({ challenges: [] });
 });
 
 describe('YouProgress', () => {
@@ -72,15 +69,17 @@ describe('YouProgress', () => {
     await cleanup();
   });
 
-  it('opens History, the leaderboard, Tips and Verify a clip from their rows', async () => {
+  it('opens Reports, History, the leaderboard, Tips and Verify a clip from their rows', async () => {
     const { cleanup } = renderProgress();
 
-    fireEvent.press(await screen.findByTestId('progress-open-history'));
+    fireEvent.press(await screen.findByTestId('progress-open-reports'));
+    fireEvent.press(screen.getByTestId('progress-open-history'));
     fireEvent.press(screen.getByTestId('progress-open-leaderboard'));
     fireEvent.press(screen.getByTestId('progress-open-tips'));
     fireEvent.press(screen.getByTestId('progress-open-verify-clip'));
 
     expect(mockPush.mock.calls.map(([href]) => href)).toEqual([
+      '/progress/reports',
       '/history',
       '/leaderboard',
       '/tips',
@@ -89,6 +88,7 @@ describe('YouProgress', () => {
 
     await cleanup();
   });
+
 
   it('shows the same calm card when the week does not load, and keeps the rows', async () => {
     mockedApi.listProgressDays.mockRejectedValue(new Error('offline'));

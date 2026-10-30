@@ -3,14 +3,12 @@ import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { DeckDisc, DeckListRow, DeckNoteCard } from '@/components/deck';
-import { DECK_KIND_BY_METRIC, DECK_KIND_GLYPH } from '@/components/deck';
 import { boardLinkMeta, boardStanding, type BoardStanding } from '@/components/leaderboard';
 import { selectDailyTip } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { PROGRESS_COPY } from './constants/progress-copy';
 import { ProgressSkeleton } from './ProgressSkeleton';
 import { ProgressStats } from './ProgressStats';
-import { enrolledStatsMetrics } from './stats-metrics';
 import { useMeQuery, useProgressDays, useWeeklyBoard } from './useProgressQueries';
 import { WeekCard } from './WeekCard';
 import { buildWeekSummary } from './week-summary';
@@ -22,10 +20,6 @@ function useYouProgress() {
   const daysQuery = useProgressDays();
   const boardQuery = useWeeklyBoard();
   const tipsQuery = useQuery({ queryKey: ['tips'], queryFn: () => apiClient.listTips() });
-  const catalogQuery = useQuery({
-    queryKey: ['challenges', 'catalog'],
-    queryFn: () => apiClient.listChallengeCatalog(),
-  });
 
   useFocusEffect(
     useCallback(() => {
@@ -46,7 +40,6 @@ function useYouProgress() {
   const todayTip = days
     ? selectDailyTip(tipsQuery.data?.tips ?? [], me?.categories ?? [], days.dayKey)
     : null;
-  const metrics = enrolledStatsMetrics(catalogQuery.data?.challenges ?? []);
 
   return {
     me,
@@ -54,7 +47,6 @@ function useYouProgress() {
     daysQuery,
     standing,
     todayTip,
-    metrics,
     isPending: daysQuery.isPending || meQuery.isPending,
   };
 }
@@ -62,7 +54,7 @@ function useYouProgress() {
 /** You opens on how you're doing: this week, three figures, and the ways to look back. */
 export function YouProgress() {
   const router = useRouter();
-  const { me, days, daysQuery, standing, todayTip, metrics, isPending } = useYouProgress();
+  const { me, days, daysQuery, standing, todayTip, isPending } = useYouProgress();
 
   if (isPending) {
     return <ProgressSkeleton />;
@@ -96,54 +88,10 @@ export function YouProgress() {
           title={PROGRESS_COPY.weekFailedTitle}
         />
       )}
-      {metrics.length > 0 ? <MetricLinks metrics={metrics} /> : null}
       <ProgressLinks
         historyMeta={historyMeta}
         leaderboardMeta={standing ? boardLinkMeta(standing) : null}
         tipMeta={todayTip ? `Today: ${todayTip.title}` : null}
-      />
-    </View>
-  );
-}
-
-function MetricLinks({
-  metrics,
-}: {
-  metrics: { metric: string; title: string }[];
-}) {
-  const router = useRouter();
-
-  return (
-    <View style={styles.links}>
-      {metrics.map((row, index) => {
-        const kind = DECK_KIND_BY_METRIC[row.metric as keyof typeof DECK_KIND_BY_METRIC] ?? 'walk';
-        return (
-          <DeckListRow
-            isFirst={index === 0}
-            key={row.metric}
-            leading={<DeckDisc glyph={DECK_KIND_GLYPH[kind]} />}
-            meta={PROGRESS_COPY.activityStatsMeta}
-            onPress={() =>
-              router.push(`/progress/metric/${row.metric}?period=week` as Href)
-            }
-            testID={`progress-open-metric-${row.metric}`}
-            title={row.title}
-          />
-        );
-      })}
-      <DeckListRow
-        leading={<DeckDisc glyph="flame" />}
-        meta={PROGRESS_COPY.monthReportTitle}
-        onPress={() => router.push('/progress/report?period=month' as Href)}
-        testID="progress-open-month-report"
-        title={PROGRESS_COPY.monthReportTitle}
-      />
-      <DeckListRow
-        leading={<DeckDisc glyph="flame" />}
-        meta={PROGRESS_COPY.yearReportTitle}
-        onPress={() => router.push('/progress/report?period=year' as Href)}
-        testID="progress-open-year-report"
-        title={PROGRESS_COPY.yearReportTitle}
       />
     </View>
   );
@@ -164,6 +112,13 @@ function ProgressLinks({
     <View style={styles.links}>
       <DeckListRow
         isFirst
+        leading={<DeckDisc glyph="flame" />}
+        meta={PROGRESS_COPY.reportsMeta}
+        onPress={() => router.push('/progress/reports' as Href)}
+        testID="progress-open-reports"
+        title={PROGRESS_COPY.reportsTitle}
+      />
+      <DeckListRow
         leading={<DeckDisc glyph="history" />}
         meta={historyMeta}
         onPress={() => router.push('/history')}

@@ -35,8 +35,9 @@ export const PROGRESS_COPY = {
   statsUnknown: 'That activity isn’t on your list.',
   share: 'Share',
   shareFallback: 'I’m on a run with Healthy.',
-  activityStatsTitle: 'Activity',
-  activityStatsMeta: 'Totals and reports you can share',
-  monthReportTitle: 'Month report',
-  yearReportTitle: 'Year report',
+  reportsTitle: 'Reports',
+  reportsMeta: 'Workouts and week, month, year',
+  periodOverviewTitle: 'Days active',
+  periodOverviewMeta: 'Week, month, or year',
+  activityStatsMeta: 'Totals you can share',
 } as const;
