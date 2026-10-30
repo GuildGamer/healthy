@@ -1,7 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { DEFAULT_CHALLENGE_ICON } from '@product/contract';
 import { describe, expect, it, vi } from 'vitest';
-import type { PracticeService } from '../practice/index.js';
 import { StreakService } from '../streak/index.js';
 import { ChallengesService } from './challenges.service.js';
 
@@ -9,16 +8,13 @@ const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
 
 const TIME_ZONE = 'Asia/Singapore';
 
-/** Practice only feeds the activity list; every other path ignores it. */
 function createService(
   prisma: unknown,
   evidenceValidator?: unknown,
-  practice: Partial<PracticeService> = { listRecent: async () => [] },
   delivery?: { send: ReturnType<typeof vi.fn> },
 ): ChallengesService {
   return new ChallengesService(
     prisma as never,
-    practice as PracticeService,
     new StreakService(prisma as never),
     evidenceValidator as never,
     undefined,
@@ -417,6 +413,90 @@ describe('ChallengesService.start', () => {
   });
 });
 
+describe('ChallengesService.creditMeasuredActivity', () => {
+  function pushupAssignment(targetCount: number) {
+    return createAssignment({
+      id: 'uc-push',
+      status: 'pending',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'check_in',
+        captureKind: 'device_session',
+        deviceMetric: 'pushups',
+        targetCount,
+      },
+    });
+  }
+
+  function creditPrisma(assignment: ReturnType<typeof createAssignment>) {
+    return {
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ timeZone: TIME_ZONE, membershipActive: true }),
+      },
+      challengeEnrollment: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      userChallenge: {
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findMany: vi.fn().mockResolvedValue([assignment]),
+        findUnique: vi.fn().mockResolvedValue(assignment),
+        findUniqueOrThrow: vi.fn().mockResolvedValue(assignment),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+  }
+
+  it('finishes an open Mine goal when the set already meets the target', async () => {
+    const assignment = pushupAssignment(30);
+    const prisma = creditPrisma(assignment);
+    const service = createService(prisma);
+    const complete = vi.spyOn(service, 'complete').mockResolvedValue({
+      challenge: { id: assignment.id } as never,
+      pointsAwarded: 20,
+      pointsBalance: 20,
+      currentStreakDays: 1,
+      evidenceRequest: null,
+      penaltyApplied: 0,
+    });
+
+    const credited = await service.creditMeasuredActivity(user, {
+      source: 'in_app_pose',
+      metric: 'pushups',
+      count: 30,
+      durationSeconds: 50,
+      externalId: 'match-attempt:a1',
+    });
+
+    expect(credited).toEqual(['uc-push']);
+    expect(complete).toHaveBeenCalledWith(
+      user,
+      'uc-push',
+      undefined,
+      undefined,
+      undefined,
+      expect.objectContaining({ metric: 'pushups', count: 30 }),
+    );
+  });
+
+  it('leaves the goal open when the set is still short', async () => {
+    const assignment = pushupAssignment(30);
+    const prisma = creditPrisma(assignment);
+    const service = createService(prisma);
+    const complete = vi.spyOn(service, 'complete');
+
+    const credited = await service.creditMeasuredActivity(user, {
+      source: 'in_app_pose',
+      metric: 'pushups',
+      count: 18,
+      durationSeconds: 40,
+      externalId: 'match-attempt:a1',
+    });
+
+    expect(credited).toEqual([]);
+    expect(complete).not.toHaveBeenCalled();
+  });
+});
+
 describe('ChallengesService.complete', () => {
   it('rejects a blood-pressure challenge that has no reading yet', async () => {
     const assignment = createAssignment({
@@ -510,7 +590,6 @@ describe('ChallengesService.complete', () => {
     const service = createService(
       prisma,
       undefined,
-      { listRecent: async () => [] },
       delivery,
     );
 

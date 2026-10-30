@@ -15,8 +15,8 @@ import {
 } from './constants/challenge-mark-select.js';
 import { HISTORY_WINDOW_DAYS } from './constants/progress.js';
 import type {
-  MetricPeriodStats as MetricPeriodStatsDto,
-  PeriodReport as PeriodReportDto,
+  MetricPeriodStatsDto,
+  PeriodReportDto,
   ProgressDayDetailDto,
   ProgressDaysDto,
 } from './dto/index.js';

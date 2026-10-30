@@ -1,8 +1,10 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
+  activityMeetsTarget,
   displayChallengeTitle,
   fieldProgress,
+  isDeviceCapture,
   isPoseMetric,
   practiceActivityReason,
   resolveEnrollmentTargetCount,
@@ -10,6 +12,7 @@ import {
   toChallengeCapture,
   toChallengeIcon,
   type DeviceActivity,
+  type DeviceMetric,
   type NotificationPayload,
 } from '@product/contract';
 import {
@@ -41,7 +44,6 @@ import {
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
-import { PracticeService } from '../practice/index.js';
 import { StreakService } from '../streak/index.js';
 import type {
   ActivityItemDto,
@@ -193,7 +195,6 @@ export class ChallengesService {
 
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    private readonly practice: PracticeService,
     private readonly streak: StreakService,
     @Inject(EVIDENCE_VALIDATOR)
     private readonly evidenceValidator: EvidenceValidator = createAcceptEvidenceValidator(),
@@ -204,6 +205,60 @@ export class ChallengesService {
     private readonly delivery?: EngagementDeliveryService,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
+  }
+
+  /**
+   * A measured set logged elsewhere (contest board, extra practice) finishes
+   * every open Mine occurrence that tracks the same activity and whose goal
+   * that set already meets. Short sets stay out: they only bank progress via
+   * the activity log the caller wrote. Failures stay quiet so the original
+   * save is never undone. Returns the occurrence ids that completed.
+   */
+  async creditMeasuredActivity(
+    currentUser: AuthenticatedUser | null | undefined,
+    activity: DeviceActivity,
+  ): Promise<string[]> {
+    const user = requireUser(currentUser);
+    const { timeZone, membershipActive } = await this.profileAccessFor(user.id);
+    const window = this.dueWindow(timeZone);
+
+    await Promise.all([
+      this.settleExpiredEvidence(user.id),
+      this.materialiseDueOccurrences(user.id, window, membershipActive),
+    ]);
+
+    const assignments = await this.prisma.userChallenge.findMany({
+      where: {
+        ...this.dueFilter(user.id, window),
+        status: { in: ['pending', 'in_progress'] },
+        challenge: {
+          ...challengeAccessFilter(membershipActive),
+          deviceMetric: activity.metric,
+        },
+        AND: [VISIBLE_OCCURRENCE_FILTER],
+      },
+      include: ASSIGNMENT_INCLUDE,
+    });
+
+    const credited: string[] = [];
+    for (const assignment of assignments) {
+      const capture = captureForAssignment(assignment);
+      if (!isDeviceCapture(capture.kind) || !activityMeetsTarget(activity, capture.target)) {
+        continue;
+      }
+
+      try {
+        await this.complete(user, assignment.id, undefined, undefined, undefined, activity);
+        credited.push(assignment.id);
+      } catch (error) {
+        this.logger.warn(
+          `Could not credit measured activity to challenge ${assignment.id}`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    return credited;
   }
 
   /**
@@ -844,7 +899,11 @@ export class ChallengesService {
         orderBy: { createdAt: 'desc' },
         take: ACTIVITY_PAGE_SIZE,
       }),
-      this.practice.listRecent(user.id, ACTIVITY_PAGE_SIZE),
+      this.prisma.deviceActivityLog.findMany({
+        where: { userId: user.id, userChallengeId: null },
+        orderBy: { createdAt: 'desc' },
+        take: ACTIVITY_PAGE_SIZE,
+      }),
     ]);
 
     const items: ActivityItemDto[] = [
@@ -859,10 +918,10 @@ export class ChallengesService {
       ...practice.map((session) => ({
         id: session.id,
         delta: 0,
-        reason: practiceActivityReason(session.metric),
-        createdAt: session.recordedAt,
+        reason: practiceActivityReason(session.metric as DeviceMetric),
+        createdAt: session.createdAt.toISOString(),
         kind: 'practice' as const,
-        count: session.metric === 'pushups' ? session.count : null,
+        count: session.metric === 'pushups' ? (session.count ?? 0) : null,
       })),
     ];
 

@@ -8,6 +8,7 @@ import {
   matchContestTitle,
   matchInviteUrl,
   resolveMatchLength,
+  type DeviceActivity,
   type ListMyMatchesOutput,
   type MatchBoard,
   type MatchListItem,
@@ -24,6 +25,7 @@ import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { AnalyticsService } from '../analytics/index.js';
+import { ChallengesService } from '../challenges/index.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
 import { StreakService } from '../streak/index.js';
 import { groupNameFor } from '../../../shared/utils/group-name.js';
@@ -51,7 +53,11 @@ import {
   MATCH_REACTION_NOT_ALLOWED,
   MATCH_WRONG_ACTIVITY,
 } from './errors/match.errors.js';
-import { MATCH_LIST_ROSTER_SIZE } from './constants/match.js';
+import {
+  MATCH_ATTEMPT_ACTIVITY_EXTERNAL_PREFIX,
+  MATCH_LIST_ROSTER_SIZE,
+  matchAttemptActivityExternalId,
+} from './constants/match.js';
 import { lastMoveFor, rosterFor } from './match-list-item.js';
 import { MatchReactionNotifierService } from './match-reaction-notifier.service.js';
 import { MatchReactionsService } from './match-reactions.service.js';
@@ -118,6 +124,7 @@ export class MatchesService {
     private readonly matchReactionNotifier: MatchReactionNotifierService,
     private readonly streak: StreakService,
     private readonly matchSettledNotifier: MatchSettledNotifierService,
+    private readonly challenges: ChallengesService,
   ) {}
 
   private trackMatchEvent(
@@ -590,6 +597,7 @@ export class MatchesService {
    * scores that exercise. Streak contests score finished days, so they are
    * skipped. Failures stay quiet: the practice row already saved. Returns the
    * match ids that accepted the set so the client can show contest success.
+   * Personal Mine goals were already credited by PracticeService.
    */
   async creditPosePractice(
     currentUser: AuthenticatedUser | null | undefined,
@@ -618,12 +626,16 @@ export class MatchesService {
     const credited: string[] = [];
     for (const match of open) {
       try {
-        await this.submitAttempt(user, {
-          matchId: match.id,
-          count: input.count,
-          durationSeconds: input.durationSeconds,
-          source: input.source,
-        });
+        await this.submitAttempt(
+          user,
+          {
+            matchId: match.id,
+            count: input.count,
+            durationSeconds: input.durationSeconds,
+            source: input.source,
+          },
+          { applyTowardPersonalGoals: false },
+        );
         credited.push(match.id);
       } catch (error) {
         this.logger.warn(
@@ -639,7 +651,9 @@ export class MatchesService {
   async submitAttempt(
     currentUser: AuthenticatedUser | null | undefined,
     input: SubmitMatchAttemptInput,
+    options: { applyTowardPersonalGoals?: boolean } = {},
   ): Promise<MatchBoardDto> {
+    const applyTowardPersonalGoals = options.applyTowardPersonalGoals !== false;
     const user = requireUser(currentUser);
     const loaded = await this.settleIfDue(await this.loadById(input.matchId));
     this.assertParticipant(loaded, user.id);
@@ -678,10 +692,89 @@ export class MatchesService {
       this.trackMatchEvent(user, 'challenge_completed_by_recipient', match);
     }
 
+    if (applyTowardPersonalGoals) {
+      await this.applyAttemptTowardPersonalGoals(user, match.metric, attempt.id, input);
+    }
+
     const fresh = await this.loadById(match.id);
     const board = await this.buildBoard(fresh, user.id);
     await this.notifyBoardMove(fresh, board, user.id, attempt.id, scoreBefore);
     return board;
+  }
+
+  /**
+   * Banks the set on Mine progress and finishes any open goal that set already
+   * meets. Quiet on failure: the contest attempt is already saved.
+   */
+  private async applyAttemptTowardPersonalGoals(
+    user: AuthenticatedUser,
+    metric: MatchMetric,
+    attemptId: string,
+    input: SubmitMatchAttemptInput,
+  ): Promise<void> {
+    const activity = this.deviceActivityFromAttempt(metric, attemptId, input);
+    try {
+      await this.persistMatchActivityLog(user.id, activity);
+      await this.challenges.creditMeasuredActivity(user, activity);
+    } catch (error) {
+      this.logger.warn(
+        `Could not apply contest attempt ${attemptId} toward personal goals`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
+  private deviceActivityFromAttempt(
+    metric: MatchMetric,
+    attemptId: string,
+    input: SubmitMatchAttemptInput,
+  ): DeviceActivity {
+    const endedAt = new Date().toISOString();
+    return {
+      // Contest walks use MatchAttemptSource `in_app_walk`; the habit log
+      // enum only has `in_app_gps` for the same on-device GPS path.
+      source: input.source === 'in_app_walk' ? 'in_app_gps' : 'in_app_pose',
+      metric: DEVICE_METRIC_BY_MATCH_METRIC[metric],
+      count: input.count,
+      durationSeconds: input.durationSeconds,
+      startedAt: new Date(Date.now() - input.durationSeconds * 1000).toISOString(),
+      endedAt,
+      externalId: matchAttemptActivityExternalId(attemptId),
+    };
+  }
+
+  private async persistMatchActivityLog(userId: string, activity: DeviceActivity): Promise<void> {
+    if (!activity.externalId) {
+      return;
+    }
+
+    const key = { userId_externalId: { userId, externalId: activity.externalId } };
+    const existing = await this.prisma.deviceActivityLog.findUnique({ where: key });
+    if (existing?.userChallengeId) {
+      return;
+    }
+
+    await this.prisma.deviceActivityLog.upsert({
+      where: key,
+      create: {
+        userId,
+        userChallengeId: null,
+        source: activity.source,
+        metric: activity.metric,
+        count: activity.count ?? null,
+        durationSeconds: activity.durationSeconds ?? null,
+        distanceMeters: activity.distanceMeters ?? null,
+        startedAt: activity.startedAt ? new Date(activity.startedAt) : null,
+        endedAt: activity.endedAt ? new Date(activity.endedAt) : null,
+        externalId: activity.externalId,
+      },
+      update: {
+        count: activity.count ?? null,
+        durationSeconds: activity.durationSeconds ?? null,
+        distanceMeters: activity.distanceMeters ?? null,
+        endedAt: activity.endedAt ? new Date(activity.endedAt) : null,
+      },
+    });
   }
 
   async cancel(
@@ -1163,8 +1256,9 @@ export class MatchesService {
    * somebody walk twice, so those minutes land on the board on their own.
    *
    * Hand-confirmed walks are excluded: a score anybody can type is not a
-   * score the rest of the group can trust. The group's own walk screen writes
-   * a `MatchAttempt` and no activity log, so nothing is counted twice.
+   * score the rest of the group can trust. Logs mirrored from a contest
+   * MatchAttempt are also excluded — those minutes already score via the
+   * attempt, and the mirror only exists so Mine goals can see the work.
    */
   private async loadTrackedWalkEvents(
     match: LoadedMatch,
@@ -1181,6 +1275,7 @@ export class MatchesService {
         userId: { in: this.acceptedUserIds(match) },
         metric: 'walk',
         source: { in: TRACKED_WALK_SOURCES },
+        NOT: { externalId: { startsWith: MATCH_ATTEMPT_ACTIVITY_EXTERNAL_PREFIX } },
         // The walk itself has to fall inside the contest, so importing an old
         // workout mid-contest cannot backfill a win.
         OR: [

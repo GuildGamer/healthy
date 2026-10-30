@@ -69,8 +69,8 @@ beforeAll(() => {
   prisma = createTestPrismaClient();
   const streak = new StreakService(prisma);
   const matches = { creditPosePractice: vi.fn(async () => [] as string[]) };
-  practice = new PracticeService(prisma, streak, matches as never);
-  challenges = new ChallengesService(prisma, practice, streak, undefined, () => 1);
+  challenges = new ChallengesService(prisma, streak, undefined, () => 1);
+  practice = new PracticeService(prisma, streak, matches as never, challenges);
   today = new TodayService(prisma);
 });
 

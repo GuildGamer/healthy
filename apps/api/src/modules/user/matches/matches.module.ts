@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EngagementModule } from '../../shared-modules/engagement/index.js';
 import { AnalyticsModule } from '../analytics/index.js';
+import { ChallengesModule } from '../challenges/index.js';
 import { CrewsModule } from '../crews/index.js';
 import { StreakModule } from '../streak/index.js';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
@@ -12,7 +13,7 @@ import { MatchesController } from './matches.controller.js';
 import { MatchesService } from './matches.service.js';
 
 @Module({
-  imports: [CrewsModule, AnalyticsModule, EngagementModule, StreakModule],
+  imports: [CrewsModule, AnalyticsModule, EngagementModule, StreakModule, ChallengesModule],
   controllers: [MatchesController],
   providers: [
     MatchesService,

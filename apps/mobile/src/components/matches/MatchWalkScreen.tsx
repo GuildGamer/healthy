@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormButton, FormErrorBanner } from '@/components/forms';
 import { WalkRouteMap } from '@/components/challenges/WalkRouteMap';
 import { useWalkRecorder, type WalkRecording } from '@/components/challenges/useWalkRecorder';
+import { refreshAfterCompletion } from '@/components/challenges/useCompleteChallenge';
 import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
@@ -47,6 +48,7 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
         source: 'in_app_walk',
       }),
     onSuccess: async () => {
+      refreshAfterCompletion(queryClient);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       exit();
     },

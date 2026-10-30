@@ -33,6 +33,7 @@ function createMatchesService(client: PrismaClient): MatchesService {
     { notify: vi.fn() } as never,
     new StreakService(client),
     { notifyParticipants: vi.fn() } as never,
+    { creditMeasuredActivity: vi.fn(async () => []) } as never,
   );
 }
 

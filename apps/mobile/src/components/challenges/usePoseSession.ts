@@ -206,6 +206,8 @@ function useSubmitSet(
           durationSeconds: submitted.durationSeconds,
           matchId: submitted.matchId,
         });
+        // Contest sets also bank / finish open Mine goals for that activity.
+        refreshAfterCompletion(queryClient);
         void queryClient.invalidateQueries({ queryKey: ['matches'] });
         void queryClient.invalidateQueries({ queryKey: ['activity'] });
         void queryClient.invalidateQueries({ queryKey: ['practice'] });
@@ -230,6 +232,8 @@ function useSubmitSet(
           count: submitted.reps,
           durationSeconds: submitted.durationSeconds,
         });
+        // A practice set that already meets today's Mine goal finishes it.
+        refreshAfterCompletion(queryClient);
         void queryClient.invalidateQueries({ queryKey: ['activity'] });
         void queryClient.invalidateQueries({ queryKey: ['practice'] });
         if (occurrence) {

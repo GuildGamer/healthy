@@ -104,12 +104,19 @@ function createMatchesSpy(creditedMatchIds: string[] = []) {
   };
 }
 
+function createChallengesSpy() {
+  return {
+    creditMeasuredActivity: vi.fn(async () => [] as string[]),
+  };
+}
+
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   streak: ReturnType<typeof createStreakSpy> = createStreakSpy(),
   matches: ReturnType<typeof createMatchesSpy> = createMatchesSpy(),
+  challenges: ReturnType<typeof createChallengesSpy> = createChallengesSpy(),
 ): PracticeService {
-  return new PracticeService(prisma as never, streak as never, matches as never);
+  return new PracticeService(prisma as never, streak as never, matches as never, challenges as never);
 }
 
 const input = {
@@ -324,15 +331,40 @@ describe('PracticeService.record', () => {
     expect(result.creditedMatchIds).toEqual(['m1']);
   });
 
+  it('applies the set toward open Mine goals before contest credit', async () => {
+    const matches = createMatchesSpy(['m1']);
+    const challenges = createChallengesSpy();
+    await createService(createPrismaMock(), createStreakSpy(), matches, challenges).record(
+      user,
+      input,
+    );
+
+    expect(challenges.creditMeasuredActivity).toHaveBeenCalledWith(user, {
+      metric: input.metric,
+      source: input.source,
+      count: input.count,
+      durationSeconds: input.durationSeconds,
+      distanceMeters: undefined,
+      startedAt: input.startedAt,
+      endedAt: input.endedAt,
+      externalId: input.externalId,
+    });
+    expect(challenges.creditMeasuredActivity.mock.invocationCallOrder[0]).toBeLessThan(
+      matches.creditPosePractice.mock.invocationCallOrder[0]!,
+    );
+  });
+
   it('records nothing toward the streak when the metric is locked', async () => {
     const streak = createStreakSpy();
     const matches = createMatchesSpy();
+    const challenges = createChallengesSpy();
     const prisma = createPrismaMock({ unlockedChallenge: null, membershipActive: false });
 
-    await expect(createService(prisma, streak, matches).record(user, input)).rejects.toBeInstanceOf(
-      ORPCError,
-    );
+    await expect(
+      createService(prisma, streak, matches, challenges).record(user, input),
+    ).rejects.toBeInstanceOf(ORPCError);
     expect(streak.recordActiveDay).not.toHaveBeenCalled();
+    expect(challenges.creditMeasuredActivity).not.toHaveBeenCalled();
     expect(matches.creditPosePractice).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,6 @@ import { previousDayKey } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
-import { PracticeService } from '../practice/practice.service.js';
 import { RemindersService } from '../reminders/reminders.service.js';
 import { StreakService } from '../streak/index.js';
 import { TodayService } from '../today/today.service.js';
@@ -79,11 +78,7 @@ function dailySpecs(count: number): CatalogSpec[] {
 beforeAll(() => {
   prisma = createTestPrismaClient();
   streak = new StreakService(prisma);
-  challenges = new ChallengesService(
-    prisma,
-    new PracticeService(prisma, streak, { creditPosePractice: async () => [] } as never),
-    streak,
-  );
+  challenges = new ChallengesService(prisma, streak);
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
   me = new MeService(prisma, enrollments);
   todayDetails = new TodayService(prisma);

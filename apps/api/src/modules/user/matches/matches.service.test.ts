@@ -253,6 +253,8 @@ function createPrismaMock(match = loadedMatch()) {
     },
     deviceActivityLog: {
       findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({ id: 'log-1' }),
     },
     analyticsEvent: {
       create: vi.fn().mockResolvedValue({ id: 'evt1' }),
@@ -298,6 +300,12 @@ function createMatchSettledSpy() {
   return { notifyParticipants: vi.fn().mockResolvedValue(undefined) };
 }
 
+function createChallengesSpy() {
+  return {
+    creditMeasuredActivity: vi.fn(async () => [] as string[]),
+  };
+}
+
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   notifier: ReturnType<typeof createNotifierSpy> = createNotifierSpy(),
@@ -307,6 +315,7 @@ function createService(
   reactionNotifier: ReturnType<typeof createReactionNotifierSpy> = createReactionNotifierSpy(),
   streak: ReturnType<typeof createStreakSpy> = createStreakSpy(),
   matchSettled: ReturnType<typeof createMatchSettledSpy> = createMatchSettledSpy(),
+  challenges: ReturnType<typeof createChallengesSpy> = createChallengesSpy(),
 ): MatchesService {
   return new MatchesService(
     prisma as never,
@@ -320,6 +329,7 @@ function createService(
     reactionNotifier as never,
     streak as never,
     matchSettled as never,
+    challenges as never,
   );
 }
 
@@ -339,7 +349,15 @@ function walkLog(userId: string, durationSeconds: number, endedAt = '2026-09-04T
 /** The `where` a walk contest built to read logged activity. */
 function walkQueryWhere(prisma: ReturnType<typeof createPrismaMock>) {
   const [call] = prisma.deviceActivityLog.findMany.mock.calls;
-  return (call?.[0] as { where: { userId: { in: string[] }; source: { in: string[] } } }).where;
+  return (
+    call?.[0] as {
+      where: {
+        userId: { in: string[] };
+        source: { in: string[] };
+        NOT?: { externalId: { startsWith: string } };
+      };
+    }
+  ).where;
 }
 
 function twoPersonMatch(overrides: Partial<MockMatch> = {}) {
@@ -809,6 +827,123 @@ describe('MatchesService', () => {
       currentStreakDays: 3,
       advanced: true,
     });
+  });
+
+  it('banks a contest set toward open Mine goals', async () => {
+    const prisma = createPrismaMock(
+      loadedMatch({
+        participants: [
+          {
+            id: 'p1',
+            matchId: 'm1',
+            userId: host.id,
+            joinedAt: new Date(),
+            acceptedAt: new Date(),
+            user: userWithProfile(host.id, 'Ada'),
+          },
+          {
+            id: 'p2',
+            matchId: 'm1',
+            userId: guest.id,
+            joinedAt: new Date(),
+            acceptedAt: new Date(),
+            user: userWithProfile(guest.id, 'Bee'),
+          },
+        ],
+      }),
+    );
+    const challenges = createChallengesSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      createBoardMoveSpy(),
+      createReactionNotifierSpy(),
+      createStreakSpy(),
+      createMatchSettledSpy(),
+      challenges,
+    );
+
+    await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 30,
+      durationSeconds: 55,
+      source: 'in_app_pose',
+    });
+
+    expect(prisma.deviceActivityLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          userId: guest.id,
+          metric: 'pushups',
+          count: 30,
+          externalId: 'match-attempt:a1',
+          userChallengeId: null,
+        }),
+      }),
+    );
+    expect(challenges.creditMeasuredActivity).toHaveBeenCalledWith(
+      guest,
+      expect.objectContaining({
+        metric: 'pushups',
+        count: 30,
+        durationSeconds: 55,
+        source: 'in_app_pose',
+        externalId: 'match-attempt:a1',
+      }),
+    );
+  });
+
+  it('skips Mine credit when a practice set is only filling contest boards', async () => {
+    const prisma = createPrismaMock(
+      loadedMatch({
+        participants: [
+          {
+            id: 'p1',
+            matchId: 'm1',
+            userId: host.id,
+            joinedAt: new Date(),
+            acceptedAt: new Date(),
+            user: userWithProfile(host.id, 'Ada'),
+          },
+          {
+            id: 'p2',
+            matchId: 'm1',
+            userId: guest.id,
+            joinedAt: new Date(),
+            acceptedAt: new Date(),
+            user: userWithProfile(guest.id, 'Bee'),
+          },
+        ],
+      }),
+    );
+    const challenges = createChallengesSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      createBoardMoveSpy(),
+      createReactionNotifierSpy(),
+      createStreakSpy(),
+      createMatchSettledSpy(),
+      challenges,
+    );
+
+    await service.submitAttempt(
+      guest,
+      {
+        matchId: 'm1',
+        count: 30,
+        durationSeconds: 55,
+        source: 'in_app_pose',
+      },
+      { applyTowardPersonalGoals: false },
+    );
+
+    expect(prisma.deviceActivityLog.upsert).not.toHaveBeenCalled();
+    expect(challenges.creditMeasuredActivity).not.toHaveBeenCalled();
   });
 
   it('reads the live display name and profile image on the board', async () => {
@@ -1720,6 +1855,19 @@ describe('MatchesService', () => {
     await service.get(host, 'm1');
 
     expect(walkQueryWhere(prisma).source.in).not.toContain('manual');
+  });
+
+  it('never re-scores walks mirrored from a contest attempt', async () => {
+    const prisma = createPrismaMock(
+      twoPersonMatch({ metric: 'walk', scoringMode: 'cumulative_total' }),
+    );
+    const service = createService(prisma);
+
+    await service.get(host, 'm1');
+
+    expect(walkQueryWhere(prisma)).toMatchObject({
+      NOT: { externalId: { startsWith: 'match-attempt:' } },
+    });
   });
 
   it('reads no activity for a member who has not accepted', async () => {

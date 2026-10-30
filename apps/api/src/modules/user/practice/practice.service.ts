@@ -1,11 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
+import { isPoseMetric } from '@product/contract';
 import type { DeviceMetric, PrismaClient } from '@product/db';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { challengeAccessFilter } from '../../../shared/membership/entitlements.js';
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { ChallengesService } from '../challenges/index.js';
 import { MatchesService } from '../matches/index.js';
 import { StreakService } from '../streak/index.js';
 import { PRACTICE_TALLY_LOOKBACK_MS } from './constants/practice.js';
@@ -54,6 +56,7 @@ function longerOf(existing: MeasuredFields | null, incoming: MeasuredFields): Me
  * the daily target, and sets or walks that fell short. Persisted as a
  * `DeviceActivityLog` with no occurrence attached. They count the day's
  * streak and, when an open group contest scores that exercise, the board.
+ * A set that already meets an open Mine goal finishes that goal too.
  * Points stay with challenge completions.
  */
 @Injectable()
@@ -62,6 +65,7 @@ export class PracticeService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly streak: StreakService,
     private readonly matches: MatchesService,
+    private readonly challenges: ChallengesService,
   ) {}
 
   async record(
@@ -77,12 +81,27 @@ export class PracticeService {
 
     const streak = await this.streak.recordActiveDay(user.id);
     void this.streak.announceMilestone(user.id, streak);
-    const creditedMatchIds = await this.matches.creditPosePractice(user, {
+    // Finish Mine first so a set that also lands on a contest board does not
+    // leave the daily goal open after the work is already done.
+    await this.challenges.creditMeasuredActivity(user, {
       metric: input.metric,
-      count: input.count ?? 0,
-      durationSeconds: input.durationSeconds,
       source: input.source,
+      count: input.count,
+      durationSeconds: input.durationSeconds,
+      distanceMeters: input.distanceMeters,
+      startedAt: input.startedAt,
+      endedAt: input.endedAt,
+      externalId: input.externalId,
     });
+    const creditedMatchIds =
+      isPoseMetric(input.metric) && input.source === 'in_app_pose'
+        ? await this.matches.creditPosePractice(user, {
+            metric: input.metric,
+            count: input.count ?? 0,
+            durationSeconds: input.durationSeconds,
+            source: 'in_app_pose',
+          })
+        : [];
 
     return {
       session: toSessionDto(session),
