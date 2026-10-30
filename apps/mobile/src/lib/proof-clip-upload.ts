@@ -38,7 +38,7 @@ export async function uploadProofClip(input: UploadProofClipInput): Promise<void
       await markLocalProofClipServerRecorded(local.clipId);
     } catch {
       throw new Error(
-        'Could not register this clip with the server. It may have expired — try recording again.',
+        'Could not register this clip with the server. It may have expired. Try recording again.',
       );
     }
   }

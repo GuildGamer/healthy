@@ -11,6 +11,7 @@ jest.mock('@/lib/api', () => ({
     listProgressDays: jest.fn(),
     listLeaderboard: jest.fn(),
     listTips: jest.fn(),
+    listChallengeCatalog: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -27,6 +28,7 @@ const mockedApi = apiClient as unknown as {
   listProgressDays: jest.Mock;
   listLeaderboard: jest.Mock;
   listTips: jest.Mock;
+  listChallengeCatalog: jest.Mock;
 };
 
 function renderProgress() {
@@ -52,6 +54,7 @@ beforeEach(() => {
   mockedApi.listProgressDays.mockResolvedValue(progressDays());
   mockedApi.listLeaderboard.mockResolvedValue(weeklyBoard());
   mockedApi.listTips.mockResolvedValue({ tips: [] });
+  mockedApi.listChallengeCatalog.mockResolvedValue({ challenges: [] });
 });
 
 describe('YouProgress', () => {

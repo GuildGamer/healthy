@@ -23,6 +23,7 @@ export function createSmtpMailer(mail: SmtpMailConfig): Mailer {
       to: message.to,
       subject: content.subject,
       text: content.text,
+      html: content.html,
     });
   }
 
@@ -42,6 +43,7 @@ export function createSmtpMailer(mail: SmtpMailConfig): Mailer {
         to: message.to,
         subject: message.subject,
         text: message.text,
+        ...(message.html ? { html: message.html } : {}),
       });
     },
   };

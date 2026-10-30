@@ -146,6 +146,7 @@ export function useTodayQueries() {
     me,
     dayKey,
     deck,
+    liveGroups: matchesQuery.data?.live ?? [],
     challengesQuery: {
       ...challengesQuery,
       isPending: bootstrapQuery.isPending,

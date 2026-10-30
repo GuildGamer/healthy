@@ -35,17 +35,17 @@ describe('practiceRoute', () => {
 });
 
 describe('practiceTallyCopy', () => {
-  it('stays silent on a day with no extra sets', () => {
+  it('stays silent on a day with no sets', () => {
     expect(practiceTallyCopy(undefined)).toBeNull();
     expect(practiceTallyCopy({ todayCount: 0, todaySessions: 0 })).toBeNull();
   });
 
   it('reads naturally for one set and for many', () => {
     expect(practiceTallyCopy({ todayCount: 1, todaySessions: 1 })).toBe(
-      '1 rep in 1 extra set today',
+      '1 rep in 1 set today',
     );
     expect(practiceTallyCopy({ todayCount: 24, todaySessions: 2 })).toBe(
-      '24 reps in 2 extra sets today',
+      '24 reps in 2 sets today',
     );
   });
 });

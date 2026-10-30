@@ -1,10 +1,10 @@
 import { DECK_KIND_GLYPH, type DeckCardKind } from '@/components/deck';
-import type { SharePoster } from './types/share-poster';
+import type { SharePoster, SharePosterKind } from './types/share-poster';
 
 const DECK_KINDS = Object.keys(DECK_KIND_GLYPH) as DeckCardKind[];
 
-function isDeckCardKind(value: string | undefined): value is DeckCardKind {
-  return DECK_KINDS.some((kind) => kind === value);
+function isSharePosterKind(value: string | undefined): value is SharePosterKind {
+  return value === 'streak' || DECK_KINDS.some((kind) => kind === value);
 }
 
 /** Route params for the share screen; all strings, as a URL carries them. */
@@ -15,6 +15,7 @@ export function sharePosterParams(poster: SharePoster): Record<string, string> {
     value: poster.value,
     unit: poster.unit,
     ...(poster.when ? { when: poster.when } : {}),
+    ...(poster.corner ? { corner: poster.corner } : {}),
   };
 }
 
@@ -23,12 +24,19 @@ export function parseSharePoster(
   params: Partial<Record<keyof SharePoster, string>>,
 ): SharePoster | null {
   const { kind, label, value, unit } = params;
-  if (!isDeckCardKind(kind) || !label || !value || !unit) {
+  if (!isSharePosterKind(kind) || !label || !value || !unit) {
     return null;
   }
 
   const when = keptWhen(params.when);
-  return { kind, label, value, unit, ...(when ? { when } : {}) };
+  return {
+    kind,
+    label,
+    value,
+    unit,
+    ...(when ? { when } : {}),
+    ...(params.corner ? { corner: params.corner } : {}),
+  };
 }
 
 function keptWhen(value: string | undefined): string | undefined {

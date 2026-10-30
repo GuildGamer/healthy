@@ -31,10 +31,12 @@ import { confirmRemoval } from './confirm-removal';
 import { ROUTINE_COPY, SETTINGS_COPY } from './constants/routine-copy';
 import { WALK_COPY } from './constants/doing-copy';
 import { timesLabel } from './history-weeks';
+import { anotherSetRoute, openPoseContest } from './open-pose-contest';
 import {
+  CONTEST_AGAIN_HINT,
+  PRACTICE_AGAIN_HINT,
   PRACTICE_AGAIN_LABEL,
   practiceMetric,
-  practiceRoute,
   practiceTallyCopy,
 } from './practice-entry';
 import { stepsHeroValue } from './steps-hero';
@@ -273,11 +275,15 @@ function DetailHero({
   );
 }
 
-/** Today's set is done; more sets are free practice, with today's extras tallied under. */
+/** Today's daily set is done; more sets go to an open contest when one is live. */
 function PracticeAgain({ occurrence }: { occurrence: TodayChallenge | null }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const metric = practiceMetric(occurrence);
+  const matchesQuery = useQuery({
+    queryKey: ['matches', 'mine'],
+    queryFn: () => apiClient.listMyMatches(),
+  });
   const totalsQuery = useQuery({
     queryKey: ['practice', 'totals', metric],
     queryFn: () => apiClient.getPracticeTotals({ metric: metric! }),
@@ -288,16 +294,21 @@ function PracticeAgain({ occurrence }: { occurrence: TodayChallenge | null }) {
     return null;
   }
 
-  const tally = practiceTallyCopy(totalsQuery.data);
+  const live = matchesQuery.data?.live ?? [];
+  const contest = openPoseContest(live, metric);
+  const tally = contest ? null : practiceTallyCopy(totalsQuery.data);
 
   return (
     <View style={styles.practice} testID="detail-practice">
       <DeckButton
         glyph="repeat"
         label={PRACTICE_AGAIN_LABEL}
-        onPress={() => router.push(practiceRoute(occurrence.challengeId))}
+        onPress={() => router.push(anotherSetRoute(occurrence.challengeId, metric, live))}
         testID="detail-practice-again"
       />
+      <Text style={styles.practiceTally} testID="detail-practice-hint">
+        {contest ? CONTEST_AGAIN_HINT : PRACTICE_AGAIN_HINT}
+      </Text>
       {tally ? (
         <Text style={styles.practiceTally} testID="detail-practice-tally">
           {tally}

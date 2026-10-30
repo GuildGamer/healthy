@@ -42,16 +42,18 @@ export function SharePosterCard({
   const valueMetrics = hasPhoto ? PHOTO_VALUE_METRICS : posterValueMetrics(poster.value);
   const labelStyle = [styles.posterLabel, { color: ink.subtext }, overPhoto];
   const pathStroke = deckCards.tones.walk;
+  const fill = poster.kind === 'streak' ? deckCards.streak : deckCards[poster.kind];
+  const corner = poster.corner ?? weekdayName(posterWhen(poster));
 
   return (
-    <View style={[styles.poster, { backgroundColor: deckCards[poster.kind] }]} testID={testID}>
+    <View style={[styles.poster, { backgroundColor: fill }]} testID={testID}>
       {photoUri ? <PosterPhoto photoUri={photoUri} /> : null}
       {hasRoute && routePoints ? (
         <PosterRoute pathStroke={pathStroke} points={routePoints} />
       ) : null}
       <View style={styles.posterTop}>
         <Text style={labelStyle}>{poster.label}</Text>
-        <Text style={labelStyle}>{weekdayName(posterWhen(poster))}</Text>
+        <Text style={labelStyle}>{corner}</Text>
       </View>
       <Text style={[styles.posterValue, { color: ink.text }, valueMetrics, overPhoto]}>
         {poster.value}

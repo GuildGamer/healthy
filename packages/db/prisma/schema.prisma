@@ -27,6 +27,7 @@ model User {
   pushDevices            PushDevice[]
   notifications          Notification[]
   engagementDeliveries   EngagementDelivery[]
+  periodRecapDeliveries  PeriodRecapDelivery[]
   deviceActivityLogs     DeviceActivityLog[]
   hostedMatches          Match[]                @relation("MatchHost")
   wonMatches             Match[]                @relation("MatchWinner")
@@ -529,6 +530,22 @@ model InProgressNudgeDelivery {
   sentAt          DateTime      @default(now())
 
   @@map("in_progress_nudge_deliveries")
+}
+
+/// Period recap email sent for a calendar window. Unique so a retry never doubles.
+model PeriodRecapDelivery {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// week | month | year
+  period    String
+  /// Local day key that identifies the window (week Monday, month first day, year Jan 1).
+  periodKey String
+  sentAt    DateTime @default(now())
+
+  @@unique([userId, period, periodKey])
+  @@index([period, periodKey])
+  @@map("period_recap_deliveries")
 }
 
 /// One blood-pressure log for a vitals occurrence. Unique on the occurrence

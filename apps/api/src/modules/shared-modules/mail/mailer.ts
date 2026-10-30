@@ -14,6 +14,8 @@ export type PlainMailMessage = {
   to: string;
   subject: string;
   text: string;
+  /** Branded HTML when present; transports fall back to wrapping `text`. */
+  html?: string;
 };
 
 export type Mailer = {

@@ -4,6 +4,7 @@ import {
   MATCH_ATTEMPT_MAX_BY_METRIC,
   MATCH_ATTEMPT_SOURCE_BY_METRIC,
   MATCH_PARTICIPANT_CAP,
+  isPoseMetric,
   matchContestTitle,
   matchInviteUrl,
   resolveMatchLength,
@@ -582,6 +583,57 @@ export class MatchesService {
       }),
       standings: board.standings,
     };
+  }
+
+  /**
+   * A pose set after the daily target still belongs on every open contest that
+   * scores that exercise. Streak contests score finished days, so they are
+   * skipped. Failures stay quiet: the practice row already saved. Returns the
+   * match ids that accepted the set so the client can show contest success.
+   */
+  async creditPosePractice(
+    currentUser: AuthenticatedUser | null | undefined,
+    input: {
+      metric: DeviceMetric;
+      count: number;
+      durationSeconds: number;
+      source: SubmitMatchAttemptInput['source'];
+    },
+  ): Promise<string[]> {
+    if (!isPoseMetric(input.metric) || input.count <= 0) {
+      return [];
+    }
+
+    const user = requireUser(currentUser);
+    const open = await this.prisma.match.findMany({
+      where: {
+        status: 'open',
+        metric: input.metric,
+        scoringMode: { in: ['best_single', 'cumulative_total'] },
+        participants: { some: { userId: user.id } },
+      },
+      select: { id: true },
+    });
+
+    const credited: string[] = [];
+    for (const match of open) {
+      try {
+        await this.submitAttempt(user, {
+          matchId: match.id,
+          count: input.count,
+          durationSeconds: input.durationSeconds,
+          source: input.source,
+        });
+        credited.push(match.id);
+      } catch (error) {
+        this.logger.warn(
+          `Could not credit practice set to match ${match.id}`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    return credited;
   }
 
   async submitAttempt(

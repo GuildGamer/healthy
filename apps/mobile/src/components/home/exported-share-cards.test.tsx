@@ -1,4 +1,4 @@
-import { darkColors, lightColors } from '@product/brand';
+import { darkDeckCards, lightDeckCards } from '@product/brand';
 import { render, screen } from '@testing-library/react-native';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { DayShareCard } from '@/components/home/DayShareCard';
@@ -20,13 +20,21 @@ function fill(testID: string): unknown {
   return StyleSheet.flatten(screen.getByTestId(testID).props.style).backgroundColor;
 }
 
-/** Importing these modules throws if the night stylesheet is built before it exists. */
+/** Day and group shares use the activity/streak deck fill, not a night slip. */
 describe('exported share cards', () => {
-  beforeEach(() => {
-    jest.mocked(useColorScheme).mockReturnValue('light');
+  it('use the streak deck fill on Healthy night', () => {
+    jest.mocked(useColorScheme).mockReturnValue('dark');
+    render(
+      <ThemeProvider>
+        <DayShareCard content={day} />
+      </ThemeProvider>,
+    );
+
+    expect(fill('home-day-share-card')).toBe(darkDeckCards.streak);
   });
 
-  it('stay on Healthy night when the phone is light', () => {
+  it('follow Clinic white on a light phone', () => {
+    jest.mocked(useColorScheme).mockReturnValue('light');
     render(
       <ThemeProvider>
         <DayShareCard content={day} />
@@ -34,8 +42,7 @@ describe('exported share cards', () => {
       </ThemeProvider>,
     );
 
-    expect(fill('home-day-share-card')).toBe(darkColors.background);
-    expect(fill('match-recap-card')).toBe(darkColors.background);
-    expect(fill('home-day-share-card')).not.toBe(lightColors.background);
+    expect(fill('home-day-share-card')).toBe(lightDeckCards.streak);
+    expect(fill('match-recap-card')).toBe(lightDeckCards.walk);
   });
 });

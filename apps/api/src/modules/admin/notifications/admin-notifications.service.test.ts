@@ -93,11 +93,14 @@ describe('AdminNotificationsService', () => {
         },
       ],
     });
-    expect(mailer.sendMessage).toHaveBeenCalledWith({
-      to: 'ada@example.com',
-      subject: 'Do one now',
-      text: 'Got a few minutes?',
-    });
+    expect(mailer.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'ada@example.com',
+        subject: 'Do one now',
+        text: expect.stringContaining('Got a few minutes?'),
+        html: expect.stringContaining('Healthy'),
+      }),
+    );
     expect(prisma.adminAuditEvent.create).toHaveBeenCalled();
   });
 

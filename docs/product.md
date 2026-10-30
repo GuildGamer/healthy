@@ -41,6 +41,9 @@ challenge, score, board
 health, readings, condition, manage, log (as a verb for fitness work), vital,
 diagnosis, cuff, glucose
 
+Em dashes (`—`) and double hyphens (`--`) in user-facing copy. Prefer a period,
+comma, or middot (`·`). Empty placeholders may stay as a single en dash (`–`).
+
 ### Examples
 
 | Instead of | Write |

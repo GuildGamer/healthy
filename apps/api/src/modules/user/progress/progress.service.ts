@@ -14,9 +14,15 @@ import {
   ENROLLMENT_GOAL_SELECT,
 } from './constants/challenge-mark-select.js';
 import { HISTORY_WINDOW_DAYS } from './constants/progress.js';
-import type { ProgressDayDetailDto, ProgressDaysDto } from './dto/index.js';
+import type {
+  MetricPeriodStats as MetricPeriodStatsDto,
+  PeriodReport as PeriodReportDto,
+  ProgressDayDetailDto,
+  ProgressDaysDto,
+} from './dto/index.js';
 import { buildProgressDayDetail } from './progress-day-detail.js';
 import { buildProgressDays, dayKeysNewestFirst } from './progress-days.js';
+import { metricUnit, periodWindowFor, sessionAmount } from './period-window.js';
 import type {
   DailyOccurrence,
   LedgerDayRow,
@@ -24,6 +30,8 @@ import type {
   MemberClock,
   PracticeRow,
 } from './types/progress.js';
+import type { DeviceMetric } from '@product/db';
+import type { MetricPeriod, PeriodReportPeriod } from '@product/contract';
 
 type InstantRange = { from: Date; to: Date };
 
@@ -84,6 +92,155 @@ export class ProgressService {
       dailyOccurrences,
       practice: practice.filter((session) => isOnDay(session.createdAt)),
     });
+  }
+
+  /**
+   * Week / month / year recap: how many days you showed up, and the strongest
+   * measured metric in that window for the share poster meta line.
+   */
+  async periodReport(
+    currentUser: AuthenticatedUser | null | undefined,
+    period: PeriodReportPeriod,
+    now: Date = new Date(),
+  ): Promise<PeriodReportDto> {
+    const user = requireUser(currentUser);
+    const clock = await this.memberClock(user.id, now);
+    const window = periodWindowFor({
+      period,
+      timeZone: clock.timeZone,
+      dayKey: clock.dayKey,
+      weekStartKey: clock.weekStartKey,
+      joinedDayKey: clock.joinedDayKey,
+      now,
+    });
+
+    const [occurrences, activity] = await Promise.all([
+      this.dailyOccurrences(user.id, window.startDayKey, window.endDayKey),
+      this.activityInWindow(user.id, window.startDayKey, window.endDayKey, clock.timeZone),
+    ]);
+
+    const activeDays = new Set(
+      occurrences.filter((row) => row.isRewarded).map((row) => row.dayKey),
+    ).size;
+
+    return {
+      period,
+      periodLabel: window.periodLabel,
+      activeDays,
+      highlight: this.highlightFrom(activity),
+      startDayKey: window.startDayKey,
+      endDayKey: window.endDayKey,
+    };
+  }
+
+  /** Totals for one metric across a week, month, or the whole membership. */
+  async metricPeriodStats(
+    currentUser: AuthenticatedUser | null | undefined,
+    metric: DeviceMetric,
+    period: MetricPeriod,
+    now: Date = new Date(),
+  ): Promise<MetricPeriodStatsDto> {
+    const user = requireUser(currentUser);
+    const clock = await this.memberClock(user.id, now);
+    const window = periodWindowFor({
+      period,
+      timeZone: clock.timeZone,
+      dayKey: clock.dayKey,
+      weekStartKey: clock.weekStartKey,
+      joinedDayKey: clock.joinedDayKey,
+      now,
+    });
+
+    const activity = await this.activityInWindow(
+      user.id,
+      window.startDayKey,
+      window.endDayKey,
+      clock.timeZone,
+      metric,
+    );
+
+    let count = 0;
+    const days = new Set<string>();
+    for (const row of activity) {
+      count += sessionAmount(row.metric, row.count, row.durationSeconds);
+      days.add(row.dayKey);
+    }
+
+    return {
+      metric,
+      period,
+      periodLabel: window.periodLabel,
+      count,
+      unit: metricUnit(metric),
+      activeDays: days.size,
+      startDayKey: period === 'all' ? null : window.startDayKey,
+      endDayKey: window.endDayKey,
+    };
+  }
+
+  private highlightFrom(
+    activity: { metric: DeviceMetric; count: number | null; durationSeconds: number | null }[],
+  ): PeriodReportDto['highlight'] {
+    const totals = new Map<DeviceMetric, number>();
+    for (const row of activity) {
+      const amount = sessionAmount(row.metric, row.count, row.durationSeconds);
+      if (amount <= 0) {
+        continue;
+      }
+      totals.set(row.metric, (totals.get(row.metric) ?? 0) + amount);
+    }
+
+    let best: { metric: DeviceMetric; count: number } | null = null;
+    for (const [metric, count] of totals) {
+      if (!best || count > best.count) {
+        best = { metric, count };
+      }
+    }
+
+    if (!best) {
+      return null;
+    }
+
+    return {
+      metric: best.metric,
+      count: best.count,
+      unit: metricUnit(best.metric),
+    };
+  }
+
+  /** Every measured session in the window (challenge finishes and free sets). */
+  private async activityInWindow(
+    userId: string,
+    startDayKey: string,
+    endDayKey: string,
+    timeZone: string,
+    metric?: DeviceMetric,
+  ): Promise<
+    {
+      metric: DeviceMetric;
+      count: number | null;
+      durationSeconds: number | null;
+      dayKey: string;
+    }[]
+  > {
+    const range = this.instantsAround(startDayKey, endDayKey);
+    const rows = await this.prisma.deviceActivityLog.findMany({
+      where: {
+        userId,
+        createdAt: { gte: range.from, lt: range.to },
+        ...(metric ? { metric } : {}),
+      },
+      select: { metric: true, count: true, durationSeconds: true, createdAt: true },
+    });
+
+    return rows
+      .map((row) => ({
+        metric: row.metric,
+        count: row.count,
+        durationSeconds: row.durationSeconds,
+        dayKey: dayKeyFor(timeZone, row.createdAt),
+      }))
+      .filter((row) => row.dayKey >= startDayKey && row.dayKey <= endDayKey);
   }
 
   private async memberClock(userId: string, now: Date): Promise<MemberClock> {

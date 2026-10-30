@@ -30,7 +30,7 @@ export function createSendByteMailer(
         to: message.to,
         subject: content.subject,
         text: content.text,
-        html: toHtml(content.text),
+        html: content.html,
       });
     } catch (error) {
       throw toSendFailure(error);
@@ -44,7 +44,7 @@ export function createSendByteMailer(
         to: message.to,
         subject: message.subject,
         text: message.text,
-        html: toHtml(message.text),
+        html: message.html ?? toHtml(message.text),
       });
     } catch (error) {
       throw toSendFailure(error);

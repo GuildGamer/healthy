@@ -1,7 +1,7 @@
 import type { TodayChallenge } from '@product/client';
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { canPracticeAgain, PRACTICE_AGAIN_HINT } from '@/components/challenges/practice-entry';
+import { canPracticeAgain, PRACTICE_AGAIN_LABEL } from '@/components/challenges/practice-entry';
 import { Glyph } from '@/components/icons';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import type { ChallengeDeckItem } from './types/today-deck';
@@ -29,7 +29,7 @@ export function DoneChips({ items, onOpen }: DoneChipsProps) {
           accessibilityLabel={`${challenge.title}, done, ${challenge.rewardPoints} points`}
           accessibilityRole="button"
           key={challenge.id}
-          accessibilityHint={canPracticeAgain(challenge) ? PRACTICE_AGAIN_HINT : undefined}
+          accessibilityHint={canPracticeAgain(challenge) ? PRACTICE_AGAIN_LABEL : undefined}
           onPress={() => onOpen(challenge)}
           style={styles.chip}
           testID={`home-done-${challenge.id}`}

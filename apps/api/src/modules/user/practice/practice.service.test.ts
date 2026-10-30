@@ -98,11 +98,18 @@ function createStreakSpy() {
   };
 }
 
+function createMatchesSpy(creditedMatchIds: string[] = []) {
+  return {
+    creditPosePractice: vi.fn(async () => creditedMatchIds),
+  };
+}
+
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   streak: ReturnType<typeof createStreakSpy> = createStreakSpy(),
+  matches: ReturnType<typeof createMatchesSpy> = createMatchesSpy(),
 ): PracticeService {
-  return new PracticeService(prisma as never, streak as never);
+  return new PracticeService(prisma as never, streak as never, matches as never);
 }
 
 const input = {
@@ -301,14 +308,32 @@ describe('PracticeService.record', () => {
     });
   });
 
+  it('credits open pose contests from a practice set', async () => {
+    const matches = createMatchesSpy(['m1']);
+    const result = await createService(createPrismaMock(), createStreakSpy(), matches).record(
+      user,
+      input,
+    );
+
+    expect(matches.creditPosePractice).toHaveBeenCalledWith(user, {
+      metric: input.metric,
+      count: input.count,
+      durationSeconds: input.durationSeconds,
+      source: input.source,
+    });
+    expect(result.creditedMatchIds).toEqual(['m1']);
+  });
+
   it('records nothing toward the streak when the metric is locked', async () => {
     const streak = createStreakSpy();
+    const matches = createMatchesSpy();
     const prisma = createPrismaMock({ unlockedChallenge: null, membershipActive: false });
 
-    await expect(createService(prisma, streak).record(user, input)).rejects.toBeInstanceOf(
+    await expect(createService(prisma, streak, matches).record(user, input)).rejects.toBeInstanceOf(
       ORPCError,
     );
     expect(streak.recordActiveDay).not.toHaveBeenCalled();
+    expect(matches.creditPosePractice).not.toHaveBeenCalled();
   });
 });
 

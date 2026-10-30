@@ -26,8 +26,8 @@ shape.
 
 - **Auto is the default** and follows the phone. Settings offers Auto, Light and
   Dark; the choice is stored on the device, not the account.
-- **Exported images use Healthy night**, whatever mode the sender is in, so a
-  shared picture always looks the same (`DayShareCard`, `GroupRecapCard`).
+- **Exports look like the activity deck card** (see [Exported images](#exported-images)):
+  finish posters, day done, group results, and period recaps share one language.
 
 ## Colour has meaning
 
@@ -67,21 +67,55 @@ shape.
 
 ## Exported images
 
-Share pictures and link previews follow one family:
+Share pictures are not one canvas. They follow the job:
 
-- Healthy night page, flat.
-- Eyebrow line, then an activity-colour rule or tally.
-- A semibold headline.
-- At most one hero numeral, only when there is a real number worth showing.
-- A label/value facts row under a hairline.
-- A full-width primary-colour band with the Archivo wordmark and
-  `gethealthyapp.com`.
-- Square-edged, so JPEG exports have no white corners.
+### 1. Activity deck poster (every share)
 
-The invite link preview is the one exception: it is a single square, full-bleed
-card in the activity's colour, with the wordmark in its corner and no band, because
-it stands for the card the friend will play. See
+Finish, day done, group result, history, metric period totals, and
+week/month/year recaps all read as the **deck card** you played
+(`SharePosterCard`, `DayShareCard`, `GroupRecapCard`, and the Figma comps):
+
+- Filled with the activity's deep colour from `deckCardPalettes` (day done uses
+  streak; group results use the contest tone). Plain posters follow the
+  sender's mode; photo overlays use night ink.
+- Soft radius (~26).
+- Label and period on top; one big numeral and unit; hairline brand row
+  (`Healthy` + a short meta line). No mint band.
+- Optional full-bleed gym selfie or walk GPS path on a finish.
+
+### 2. Invite link preview
+
+Intentional exception: square, full-bleed activity-coloured deck card, wordmark
+in the corner, no band — it stands for the card the friend will play. See
 [`invite-preview.md`](invite-preview.md).
 
-`ChallengeShareCard` still uses the old leaf direction and should be brought
-into this family.
+### Retired
+
+`ChallengeShareCard` (leaf / mint billboard) and the old night + mint-band
+report slips are legacy. Live shares use the poster family. Do not extend the
+leaf card; delete when nothing imports its art.
+
+## Shareable moments (CTA)
+
+Every surface that can produce a share picture must offer a **Share** action.
+No orphan card preview without a way to send it.
+
+| Role | Control | When |
+|---|---|---|
+| Primary | Full-width `Share` with share glyph | Default on finish, day done, history share sheet, activity stats, period reports |
+| Primary (experiment) | `Challenge a friend` full-width; Share as round icon (`Share result`) | Post-finish when the friend-challenge offer is on (`ChallengeSuccessScreen`) |
+| Secondary | Quiet / tonal `Share` or share icon | When another product primary owns the foot (e.g. Run it back on group result) |
+| Secondary invite | Quiet text / tonal `Challenge a friend` | Optional under Share when volume justifies; never a second solid twin of Share |
+
+Rules:
+
+- One solid primary max. Do not stack Share and Challenge a friend as two equal
+  full-width buttons.
+- Label is **Share** (or **Share the day** / **Share card** when the object
+  needs naming). Prefer that over “Share with friends”; friends are reached via
+  the system sheet or Challenge a friend.
+- Dismiss / Not now stays the quietest control.
+- Report emails use **Open in Healthy** (deep link to `/progress/report`), not
+  Share — sharing happens in-app from the report screen.
+- Activity stats and period reports live under You: week card opens the week
+  report; enrolled metrics open `/progress/metric/[metric]`.

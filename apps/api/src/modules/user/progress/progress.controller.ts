@@ -25,4 +25,20 @@ export class ProgressController {
       return this.progressService.day(user, input.dayKey);
     });
   }
+
+  @Implement(appContract.getPeriodReport)
+  getPeriodReport(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.getPeriodReport).handler(async ({ input }) => {
+      return this.progressService.periodReport(user, input.period);
+    });
+  }
+
+  @Implement(appContract.getMetricPeriodStats)
+  getMetricPeriodStats(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.getMetricPeriodStats).handler(async ({ input }) => {
+      return this.progressService.metricPeriodStats(user, input.metric, input.period);
+    });
+  }
 }

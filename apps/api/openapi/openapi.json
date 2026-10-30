@@ -10912,11 +10912,19 @@
                         "todayCount",
                         "todaySessions"
                       ]
+                    },
+                    "creditedMatchIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
                     }
                   },
                   "required": [
                     "session",
-                    "totals"
+                    "totals",
+                    "creditedMatchIds"
                   ]
                 }
               }
@@ -12570,6 +12578,251 @@
                     "missedPhotoChecks",
                     "practice",
                     "adjustments"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/progress/period-report": {
+      "get": {
+        "operationId": "getPeriodReport",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "week",
+                "month",
+                "year"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "enum": [
+                        "week",
+                        "month",
+                        "year"
+                      ],
+                      "type": "string"
+                    },
+                    "periodLabel": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "activeDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "highlight": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "metric": {
+                              "enum": [
+                                "walk",
+                                "run",
+                                "cycle",
+                                "steps",
+                                "sleep",
+                                "weight",
+                                "heart_rate",
+                                "pushups",
+                                "squats",
+                                "plank",
+                                "jumping_jacks",
+                                "burpees",
+                                "sit_ups",
+                                "mountain_climbers",
+                                "lunges"
+                              ],
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "unit": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "metric",
+                            "count",
+                            "unit"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "startDayKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "endDayKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "periodLabel",
+                    "activeDays",
+                    "highlight",
+                    "startDayKey",
+                    "endDayKey"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/progress/metric-stats": {
+      "get": {
+        "operationId": "getMetricPeriodStats",
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "walk",
+                "run",
+                "cycle",
+                "steps",
+                "sleep",
+                "weight",
+                "heart_rate",
+                "pushups",
+                "squats",
+                "plank",
+                "jumping_jacks",
+                "burpees",
+                "sit_ups",
+                "mountain_climbers",
+                "lunges"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "metric": {
+                      "enum": [
+                        "walk",
+                        "run",
+                        "cycle",
+                        "steps",
+                        "sleep",
+                        "weight",
+                        "heart_rate",
+                        "pushups",
+                        "squats",
+                        "plank",
+                        "jumping_jacks",
+                        "burpees",
+                        "sit_ups",
+                        "mountain_climbers",
+                        "lunges"
+                      ],
+                      "type": "string"
+                    },
+                    "period": {
+                      "enum": [
+                        "week",
+                        "month",
+                        "all"
+                      ],
+                      "type": "string"
+                    },
+                    "periodLabel": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "unit": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "activeDays": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "startDayKey": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "endDayKey": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    }
+                  },
+                  "required": [
+                    "metric",
+                    "period",
+                    "periodLabel",
+                    "count",
+                    "unit",
+                    "activeDays",
+                    "startDayKey",
+                    "endDayKey"
                   ]
                 }
               }

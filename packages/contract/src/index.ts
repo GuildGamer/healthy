@@ -74,7 +74,12 @@ import {
   unblockUserContract,
   verifyProofCodeContract,
 } from './proof-clips.js';
-import { getProgressDayContract, listProgressDaysContract } from './progress.js';
+import {
+  getMetricPeriodStatsContract,
+  getPeriodReportContract,
+  getProgressDayContract,
+  listProgressDaysContract,
+} from './progress.js';
 import { getTodayDetailsContract, todayDetailsSchema } from './today.js';
 
 export {
@@ -97,16 +102,31 @@ export type {
 } from './account-deletion.js';
 
 export {
+  getMetricPeriodStatsContract,
+  getMetricPeriodStatsInputSchema,
+  getPeriodReportContract,
+  getPeriodReportInputSchema,
   getProgressDayContract,
   getProgressDayInputSchema,
   listProgressDaysContract,
+  metricPeriodSchema,
+  metricPeriodStatsSchema,
+  periodHighlightMetricSchema,
+  periodReportPeriodSchema,
+  periodReportSchema,
   photoCheckResolutionSchema,
   progressDayDetailSchema,
   progressDaySchema,
   progressDaysSchema,
 } from './progress.js';
 export type {
+  GetMetricPeriodStatsInput,
+  GetPeriodReportInput,
   GetProgressDayInput,
+  MetricPeriod,
+  MetricPeriodStats,
+  PeriodReport,
+  PeriodReportPeriod,
   PhotoCheckResolution,
   ProgressAdjustment,
   ProgressDay,
@@ -996,6 +1016,8 @@ export const appContract = {
   getHomeBootstrap: getHomeBootstrapContract,
   listProgressDays: listProgressDaysContract,
   getProgressDay: getProgressDayContract,
+  getPeriodReport: getPeriodReportContract,
+  getMetricPeriodStats: getMetricPeriodStatsContract,
   reserveProofClip: reserveProofClipContract,
   recordProofClip: recordProofClipContract,
   requestProofClipUpload: requestProofClipUploadContract,

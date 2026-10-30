@@ -111,23 +111,24 @@ function useSubmitSet(
       const endedAt = new Date().toISOString();
 
       if (props.mode === 'match') {
+        await apiClient.submitMatchAttempt({
+          matchId: props.matchId,
+          count: reps,
+          durationSeconds,
+          source: 'in_app_pose',
+        });
         return {
           mode: 'match' as const,
           reps,
           durationSeconds,
           metric,
-          result: await apiClient.submitMatchAttempt({
-            matchId: props.matchId,
-            count: reps,
-            durationSeconds,
-            source: 'in_app_pose',
-          }),
+          matchId: props.matchId,
         };
       }
 
       if (props.mode === 'practice') {
         const practiceMetric = poseMetricFromCapture(occurrence?.capture.metric);
-        await apiClient.recordPracticeSession({
+        const recorded = await apiClient.recordPracticeSession({
           metric: practiceMetric,
           source: 'in_app_pose',
           count: reps,
@@ -137,6 +138,16 @@ function useSubmitSet(
           externalId: `practice:${props.challengeId}:${startedAt}`,
           ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
         });
+        const creditedMatchId = recorded.creditedMatchIds[0];
+        if (creditedMatchId) {
+          return {
+            mode: 'match' as const,
+            reps,
+            durationSeconds,
+            metric: practiceMetric,
+            matchId: creditedMatchId,
+          };
+        }
         return { mode: 'practice' as const, reps, durationSeconds };
       }
 
@@ -186,22 +197,25 @@ function useSubmitSet(
         ...(proofAudienceRef.current ? { proofAudience: proofAudienceRef.current } : {}),
       };
 
-      if (submitted.mode === 'match' && props.mode === 'match') {
+      if (submitted.mode === 'match') {
         trackEvent('activity_session_ended', {
           metric: submitted.metric,
           context: 'contest',
           outcome: 'saved',
           count: submitted.reps,
           durationSeconds: submitted.durationSeconds,
-          matchId: props.matchId,
+          matchId: submitted.matchId,
         });
         void queryClient.invalidateQueries({ queryKey: ['matches'] });
+        void queryClient.invalidateQueries({ queryKey: ['activity'] });
+        void queryClient.invalidateQueries({ queryKey: ['practice'] });
         router.replace({
           pathname: '/challenge/success',
           params: {
             title: MATCH_METRIC_LABEL[submitted.metric],
             count: String(submitted.reps),
-            matchId: props.matchId,
+            matchId: submitted.matchId,
+            matchMetric: submitted.metric,
             ...proofParams,
           },
         });

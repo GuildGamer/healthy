@@ -29,6 +29,10 @@ export function createLogMailer(): Mailer {
       console.info(
         `[mail] message to ${message.to}: ${message.subject}\n${message.text}`,
       );
+      if (message.html) {
+        // eslint-disable-next-line no-console
+        console.info(`[mail] html length ${message.html.length}`);
+      }
     },
   };
 }

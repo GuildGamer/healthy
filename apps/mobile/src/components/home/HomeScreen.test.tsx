@@ -267,6 +267,36 @@ describe('HomeScreen', () => {
     await cleanup();
   });
 
+  it('sends another set to the open group contest instead of practice', async () => {
+    mockedApi.listMyMatches.mockResolvedValue({
+      live: [
+        liveGroup({
+          id: 'm-push',
+          metric: 'pushups',
+          scoringMode: 'cumulative_total',
+        }),
+      ],
+      ended: [],
+    });
+    givenChallenges([
+      todayChallenge({ id: 'uc-open', title: 'Still open' }),
+      todayChallenge({
+        id: 'uc-push',
+        challengeId: 'push',
+        title: 'Do 20 push-ups',
+        status: 'completed',
+        capture: pushups,
+      }),
+    ]);
+    const { cleanup } = renderHome();
+
+    expect(await screen.findByTestId('home-done-again-uc-push')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('home-done-uc-push'));
+    expect(useRouter().push).toHaveBeenCalledWith('/matches/m-push/pose');
+
+    await cleanup();
+  });
+
   it('opens the inbox from the avatar, which carries the unread count', async () => {
     mockedApi.listNotifications.mockResolvedValue({ notifications: [], unreadCount: 2 });
     const { cleanup } = renderHome();
@@ -727,13 +757,13 @@ describe('HomeScreen', () => {
     await waitFor(() =>
       expect(captureRef).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ format: 'jpg', width: 1080, height: 1440 }),
+        expect.objectContaining({ format: 'png' }),
       ),
     );
     await waitFor(() =>
       expect(Sharing.shareAsync).toHaveBeenCalledWith(
         'file://share-card.jpg',
-        expect.objectContaining({ mimeType: 'image/jpeg' }),
+        expect.objectContaining({ mimeType: 'image/png' }),
       ),
     );
 
@@ -747,11 +777,10 @@ describe('HomeScreen', () => {
     const { cleanup } = renderHome();
 
     fireEvent.press(await screen.findByTestId('home-share-day'));
-    await waitFor(() =>
-      expect(share).toHaveBeenCalledWith({
-        message: 'I finished 1 challenge on Healthy today. 7 days in a row.',
-      }),
-    );
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    expect(share.mock.calls[0]?.[0]).toEqual({
+      message: 'I finished 1 challenge on Healthy today. 7 days in a row.',
+    });
 
     await cleanup();
   });

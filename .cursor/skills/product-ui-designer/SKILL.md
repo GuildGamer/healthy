@@ -24,13 +24,20 @@ Read `docs/design-direction.md` first. In short:
 - Secondary actions are icon buttons or text — never a second full-width twin of the primary.
 - Dismiss / “Not now” is the quietest affordance (text link or icon), never a third stacked `FormButton`.
 - Prefer patterns users know: primary button + share icon in a toolbar row.
+- **Every shareable moment has a Share CTA** (see `docs/design-direction.md`
+  Shareable moments). Default primary is Share with the share glyph. Challenge a
+  friend is optional secondary, or the primary only when the friend-challenge
+  experiment owns the foot and Share shrinks to the round icon.
 
 ## Share cards
 
-- Follow the exported-image family in `docs/design-direction.md`, as `DayShareCard` and `GroupRecapCard` do: Healthy night, eyebrow, activity-colour rule, semibold headline, facts row, primary-colour band with the wordmark.
-- At most one hero numeral, and only when the number is real. An invite can be sent before the host has scored.
-- Export must be sharp (1080×1440 for 3:4) and square-edged (no rounded capture — JPEG white corners).
-- Product claim when true: verified / sensor-measured work.
+Every share uses the **activity deck poster** (`SharePosterCard`,
+`DayShareCard`, `GroupRecapCard`, period comps): activity or streak fill, soft
+radius, numeral, hairline brand. No mint band.
+
+At most one hero numeral, and only when the number is real. An invite can be
+sent before the host has scored. Product claim when true: verified /
+sensor-measured work.
 
 ## Method
 

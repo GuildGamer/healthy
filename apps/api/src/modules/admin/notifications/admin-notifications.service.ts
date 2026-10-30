@@ -11,6 +11,7 @@ import {
 } from '../../../shared/types/authenticated-admin.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
+import { adminBroadcastMail } from '../../shared-modules/mail/admin-mail-content.js';
 import type { Mailer } from '../../shared-modules/mail/mailer.js';
 import { MAILER } from '../../shared-modules/mail/mail.tokens.js';
 
@@ -209,10 +210,12 @@ export class AdminNotificationsService {
 
     for (const member of audience) {
       try {
+        const content = adminBroadcastMail({ title: input.title, text: input.body });
         await this.mailer.sendMessage({
           to: member.email,
-          subject: input.title,
-          text: input.body,
+          subject: content.subject,
+          text: content.text,
+          html: content.html,
         });
         sentCount += 1;
       } catch (error) {

@@ -79,7 +79,11 @@ function dailySpecs(count: number): CatalogSpec[] {
 beforeAll(() => {
   prisma = createTestPrismaClient();
   streak = new StreakService(prisma);
-  challenges = new ChallengesService(prisma, new PracticeService(prisma, streak), streak);
+  challenges = new ChallengesService(
+    prisma,
+    new PracticeService(prisma, streak, { creditPosePractice: async () => [] } as never),
+    streak,
+  );
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
   me = new MeService(prisma, enrollments);
   todayDetails = new TodayService(prisma);

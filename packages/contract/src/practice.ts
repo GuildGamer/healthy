@@ -16,10 +16,11 @@ const PRACTICE_SOURCE_BY_METRIC = {
 } as const;
 
 /**
- * A sensor-measured session that is not a challenge's completion: an extra
+ * A sensor-measured session that is not a challenge's completion: another
  * push-up set after the daily one, or a set or walk that fell short of the
- * goal. Recorded as activity, and as progress on Today's card, but worth no
- * points and no streak, so repeat sessions cannot farm the economy.
+ * goal. Recorded as activity and toward the day's streak. When an open group
+ * contest scores that exercise, the set is also credited to the board. Daily
+ * challenge points stay with completions only.
  */
 export const recordPracticeSessionInputSchema = z
   .object({
@@ -96,6 +97,11 @@ export const practiceTotalsSchema = z.object({
 export const recordPracticeSessionOutputSchema = z.object({
   session: practiceSessionSchema,
   totals: practiceTotalsSchema,
+  /**
+   * Open attempt-scored contests this set was also written to. Empty when the
+   * set was practice only. Clients use the first id for contest success UI.
+   */
+  creditedMatchIds: z.array(z.string().min(1)),
 });
 
 export const practiceTotalsInputSchema = z.object({

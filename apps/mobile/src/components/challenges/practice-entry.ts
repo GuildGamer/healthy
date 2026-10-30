@@ -3,7 +3,9 @@ import { isPoseMetric, type POSE_METRICS } from '@product/contract/match-board';
 
 export const PRACTICE_AGAIN_LABEL = 'Another set';
 
-export const PRACTICE_AGAIN_HINT = 'Starts another set, for practice';
+export const PRACTICE_AGAIN_HINT = 'Starts another set. Counts for practice, not points.';
+
+export const CONTEST_AGAIN_HINT = 'Starts another set toward your group contest.';
 
 type PoseMetric = (typeof POSE_METRICS)[number];
 
@@ -13,9 +15,10 @@ type PracticeCandidate = {
 };
 
 /**
- * Finishing the daily pose challenge ends the scoring, not the exercise.
- * A completed pose occurrence keeps offering free sets of its exercise, which
- * are recorded as activity but earn no points and no streak.
+ * Finishing the daily pose challenge ends the points for that day, not the
+ * exercise. A completed pose occurrence keeps offering more sets. When an
+ * open group contest scores that exercise, those sets go to the contest
+ * instead of practice (see `anotherSetRoute`).
  */
 export function practiceMetric(occurrence: PracticeCandidate | null | undefined): PoseMetric | null {
   if (!occurrence || occurrence.status !== 'completed') {
@@ -35,8 +38,9 @@ export function practiceRoute(challengeId: string): `/challenge/${string}/practi
 }
 
 /**
- * Today's extra sets, shown on the challenge screen. Null on a day with none,
- * so an untouched screen stays quiet rather than reading "0 reps".
+ * Today's further sets after the daily target, shown on the challenge screen.
+ * Null on a day with none, so an untouched screen stays quiet rather than
+ * reading "0 reps".
  */
 export function practiceTallyCopy(
   totals: { todayCount: number; todaySessions: number } | undefined,
@@ -48,5 +52,5 @@ export function practiceTallyCopy(
   const reps = totals.todayCount === 1 ? '1 rep' : `${totals.todayCount} reps`;
   const sets = totals.todaySessions === 1 ? 'set' : 'sets';
 
-  return `${reps} in ${totals.todaySessions} extra ${sets} today`;
+  return `${reps} in ${totals.todaySessions} ${sets} today`;
 }

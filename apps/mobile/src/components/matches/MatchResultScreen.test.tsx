@@ -84,7 +84,7 @@ describe('MatchResultScreen', () => {
     fireEvent.press(screen.getByTestId('match-result-share'));
     await waitFor(() =>
       expect(Sharing.shareAsync).toHaveBeenCalledWith('file://share-card.jpg', {
-        mimeType: 'image/jpeg',
+        mimeType: 'image/png',
         dialogTitle: 'Share your result',
       }),
     );
@@ -99,9 +99,10 @@ describe('MatchResultScreen', () => {
 
     fireEvent.press(await screen.findByTestId('match-result-share'));
 
-    await waitFor(() =>
-      expect(share).toHaveBeenCalledWith({ message: 'I won a 7-day walking group on Healthy.' }),
-    );
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    expect(share.mock.calls[0]?.[0]).toEqual({
+      message: 'I won a 7-day walking group on Healthy.',
+    });
     share.mockRestore();
     await view.cleanup();
   });

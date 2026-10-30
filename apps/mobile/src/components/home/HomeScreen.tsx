@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { completionRoute } from '@/components/challenges/completion-route';
-import { canPracticeAgain, practiceRoute } from '@/components/challenges/practice-entry';
+import { anotherSetRoute } from '@/components/challenges/open-pose-contest';
+import { canPracticeAgain } from '@/components/challenges/practice-entry';
 import { useAdvanceChallenge } from '@/components/challenges/useAdvanceChallenge';
 import { RefreshableScroll } from '@/components/feedback';
 import { Glyph } from '@/components/icons';
@@ -152,7 +153,7 @@ function DeckSection({
   const opensDayPage = useDayFinishedPage(finished.finish, deck.items, finished.dismiss);
   const items =
     finished.finish && !opensDayPage ? withFinishedCard(deck.items, finished.finish) : deck.items;
-  const openDoneChallenge = useOpenDoneChallenge();
+  const openDoneChallenge = useOpenDoneChallenge(today.liveGroups);
   const isShowingStaleCopy = challengesQuery.isError && challengesQuery.data !== undefined;
 
   return (
@@ -214,12 +215,12 @@ function useOpenChallenge() {
 }
 
 /** A finished camera exercise goes straight to another set; anything else opens its page. */
-function useOpenDoneChallenge() {
+function useOpenDoneChallenge(liveGroups: Parameters<typeof anotherSetRoute>[2]) {
   const router = useRouter();
   const openChallenge = useOpenChallenge();
   return (challenge: TodayChallenge) => {
     if (canPracticeAgain(challenge)) {
-      router.push(practiceRoute(challenge.challengeId));
+      router.push(anotherSetRoute(challenge.challengeId, challenge.capture?.metric, liveGroups));
       return;
     }
 

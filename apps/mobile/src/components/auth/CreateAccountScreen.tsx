@@ -58,7 +58,7 @@ export function CreateAccountScreen({
       ) : (
         <>
           <FrontDoorTitle
-            subtitle="Camera-counted contests with friends. Push-ups, planks, squats — settle who’s stronger."
+            subtitle="Camera-counted contests with friends. Push-ups, planks, squats. Settle who’s stronger."
             title="Welcome to Healthy"
           />
           <WelcomeDeck />

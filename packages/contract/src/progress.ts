@@ -128,6 +128,62 @@ export const getProgressDayContract = oc
   .input(getProgressDayInputSchema)
   .output(progressDayDetailSchema);
 
+/** Calendar window for a period report (days you showed up). */
+export const periodReportPeriodSchema = z.enum(['week', 'month', 'year']);
+
+/** Calendar window for a single metric's totals. */
+export const metricPeriodSchema = z.enum(['week', 'month', 'all']);
+
+export const getPeriodReportInputSchema = z.object({
+  period: periodReportPeriodSchema,
+});
+
+export const periodHighlightMetricSchema = z.object({
+  metric: deviceMetricSchema,
+  count: z.number().int().nonnegative(),
+  unit: z.string().min(1),
+});
+
+export const periodReportSchema = z.object({
+  period: periodReportPeriodSchema,
+  /** Short label for the share poster top-right, such as "Oct 20–26". */
+  periodLabel: z.string().min(1),
+  /** Days with a rewarded daily finish in the window. */
+  activeDays: z.number().int().nonnegative(),
+  /** Strongest measured metric in the window, when any session exists. */
+  highlight: periodHighlightMetricSchema.nullable(),
+  startDayKey: dayKeySchema,
+  endDayKey: dayKeySchema,
+});
+
+export const getMetricPeriodStatsInputSchema = z.object({
+  metric: deviceMetricSchema,
+  period: metricPeriodSchema,
+});
+
+export const metricPeriodStatsSchema = z.object({
+  metric: deviceMetricSchema,
+  period: metricPeriodSchema,
+  periodLabel: z.string().min(1),
+  /** Reps, or minutes for a walk. */
+  count: z.number().int().nonnegative(),
+  unit: z.string().min(1),
+  /** Distinct local days with at least one session of this metric. */
+  activeDays: z.number().int().nonnegative(),
+  startDayKey: dayKeySchema.nullable(),
+  endDayKey: dayKeySchema,
+});
+
+export const getPeriodReportContract = oc
+  .route({ method: 'GET', path: '/progress/period-report' })
+  .input(getPeriodReportInputSchema)
+  .output(periodReportSchema);
+
+export const getMetricPeriodStatsContract = oc
+  .route({ method: 'GET', path: '/progress/metric-stats' })
+  .input(getMetricPeriodStatsInputSchema)
+  .output(metricPeriodStatsSchema);
+
 export type ProgressDayChallenge = z.infer<typeof progressDayChallengeSchema>;
 export type ProgressDay = z.infer<typeof progressDaySchema>;
 export type ProgressDays = z.infer<typeof progressDaysSchema>;
@@ -139,3 +195,9 @@ export type ProgressMissedPhotoCheck = z.infer<typeof progressMissedPhotoCheckSc
 export type ProgressPracticeItem = z.infer<typeof progressPracticeItemSchema>;
 export type ProgressAdjustment = z.infer<typeof progressAdjustmentSchema>;
 export type ProgressDayDetail = z.infer<typeof progressDayDetailSchema>;
+export type PeriodReportPeriod = z.infer<typeof periodReportPeriodSchema>;
+export type MetricPeriod = z.infer<typeof metricPeriodSchema>;
+export type GetPeriodReportInput = z.infer<typeof getPeriodReportInputSchema>;
+export type PeriodReport = z.infer<typeof periodReportSchema>;
+export type GetMetricPeriodStatsInput = z.infer<typeof getMetricPeriodStatsInputSchema>;
+export type MetricPeriodStats = z.infer<typeof metricPeriodStatsSchema>;

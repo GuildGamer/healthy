@@ -1,5 +1,5 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DECK_PAGE_CARD_RADIUS, DeckEyebrow } from '@/components/deck';
 import { WeekStrip } from '@/components/home/WeekStrip';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
@@ -12,21 +12,18 @@ interface WeekCardProps {
   summary: WeekSummary;
   weekStartKey: string;
   todayKey: string;
+  onPress?: () => void;
 }
 
 /** The week leads: days you showed up, filled as you finish them. */
-export function WeekCard({ summary, weekStartKey, todayKey }: WeekCardProps) {
+export function WeekCard({ summary, weekStartKey, todayKey, onPress }: WeekCardProps) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
   const line = weekLine(summary);
   const unit = weekMeasureUnit(summary);
 
-  return (
-    <View
-      accessibilityLabel={`This week: ${summary.shownUpCount} ${unit}`}
-      style={styles.card}
-      testID="progress-week-card"
-    >
+  const body = (
+    <>
       <DeckEyebrow corner={weekRangeLabel(weekStartKey)} label={PROGRESS_COPY.weekEyebrow} />
       <View style={styles.measure}>
         <Text style={styles.numeral}>{summary.shownUpCount}</Text>
@@ -40,6 +37,30 @@ export function WeekCard({ summary, weekStartKey, todayKey }: WeekCardProps) {
         tone={theme.deckCards.tones.walk}
       />
       {line ? <Text style={styles.line}>{line}</Text> : null}
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityLabel={`This week: ${summary.shownUpCount} ${unit}. Open week report.`}
+        accessibilityRole="button"
+        onPress={onPress}
+        style={styles.card}
+        testID="progress-week-card"
+      >
+        {body}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      accessibilityLabel={`This week: ${summary.shownUpCount} ${unit}`}
+      style={styles.card}
+      testID="progress-week-card"
+    >
+      {body}
     </View>
   );
 }

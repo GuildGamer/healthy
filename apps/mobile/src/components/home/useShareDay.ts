@@ -2,18 +2,14 @@ import * as Sharing from 'expo-sharing';
 import { useRef, useState } from 'react';
 import type { View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
-import {
-  SHARE_CARD_EXPORT_HEIGHT,
-  SHARE_CARD_EXPORT_WIDTH,
-} from '@/components/challenges/ChallengeShareCard';
 import { shareWithTracking, trackEvent } from '@/lib/analytics';
 
 const SHARE_DIALOG_TITLE = 'Share your day';
 
 /**
- * Captures a share card at export size and hands the image to the share
- * sheet. Where an image cannot be made or shared, the same news goes out as a
- * sentence instead, so the button never dead-ends.
+ * Captures a share card and hands the image to the share sheet. PNG keeps the
+ * poster's rounded corners. Where an image cannot be made or shared, the same
+ * news goes out as a sentence instead, so the button never dead-ends.
  */
 export function useShareDay(fallbackMessage: string, dialogTitle: string = SHARE_DIALOG_TITLE) {
   const shotRef = useRef<View>(null);
@@ -24,15 +20,12 @@ export function useShareDay(fallbackMessage: string, dialogTitle: string = SHARE
       return false;
     }
 
-    // Square capture: JPEG has no alpha, so rounded corners would fill white.
     const uri = await captureRef(shotRef, {
-      format: 'jpg',
+      format: 'png',
       quality: 1,
-      width: SHARE_CARD_EXPORT_WIDTH,
-      height: SHARE_CARD_EXPORT_HEIGHT,
       result: 'tmpfile',
     });
-    await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', dialogTitle });
+    await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle });
     return true;
   }
 

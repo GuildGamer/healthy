@@ -6,6 +6,7 @@ import { challengeAccessFilter } from '../../../shared/membership/entitlements.j
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { MatchesService } from '../matches/index.js';
 import { StreakService } from '../streak/index.js';
 import { PRACTICE_TALLY_LOOKBACK_MS } from './constants/practice.js';
 import { PRACTICE_MEMBERSHIP_REQUIRED } from './errors/practice.errors.js';
@@ -49,17 +50,18 @@ function longerOf(existing: MeasuredFields | null, incoming: MeasuredFields): Me
 }
 
 /**
- * Measured sessions that are not a challenge's completion: extra sets, and
- * sets or walks that fell short. Persisted as a `DeviceActivityLog` with no
- * occurrence attached, so they share one history with challenge sessions and
- * count as Today's progress and the day's streak while staying out of the
- * points ledger.
+ * Measured sessions that are not a challenge's completion: free sets after
+ * the daily target, and sets or walks that fell short. Persisted as a
+ * `DeviceActivityLog` with no occurrence attached. They count the day's
+ * streak and, when an open group contest scores that exercise, the board.
+ * Points stay with challenge completions.
  */
 @Injectable()
 export class PracticeService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly streak: StreakService,
+    private readonly matches: MatchesService,
   ) {}
 
   async record(
@@ -75,10 +77,17 @@ export class PracticeService {
 
     const streak = await this.streak.recordActiveDay(user.id);
     void this.streak.announceMilestone(user.id, streak);
+    const creditedMatchIds = await this.matches.creditPosePractice(user, {
+      metric: input.metric,
+      count: input.count ?? 0,
+      durationSeconds: input.durationSeconds,
+      source: input.source,
+    });
 
     return {
       session: toSessionDto(session),
       totals: await this.totalsFor(user.id, input.metric),
+      creditedMatchIds,
     };
   }
 

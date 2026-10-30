@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@product/db';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
@@ -68,7 +68,8 @@ function walkSession(occurrenceId: string, startedAt: Date, durationSeconds: num
 beforeAll(() => {
   prisma = createTestPrismaClient();
   const streak = new StreakService(prisma);
-  practice = new PracticeService(prisma, streak);
+  const matches = { creditPosePractice: vi.fn(async () => [] as string[]) };
+  practice = new PracticeService(prisma, streak, matches as never);
   challenges = new ChallengesService(prisma, practice, streak, undefined, () => 1);
   today = new TodayService(prisma);
 });

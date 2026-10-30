@@ -225,7 +225,7 @@ describe('ChallengeDetailScreen', () => {
     mockedApi.getPracticeTotals.mockResolvedValue({ todayCount: 15, todaySessions: 2 });
     const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
 
-    expect(await screen.findByText('15 reps in 2 extra sets today')).toBeOnTheScreen();
+    expect(await screen.findByText('15 reps in 2 sets today')).toBeOnTheScreen();
     expect(mockedApi.getPracticeTotals).toHaveBeenCalledWith({ metric: 'pushups' });
 
     fireEvent.press(screen.getByTestId('detail-practice-again'));

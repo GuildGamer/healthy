@@ -105,7 +105,7 @@ export default function ExperimentDetailPage() {
             <h2 style={{ margin: 0, fontSize: 16 }}>Assignment weights</h2>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>
               Stage 1 keeps 100% treatment. Stage 2 sets equal 50/50 weights for
-              new assignments only — sticky users stay put. Does not auto-flip
+              new assignments only. Sticky users stay put. Does not auto-flip
               production; you choose when.
             </p>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
