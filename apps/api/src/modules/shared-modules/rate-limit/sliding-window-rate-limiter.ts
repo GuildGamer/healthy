@@ -10,12 +10,14 @@ const DEFAULT_WINDOW_MS = 60_000;
  * In-memory rolling-window limiter. Keys are opaque (`user:<id>`,
  * `anon:<id>`, `ip:<ip>`). Resets on process restart; fine for abuse
  * throttling, not durable quotas.
+ *
+ * Window length is fixed on the class — a constructor `number` would make Nest
+ * try to inject `Number` and fail AnalyticsModule boot.
  */
 @Injectable()
 export class SlidingWindowRateLimiter {
   private readonly buckets = new Map<string, RateBucket>();
-
-  constructor(private readonly windowMs: number = DEFAULT_WINDOW_MS) {}
+  private readonly windowMs = DEFAULT_WINDOW_MS;
 
   /**
    * Records one attempt. Returns false when the key has already hit `limit`
