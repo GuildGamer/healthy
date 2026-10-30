@@ -40,7 +40,14 @@ function useHealthLinkPrompt(occurrence: TodayChallenge | undefined) {
 }
 
 /** A measured activity on the whole phone: a recorded walk, or today's steps. */
-export function ChallengeSessionScreen({ challengeId }: { challengeId: string }) {
+export function ChallengeSessionScreen({
+  challengeId,
+  autoStart = false,
+}: {
+  challengeId: string;
+  /** From the walk-offer Yes tap — start GPS counting without another Start press. */
+  autoStart?: boolean;
+}) {
   const { occurrence, isPending } = useTodayOccurrence(challengeId);
   const healthPrompt = useHealthLinkPrompt(occurrence);
 
@@ -53,7 +60,7 @@ export function ChallengeSessionScreen({ challengeId }: { challengeId: string })
       {occurrence.capture.kind === 'device_sample' ? (
         <StepsSession occurrence={occurrence} />
       ) : (
-        <WalkSessionScreen occurrence={occurrence} />
+        <WalkSessionScreen autoStart={autoStart} occurrence={occurrence} />
       )}
       <ConnectHealthSheet onClose={healthPrompt.close} visible={healthPrompt.isVisible} />
     </>
@@ -84,13 +91,32 @@ function isUnderway(view: WalkView): boolean {
   return view === 'recording' || view === 'paused' || view === 'short';
 }
 
-function WalkSessionScreen({ occurrence }: { occurrence: TodayChallenge }) {
+function WalkSessionScreen({
+  occurrence,
+  autoStart,
+}: {
+  occurrence: TodayChallenge;
+  autoStart: boolean;
+}) {
   const styles = useThemedStyles(createStyles);
   const session = useWalkSession(occurrence);
   const { fill } = useChallengeTone(occurrence);
   const target = occurrence.capture.target;
   const hero = walkHero(session.progress, target);
   const underway = isUnderway(session.view);
+  const [didAutoStart, setDidAutoStart] = useState(false);
+
+  useEffect(() => {
+    if (!autoStart || didAutoStart || session.view !== 'ready') {
+      return;
+    }
+
+    setDidAutoStart(true);
+    session.start();
+    // start is stable enough for a one-shot offer handoff; listing `session`
+    // would re-fire every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-shot
+  }, [autoStart, didAutoStart, session.view]);
 
   return (
     <SessionShell

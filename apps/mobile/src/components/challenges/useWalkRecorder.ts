@@ -17,6 +17,7 @@ import {
   type WalkLocationFix,
 } from '@/lib/walk-background-location';
 import { setWalkControlHandler } from '@/lib/walk-control';
+import { disarmWalkOfferMonitor } from '@/lib/walk-offer-monitor';
 import {
   walkCardChanged,
   walkCardCopy,
@@ -324,6 +325,9 @@ export function useWalkRecorder(): WalkRecorder {
         setError(WALK_LOCATION_DENIED);
         return;
       }
+
+      // Active counting owns location; stop the offer watcher first.
+      await disarmWalkOfferMonitor();
 
       // Background is what keeps the walk measuring after the phone locks.
       // When the walker refuses it, fall back to a foreground watch so a walk

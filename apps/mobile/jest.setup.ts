@@ -9,6 +9,7 @@ jest.mock('expo-notifications', () => ({
   })),
   requestPermissionsAsync: jest.fn(async () => ({ granted: true })),
   setNotificationChannelAsync: jest.fn(async () => undefined),
+  setNotificationCategoryAsync: jest.fn(async () => undefined),
   cancelAllScheduledNotificationsAsync: jest.fn(async () => undefined),
   scheduleNotificationAsync: jest.fn(async () => 'notification-id'),
   getExpoPushTokenAsync: jest.fn(async () => ({
@@ -18,6 +19,7 @@ jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: jest.fn(() => ({
     remove: jest.fn(),
   })),
+  DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
   AndroidImportance: { DEFAULT: 3 },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));

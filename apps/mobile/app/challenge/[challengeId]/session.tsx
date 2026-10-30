@@ -6,7 +6,10 @@ import { useSession } from '@/lib/auth-client';
 
 export default function ChallengeSessionRoute() {
   const { data: session, isPending } = useSession();
-  const { challengeId } = useLocalSearchParams<{ challengeId: string }>();
+  const { challengeId, autoStart } = useLocalSearchParams<{
+    challengeId: string;
+    autoStart?: string;
+  }>();
 
   if (isPending) {
     return <ScreenLoader />;
@@ -20,5 +23,10 @@ export default function ChallengeSessionRoute() {
     return <Redirect href={challengesTabHref('mine')} />;
   }
 
-  return <ChallengeSessionScreen challengeId={challengeId} />;
+  return (
+    <ChallengeSessionScreen
+      autoStart={autoStart === '1'}
+      challengeId={challengeId}
+    />
+  );
 }

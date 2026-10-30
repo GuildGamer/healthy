@@ -18,7 +18,9 @@ import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
 import { useAnalyticsSession, useScreenAnalytics } from '@/lib/analytics';
 import { usePushResponse } from '@/lib/use-push-response';
 import { useUserActive } from '@/lib/use-user-active';
+import { useWalkOfferResponse } from '@/lib/use-walk-offer-response';
 import '@/lib/walk-background-location';
+import '@/lib/walk-offer-location';
 import { dispatchWalkControlUrl } from '@/lib/walk-control';
 import { ThemeProvider, useTheme } from '@/theme';
 
@@ -34,6 +36,7 @@ export default function RootLayout() {
   const hasLeftLaunchRoute = useHasLeftLaunchRoute();
   const [hasSplashExited, setHasSplashExited] = useState(false);
   usePushResponse(hasLeftLaunchRoute);
+  useWalkOfferResponse(hasLeftLaunchRoute);
   useAnalyticsSession();
   useScreenAnalytics();
   useUserActive();

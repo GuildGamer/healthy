@@ -8,6 +8,7 @@ import { readTodaySteps } from '@/lib/device-health';
 import { useSyncTimeZone } from '@/lib/time-zone';
 import { useAppReviewPrompt } from '@/lib/use-app-review-prompt';
 import { usePushDeviceSync } from '@/lib/use-push-device';
+import { useWalkOfferMonitor } from '@/lib/use-walk-offer-monitor';
 import { buildTodayDeck } from './today-deck';
 import { nextDayKey } from './today-labels';
 
@@ -131,6 +132,7 @@ export function useTodayQueries() {
 
   useSyncTimeZone(me?.timeZone);
   usePushDeviceSync(me?.reminderEnabled ?? false);
+  useWalkOfferMonitor(challenges, dayKey || undefined);
   useAppReviewPrompt({
     userId: me?.id,
     dayKey: challengesQuery.data?.dayKey ?? bootstrapQuery.data?.today.dayKey,
