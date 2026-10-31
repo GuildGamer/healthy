@@ -1,7 +1,8 @@
 import type { MatchMetric, MetricPeriodStats, PeriodReport } from '@product/client';
 import { DECK_KIND_BY_METRIC } from '@/components/deck';
-import type { SharePoster } from '@/components/challenges/types/share-poster';
+import type { SharePoster, SharePosterFact } from '@/components/challenges/types/share-poster';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
+import type { ProgressFact } from './ProgressFactRow';
 
 function isMatchMetric(metric: string): metric is MatchMetric {
   return metric in MATCH_METRIC_LABEL;
@@ -21,6 +22,15 @@ function highlightLine(report: PeriodReport): string | null {
   return `${formatCount(report.highlight.count)} ${report.highlight.unit}`;
 }
 
+function highlightLabel(report: PeriodReport): string | null {
+  if (!report.highlight) {
+    return null;
+  }
+  return isMatchMetric(report.highlight.metric)
+    ? MATCH_METRIC_LABEL[report.highlight.metric]
+    : report.highlight.metric;
+}
+
 /** Period recap poster: days active on the streak fill. */
 export function periodReportPoster(report: PeriodReport): SharePoster {
   const label =
@@ -30,17 +40,41 @@ export function periodReportPoster(report: PeriodReport): SharePoster {
         ? 'Month recap'
         : 'Year wrapped';
 
+  const facts: SharePosterFact[] = [];
+  const leadLabel = highlightLabel(report);
+  if (report.highlight && leadLabel) {
+    facts.push({
+      label: leadLabel,
+      value: formatCount(report.highlight.count),
+    });
+  }
+
   return {
     kind: 'streak',
     label,
     value: String(report.activeDays),
     unit: report.activeDays === 1 ? 'day active' : 'days active',
     corner: report.periodLabel,
+    ...(facts.length > 0 ? { facts } : {}),
   };
 }
 
 export function periodReportRunLine(report: PeriodReport): string | null {
   return highlightLine(report);
+}
+
+/** Lead metric under the days-active hero — board place needs a richer API later. */
+export function periodReportFacts(report: PeriodReport): ProgressFact[] {
+  const leadLabel = highlightLabel(report);
+  if (!report.highlight || !leadLabel) {
+    return [];
+  }
+  return [
+    {
+      label: leadLabel,
+      value: formatCount(report.highlight.count),
+    },
+  ];
 }
 
 export function periodReportShareText(report: PeriodReport): string {
@@ -67,7 +101,28 @@ export function metricPeriodPoster(stats: MetricPeriodStats): SharePoster {
     value: formatCount(stats.count),
     unit: stats.unit,
     corner: stats.periodLabel,
+    facts: metricPeriodFacts(stats).map((fact) => ({
+      label: fact.label,
+      value: fact.value,
+    })),
   };
+}
+
+export function metricPeriodFacts(stats: MetricPeriodStats): ProgressFact[] {
+  return [
+    {
+      label: 'Best day',
+      value: stats.bestDay ? formatCount(stats.bestDay.count) : '—',
+    },
+    {
+      label: 'Days on',
+      value: String(stats.activeDays),
+    },
+    {
+      label: 'Avg / day',
+      value: formatCount(stats.avgPerDay),
+    },
+  ];
 }
 
 export function metricPeriodRunLine(stats: MetricPeriodStats): string | null {

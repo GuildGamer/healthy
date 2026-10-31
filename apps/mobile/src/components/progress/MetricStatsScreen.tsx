@@ -1,17 +1,21 @@
 import type { DeviceMetric, MatchMetric } from '@product/client';
 import { fontSize, fontWeight, spacing } from '@product/brand';
+import { matchMetricSchema } from '@product/contract/match-board';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckPushedPage, DeckSegmented } from '@/components/deck';
 import { DECK_KIND_BY_METRIC } from '@/components/deck';
+import { FRIEND_CHALLENGE_COPY } from '@/components/challenges/constants/friend-challenge';
 import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
+import { ProgressFactRow } from './ProgressFactRow';
 import {
+  metricPeriodFacts,
   metricPeriodPoster,
   metricPeriodRunLine,
   metricPeriodShareText,
@@ -60,6 +64,17 @@ function titleFor(metric: DeviceMetric): string {
     : metric;
 }
 
+function openFriendChallenge(metric: DeviceMetric): { pathname: '/matches/create'; params: { metric: string } } | null {
+  const parsed = matchMetricSchema.safeParse(metric);
+  if (!parsed.success) {
+    return null;
+  }
+  return {
+    pathname: '/matches/create',
+    params: { metric: parsed.data },
+  };
+}
+
 /** One metric's week / month / all-time total with a Share poster. */
 export function MetricStatsScreen() {
   const router = useRouter();
@@ -78,10 +93,12 @@ export function MetricStatsScreen() {
   const stats = statsQuery.data;
   const poster = stats ? metricPeriodPoster(stats) : null;
   const runLine = stats ? metricPeriodRunLine(stats) : null;
+  const facts = stats ? metricPeriodFacts(stats) : [];
   const share = useSharePoster(
     stats ? metricPeriodShareText(stats) : PROGRESS_COPY.shareFallback,
     'metric_stats',
   );
+  const friendRoute = metric ? openFriendChallenge(metric) : null;
 
   if (!metric) {
     return (
@@ -118,10 +135,8 @@ export function MetricStatsScreen() {
             <Text style={[styles.periodLabel, { color: colors.muted }]}>{stats.periodLabel}</Text>
             <Text style={[styles.value, { color: tone }]}>{poster.value}</Text>
             <Text style={[styles.unit, { color: colors.muted }]}>{stats.unit}</Text>
-            {runLine ? (
-              <Text style={[styles.meta, { color: colors.muted }]}>{runLine}</Text>
-            ) : null}
           </View>
+          <ProgressFactRow facts={facts} testID="metric-stats-facts" />
           <DeckButton
             glyph="share"
             label={PROGRESS_COPY.share}
@@ -129,6 +144,14 @@ export function MetricStatsScreen() {
             onPress={() => void share.share()}
             testID="metric-stats-share"
           />
+          {friendRoute ? (
+            <DeckButton
+              label={FRIEND_CHALLENGE_COPY.action}
+              onPress={() => router.push(friendRoute)}
+              testID="metric-stats-challenge-friend"
+              variant="quiet"
+            />
+          ) : null}
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
@@ -151,7 +174,7 @@ const createStyles = (_theme: Theme) =>
   StyleSheet.create({
     hero: {
       marginTop: spacing.xl,
-      marginBottom: spacing.xl,
+      marginBottom: spacing.lg,
       gap: spacing.sm,
     },
     periodLabel: {
@@ -167,10 +190,6 @@ const createStyles = (_theme: Theme) =>
     unit: {
       fontSize: 17,
       fontWeight: fontWeight.medium,
-    },
-    meta: {
-      fontSize: fontSize.sm,
-      marginTop: spacing.sm,
     },
     failed: {
       marginTop: spacing.xl,

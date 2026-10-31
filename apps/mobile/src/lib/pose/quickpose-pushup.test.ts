@@ -1,4 +1,8 @@
-import { quickPoseFraming, snapshotFromQuickPose } from './quickpose-pushup';
+import {
+  quickPoseFraming,
+  shouldCountPoseRep,
+  snapshotFromQuickPose,
+} from './quickpose-pushup';
 
 describe('snapshotFromQuickPose', () => {
   it('maps an entered pose to the down phase without counting yet', () => {
@@ -46,10 +50,67 @@ describe('snapshotFromQuickPose', () => {
 });
 
 describe('quickPoseFraming', () => {
-  it('treats a missing inside score as in-frame when the exercise measure exists', () => {
+  it('treats a missing inside score as out of frame, even with a push-up score', () => {
     expect(quickPoseFraming({ measure: 0.4, insideMeasure: null })).toEqual({
+      tooClose: false,
+      bodyInFrame: false,
+    });
+  });
+
+  it('keeps the green box at 0.95 while any body reading is still a person', () => {
+    expect(quickPoseFraming({ measure: 0.5, insideMeasure: 0.5 })).toEqual({
+      tooClose: true,
+      bodyInFrame: false,
+    });
+    expect(quickPoseFraming({ measure: 0.5, insideMeasure: 0.95 })).toEqual({
       tooClose: false,
       bodyInFrame: true,
     });
+  });
+});
+
+describe('shouldCountPoseRep', () => {
+  it('ignores a push-up score with no body reading', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.9,
+        insideMeasure: null,
+        formFeedback: null,
+        finishingRep: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('counts when QuickPose has found a body, below the green-box line', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.9,
+        insideMeasure: 0.4,
+        formFeedback: null,
+        finishingRep: false,
+      }),
+    ).toBe(true);
+  });
+
+  it('lets a finishing rep complete if the body reading flickers out', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.2,
+        insideMeasure: null,
+        formFeedback: null,
+        finishingRep: true,
+      }),
+    ).toBe(true);
+  });
+
+  it('blocks form feedback', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.9,
+        insideMeasure: 1,
+        formFeedback: 'Lower your hips',
+        finishingRep: false,
+      }),
+    ).toBe(false);
   });
 });

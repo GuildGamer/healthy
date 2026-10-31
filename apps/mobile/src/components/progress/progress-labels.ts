@@ -76,12 +76,15 @@ export function historyDayTitle(
   return `${weekday} ${day} ${month}`;
 }
 
-/** "2 of 5 so far", "All 5 done", "4 of 5", or "Nothing done". */
+/** "2 of 5 so far", "All 5 done", "4 of 5", "Set logged", or "Nothing done". */
 export function historyDayDetail(day: ProgressDay, isToday: boolean): string {
   const due = day.dailyChallenges.length;
   const done = day.dailyChallenges.filter((challenge) => challenge.isDone).length;
 
   if (done === 0) {
+    if (day.isShownUp) {
+      return PROGRESS_COPY.setLogged;
+    }
     return isToday ? PROGRESS_COPY.nothingYet : PROGRESS_COPY.nothingDone;
   }
 

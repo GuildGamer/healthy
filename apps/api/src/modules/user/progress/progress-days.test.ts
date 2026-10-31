@@ -86,4 +86,16 @@ describe('buildProgressDays', () => {
 
     expect(day?.isShownUp).toBe(false);
   });
+
+  it('shows up when a measured set was logged with no rewarded challenge', () => {
+    const [day] = buildProgressDays({
+      dayKeys: ['2026-10-20'],
+      occurrences: [occurrence('2026-10-20', 'push', false)],
+      ledger: [],
+      measuredDayKeys: new Set(['2026-10-20']),
+    });
+
+    expect(day?.isShownUp).toBe(true);
+    expect(day?.dailyChallenges[0]?.isDone).toBe(false);
+  });
 });

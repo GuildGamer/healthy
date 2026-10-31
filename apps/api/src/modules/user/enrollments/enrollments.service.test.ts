@@ -517,6 +517,21 @@ describe('EnrollmentsService.enrollDefaultsFor', () => {
 
     expect(prisma.challengeEnrollment.createMany).not.toHaveBeenCalled();
   });
+
+  it('never enrols a walk even when it is still flagged as default', async () => {
+    const prisma = createPrismaMock({});
+    prisma.challenge.findMany.mockResolvedValue([
+      { id: 'walk', defaultFrequency: 'daily', deviceMetric: 'walk' },
+      { id: 'push', defaultFrequency: 'daily', deviceMetric: 'pushups' },
+    ]);
+
+    await createService(prisma).enrollDefaultsFor(user.id, ['general']);
+
+    const [argument] = prisma.challengeEnrollment.createMany.mock.calls[0] as [
+      { data: Array<{ challengeId: string }> },
+    ];
+    expect(argument.data.map((row) => row.challengeId)).toEqual(['push']);
+  });
 });
 
 describe('EnrollmentsService.listStarterChallenges', () => {
@@ -535,7 +550,7 @@ describe('EnrollmentsService.listStarterChallenges', () => {
   it('marks general health as included whatever is picked', async () => {
     const prisma = createPrismaMock({
       catalog: [
-        catalogRow({ id: 'walk', category: 'general' }),
+        catalogRow({ id: 'push', category: 'general', deviceMetric: 'pushups' }),
         catalogRow({ id: 'bp', category: 'hypertension', completionKind: 'vitals_bp' }),
       ],
     });
@@ -543,8 +558,27 @@ describe('EnrollmentsService.listStarterChallenges', () => {
     const { challenges } = await createService(prisma).listStarterChallenges();
 
     expect(challenges.map((challenge) => [challenge.challengeId, challenge.isUniversal])).toEqual([
-      ['walk', true],
+      ['push', true],
       ['bp', false],
     ]);
+  });
+
+  it('hides a walk from the starter preview even when it is still flagged as default', async () => {
+    const prisma = createPrismaMock({
+      catalog: [
+        catalogRow({ id: 'walk', category: 'general', deviceMetric: 'walk' }),
+        catalogRow({
+          id: 'push',
+          category: 'general',
+          deviceMetric: 'pushups',
+          slug: 'twenty-push-ups',
+          title: 'Do 5 push-ups',
+        }),
+      ],
+    });
+
+    const { challenges } = await createService(prisma).listStarterChallenges();
+
+    expect(challenges.map((challenge) => challenge.challengeId)).toEqual(['push']);
   });
 });

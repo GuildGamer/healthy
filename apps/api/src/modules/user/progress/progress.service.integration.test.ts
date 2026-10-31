@@ -124,6 +124,23 @@ describe('ProgressService against Postgres', () => {
     expect(JSON.stringify(result)).not.toContain('187');
   });
 
+  it('marks a day shown up when a contest or practice set was logged', async () => {
+    await seedUser(new Date('2026-10-20T09:00:00.000Z'));
+    await prisma.deviceActivityLog.create({
+      data: {
+        userId: user.id,
+        source: 'in_app_pose',
+        metric: 'pushups',
+        count: 12,
+        createdAt: new Date('2026-10-22T10:00:00.000Z'),
+      },
+    });
+
+    const result = await progress.days(user, now);
+
+    expect(result.days[0]).toMatchObject({ dayKey: TODAY, isShownUp: true, pointsTotal: 0 });
+  });
+
   it('reaches back six weeks at most for an older account', async () => {
     await seedUser(new Date('2026-01-01T09:00:00.000Z'));
 

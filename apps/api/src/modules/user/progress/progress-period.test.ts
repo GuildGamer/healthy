@@ -95,6 +95,34 @@ describe('ProgressService.periodReport', () => {
     });
     expect(report.period).toBe('week');
   });
+
+  it('counts a day that only logged a set, with no rewarded challenge', async () => {
+    const prisma = createPrisma(
+      [
+        {
+          metric: 'pushups',
+          count: 12,
+          durationSeconds: 40,
+          createdAt: new Date('2026-10-21T12:00:00.000Z'),
+        },
+      ],
+      [],
+    );
+
+    const service = new ProgressService(prisma as never);
+    const report = await service.periodReport(
+      user,
+      'week',
+      new Date('2026-10-22T12:00:00.000Z'),
+    );
+
+    expect(report.activeDays).toBe(1);
+    expect(report.highlight).toEqual({
+      metric: 'pushups',
+      count: 12,
+      unit: 'push-ups',
+    });
+  });
 });
 
 describe('ProgressService.metricPeriodStats', () => {
@@ -124,6 +152,9 @@ describe('ProgressService.metricPeriodStats', () => {
 
     expect(stats.count).toBe(60);
     expect(stats.activeDays).toBe(2);
+    expect(stats.windowDays).toBe(4);
+    expect(stats.avgPerDay).toBe(15);
+    expect(stats.bestDay).toEqual({ dayKey: '2026-10-20', count: 40 });
     expect(stats.unit).toBe('push-ups');
     expect(stats.periodLabel).toBe('Oct 19–22');
   });

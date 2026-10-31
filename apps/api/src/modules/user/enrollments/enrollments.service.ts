@@ -345,6 +345,7 @@ export class EnrollmentsService {
   /**
    * Every challenge `enrollDefaultsFor` could enrol, for previewing a first
    * day before sign-up. Catalog data only, the same for every caller.
+   * Walk stays opt-in even if a deployed row still has `isDefault`.
    */
   async listStarterChallenges(): Promise<StarterChallengesDto> {
     const defaults = await this.prisma.challenge.findMany({
@@ -352,19 +353,21 @@ export class EnrollmentsService {
       orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
     });
 
-    const challenges: StarterChallengeDto[] = defaults.map((challenge) => ({
-      challengeId: challenge.id,
-      title: displayChallengeTitle({
-        title: challenge.title,
-        metric: challenge.deviceMetric,
-        count: challenge.targetCount,
-      }),
-      description: challenge.description,
-      category: challenge.category,
-      isUniversal: challenge.category === UNIVERSAL_CATEGORY,
-      completionKind: challenge.completionKind,
-      capture: toChallengeCapture(challenge),
-    }));
+    const challenges: StarterChallengeDto[] = defaults
+      .filter((challenge) => challenge.deviceMetric !== 'walk')
+      .map((challenge) => ({
+        challengeId: challenge.id,
+        title: displayChallengeTitle({
+          title: challenge.title,
+          metric: challenge.deviceMetric,
+          count: challenge.targetCount,
+        }),
+        description: challenge.description,
+        category: challenge.category,
+        isUniversal: challenge.category === UNIVERSAL_CATEGORY,
+        completionKind: challenge.completionKind,
+        capture: toChallengeCapture(challenge),
+      }));
 
     return { challenges };
   }
@@ -372,15 +375,16 @@ export class EnrollmentsService {
   /**
    * Enrols a user in the starter set for the categories they just chose.
    * Idempotent, and deliberately does not revive an enrolment the user turned
-   * off — only genuinely new rows are created.
+   * off — only genuinely new rows are created. Walk is never auto-enrolled.
    */
   async enrollDefaultsFor(userId: string, categories: readonly HealthCategory[]): Promise<void> {
     const scope = this.withUniversalCategory(categories);
 
-    const defaults = await this.prisma.challenge.findMany({
+    const candidates = await this.prisma.challenge.findMany({
       where: { isActive: true, isDefault: true, category: { in: scope } },
-      select: { id: true, defaultFrequency: true },
+      select: { id: true, defaultFrequency: true, deviceMetric: true },
     });
+    const defaults = candidates.filter((challenge) => challenge.deviceMetric !== 'walk');
 
     if (defaults.length === 0) {
       return;

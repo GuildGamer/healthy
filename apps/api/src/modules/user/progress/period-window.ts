@@ -131,3 +131,15 @@ export function sessionAmount(
 export function dayAfter(endDayKey: string): string {
   return shiftDayKey(endDayKey, 1);
 }
+
+const DAY_MS = 86_400_000;
+
+/** Inclusive count of local calendar days from start through end. */
+export function inclusiveDayCount(startDayKey: string, endDayKey: string): number {
+  const start = Date.parse(`${startDayKey}T00:00:00.000Z`);
+  const end = Date.parse(`${endDayKey}T00:00:00.000Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return 1;
+  }
+  return Math.round((end - start) / DAY_MS) + 1;
+}

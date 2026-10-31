@@ -29,8 +29,8 @@ export const progressDaySchema = z.object({
   /** Taken off that day for missed or skipped photo checks. */
   pointsLost: z.number().int().nonnegative(),
   /**
-   * A daily challenge was finished and rewarded that day — the rule the
-   * streak counts by, so the week and the run never disagree.
+   * The member showed up that day: a rewarded daily challenge, or a measured
+   * set logged for a contest or practice. Matches the streak's "did something".
    */
   isShownUp: z.boolean(),
 });
@@ -161,6 +161,12 @@ export const getMetricPeriodStatsInputSchema = z.object({
   period: metricPeriodSchema,
 });
 
+export const metricPeriodBestDaySchema = z.object({
+  dayKey: dayKeySchema,
+  /** Total for this metric on that local day. */
+  count: z.number().int().nonnegative(),
+});
+
 export const metricPeriodStatsSchema = z.object({
   metric: deviceMetricSchema,
   period: metricPeriodSchema,
@@ -170,6 +176,12 @@ export const metricPeriodStatsSchema = z.object({
   unit: z.string().min(1),
   /** Distinct local days with at least one session of this metric. */
   activeDays: z.number().int().nonnegative(),
+  /** Inclusive calendar days in the window (clamped to join day). */
+  windowDays: z.number().int().positive(),
+  /** Highest single-day total in the window; null when nothing was logged. */
+  bestDay: metricPeriodBestDaySchema.nullable(),
+  /** Floor of total ÷ window days. */
+  avgPerDay: z.number().int().nonnegative(),
   startDayKey: dayKeySchema.nullable(),
   endDayKey: dayKeySchema,
 });
@@ -200,4 +212,5 @@ export type MetricPeriod = z.infer<typeof metricPeriodSchema>;
 export type GetPeriodReportInput = z.infer<typeof getPeriodReportInputSchema>;
 export type PeriodReport = z.infer<typeof periodReportSchema>;
 export type GetMetricPeriodStatsInput = z.infer<typeof getMetricPeriodStatsInputSchema>;
+export type MetricPeriodBestDay = z.infer<typeof metricPeriodBestDaySchema>;
 export type MetricPeriodStats = z.infer<typeof metricPeriodStatsSchema>;

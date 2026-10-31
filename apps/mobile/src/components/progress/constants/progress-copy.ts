@@ -26,6 +26,7 @@ export const PROGRESS_COPY = {
   skippedPhoto: 'The photo was skipped.',
   nothingDone: 'Nothing done',
   nothingYet: 'Nothing yet',
+  setLogged: 'Set logged',
   noPointsThatDay: 'No points moved this day.',
   photoCheckMissed: 'Photo check missed',
   reportTitle: 'Your report',

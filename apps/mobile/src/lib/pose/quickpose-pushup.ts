@@ -10,5 +10,6 @@ export {
   pushupFormFeedback,
   pushupMeasureFromResults,
   quickPoseFraming,
+  shouldCountPoseRep,
   snapshotFromQuickPose,
 } from './quickpose-exercise';

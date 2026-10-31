@@ -9,12 +9,13 @@ type CompleteChallengeVariables = {
   payload: CompletionPayload;
 };
 
-/** Points and Today's board. History / You / matches refetch when those screens open. */
+/** Points, Today, and You — a contest set fills the week card without a pull. */
 export function refreshAfterCompletion(queryClient: QueryClient): void {
   void Promise.all([
     queryClient.invalidateQueries({ queryKey: ['me'] }),
     queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
     queryClient.invalidateQueries({ queryKey: ['home', 'bootstrap'] }),
+    queryClient.invalidateQueries({ queryKey: ['progress'] }),
   ]);
 }
 

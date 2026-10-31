@@ -8,7 +8,9 @@ import { ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
+import { ProgressFactRow } from './ProgressFactRow';
 import {
+  periodReportFacts,
   periodReportPoster,
   periodReportRunLine,
   periodReportShareText,
@@ -47,6 +49,7 @@ export function PeriodReportScreen() {
   const report = reportQuery.data;
   const poster = report ? periodReportPoster(report) : null;
   const runLine = report ? periodReportRunLine(report) : null;
+  const facts = report ? periodReportFacts(report) : [];
   const share = useSharePoster(
     report ? periodReportShareText(report) : PROGRESS_COPY.shareFallback,
     'period_report',
@@ -75,10 +78,8 @@ export function PeriodReportScreen() {
             <Text style={[styles.unit, { color: colors.muted }]}>
               {report.activeDays === 1 ? 'day active' : 'days active'}
             </Text>
-            {runLine ? (
-              <Text style={[styles.meta, { color: colors.muted }]}>{runLine}</Text>
-            ) : null}
           </View>
+          <ProgressFactRow facts={facts} testID="period-report-facts" />
           <DeckButton
             glyph="share"
             label={PROGRESS_COPY.share}
@@ -108,7 +109,7 @@ const createStyles = (_theme: Theme) =>
   StyleSheet.create({
     hero: {
       marginTop: spacing.xl,
-      marginBottom: spacing.xl,
+      marginBottom: spacing.lg,
       gap: spacing.sm,
     },
     periodLabel: {
@@ -124,10 +125,6 @@ const createStyles = (_theme: Theme) =>
     unit: {
       fontSize: 17,
       fontWeight: fontWeight.medium,
-    },
-    meta: {
-      fontSize: fontSize.sm,
-      marginTop: spacing.sm,
     },
     failed: {
       marginTop: spacing.xl,

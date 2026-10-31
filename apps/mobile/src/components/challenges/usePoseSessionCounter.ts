@@ -12,6 +12,7 @@ import {
   exerciseMeasureFromResults,
   insideMeasureFromResults,
   quickPoseFraming,
+  shouldCountPoseRep,
   snapshotFromQuickPose,
   type QuickPoseExerciseUpdate,
 } from '@/lib/pose/quickpose-exercise';
@@ -124,7 +125,15 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
       }
 
       const finishingRep = liveCounterRef.current.state.isEntered;
-      if (measure != null && formFeedback == null && (!framing.tooClose || finishingRep)) {
+      if (
+        measure != null &&
+        shouldCountPoseRep({
+          measure,
+          insideMeasure,
+          formFeedback,
+          finishingRep,
+        })
+      ) {
         liveCounterRef.current.count(measure);
       }
 

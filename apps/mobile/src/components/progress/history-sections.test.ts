@@ -58,6 +58,12 @@ describe('history day labels', () => {
     expect(historyDayDetail(day('2026-10-20', 0, [true, false]), false)).toBe('1 of 2');
     expect(historyDayDetail(day('2026-10-21', 0, [false, false]), false)).toBe('Nothing done');
     expect(historyDayDetail(day('2026-10-22', 0, [false]), true)).toBe('Nothing yet');
+    expect(
+      historyDayDetail(
+        { ...day('2026-10-22', 0, [false]), isShownUp: true },
+        true,
+      ),
+    ).toBe('Set logged');
   });
 
   it('spells a week that crosses a month', () => {

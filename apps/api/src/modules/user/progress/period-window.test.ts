@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { metricUnit, periodWindowFor, sessionAmount } from './period-window.js';
+import {
+  inclusiveDayCount,
+  metricUnit,
+  periodWindowFor,
+  sessionAmount,
+} from './period-window.js';
 
 describe('periodWindowFor', () => {
   const clock = {
@@ -57,5 +62,12 @@ describe('metricUnit', () => {
   it('names the share unit', () => {
     expect(metricUnit('walk')).toBe('minutes');
     expect(metricUnit('pushups')).toBe('push-ups');
+  });
+});
+
+describe('inclusiveDayCount', () => {
+  it('counts both ends of the window', () => {
+    expect(inclusiveDayCount('2026-10-19', '2026-10-22')).toBe(4);
+    expect(inclusiveDayCount('2026-10-22', '2026-10-22')).toBe(1);
   });
 });

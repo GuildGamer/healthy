@@ -7,22 +7,19 @@ const OTP_FOOTER =
 
 const OTP_MAIL: Record<
   OtpMailKind,
-  { subject: string; headline: string; intro: (otp: string) => string }
+  { subject: string; intro: string }
 > = {
   'password-reset': {
     subject: 'Your Healthy password reset code',
-    headline: 'Reset your password',
-    intro: (otp) => `Your password reset code is ${otp}.`,
+    intro: 'Use this code to reset your password.',
   },
   'email-verification': {
     subject: 'Your Healthy verification code',
-    headline: 'Verify your email',
-    intro: (otp) => `Your email verification code is ${otp}.`,
+    intro: 'Use this code to verify your email.',
   },
   'change-email': {
     subject: 'Confirm your new Healthy email',
-    headline: 'Confirm your new email',
-    intro: (otp) => `Your email change code is ${otp}.`,
+    intro: 'Use this code to confirm your new email.',
   },
 };
 
@@ -31,7 +28,7 @@ export function otpMailContent(kind: OtpMailKind, otp: string): MailParts {
 
   return brandedMail({
     subject: template.subject,
-    headline: template.headline,
-    bodyLines: [template.intro(otp), OTP_FOOTER],
+    bodyLines: [template.intro, OTP_FOOTER],
+    code: otp,
   });
 }

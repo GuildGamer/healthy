@@ -108,16 +108,39 @@ export function quickPoseFraming(input: { measure: number | null; insideMeasure:
   tooClose: boolean;
   bodyInFrame: boolean;
 } {
-  const personVisible = input.measure != null || input.insideMeasure != null;
+  // A push-up score alone is not a body — only inside.wholeBody means QuickPose
+  // found a person. Missing that reading keeps the green box empty.
   if (input.insideMeasure == null) {
-    return { tooClose: false, bodyInFrame: input.measure != null };
+    return { tooClose: false, bodyInFrame: false };
   }
 
   const wellFramed = input.insideMeasure >= QUICKPOSE_INSIDE_IN_FRAME;
   return {
-    tooClose: personVisible && !wellFramed,
-    bodyInFrame: personVisible && wellFramed,
+    tooClose: !wellFramed,
+    bodyInFrame: wellFramed,
   };
+}
+
+/**
+ * Whether this frame may move the rep counter. Needs a body reading from
+ * QuickPose; a finishing half-rep may complete if the body flickers out.
+ * The 0.95 green-box line is coaching only — any positive inside score counts.
+ */
+export function shouldCountPoseRep(input: {
+  measure: number | null;
+  insideMeasure: number | null;
+  formFeedback: string | null;
+  finishingRep: boolean;
+}): boolean {
+  if (input.measure == null || input.formFeedback != null) {
+    return false;
+  }
+
+  if (input.finishingRep) {
+    return true;
+  }
+
+  return input.insideMeasure != null && input.insideMeasure > 0;
 }
 
 export function snapshotFromQuickPose(input: {

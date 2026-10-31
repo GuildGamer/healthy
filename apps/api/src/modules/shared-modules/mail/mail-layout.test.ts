@@ -20,11 +20,17 @@ describe('brandedMail', () => {
 });
 
 describe('otpMailContent', () => {
-  it('brands each OTP kind', () => {
+  it('brands each OTP kind with a large code block and no mint accent bar', () => {
     const mail = otpMailContent('password-reset', '123456');
     expect(mail.subject).toContain('password reset');
+    expect(mail.text).toContain('Use this code to reset your password.');
+    expect(mail.text).toContain('123456');
+    expect(mail.html).toContain('letter-spacing:8px');
     expect(mail.html).toContain('123456');
     expect(mail.html).toContain('Healthy');
+    expect(mail.html).not.toContain('Reset your password');
+    expect(mail.html).not.toContain('height:6px');
+    expect(mail.html).not.toContain('width:40px');
   });
 });
 

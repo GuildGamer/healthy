@@ -82,6 +82,12 @@ describe('createPrefillFrom', () => {
   });
 
   it('never opens on a pair the API rejects', () => {
+    expect(createPrefillFrom({ metric: 'pushups' })).toMatchObject({
+      metric: 'pushups',
+      scoringMode: 'cumulative_total',
+      dailyScope: 'any_challenge',
+    });
+
     expect(
       createPrefillFrom({ metric: 'walk', scoringMode: 'best_single', dailyScope: 'any_challenge' })
         .scoringMode,

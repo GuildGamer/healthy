@@ -23,6 +23,7 @@ function summariseDay(
   dayKey: string,
   occurrences: readonly DailyOccurrence[],
   ledger: readonly LedgerDayRow[],
+  measuredDayKeys: ReadonlySet<string>,
 ): ProgressDayDto {
   const pointsLost = ledger
     .filter((row) => row.isChallengeLinked && row.delta < 0)
@@ -39,7 +40,8 @@ function summariseDay(
     })),
     pointsTotal: ledger.reduce((total, row) => total + row.delta, 0),
     pointsLost,
-    isShownUp: occurrences.some((occurrence) => occurrence.isRewarded),
+    isShownUp:
+      occurrences.some((occurrence) => occurrence.isRewarded) || measuredDayKeys.has(dayKey),
   };
 }
 
@@ -48,11 +50,19 @@ export function buildProgressDays(input: {
   dayKeys: readonly string[];
   occurrences: readonly DailyOccurrence[];
   ledger: readonly LedgerDayRow[];
+  /** Local days that already logged a measured set (contest, practice, walk). */
+  measuredDayKeys?: ReadonlySet<string>;
 }): ProgressDayDto[] {
   const occurrencesByDay = groupByDay(input.occurrences);
   const ledgerByDay = groupByDay(input.ledger);
+  const measuredDayKeys = input.measuredDayKeys ?? new Set<string>();
 
   return input.dayKeys.map((dayKey) =>
-    summariseDay(dayKey, occurrencesByDay.get(dayKey) ?? [], ledgerByDay.get(dayKey) ?? []),
+    summariseDay(
+      dayKey,
+      occurrencesByDay.get(dayKey) ?? [],
+      ledgerByDay.get(dayKey) ?? [],
+      measuredDayKeys,
+    ),
   );
 }

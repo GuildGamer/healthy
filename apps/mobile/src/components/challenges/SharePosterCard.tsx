@@ -59,6 +59,20 @@ export function SharePosterCard({
         {poster.value}
       </Text>
       <Text style={[styles.posterUnit, { color: ink.subtext }, overPhoto]}>{poster.unit}</Text>
+      {poster.facts && poster.facts.length > 0 ? (
+        <View style={styles.posterFacts}>
+          {poster.facts.map((fact) => (
+            <View key={fact.label} style={styles.posterFact}>
+              <Text style={[styles.posterFactValue, { color: ink.text }, overPhoto]}>
+                {fact.value}
+              </Text>
+              <Text style={[styles.posterFactLabel, { color: ink.subtext }, overPhoto]}>
+                {fact.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
       <View style={[styles.posterBrand, { borderTopColor: ink.track }]}>
         <Text style={[styles.posterBrandName, { color: ink.text }, overPhoto]}>
           {SHARE_COPY.brand}
@@ -149,6 +163,24 @@ const styles = StyleSheet.create({
     fontSize: 17,
     marginTop: spacing.sm,
     zIndex: 1,
+  },
+  posterFacts: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    zIndex: 1,
+  },
+  posterFact: {
+    flex: 1,
+    gap: 2,
+  },
+  posterFactValue: {
+    fontSize: 16,
+    fontWeight: fontWeight.semibold,
+  },
+  posterFactLabel: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
   },
   posterBrand: {
     flexDirection: 'row',

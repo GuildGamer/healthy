@@ -138,16 +138,21 @@ function parseLength(raw: string | undefined, rules: GroupRules): MatchLengthCho
  */
 export function createPrefillFrom(params: CreatePrefillParams): CreatePrefill {
   const metric = matchMetricSchema.safeParse(params.metric);
-  const scoringMode = matchScoringModeSchema.safeParse(params.scoringMode);
-  const dailyScope = matchDailyScopeSchema.safeParse(params.dailyScope);
-  if (!metric.success || !scoringMode.success || !dailyScope.success) {
+  if (!metric.success) {
     return defaultPrefill();
   }
 
+  const defaults = defaultPrefill();
+  const scoringMode = matchScoringModeSchema.safeParse(params.scoringMode);
+  const dailyScope = matchDailyScopeSchema.safeParse(params.dailyScope);
+
   const rules = {
     metric: metric.data,
-    scoringMode: legalScoringModeFor(metric.data, scoringMode.data),
-    dailyScope: dailyScope.data,
+    scoringMode: legalScoringModeFor(
+      metric.data,
+      scoringMode.success ? scoringMode.data : defaults.scoringMode,
+    ),
+    dailyScope: dailyScope.success ? dailyScope.data : defaults.dailyScope,
   };
   return {
     ...rules,

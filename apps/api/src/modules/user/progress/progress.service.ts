@@ -22,7 +22,12 @@ import type {
 } from './dto/index.js';
 import { buildProgressDayDetail } from './progress-day-detail.js';
 import { buildProgressDays, dayKeysNewestFirst } from './progress-days.js';
-import { metricUnit, periodWindowFor, sessionAmount } from './period-window.js';
+import {
+  inclusiveDayCount,
+  metricUnit,
+  periodWindowFor,
+  sessionAmount,
+} from './period-window.js';
 import type {
   DailyOccurrence,
   LedgerDayRow,
@@ -53,9 +58,10 @@ export class ProgressService {
     const windowStartKey = shiftDayKey(clock.dayKey, -(HISTORY_WINDOW_DAYS - 1));
     const firstDayKey = clock.joinedDayKey > windowStartKey ? clock.joinedDayKey : windowStartKey;
 
-    const [occurrences, ledger] = await Promise.all([
+    const [occurrences, ledger, activity] = await Promise.all([
       this.dailyOccurrences(user.id, firstDayKey, clock.dayKey),
       this.ledgerDayRows(user.id, firstDayKey, clock),
+      this.activityInWindow(user.id, firstDayKey, clock.dayKey, clock.timeZone),
     ]);
 
     return {
@@ -66,6 +72,7 @@ export class ProgressService {
         dayKeys: dayKeysNewestFirst(firstDayKey, clock.dayKey),
         occurrences,
         ledger,
+        measuredDayKeys: this.measuredDayKeysFrom(activity),
       }),
     };
   }
@@ -119,9 +126,10 @@ export class ProgressService {
       this.activityInWindow(user.id, window.startDayKey, window.endDayKey, clock.timeZone),
     ]);
 
-    const activeDays = new Set(
-      occurrences.filter((row) => row.isRewarded).map((row) => row.dayKey),
-    ).size;
+    const activeDays = new Set([
+      ...occurrences.filter((row) => row.isRewarded).map((row) => row.dayKey),
+      ...this.measuredDayKeysFrom(activity),
+    ]).size;
 
     return {
       period,
@@ -160,11 +168,24 @@ export class ProgressService {
     );
 
     let count = 0;
-    const days = new Set<string>();
+    const byDay = new Map<string, number>();
     for (const row of activity) {
-      count += sessionAmount(row.metric, row.count, row.durationSeconds);
-      days.add(row.dayKey);
+      const amount = sessionAmount(row.metric, row.count, row.durationSeconds);
+      count += amount;
+      byDay.set(row.dayKey, (byDay.get(row.dayKey) ?? 0) + amount);
     }
+
+    let bestDay: MetricPeriodStatsDto['bestDay'] = null;
+    for (const [dayKey, dayCount] of byDay) {
+      if (dayCount <= 0) {
+        continue;
+      }
+      if (!bestDay || dayCount > bestDay.count) {
+        bestDay = { dayKey, count: dayCount };
+      }
+    }
+
+    const windowDays = inclusiveDayCount(window.startDayKey, window.endDayKey);
 
     return {
       metric,
@@ -172,10 +193,31 @@ export class ProgressService {
       periodLabel: window.periodLabel,
       count,
       unit: metricUnit(metric),
-      activeDays: days.size,
+      activeDays: byDay.size,
+      windowDays,
+      bestDay,
+      avgPerDay: Math.floor(count / windowDays),
       startDayKey: period === 'all' ? null : window.startDayKey,
       endDayKey: window.endDayKey,
     };
+  }
+
+  /** Local days with a measured set that actually moved (reps or duration). */
+  private measuredDayKeysFrom(
+    activity: {
+      metric: DeviceMetric;
+      count: number | null;
+      durationSeconds: number | null;
+      dayKey: string;
+    }[],
+  ): Set<string> {
+    const days = new Set<string>();
+    for (const row of activity) {
+      if (sessionAmount(row.metric, row.count, row.durationSeconds) > 0) {
+        days.add(row.dayKey);
+      }
+    }
+    return days;
   }
 
   private highlightFrom(
