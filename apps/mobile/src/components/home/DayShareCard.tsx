@@ -1,11 +1,14 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   SHARE_POSTER_HEIGHT,
+  SHARE_POSTER_PADDING,
+  SHARE_POSTER_RADIUS,
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { posterValueMetrics } from '@/components/challenges/share-poster';
+import { SharePosterText } from '@/components/challenges/SharePosterText';
 import { useTheme } from '@/theme';
 import { TODAY_COPY } from './constants/today-copy';
 import { dayShareHero } from './day-share';
@@ -28,37 +31,53 @@ export function DayShareCard({ content }: { content: DayShareContent }) {
       : `+${content.pointsToday}`;
 
   return (
-    <View
-      style={[styles.poster, { backgroundColor: deckCards.streak }]}
-      testID="home-day-share-card"
-    >
-      <View style={styles.top}>
-        <Text style={[styles.label, { color: deckCards.subtext }]}>{TODAY_COPY.dayDoneTitle}</Text>
-        <Text style={[styles.label, { color: deckCards.subtext }]}>{content.weekday}</Text>
-      </View>
-      <Text
-        adjustsFontSizeToFit
-        numberOfLines={1}
-        style={[styles.value, { color: deckCards.text }, valueMetrics]}
-      >
-        {hero.value}
-      </Text>
-      <Text style={[styles.unit, { color: deckCards.subtext }]}>{hero.unit}</Text>
-      <View style={[styles.brand, { borderTopColor: deckCards.track }]}>
-        <Text style={[styles.brandName, { color: deckCards.text }]}>{SHARE_COPY.brand}</Text>
-        <Text style={[styles.label, { color: deckCards.subtext }]}>{brandMeta}</Text>
+    <View style={styles.shell} testID="home-day-share-card">
+      <View style={[styles.fill, { backgroundColor: deckCards.streak }]} />
+      <View style={styles.type}>
+        <View style={styles.top}>
+          <SharePosterText style={[styles.label, { color: deckCards.subtext }]}>
+            {TODAY_COPY.dayDoneTitle}
+          </SharePosterText>
+          <SharePosterText style={[styles.label, { color: deckCards.subtext }]}>
+            {content.weekday}
+          </SharePosterText>
+        </View>
+        <SharePosterText
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={[styles.value, { color: deckCards.text }, valueMetrics]}
+        >
+          {hero.value}
+        </SharePosterText>
+        <SharePosterText style={[styles.unit, { color: deckCards.subtext }]}>
+          {hero.unit}
+        </SharePosterText>
+        <View style={[styles.brand, { borderTopColor: deckCards.track }]}>
+          <SharePosterText style={[styles.brandName, { color: deckCards.text }]}>
+            {SHARE_COPY.brand}
+          </SharePosterText>
+          <SharePosterText style={[styles.label, { color: deckCards.subtext }]}>
+            {brandMeta}
+          </SharePosterText>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  poster: {
+  shell: {
     width: SHARE_POSTER_WIDTH,
     height: SHARE_POSTER_HEIGHT,
-    borderRadius: 26,
-    padding: 22,
+  },
+  fill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: SHARE_POSTER_RADIUS,
     overflow: 'hidden',
+  },
+  type: {
+    flex: 1,
+    padding: SHARE_POSTER_PADDING,
   },
   top: {
     flexDirection: 'row',

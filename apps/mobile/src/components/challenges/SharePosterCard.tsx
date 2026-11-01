@@ -1,5 +1,5 @@
 import { darkDeckCards, fontSize, fontWeight, spacing } from '@product/brand';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fitRouteToViewBox, type ShareRoutePoint } from '@/lib/share-route-path';
 import { useTheme } from '@/theme';
@@ -7,10 +7,13 @@ import { SHARE_COPY } from './constants/doing-copy';
 import { PhotoFade } from './PhotoFade';
 import { weekdayName } from './reading-time';
 import { posterValueMetrics, posterWhen } from './share-poster';
+import { SharePosterText } from './SharePosterText';
 import type { SharePoster } from './types/share-poster';
 
 export const SHARE_POSTER_WIDTH = 300;
 export const SHARE_POSTER_HEIGHT = 375;
+export const SHARE_POSTER_RADIUS = 26;
+export const SHARE_POSTER_PADDING = 22;
 
 /** Smaller than the plain card's numeral so the selfie, not the time, carries the photo card. */
 const PHOTO_VALUE_METRICS = { fontSize: 64, letterSpacing: -2, lineHeight: 68 } as const;
@@ -40,44 +43,73 @@ export function SharePosterCard({
   const ink = hasPhoto ? darkDeckCards : deckCards;
   const overPhoto = hasPhoto ? styles.overPhoto : null;
   const valueMetrics = hasPhoto ? PHOTO_VALUE_METRICS : posterValueMetrics(poster.value);
-  const labelStyle = [styles.posterLabel, { color: ink.subtext }, overPhoto];
+  const labelStyle = [styles.posterLabel, { color: ink.subtext }];
   const pathStroke = deckCards.tones.walk;
   const fill = poster.kind === 'streak' ? deckCards.streak : deckCards[poster.kind];
   const corner = poster.corner ?? weekdayName(posterWhen(poster));
 
   return (
-    <View style={[styles.poster, { backgroundColor: fill }]} testID={testID}>
-      {photoUri ? <PosterPhoto photoUri={photoUri} /> : null}
-      {hasRoute && routePoints ? (
-        <PosterRoute pathStroke={pathStroke} points={routePoints} />
-      ) : null}
-      <View style={styles.posterTop}>
-        <Text style={labelStyle}>{poster.label}</Text>
-        <Text style={labelStyle}>{corner}</Text>
+    <View style={styles.shell} testID={testID}>
+      <View style={[styles.fill, { backgroundColor: fill }]}>
+        {photoUri ? <PosterPhoto photoUri={photoUri} /> : null}
+        {hasRoute && routePoints ? (
+          <PosterRoute pathStroke={pathStroke} points={routePoints} />
+        ) : null}
       </View>
-      <Text style={[styles.posterValue, { color: ink.text }, valueMetrics, overPhoto]}>
-        {poster.value}
-      </Text>
-      <Text style={[styles.posterUnit, { color: ink.subtext }, overPhoto]}>{poster.unit}</Text>
-      {poster.facts && poster.facts.length > 0 ? (
-        <View style={styles.posterFacts}>
-          {poster.facts.map((fact) => (
-            <View key={fact.label} style={styles.posterFact}>
-              <Text style={[styles.posterFactValue, { color: ink.text }, overPhoto]}>
-                {fact.value}
-              </Text>
-              <Text style={[styles.posterFactLabel, { color: ink.subtext }, overPhoto]}>
-                {fact.label}
-              </Text>
-            </View>
-          ))}
+      <View style={styles.type}>
+        <View style={styles.posterTop}>
+          <SharePosterText plainStyle={overPhoto} style={labelStyle}>
+            {poster.label}
+          </SharePosterText>
+          <SharePosterText plainStyle={overPhoto} style={labelStyle}>
+            {corner}
+          </SharePosterText>
         </View>
-      ) : null}
-      <View style={[styles.posterBrand, { borderTopColor: ink.track }]}>
-        <Text style={[styles.posterBrandName, { color: ink.text }, overPhoto]}>
-          {SHARE_COPY.brand}
-        </Text>
-        {runLine ? <Text style={labelStyle}>{runLine}</Text> : null}
+        <SharePosterText
+          plainStyle={overPhoto}
+          style={[styles.posterValue, { color: ink.text }, valueMetrics]}
+        >
+          {poster.value}
+        </SharePosterText>
+        <SharePosterText
+          plainStyle={overPhoto}
+          style={[styles.posterUnit, { color: ink.subtext }]}
+        >
+          {poster.unit}
+        </SharePosterText>
+        {poster.facts && poster.facts.length > 0 ? (
+          <View style={styles.posterFacts}>
+            {poster.facts.map((fact) => (
+              <View key={fact.label} style={styles.posterFact}>
+                <SharePosterText
+                  plainStyle={overPhoto}
+                  style={[styles.posterFactValue, { color: ink.text }]}
+                >
+                  {fact.value}
+                </SharePosterText>
+                <SharePosterText
+                  plainStyle={overPhoto}
+                  style={[styles.posterFactLabel, { color: ink.subtext }]}
+                >
+                  {fact.label}
+                </SharePosterText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <View style={[styles.posterBrand, { borderTopColor: ink.track }]}>
+          <SharePosterText
+            plainStyle={overPhoto}
+            style={[styles.posterBrandName, { color: ink.text }]}
+          >
+            {SHARE_COPY.brand}
+          </SharePosterText>
+          {runLine ? (
+            <SharePosterText plainStyle={overPhoto} style={labelStyle}>
+              {runLine}
+            </SharePosterText>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -138,12 +170,19 @@ function PosterRoute({
 }
 
 const styles = StyleSheet.create({
-  poster: {
+  /** Outer shell keeps type outside the clipped fill so emoji paint on iOS. */
+  shell: {
     width: SHARE_POSTER_WIDTH,
     height: SHARE_POSTER_HEIGHT,
-    borderRadius: 26,
-    padding: 22,
+  },
+  fill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: SHARE_POSTER_RADIUS,
     overflow: 'hidden',
+  },
+  type: {
+    flex: 1,
+    padding: SHARE_POSTER_PADDING,
   },
   posterTop: {
     flexDirection: 'row',

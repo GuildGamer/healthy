@@ -21,6 +21,7 @@ import { useUserActive } from '@/lib/use-user-active';
 import { useWalkOfferResponse } from '@/lib/use-walk-offer-response';
 import '@/lib/walk-background-location';
 import '@/lib/walk-offer-location';
+import { resumeWalkOfferMonitorIfNeeded } from '@/lib/walk-offer-monitor';
 import { dispatchWalkControlUrl } from '@/lib/walk-control';
 import { ThemeProvider, useTheme } from '@/theme';
 
@@ -76,6 +77,11 @@ export default function RootLayout() {
       }
     });
     return () => subscription.remove();
+  }, []);
+
+  // Keep counting a same-day walk offer after a cold start, before Today mounts.
+  useEffect(() => {
+    void resumeWalkOfferMonitorIfNeeded();
   }, []);
 
   const [queryClient] = useState(

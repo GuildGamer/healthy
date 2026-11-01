@@ -16,7 +16,31 @@ const REPORT_PATHS = new Set(['/progress/report', '/app/progress/report']);
 
 const HOSTS = new Set([CANONICAL_HOST, APEX_HOST]);
 
-export function reportHrefFromUrl(value: string): `/progress/report${string}` | null {
+type ReportPeriod = 'week' | 'month' | 'year';
+
+/**
+ * Last day of the window that just closed, in the device's local calendar.
+ * Used when an old recap link names a period but not the day.
+ */
+export function closedWindowEndDay(period: ReportPeriod, now: Date = new Date()): string {
+  if (period === 'month') {
+    return localDayKey(new Date(now.getFullYear(), now.getMonth(), 0));
+  }
+
+  if (period === 'year') {
+    return `${now.getFullYear() - 1}-12-31`;
+  }
+
+  const weekday = now.getDay();
+  const daysSinceMonday = weekday === 0 ? 6 : weekday - 1;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday);
+  return localDayKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 1));
+}
+
+export function reportHrefFromUrl(
+  value: string,
+  now: Date = new Date(),
+): `/progress/report${string}` | null {
   const url = reportUrl(value.trim());
   if (!url) {
     return null;
@@ -31,15 +55,29 @@ export function reportHrefFromUrl(value: string): `/progress/report${string}` | 
   const onDay = url.searchParams.get('on');
   if (onDay && DAY_KEY_PATTERN.test(onDay)) {
     params.set('on', onDay);
+  } else if (period === 'week' || period === 'month' || period === 'year') {
+    params.set('on', closedWindowEndDay(period, now));
   }
 
   const query = params.toString();
   return query ? `/progress/report?${query}` : '/progress/report';
 }
 
+function localDayKey(at: Date): string {
+  const year = at.getFullYear();
+  const month = String(at.getMonth() + 1).padStart(2, '0');
+  const day = String(at.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function reportUrl(value: string): URL | null {
   if (value.startsWith('/')) {
     return reportUrlFromPath(value);
+  }
+
+  // Expo's extractExpoPathFromURL drops the leading slash.
+  if (value.startsWith('progress/report') || value.startsWith('app/progress/report')) {
+    return reportUrlFromPath(`/${value}`);
   }
 
   let url: URL;

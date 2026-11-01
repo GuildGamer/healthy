@@ -7,6 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeckButton, DeckNavButton, DeckPageNav } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { POSE_COPY } from '@/components/challenges/constants/doing-copy';
+import {
+  ProofOverflowMenu,
+  type ProofOverflowAction,
+} from '@/components/challenges/ProofOverflowMenu';
 import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
 import { saveProofToPhotos } from '@/components/challenges/save-proof-to-photos';
 import { apiClient } from '@/lib/api';
@@ -96,6 +100,41 @@ export default function ProofClipViewerRoute() {
   const videoUri = remote?.videoUrl ?? local?.fileUri ?? null;
   const canSaveToPhotos = Boolean(local?.fileUri) && (remote?.isOwner !== false || !remote);
 
+  const isOwner = remote?.isOwner ?? Boolean(local);
+  const menuActions: ProofOverflowAction[] = isOwner
+    ? [
+        {
+          label: 'Remove',
+          onPress: () => {
+            setMenuOpen(false);
+            void apiClient.removeProofClip({ clipId }).then(leaveViewer);
+          },
+          testID: 'proof-remove',
+          isDanger: true,
+        },
+      ]
+    : [
+        {
+          label: 'Report',
+          loading: report.isPending,
+          onPress: () => {
+            setMenuOpen(false);
+            report.mutate();
+          },
+          testID: 'proof-report',
+        },
+        {
+          label: 'Block',
+          loading: block.isPending,
+          onPress: () => {
+            setMenuOpen(false);
+            block.mutate();
+          },
+          testID: 'proof-block',
+          isDanger: true,
+        },
+      ];
+
   async function onSaveToPhotos() {
     if (!local?.fileUri) {
       return;
@@ -168,35 +207,7 @@ export default function ProofClipViewerRoute() {
       )}
 
       {menuOpen ? (
-        <View style={styles.overflow}>
-          {!remote?.isOwner ? (
-            <>
-              <DeckButton
-                label="Report"
-                loading={report.isPending}
-                onPress={() => report.mutate()}
-                testID="proof-report"
-                variant="quiet"
-              />
-              <DeckButton
-                label="Block"
-                loading={block.isPending}
-                onPress={() => block.mutate()}
-                testID="proof-block"
-                variant="quiet"
-              />
-            </>
-          ) : (
-            <DeckButton
-              label="Remove"
-              onPress={() => {
-                void apiClient.removeProofClip({ clipId }).then(leaveViewer);
-              }}
-              testID="proof-remove"
-              variant="quiet"
-            />
-          )}
-        </View>
+        <ProofOverflowMenu actions={menuActions} onDismiss={() => setMenuOpen(false)} />
       ) : null}
     </SafeAreaView>
   );
@@ -238,9 +249,5 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.danger,
       fontSize: fontSize.sm,
       textAlign: 'center',
-    },
-    overflow: {
-      marginTop: spacing.lg,
-      gap: spacing.sm,
     },
   });

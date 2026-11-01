@@ -94,7 +94,7 @@ describe('readEnvironment', () => {
     expect(staging.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'hello@gethealthyapp.com',
+      from: 'Healthy <hello@gethealthyapp.com>',
     });
   });
 
@@ -350,21 +350,31 @@ describe('readEnvironment', () => {
     expect(environment.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'hello@gethealthyapp.com',
+      from: 'Healthy <hello@gethealthyapp.com>',
     });
   });
 
-  it('reads an explicit SendByte mailbox and from address', () => {
-    const environment = readEnvironment({
+  it('reads an explicit SendByte mailbox and always names Healthy', () => {
+    const bare = readEnvironment({
       EMAIL_PROVIDER: 'SendByte',
       SEND_BYTE_LIVE_KEY: 'sk_live_test',
-      MAIL_FROM: 'Healthy <hello@gethealthyapp.com>',
+      MAIL_FROM: 'hello@gethealthyapp.com',
+    });
+    const alreadyNamed = readEnvironment({
+      EMAIL_PROVIDER: 'SendByte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      MAIL_FROM: 'Ops <ops@gethealthyapp.com>',
     });
 
-    expect(environment.mail).toEqual({
+    expect(bare.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
       from: 'Healthy <hello@gethealthyapp.com>',
+    });
+    expect(alreadyNamed.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'Healthy <ops@gethealthyapp.com>',
     });
   });
 
@@ -385,7 +395,7 @@ describe('readEnvironment', () => {
       port: 587,
       user: 'mailer',
       pass: 'secret',
-      from: 'noreply@example.com',
+      from: 'Healthy <noreply@example.com>',
     });
   });
 
@@ -410,7 +420,7 @@ describe('readEnvironment', () => {
     expect(environment.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'hello@gethealthyapp.com',
+      from: 'Healthy <hello@gethealthyapp.com>',
     });
   });
 

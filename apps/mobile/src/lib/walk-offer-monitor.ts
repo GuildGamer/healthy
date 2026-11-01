@@ -1,40 +1,35 @@
-import { accumulateWalkOfferFix, emptyWalkOfferBout, type WalkOfferBout } from '@/lib/walk-offer-bout';
 import { WALK_OFFER_FOREGROUND_SERVICE } from '@/lib/walk-offer-copy';
 import type { OpenWalkOfferGoal } from '@/lib/walk-offer-goal';
+import { ingestWalkOfferFixes, setWalkOfferAfterPrompt } from '@/lib/walk-offer-ingest';
+import { WALK_OFFER_LOCATION_TASK } from '@/lib/walk-offer-location';
 import {
-  setWalkOfferLocationListener,
-  WALK_OFFER_LOCATION_TASK,
-} from '@/lib/walk-offer-location';
-import { scheduleWalkOfferNotification } from '@/lib/walk-offer-notifications';
+  clearWalkOfferSession,
+  ensureWalkOfferSession,
+  localWalkOfferDayKey,
+  readWalkOfferSession,
+} from '@/lib/walk-offer-session';
 import {
   readWalkOfferRecord,
   walkOfferAlreadyHandled,
   writeWalkOfferRecord,
 } from '@/lib/walk-offer-state';
-import { walkOfferShouldPrompt } from '@/lib/walk-offer-threshold';
 import { loadLocationModule, type LocationModule } from '@/lib/device-health';
-import type { GeoPoint } from '@/lib/geo-session';
 
 const OFFER_DISTANCE_INTERVAL_METERS = 15;
 const OFFER_TIME_INTERVAL_MS = 15_000;
 
-type ArmedOffer = {
-  goal: OpenWalkOfferGoal;
-  bout: WalkOfferBout;
-};
-
-let armed: ArmedOffer | null = null;
-let prompting = false;
+let armedGoal: OpenWalkOfferGoal | null = null;
+let foregroundWatch: { remove: () => void } | null = null;
 
 export function isWalkOfferArmed(): boolean {
-  return armed !== null;
+  return armedGoal !== null;
 }
 
 export function getArmedWalkOfferGoal(): OpenWalkOfferGoal | null {
-  return armed?.goal ?? null;
+  return armedGoal;
 }
 
-async function stopOfferUpdates(location: LocationModule): Promise<void> {
+async function stopBackgroundUpdates(location: LocationModule): Promise<void> {
   if (!location.hasStartedLocationUpdatesAsync || !location.stopLocationUpdatesAsync) {
     return;
   }
@@ -49,7 +44,12 @@ async function stopOfferUpdates(location: LocationModule): Promise<void> {
   }
 }
 
-async function startOfferUpdates(location: LocationModule): Promise<boolean> {
+function stopForegroundWatch(): void {
+  foregroundWatch?.remove();
+  foregroundWatch = null;
+}
+
+async function startBackgroundUpdates(location: LocationModule): Promise<boolean> {
   if (!location.startLocationUpdatesAsync) {
     return false;
   }
@@ -67,7 +67,7 @@ async function startOfferUpdates(location: LocationModule): Promise<boolean> {
       distanceInterval: OFFER_DISTANCE_INTERVAL_METERS,
       timeInterval: OFFER_TIME_INTERVAL_MS,
       showsBackgroundLocationIndicator: false,
-      pausesUpdatesAutomatically: true,
+      pausesUpdatesAutomatically: false,
       activityType: location.ActivityType?.Fitness,
       foregroundService: { ...WALK_OFFER_FOREGROUND_SERVICE },
     });
@@ -77,40 +77,48 @@ async function startOfferUpdates(location: LocationModule): Promise<boolean> {
   }
 }
 
-async function onFixes(fixes: readonly GeoPoint[]): Promise<void> {
-  if (!armed || prompting || fixes.length === 0) {
-    return;
-  }
-
-  let bout = armed.bout;
-  for (const fix of fixes) {
-    bout = accumulateWalkOfferFix(bout, fix);
-  }
-  armed = { ...armed, bout };
-
-  if (!walkOfferShouldPrompt(bout.movingSeconds, armed.goal.targetDurationMinutes)) {
-    return;
-  }
-
-  prompting = true;
-  const goal = armed.goal;
+async function startForegroundWatch(location: LocationModule): Promise<boolean> {
   try {
-    await writeWalkOfferRecord({
-      dayKey: goal.dayKey,
-      userChallengeId: goal.userChallengeId,
-      status: 'offered',
-    });
-    await scheduleWalkOfferNotification(goal);
-    await disarmWalkOfferMonitor();
+    stopForegroundWatch();
+    const watch = await location.watchPositionAsync(
+      {
+        accuracy: location.Accuracy.Balanced,
+        distanceInterval: OFFER_DISTANCE_INTERVAL_METERS,
+        timeInterval: OFFER_TIME_INTERVAL_MS,
+      },
+      (fix) => {
+        void ingestWalkOfferFixes([
+          {
+            latitude: fix.coords.latitude,
+            longitude: fix.coords.longitude,
+            recordedAt: fix.timestamp,
+          },
+        ]);
+      },
+    );
+    foregroundWatch = watch;
+    return true;
   } catch {
-    // Leave armed so a later fix can retry the prompt.
-    prompting = false;
+    return false;
   }
 }
 
+async function stopAllUpdates(): Promise<void> {
+  stopForegroundWatch();
+  const location = await loadLocationModule();
+  if (location) {
+    await stopBackgroundUpdates(location);
+  }
+}
+
+setWalkOfferAfterPrompt(async () => {
+  armedGoal = null;
+  await stopAllUpdates();
+});
+
 /**
- * Starts (or refreshes) background watching for an open walk goal. No-op when
- * that occurrence already got a prompt today, or location cannot run.
+ * Starts (or refreshes) watching for an open walk goal. Foreground when-in-use
+ * is enough for the in-app watch; Always is only required for pocket walks.
  */
 export async function armWalkOfferMonitor(goal: OpenWalkOfferGoal): Promise<boolean> {
   const existing = await readWalkOfferRecord();
@@ -120,11 +128,12 @@ export async function armWalkOfferMonitor(goal: OpenWalkOfferGoal): Promise<bool
   }
 
   if (
-    armed &&
-    armed.goal.userChallengeId === goal.userChallengeId &&
-    armed.goal.dayKey === goal.dayKey
+    armedGoal &&
+    armedGoal.userChallengeId === goal.userChallengeId &&
+    armedGoal.dayKey === goal.dayKey
   ) {
-    armed = { ...armed, goal };
+    await ensureWalkOfferSession(goal);
+    armedGoal = goal;
     return true;
   }
 
@@ -138,31 +147,51 @@ export async function armWalkOfferMonitor(goal: OpenWalkOfferGoal): Promise<bool
     return false;
   }
 
-  await disarmWalkOfferMonitor();
-  setWalkOfferLocationListener((fixes) => {
-    void onFixes(fixes);
-  });
+  // Drop any prior watch before starting a new occurrence.
+  await stopAllUpdates();
+  await ensureWalkOfferSession(goal);
 
-  const started = await startOfferUpdates(location);
-  if (!started) {
-    setWalkOfferLocationListener(null);
+  const backgroundStarted = await startBackgroundUpdates(location);
+  const foregroundStarted = await startForegroundWatch(location);
+  if (!backgroundStarted && !foregroundStarted) {
+    await clearWalkOfferSession();
+    armedGoal = null;
     return false;
   }
 
-  armed = { goal, bout: emptyWalkOfferBout() };
-  prompting = false;
+  armedGoal = goal;
   return true;
 }
 
-/** Stops background watching. Safe when nothing is armed. */
+/** Stops watching and clears the in-progress session. Safe when nothing is armed. */
 export async function disarmWalkOfferMonitor(): Promise<void> {
-  setWalkOfferLocationListener(null);
-  armed = null;
-  prompting = false;
-  const location = await loadLocationModule();
-  if (location) {
-    await stopOfferUpdates(location);
+  armedGoal = null;
+  await stopAllUpdates();
+  await clearWalkOfferSession();
+}
+
+/**
+ * After a cold start, keep counting a same-day session without waiting for
+ * Today to mount. Stale sessions from yesterday are dropped.
+ */
+export async function resumeWalkOfferMonitorIfNeeded(): Promise<void> {
+  const session = await readWalkOfferSession();
+  if (!session) {
+    return;
   }
+
+  if (session.goal.dayKey !== localWalkOfferDayKey()) {
+    await clearWalkOfferSession();
+    return;
+  }
+
+  const existing = await readWalkOfferRecord();
+  if (walkOfferAlreadyHandled(existing, session.goal.dayKey, session.goal.userChallengeId)) {
+    await clearWalkOfferSession();
+    return;
+  }
+
+  await armWalkOfferMonitor(session.goal);
 }
 
 export async function markWalkOfferAccepted(goal: OpenWalkOfferGoal): Promise<void> {

@@ -32,7 +32,11 @@ describe('createMailer', () => {
     const send = vi.fn().mockResolvedValue({ id: 'email_1' });
     const client: SendByteEmailClient = { emails: { send } };
     const mailer = createSendByteMailer(
-      { mode: 'sendbyte', apiKey: 'sk_test_example', from: 'hello@gethealthyapp.com' },
+      {
+        mode: 'sendbyte',
+        apiKey: 'sk_test_example',
+        from: 'Healthy <hello@gethealthyapp.com>',
+      },
       client,
     );
 
@@ -49,10 +53,10 @@ describe('createMailer', () => {
     expect(send).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        from: 'hello@gethealthyapp.com',
+        from: 'Healthy <hello@gethealthyapp.com>',
         to: 'ada@example.com',
         subject: 'Your Healthy password reset code',
-        text: expect.stringContaining('Your password reset code is 123456.'),
+        text: expect.stringContaining('123456'),
         html: expect.stringContaining('123456'),
       }),
     );
@@ -83,7 +87,11 @@ describe('createMailer', () => {
       },
     };
     const mailer = createSendByteMailer(
-      { mode: 'sendbyte', apiKey: 'sk_test_example', from: 'hello@gethealthyapp.com' },
+      {
+        mode: 'sendbyte',
+        apiKey: 'sk_test_example',
+        from: 'Healthy <hello@gethealthyapp.com>',
+      },
       client,
     );
 

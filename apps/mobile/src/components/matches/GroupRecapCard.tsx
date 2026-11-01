@@ -1,12 +1,15 @@
 import type { MatchBoard } from '@product/client';
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   SHARE_POSTER_HEIGHT,
+  SHARE_POSTER_PADDING,
+  SHARE_POSTER_RADIUS,
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { posterValueMetrics } from '@/components/challenges/share-poster';
+import { SharePosterText } from '@/components/challenges/SharePosterText';
 import { useTheme } from '@/theme';
 import { groupRecapContent } from './group-recap';
 import { groupToneFor } from './group-tone';
@@ -32,34 +35,53 @@ export function GroupRecapCard({ board }: { board: MatchBoard }) {
   };
 
   return (
-    <View style={[styles.poster, { backgroundColor: tone.fill }]} testID="match-recap-card">
-      <View style={styles.top}>
-        <Text style={[styles.label, { color: ink.subtext }]}>{content.kind}</Text>
-        <Text style={[styles.label, { color: ink.subtext }]}>{content.length}</Text>
-      </View>
-      <Text
-        adjustsFontSizeToFit
-        numberOfLines={1}
-        style={[styles.value, { color: ink.text }, valueMetrics]}
-      >
-        {content.hero.value}
-      </Text>
-      <Text style={[styles.unit, { color: ink.subtext }]}>{content.hero.unit}</Text>
-      <View style={[styles.brand, { borderTopColor: ink.track }]}>
-        <Text style={[styles.brandName, { color: ink.text }]}>{SHARE_COPY.brand}</Text>
-        <Text style={[styles.label, { color: ink.subtext }]}>{brandMeta}</Text>
+    <View style={styles.shell} testID="match-recap-card">
+      <View style={[styles.fill, { backgroundColor: tone.fill }]} />
+      <View style={styles.type}>
+        <View style={styles.top}>
+          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
+            {content.kind}
+          </SharePosterText>
+          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
+            {content.length}
+          </SharePosterText>
+        </View>
+        <SharePosterText
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={[styles.value, { color: ink.text }, valueMetrics]}
+        >
+          {content.hero.value}
+        </SharePosterText>
+        <SharePosterText style={[styles.unit, { color: ink.subtext }]}>
+          {content.hero.unit}
+        </SharePosterText>
+        <View style={[styles.brand, { borderTopColor: ink.track }]}>
+          <SharePosterText style={[styles.brandName, { color: ink.text }]}>
+            {SHARE_COPY.brand}
+          </SharePosterText>
+          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
+            {brandMeta}
+          </SharePosterText>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  poster: {
+  shell: {
     width: SHARE_POSTER_WIDTH,
     height: SHARE_POSTER_HEIGHT,
-    borderRadius: 26,
-    padding: 22,
+  },
+  fill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: SHARE_POSTER_RADIUS,
     overflow: 'hidden',
+  },
+  type: {
+    flex: 1,
+    padding: SHARE_POSTER_PADDING,
   },
   top: {
     flexDirection: 'row',

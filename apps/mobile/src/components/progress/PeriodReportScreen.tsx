@@ -76,7 +76,9 @@ export function PeriodReportScreen() {
       title={PROGRESS_COPY.reportTitle}
     >
       <DeckSegmented
-        onSelect={(id) => router.setParams({ period: id })}
+        onSelect={(id) =>
+          router.setParams({ period: id, ...(onDay ? { on: onDay } : {}) })
+        }
         options={PERIODS}
         selected={period}
         testID="period-report-segments"

@@ -54,7 +54,19 @@ export type MailConfig =
       from: string;
     };
 
+/** Mailbox only. Display name is always applied in `mailFromAddress`. */
 const DEFAULT_SEND_BYTE_FROM = 'hello@gethealthyapp.com';
+
+/**
+ * Inbox From line: always "Healthy &lt;mailbox&gt;" so clients never show the
+ * bare local-part (e.g. "hello") when MAIL_FROM / SMTP_FROM is just an address.
+ */
+export function mailFromAddress(mailbox: string): string {
+  const trimmed = mailbox.trim();
+  const wrapped = /^.*<([^>]+)>\s*$/.exec(trimmed);
+  const address = (wrapped?.[1] ?? trimmed).trim();
+  return `Healthy <${address}>`;
+}
 
 /**
  * Which model checks a gym photo. `EVIDENCE_VISION_PROVIDER` selects one.
@@ -220,7 +232,7 @@ function readSendByteMail(source: NodeJS.ProcessEnv, policy: MailPolicy): MailCo
   return {
     mode: 'sendbyte',
     apiKey,
-    from: readConfigured(source.MAIL_FROM) ?? DEFAULT_SEND_BYTE_FROM,
+    from: mailFromAddress(readConfigured(source.MAIL_FROM) ?? DEFAULT_SEND_BYTE_FROM),
   };
 }
 
@@ -238,7 +250,7 @@ function readSmtpMail(
   const hasAll = Boolean(host && port && user && pass && from);
 
   if (hasAll && host && port && user && pass && from) {
-    return { mode: 'smtp', host, port, user, pass, from };
+    return { mode: 'smtp', host, port, user, pass, from: mailFromAddress(from) };
   }
 
   if (hasAny) {

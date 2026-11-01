@@ -137,6 +137,40 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock('expo-file-system', () => {
+  const store = new Map<string, string>();
+
+  class MockFile {
+    uri: string;
+    constructor(...parts: unknown[]) {
+      this.uri = parts.map(String).join('/');
+    }
+    get exists() {
+      return store.has(this.uri);
+    }
+    create() {
+      if (!store.has(this.uri)) {
+        store.set(this.uri, '');
+      }
+    }
+    async text() {
+      return store.get(this.uri) ?? '';
+    }
+    write(content: string) {
+      store.set(this.uri, content);
+    }
+    delete() {
+      store.delete(this.uri);
+    }
+  }
+
+  return {
+    File: MockFile,
+    Paths: { document: 'document' },
+    __walkOfferSessionStore: store,
+  };
+});
+
 jest.mock('expo-clipboard', () => ({
   getStringAsync: jest.fn(async () => ''),
   setStringAsync: jest.fn(async () => undefined),
