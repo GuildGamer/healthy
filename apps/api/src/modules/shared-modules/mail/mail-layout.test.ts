@@ -41,7 +41,7 @@ describe('periodRecapMail', () => {
       periodLabel: 'Oct 19–25',
       activeDays: 6,
       highlightLine: '240 push-ups',
-      openUrl: 'https://www.gethealthyapp.com/app/progress/report?period=week',
+      openUrl: 'https://www.gethealthyapp.com/progress/report?period=week&on=2026-10-25',
     });
 
     expect(mail.subject).toBe('Your week on Healthy');

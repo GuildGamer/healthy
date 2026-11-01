@@ -6,6 +6,7 @@ import { DeckButton, DeckPushedPage, DeckSegmented } from '@/components/deck';
 import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
 import { ProgressFactRow } from './ProgressFactRow';
@@ -25,6 +26,8 @@ const PERIODS: { id: ReportPeriod; label: string }[] = [
   { id: 'year', label: 'Year' },
 ];
 
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 function periodFromParam(value: string | string[] | undefined): ReportPeriod {
   const raw = Array.isArray(value) ? value[0] : value;
   if (raw === 'month' || raw === 'year') {
@@ -33,17 +36,27 @@ function periodFromParam(value: string | string[] | undefined): ReportPeriod {
   return 'week';
 }
 
+/** The closed day a recap email named. Absent means the member's today. */
+function onDayFromParam(value: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw && DAY_KEY_PATTERN.test(raw)) {
+    return raw;
+  }
+  return undefined;
+}
+
 /** Week / month / year recap: days active as the hero, Share as the primary. */
 export function PeriodReportScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ period?: string }>();
+  const params = useLocalSearchParams<{ period?: string; on?: string }>();
   const period = periodFromParam(params.period);
+  const onDay = onDayFromParam(params.on);
   const styles = useThemedStyles(createStyles);
   const { colors, deckCards } = useTheme();
 
   const reportQuery = useQuery({
-    queryKey: ['progress', 'period-report', period],
-    queryFn: () => apiClient.getPeriodReport({ period }),
+    queryKey: ['progress', 'period-report', period, onDay ?? 'today'],
+    queryFn: () => apiClient.getPeriodReport(onDay ? { period, on: onDay } : { period }),
   });
 
   const report = reportQuery.data;
@@ -57,7 +70,7 @@ export function PeriodReportScreen() {
 
   return (
     <DeckPushedPage
-      onBack={() => router.back()}
+      onBack={() => goBackOrHome()}
       onPullRefresh={() => reportQuery.refetch()}
       testID="period-report-screen"
       title={PROGRESS_COPY.reportTitle}

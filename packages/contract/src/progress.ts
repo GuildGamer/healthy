@@ -136,6 +136,11 @@ export const metricPeriodSchema = z.enum(['week', 'month', 'all']);
 
 export const getPeriodReportInputSchema = z.object({
   period: periodReportPeriodSchema,
+  /**
+   * A day inside the window, `YYYY-MM-DD`. Absent means the member's today.
+   * Recap emails pass the last day of the window that just closed.
+   */
+  on: dayKeySchema.optional(),
 });
 
 export const periodHighlightMetricSchema = z.object({

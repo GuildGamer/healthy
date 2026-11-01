@@ -30,7 +30,7 @@ export class ProgressController {
   getPeriodReport(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;
     return implement(appContract.getPeriodReport).handler(async ({ input }) => {
-      return this.progressService.periodReport(user, input.period);
+      return this.progressService.periodReport(user, input.period, new Date(), input.on);
     });
   }
 

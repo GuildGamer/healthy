@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_TIME_ZONE,
   dayKeyFor,
+  instantOnLocalDay,
   isValidTimeZone,
   previousDayKey,
 } from './day-key.js';
@@ -35,5 +36,20 @@ describe('day-key', () => {
   it('steps back a day across a month boundary', () => {
     expect(previousDayKey('2026-09-01')).toBe('2026-08-31');
     expect(previousDayKey('2026-01-01')).toBe('2025-12-31');
+  });
+
+  it('lands on the named day even where noon UTC is already tomorrow', () => {
+    const at = instantOnLocalDay('2026-10-31', 'Pacific/Kiritimati');
+
+    expect(at).not.toBeNull();
+    expect(dayKeyFor('Pacific/Kiritimati', at ?? new Date(0))).toBe('2026-10-31');
+    expect(dayKeyFor('UTC', instantOnLocalDay('2026-10-31', 'UTC') ?? new Date(0))).toBe(
+      '2026-10-31',
+    );
+  });
+
+  it('rejects a day key that is not a calendar day', () => {
+    expect(instantOnLocalDay('2026-02-31', 'UTC')).toBeNull();
+    expect(instantOnLocalDay('October', 'UTC')).toBeNull();
   });
 });

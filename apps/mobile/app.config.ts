@@ -4,7 +4,9 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  * Host for universal / app links. The apex `gethealthyapp.com` 308s to www,
  * and iOS and Android will not open an app from a link that redirects, so
  * invites and this claim both use www. `/match/<token>` mirrors
- * `app/match/[token]`.
+ * `app/match/[token]`. `/progress/report` is the recap email. `/app/progress/report`
+ * is the path older mail used; `path` is exact so it does not also claim
+ * `/progress/reports`.
  *
  * `associatedDomains` and `intentFilters` are native. They apply only after
  * a new dev-client build (`make ios` / `make android`), not an EAS Update.
@@ -13,6 +15,8 @@ const LINK_HOST = 'www.gethealthyapp.com';
 /** Trailing slash matters: without it Android would also claim `/matches/...`. */
 const MATCH_INVITE_PATH_PREFIX = '/match/';
 const PROOF_VERIFY_PATH_PREFIX = '/v/';
+const REPORT_PATH = '/progress/report';
+const LEGACY_REPORT_PATH = '/app/progress/report';
 
 /**
  * Canonical store IDs for your own Apple/Google account later.
@@ -104,6 +108,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
             scheme: 'https',
             host: LINK_HOST,
             pathPrefix: PROOF_VERIFY_PATH_PREFIX,
+          },
+          {
+            scheme: 'https',
+            host: LINK_HOST,
+            path: REPORT_PATH,
+          },
+          {
+            scheme: 'https',
+            host: LINK_HOST,
+            path: LEGACY_REPORT_PATH,
           },
         ],
       },

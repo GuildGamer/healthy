@@ -1,5 +1,4 @@
 import type { MetricPeriod, PeriodReportPeriod } from '@product/contract';
-import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { shiftDayKey } from '../../../shared/utils/day-key.js';
 
 export type PeriodWindow = {
@@ -54,14 +53,11 @@ function weekLabel(startDayKey: string, endDayKey: string): string {
  */
 export function periodWindowFor(input: {
   period: PeriodReportPeriod | MetricPeriod;
-  timeZone: string;
   dayKey: string;
   weekStartKey: string;
   joinedDayKey: string;
-  now?: Date;
 }): PeriodWindow {
-  const { period, timeZone, dayKey, weekStartKey, joinedDayKey } = input;
-  const now = input.now ?? new Date();
+  const { period, dayKey, weekStartKey, joinedDayKey } = input;
 
   let startDayKey: string;
   let periodLabel: string;
@@ -70,7 +66,8 @@ export function periodWindowFor(input: {
     startDayKey = weekStartKey;
     periodLabel = weekLabel(weekStartKey, dayKey);
   } else if (period === 'month') {
-    startDayKey = periodKeyFor('monthly', timeZone, now);
+    // From `dayKey`, not `now`, so a closed window cannot open on today.
+    startDayKey = `${dayKey.slice(0, 7)}-01`;
     periodLabel = monthName(dayKey);
   } else if (period === 'year') {
     startDayKey = yearStartKey(dayKey);

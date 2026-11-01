@@ -4,7 +4,12 @@ import { ACTIVITY_PROOF_CLIP_ARGS } from '../../../shared/constants/activity-pro
 import { LOCAL_DAY_LAG_MS, LOCAL_DAY_LEAD_MS } from '../../../shared/constants/local-day.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { activityProofClipFrom } from '../../../shared/utils/activity-proof-clip.js';
-import { DEFAULT_TIME_ZONE, dayKeyFor, shiftDayKey } from '../../../shared/utils/day-key.js';
+import {
+  DEFAULT_TIME_ZONE,
+  dayKeyFor,
+  instantOnLocalDay,
+  shiftDayKey,
+} from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { challengeMarkFor, challengeTitleFor, photoCheckOutcomeFor } from './challenge-mark.js';
@@ -109,16 +114,22 @@ export class ProgressService {
     currentUser: AuthenticatedUser | null | undefined,
     period: PeriodReportPeriod,
     now: Date = new Date(),
+    onDayKey?: string,
   ): Promise<PeriodReportDto> {
     const user = requireUser(currentUser);
-    const clock = await this.memberClock(user.id, now);
+    const today = await this.memberClock(user.id, now);
+    const onInstant =
+      onDayKey !== undefined && onDayKey < today.dayKey
+        ? instantOnLocalDay(onDayKey, today.timeZone)
+        : null;
+    const clock = onInstant
+      ? this.clockFrom(today.timeZone, today.joinedDayKey, onInstant)
+      : today;
     const window = periodWindowFor({
       period,
-      timeZone: clock.timeZone,
       dayKey: clock.dayKey,
       weekStartKey: clock.weekStartKey,
       joinedDayKey: clock.joinedDayKey,
-      now,
     });
 
     const [occurrences, activity] = await Promise.all([
@@ -152,11 +163,9 @@ export class ProgressService {
     const clock = await this.memberClock(user.id, now);
     const window = periodWindowFor({
       period,
-      timeZone: clock.timeZone,
       dayKey: clock.dayKey,
       weekStartKey: clock.weekStartKey,
       joinedDayKey: clock.joinedDayKey,
-      now,
     });
 
     const activity = await this.activityInWindow(
@@ -291,13 +300,20 @@ export class ProgressService {
       this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
     ]);
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
-    const dayKey = periodKeyFor('daily', timeZone, now);
-    const joinedDayKey = account ? dayKeyFor(timeZone, account.createdAt) : dayKey;
+    const joinedDayKey = account
+      ? dayKeyFor(timeZone, account.createdAt)
+      : dayKeyFor(timeZone, now);
+
+    return this.clockFrom(timeZone, joinedDayKey, now);
+  }
+
+  private clockFrom(timeZone: string, joinedDayKey: string, at: Date): MemberClock {
+    const dayKey = periodKeyFor('daily', timeZone, at);
 
     return {
       timeZone,
       dayKey,
-      weekStartKey: periodKeyFor('weekly', timeZone, now),
+      weekStartKey: periodKeyFor('weekly', timeZone, at),
       joinedDayKey: joinedDayKey < dayKey ? joinedDayKey : dayKey,
     };
   }

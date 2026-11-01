@@ -56,6 +56,36 @@ export function previousDayKey(dayKey: string): string {
   return shiftDayKey(dayKey, -1);
 }
 
+const LOCAL_DAY_STEP_MS = 14 * 60 * 60 * 1000;
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * An instant that falls on `dayKey` in `timeZone`. Noon UTC is already the
+ * next day past UTC+12, so step until the local calendar day matches.
+ */
+export function instantOnLocalDay(dayKey: string, timeZone: string): Date | null {
+  if (!DAY_KEY_PATTERN.test(dayKey)) {
+    return null;
+  }
+
+  let at = new Date(`${dayKey}T12:00:00.000Z`);
+  if (Number.isNaN(at.getTime())) {
+    return null;
+  }
+
+  for (let step = 0; step < 3; step += 1) {
+    const seen = dayKeyFor(timeZone, at);
+    if (seen === dayKey) {
+      return at;
+    }
+
+    const direction = seen > dayKey ? -1 : 1;
+    at = new Date(at.getTime() + direction * LOCAL_DAY_STEP_MS);
+  }
+
+  return null;
+}
+
 /** `dayKey` moved by whole calendar days, read at UTC midnight so no offset applies. */
 export function shiftDayKey(dayKey: string, days: number): string {
   const date = new Date(`${dayKey}T00:00:00.000Z`);

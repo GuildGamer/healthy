@@ -96,6 +96,34 @@ describe('ProgressService.periodReport', () => {
     expect(report.period).toBe('week');
   });
 
+  it('reports the closed month when the link names its last day', async () => {
+    const service = new ProgressService(createPrisma() as never);
+    const report = await service.periodReport(
+      user,
+      'month',
+      new Date('2026-11-01T08:00:00.000Z'),
+      '2026-10-31',
+    );
+
+    expect(report.periodLabel).toBe('October');
+    expect(report.startDayKey).toBe('2026-10-01');
+    expect(report.endDayKey).toBe('2026-10-31');
+  });
+
+  it('ignores a day that has not happened yet', async () => {
+    const service = new ProgressService(createPrisma() as never);
+    const report = await service.periodReport(
+      user,
+      'month',
+      new Date('2026-11-01T08:00:00.000Z'),
+      '2026-12-01',
+    );
+
+    expect(report.periodLabel).toBe('November');
+    expect(report.startDayKey).toBe('2026-11-01');
+    expect(report.endDayKey).toBe('2026-11-01');
+  });
+
   it('counts a day that only logged a set, with no rewarded challenge', async () => {
     const prisma = createPrisma(
       [
