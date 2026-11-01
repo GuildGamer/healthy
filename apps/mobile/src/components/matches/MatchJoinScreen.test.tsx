@@ -39,7 +39,7 @@ describe('MatchJoinScreen', () => {
 
     expect(await screen.findByText('Ada invited you')).toBeOnTheScreen();
     expect(screen.getByText('Most minutes walked wins.')).toBeOnTheScreen();
-    expect(screen.getByText('3 of 8 joined')).toBeOnTheScreen();
+    expect(screen.getByText('3 of 25 joined')).toBeOnTheScreen();
     expect(
       screen.getByText('Others see your name and minutes walked. Nothing else.'),
     ).toBeOnTheScreen();

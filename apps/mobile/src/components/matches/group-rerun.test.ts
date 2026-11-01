@@ -21,7 +21,7 @@ function finished(days: number, overrides: Partial<MatchBoard> = {}): MatchBoard
     endsAt: new Date(start.getTime() + days * DAY_MS).toISOString(),
     status: 'completed',
     participantCount: 3,
-    participantCap: 8,
+    participantCap: 25,
     yourScore: 0,
     yourBestCount: 0,
     winnerUserId: null,

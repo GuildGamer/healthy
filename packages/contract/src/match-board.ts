@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const MATCH_PARTICIPANT_CAP = 8;
+export const MATCH_PARTICIPANT_CAP = 25;
 
 /** Host-authored contest label. Short enough to stay a title, not a bio. */
 export const MATCH_TITLE_MAX = 60;

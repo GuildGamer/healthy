@@ -163,9 +163,11 @@ describe('profilePhotoFromCapture', () => {
 
 describe('pickProfilePhoto', () => {
   const launchLibrary = ImagePicker.launchImageLibraryAsync as unknown as jest.Mock;
+  const requestLibrary = ImagePicker.requestMediaLibraryPermissionsAsync as unknown as jest.Mock;
 
   beforeEach(() => {
     launchLibrary.mockReset();
+    requestLibrary.mockClear();
   });
 
   it('resizes the library file instead of uploading the camera original', async () => {
@@ -189,5 +191,14 @@ describe('pickProfilePhoto', () => {
         edge: PROFILE_PHOTO_EDGE_PX,
       }),
     );
+  });
+
+  it('skips the library permission prompt on iOS', async () => {
+    launchLibrary.mockResolvedValue({ canceled: true, assets: null });
+
+    await pickProfilePhoto('library');
+
+    expect(requestLibrary).not.toHaveBeenCalled();
+    expect(launchLibrary).toHaveBeenCalled();
   });
 });

@@ -52,7 +52,7 @@ function board(standings: MatchStanding[], winnerUserId: string | null): MatchBo
     endsAt: '2026-10-19T09:00:00.000Z',
     status: 'completed',
     participantCount: standings.length,
-    participantCap: 8,
+    participantCap: 25,
     yourScore: 0,
     yourBestCount: 0,
     winnerUserId,

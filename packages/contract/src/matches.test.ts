@@ -21,7 +21,7 @@ describe('matchInviteUrl', () => {
 
 describe('MATCH_PARTICIPANT_CAP', () => {
   it('caps a match at eight people', () => {
-    expect(MATCH_PARTICIPANT_CAP).toBe(8);
+    expect(MATCH_PARTICIPANT_CAP).toBe(25);
   });
 });
 

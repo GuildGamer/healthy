@@ -1,4 +1,3 @@
-export { SettingsActionSheet, type SettingsSheetAction } from './SettingsActionSheet';
 export {
   SettingsGroup,
   SettingsInfoRow,

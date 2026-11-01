@@ -31,6 +31,7 @@ export { DeckSectionTitle } from './DeckSectionTitle';
 export { DeckSegmented, type DeckSegmentOption } from './DeckSegmented';
 export { DeckSelectRow } from './DeckSelectRow';
 export { DeckSheet } from './DeckSheet';
+export { DeckChoiceSheet, type DeckChoiceAction } from './DeckChoiceSheet';
 export { DeckSheetEyebrow } from './DeckSheetEyebrow';
 export { DeckSheetFooter } from './DeckSheetFooter';
 export { DeckSheetMessage } from './DeckSheetMessage';

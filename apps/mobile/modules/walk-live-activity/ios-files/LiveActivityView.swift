@@ -92,11 +92,9 @@ import WidgetKit
               .font(.caption)
               .fontWeight(.semibold)
               .tracking(0.6)
-              .modifier(
-                ConditionalForegroundViewModifier(
-                  color: attributes.progressViewTint ?? attributes.titleColor
-                )
-              )
+              // Ink matches the duration — walk green stays on solid chrome
+              // (Pause fill + progress) so liquid glass does not wash out captions.
+              .modifier(ConditionalForegroundViewModifier(color: attributes.titleColor))
 
             Text(contentState.title)
               .font(.system(size: 28, weight: .bold, design: .rounded))

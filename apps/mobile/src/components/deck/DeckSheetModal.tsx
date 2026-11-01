@@ -6,6 +6,11 @@ interface DeckSheetModalProps {
   visible: boolean;
   /** Back, or a tap on the dimmed page; omit while the sheet must stay, such as mid-save. */
   onDismiss?: () => void;
+  /**
+   * After the native Modal has finished dismissing. Use before presenting
+   * another system screen (camera, photo library) that cannot stack on a Modal.
+   */
+  onHidden?: () => void;
   children: ReactNode;
   /** Pinned under the content, so it stays reachable when a long list scrolls. */
   footer?: ReactNode;
@@ -18,6 +23,7 @@ interface DeckSheetModalProps {
 export function DeckSheetModal({
   visible,
   onDismiss,
+  onHidden,
   children,
   footer,
   title,
@@ -26,6 +32,7 @@ export function DeckSheetModal({
   return (
     <Modal
       animationType="none"
+      onDismiss={onHidden}
       onRequestClose={() => onDismiss?.()}
       statusBarTranslucent
       transparent

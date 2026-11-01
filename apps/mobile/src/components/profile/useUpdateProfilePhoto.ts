@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { updateUser } from '@/lib/auth-client';
 import {
   PHOTO_SAVE_FAILED_MESSAGE,
@@ -11,6 +11,7 @@ export function useUpdateProfilePhoto() {
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const pendingSource = useRef<ProfilePhotoSource | null>(null);
 
   const save = useMutation({
     mutationFn: async (image: string | null) => {
@@ -28,14 +29,24 @@ export function useUpdateProfilePhoto() {
     },
   });
 
-  async function pickFrom(source: ProfilePhotoSource) {
+  function pickFrom(source: ProfilePhotoSource) {
     setErrorMessage(null);
+    pendingSource.current = source;
+    setSheetOpen(false);
+  }
+
+  async function onSheetHidden() {
+    const source = pendingSource.current;
+    if (!source) {
+      return;
+    }
+
+    pendingSource.current = null;
     const picked = await pickProfilePhoto(source);
     if (picked.status === 'canceled') {
       return;
     }
 
-    setSheetOpen(false);
     if (picked.status === 'failed') {
       setErrorMessage(picked.message);
       return;
@@ -48,12 +59,18 @@ export function useUpdateProfilePhoto() {
     sheetOpen,
     openSheet: () => {
       setErrorMessage(null);
+      pendingSource.current = null;
       setSheetOpen(true);
     },
-    closeSheet: () => setSheetOpen(false),
+    closeSheet: () => {
+      pendingSource.current = null;
+      setSheetOpen(false);
+    },
+    onSheetHidden,
     pickFrom,
     removePhoto: () => {
       setErrorMessage(null);
+      pendingSource.current = null;
       setSheetOpen(false);
       save.mutate(null);
     },

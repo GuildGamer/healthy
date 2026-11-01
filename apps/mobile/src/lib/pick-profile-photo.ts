@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 import { isPhysicalDevice } from './is-physical-device';
 import { PROFILE_PHOTO_EDGE_PX, renderProfilePhoto } from './render-profile-photo';
 
@@ -132,9 +133,13 @@ export async function pickProfilePhoto(source: ProfilePhotoSource): Promise<Prof
       return await resultFromPicker(result);
     }
 
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      return { status: 'failed', message: PHOTO_PERMISSION_MESSAGE };
+    // iOS presents the system photo picker; it does not need a library grant,
+    // and prompting from a Modal that just dismissed can leave the screen.
+    if (Platform.OS !== 'ios') {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        return { status: 'failed', message: PHOTO_PERMISSION_MESSAGE };
+      }
     }
 
     const result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);

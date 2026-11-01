@@ -4,13 +4,15 @@ import { type Href, Redirect, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DeckButton, DeckNavButton, DeckPageNav } from '@/components/deck';
+import {
+  DeckButton,
+  DeckChoiceSheet,
+  type DeckChoiceAction,
+  DeckNavButton,
+  DeckPageNav,
+} from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { POSE_COPY } from '@/components/challenges/constants/doing-copy';
-import {
-  ProofOverflowMenu,
-  type ProofOverflowAction,
-} from '@/components/challenges/ProofOverflowMenu';
 import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
 import { saveProofToPhotos } from '@/components/challenges/save-proof-to-photos';
 import { apiClient } from '@/lib/api';
@@ -101,7 +103,7 @@ export default function ProofClipViewerRoute() {
   const canSaveToPhotos = Boolean(local?.fileUri) && (remote?.isOwner !== false || !remote);
 
   const isOwner = remote?.isOwner ?? Boolean(local);
-  const menuActions: ProofOverflowAction[] = isOwner
+  const menuActions: DeckChoiceAction[] = isOwner
     ? [
         {
           label: 'Remove',
@@ -116,7 +118,6 @@ export default function ProofClipViewerRoute() {
     : [
         {
           label: 'Report',
-          loading: report.isPending,
           onPress: () => {
             setMenuOpen(false);
             report.mutate();
@@ -125,7 +126,6 @@ export default function ProofClipViewerRoute() {
         },
         {
           label: 'Block',
-          loading: block.isPending,
           onPress: () => {
             setMenuOpen(false);
             block.mutate();
@@ -206,9 +206,12 @@ export default function ProofClipViewerRoute() {
         </View>
       )}
 
-      {menuOpen ? (
-        <ProofOverflowMenu actions={menuActions} onDismiss={() => setMenuOpen(false)} />
-      ) : null}
+      <DeckChoiceSheet
+        actions={menuActions}
+        onClose={() => setMenuOpen(false)}
+        testID="proof-overflow-menu"
+        visible={menuOpen}
+      />
     </SafeAreaView>
   );
 }

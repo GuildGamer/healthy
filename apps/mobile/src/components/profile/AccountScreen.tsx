@@ -4,14 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { DeckChoiceSheet } from '@/components/deck';
 import { CountrySheet, FormButton, InlineNotice } from '@/components/forms';
+import { SettingsGroup, SettingsLinkRow } from '@/components/settings';
 import { apiClient } from '@/lib/api';
 import { hasPasswordSignIn, signOut, useSession } from '@/lib/auth-client';
 import { countryName } from '@/lib/country';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useThemedStyles } from '@/theme';
 import { SETTINGS_SAVE_FAILED_MESSAGE, SIGN_OUT_CONFIRM_BODY } from './constants/settings-copy';
-import { SettingsActionSheet, SettingsGroup, SettingsLinkRow } from '@/components/settings';
 import { SettingsPage } from './SettingsPage';
 import { ME_QUERY_KEY, useMe } from './useMe';
 
@@ -86,11 +87,11 @@ export function AccountScreen() {
         value={me?.countryCode ?? null}
         visible={country.isOpen}
       />
-      <SettingsActionSheet
+      <DeckChoiceSheet
         actions={[
           {
             label: 'Sign out',
-            isDestructive: true,
+            isDanger: true,
             onPress: () => {
               setIsSignOutOpen(false);
               void signOut();
@@ -99,7 +100,9 @@ export function AccountScreen() {
           },
         ]}
         body={SIGN_OUT_CONFIRM_BODY}
-        onCancel={() => setIsSignOutOpen(false)}
+        closeLabel="Cancel"
+        closeTestID="sign-out-sheet-cancel"
+        onClose={() => setIsSignOutOpen(false)}
         testID="sign-out-sheet"
         title="Sign out of Healthy?"
         visible={isSignOutOpen}

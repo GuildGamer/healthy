@@ -1,7 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { DeckChoiceSheet } from '@/components/deck';
 import { InlineNotice } from '@/components/forms';
+import {
+  SettingsGroup,
+  SettingsLinkRow,
+  SettingsSectionTitle,
+  SettingsSwitchRow,
+} from '@/components/settings';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { useNotificationPermission } from '@/lib/use-notification-permission';
@@ -12,13 +19,6 @@ import {
 import { nudgeDelaySummary } from './nudge-delay';
 import { NudgeDelaySheet } from './NudgeDelaySheet';
 import { PhoneNotificationsOffBanner } from './PhoneNotificationsOffBanner';
-import {
-  SettingsActionSheet,
-  SettingsGroup,
-  SettingsLinkRow,
-  SettingsSectionTitle,
-  SettingsSwitchRow,
-} from '@/components/settings';
 import { SettingsPage } from './SettingsPage';
 import { useMe } from './useMe';
 import { useNotificationSettings } from './useNotificationSettings';
@@ -128,11 +128,11 @@ function ChallengeNotificationsGroup({
         />
         <FinishWhatYouStartedRow isBlocked={isBlocked} notifications={notifications} />
       </SettingsGroup>
-      <SettingsActionSheet
+      <DeckChoiceSheet
         actions={[
           {
             label: 'Turn off',
-            isDestructive: true,
+            isDanger: true,
             onPress: () => {
               setIsPhotoChecksConfirmOpen(false);
               void save({ evidenceRemindersEnabled: false });
@@ -141,7 +141,9 @@ function ChallengeNotificationsGroup({
           },
         ]}
         body={PHOTO_CHECKS_OFF_CONFIRM_BODY}
-        onCancel={() => setIsPhotoChecksConfirmOpen(false)}
+        closeLabel="Cancel"
+        closeTestID="photo-checks-off-sheet-cancel"
+        onClose={() => setIsPhotoChecksConfirmOpen(false)}
         testID="photo-checks-off-sheet"
         title="Turn off photo check alerts?"
         visible={isPhotoChecksConfirmOpen}
