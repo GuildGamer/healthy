@@ -5,11 +5,18 @@ import type {
   TodayOccurrenceDetail,
 } from '@product/client';
 import { isPoseMetric } from '@product/contract/match-board';
+import {
+  deckCardVerb,
+  isCountedOnCard,
+  isDoneOnCard,
+} from '@/components/challenges/challenge-act';
 import { challengeProgress } from '@/components/challenges/challenge-progress';
 import { waterGlassCount, waterGlassGoal } from '@/components/challenges/water-glasses';
 import { TODAY_COPY } from './constants/today-copy';
 import { lastReadingLabel } from './today-labels';
 import type { DeckMeasure, DeckProof } from './types/today-deck';
+
+export { deckCardVerb, isCountedOnCard, isDoneOnCard };
 
 type DeckChallenge = Pick<
   TodayChallenge,
@@ -19,16 +26,6 @@ type DeckChallenge = Pick<
 /** Readings have no number to chase, so their card never shows a numeral. */
 const READING_KINDS = new Set<ChallengeCompletionKind>(['vitals_bp', 'glucose', 'peak_flow']);
 
-const LOG_VERB: Partial<Record<ChallengeCompletionKind, string>> = {
-  vitals_bp: 'Log reading',
-  glucose: 'Log reading',
-  peak_flow: 'Log reading',
-  water: 'Add a glass',
-  carbs: 'Log meal',
-  evidence_photo: 'Add photo',
-  check_in: 'Mark as done',
-};
-
 const LOG_PROOF: Partial<Record<ChallengeCompletionKind, string>> = {
   vitals_bp: 'You enter the reading',
   glucose: 'You enter the reading',
@@ -36,28 +33,6 @@ const LOG_PROOF: Partial<Record<ChallengeCompletionKind, string>> = {
   water: 'You log it, a glass at a time',
   carbs: 'You note it down',
 };
-
-/** Water is counted on the card itself, a glass per tap. */
-export function isCountedOnCard(
-  challenge: Pick<DeckChallenge, 'completionKind' | 'status'>,
-): boolean {
-  return (
-    challenge.completionKind === 'water' &&
-    challenge.status !== 'completed' &&
-    challenge.status !== 'awaiting_evidence'
-  );
-}
-
-/** Marked done with one tap on the card, with no screen of its own. */
-export function isDoneOnCard(
-  challenge: Pick<DeckChallenge, 'completionKind' | 'status' | 'capture'>,
-): boolean {
-  return (
-    challenge.completionKind === 'check_in' &&
-    challenge.capture.kind === 'self_report' &&
-    (challenge.status === 'pending' || challenge.status === 'in_progress')
-  );
-}
 
 function isDeviceCapture(challenge: DeckChallenge): boolean {
   return challenge.capture.kind === 'device_session' || challenge.capture.kind === 'device_sample';
@@ -101,35 +76,6 @@ export function deckCardProof(challenge: DeckChallenge): DeckProof {
   }
 
   return { glyph: 'hand', line: 'You confirm it' };
-}
-
-/** The next action itself, never a generic "Open". */
-export function deckCardVerb(challenge: DeckChallenge): string {
-  if (challenge.status === 'awaiting_evidence') {
-    return 'Add photo';
-  }
-
-  if (isCountedOnCard(challenge)) {
-    return LOG_VERB.water ?? 'Add a glass';
-  }
-
-  if (challenge.status === 'in_progress') {
-    return 'Resume';
-  }
-
-  if (challenge.capture.metric && isPoseMetric(challenge.capture.metric)) {
-    return challenge.capture.metric === 'plank' ? 'Start hold' : 'Start set';
-  }
-
-  if (isDeviceCapture(challenge)) {
-    return challenge.capture.metric === 'walk' ? 'Start a walk' : 'Start';
-  }
-
-  if (isSleepChallenge(challenge)) {
-    return 'Log sleep';
-  }
-
-  return LOG_VERB[challenge.completionKind] ?? 'Mark as done';
 }
 
 function countUnit(metric: DeckChallenge['capture']['metric']): string {

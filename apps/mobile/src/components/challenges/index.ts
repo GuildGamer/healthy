@@ -42,6 +42,15 @@ export { ChallengeShareScreen } from './ChallengeShareScreen';
 export { finishAndLeave, finishOnCard } from './finish-challenge';
 export { parseSharePoster, sharePosterParams } from './share-poster';
 export type { SharePoster } from './types/share-poster';
+export {
+  deckCardVerb,
+  isCountedOnCard,
+  isDoneOnCard,
+  isOpenOccurrence,
+  resolveChallengeAct,
+} from './challenge-act';
+export type { ChallengeActKind } from './challenge-act';
+export { useActOnChallenge } from './useActOnChallenge';
 export { useCompleteChallenge } from './useCompleteChallenge';
 export { useWaterGlasses } from './useWaterGlasses';
 export { glassLoggedLine, waterGlassCount, waterGlassGoal } from './water-glasses';

@@ -3,10 +3,9 @@ import { fontWeight, spacing } from '@product/brand';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { completionRoute } from '@/components/challenges/completion-route';
+import { isCountedOnCard } from '@/components/challenges/challenge-act';
 import { anotherSetRoute } from '@/components/challenges/open-pose-contest';
 import { canPracticeAgain } from '@/components/challenges/practice-entry';
-import { useAdvanceChallenge } from '@/components/challenges/useAdvanceChallenge';
 import { RefreshableScroll } from '@/components/feedback';
 import { Glyph } from '@/components/icons';
 import type { MatchSessionRoute } from '@/components/matches/match-metric';
@@ -15,7 +14,6 @@ import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { CardActsProvider, useCardActs } from './CardActsProvider';
 import { CardToastBar } from './CardToastBar';
 import { ChallengeDeckCard } from './ChallengeDeckCard';
-import { isCountedOnCard, isDoneOnCard } from './deck-card-content';
 import { FinishedDeckCard } from './FinishedDeckCard';
 import { withFinishedCard } from './finished-deck';
 import { TODAY_COPY } from './constants/today-copy';
@@ -236,30 +234,9 @@ function useDeckItemRenderer(
 ) {
   const router = useRouter();
   const openChallenge = useOpenChallenge();
-  const { advance, isAdvancing } = useAdvanceChallenge();
   const cardActs = useCardActs();
   const { deck, me } = today;
   const streakDays = me?.currentStreakDays ?? 0;
-
-  function actOnChallenge(challenge: TodayChallenge) {
-    if (isCountedOnCard(challenge)) {
-      cardActs.addGlass(challenge);
-      return;
-    }
-
-    if (isDoneOnCard(challenge)) {
-      cardActs.markDone(challenge);
-      return;
-    }
-
-    const route = completionRoute(challenge);
-    if (route) {
-      router.push(route);
-      return;
-    }
-
-    advance({ userChallengeId: challenge.id, status: challenge.status });
-  }
 
   function actOnGroup(matchId: string, session: MatchSessionRoute | null) {
     router.push(session ? `/matches/${matchId}/${session}` : `/matches/${matchId}`);
@@ -299,9 +276,9 @@ function useDeckItemRenderer(
 
     return (
       <ChallengeDeckCard
-        isBusy={isAdvancing(item.challenge.id) || cardActs.isActing(item.challenge.id)}
+        isBusy={cardActs.isActing(item.challenge.id)}
         item={item}
-        onAct={() => actOnChallenge(item.challenge)}
+        onAct={() => cardActs.act(item.challenge)}
         onDecrement={
           isCountedOnCard(item.challenge) && waterGlassCount(item.challenge) > 0
             ? () => cardActs.removeGlass(item.challenge)

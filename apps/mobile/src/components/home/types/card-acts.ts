@@ -8,6 +8,7 @@ export type CardToast = {
 
 /** The acts done on a card itself, without leaving Today. */
 export type CardActs = {
+  act: (challenge: TodayChallenge) => void;
   addGlass: (challenge: TodayChallenge) => void;
   removeGlass: (challenge: TodayChallenge) => void;
   markDone: (challenge: TodayChallenge) => void;

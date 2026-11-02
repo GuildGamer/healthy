@@ -12,7 +12,14 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DeckButton, DeckNoteCard, DeckPageNav, DeckSheetMessage } from '@/components/deck';
+import {
+  DeckButton,
+  DeckNoteCard,
+  DeckPageNav,
+  DeckRoundButton,
+  DeckSheetMessage,
+  DeckToast,
+} from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { weekDayKeys } from '@/components/home/day-keys';
 import { WeekStrip } from '@/components/home/WeekStrip';
@@ -23,6 +30,7 @@ import { challengesTabHref } from '@/lib/challenges-tab';
 import { useLiveTodaySteps } from '@/lib/use-live-today-steps';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { rewardCornerLabel } from './catalog-layout';
+import { deckCardVerb, isCountedOnCard, isOpenOccurrence } from './challenge-act';
 import { mergeTodayIntoHistory } from './challenge-history';
 import { ChallengeHero } from './ChallengeHero';
 import { ChallengeSettingsSheet } from './ChallengeSettingsSheet';
@@ -30,6 +38,7 @@ import { ReminderSettings, ScheduleSettings } from './ChallengeSettingsSections'
 import { confirmRemoval } from './confirm-removal';
 import { ROUTINE_COPY, SETTINGS_COPY } from './constants/routine-copy';
 import { WALK_COPY } from './constants/doing-copy';
+import { finishAndLeave } from './finish-challenge';
 import { timesLabel } from './history-weeks';
 import { anotherSetRoute, openPoseContest } from './open-pose-contest';
 import {
@@ -41,6 +50,7 @@ import {
 } from './practice-entry';
 import { stepsHeroValue } from './steps-hero';
 import type { SettingsSheet } from './types/settings-sheet';
+import { useActOnChallenge } from './useActOnChallenge';
 import {
   useRemoveChallenge,
   useRemoveReminder,
@@ -48,12 +58,16 @@ import {
 } from './useChallengeMutations';
 import { useChallengeQueries } from './useChallengeQueries';
 import { useChallengeTone } from './useChallengeTone';
+import { waterGlassCount, waterGlassGoal } from './water-glasses';
+
+type ChallengeActs = ReturnType<typeof useActOnChallenge>;
 
 /** A challenge's settings: everything saves as you change it, and removing it sits at the foot. */
 export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { catalogQuery, todayQuery, detailsQuery } = useChallengeQueries();
+  const acts = useActOnChallenge({ onFinished: finishAndLeave });
 
   if (catalogQuery.isPending) {
     return <ScreenLoader testID="challenge-detail-loading" />;
@@ -76,6 +90,7 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
       >
         {challenge && catalogQuery.data ? (
           <ChallengeSettingsBody
+            acts={acts}
             catalog={catalogQuery.data}
             challenge={challenge}
             detail={detail ?? null}
@@ -95,6 +110,14 @@ export function ChallengeDetailScreen({ challengeId }: { challengeId: string }) 
           />
         )}
       </ScrollView>
+      {acts.toast ? (
+        <DeckToast
+          action={acts.toast.action}
+          message={acts.toast.message}
+          onDismiss={acts.dismissToast}
+          testID="detail-act-toast"
+        />
+      ) : null}
     </View>
   );
 }
@@ -106,6 +129,7 @@ type SettingsBodyProps = {
   detail: TodayOccurrenceDetail | null;
   /** The member's current week, once Today's details have landed. */
   week: { startKey: string; todayKey: string } | null;
+  acts: ChallengeActs;
 };
 
 function ChallengeSettingsBody(props: SettingsBodyProps) {
@@ -167,7 +191,7 @@ function useChallengeBenefitTip(challenge: CatalogChallenge) {
 
 function EnrolledSettings(props: SettingsBodyProps & { benefit: ReturnType<typeof findBenefitTip> }) {
   const router = useRouter();
-  const { challenge, catalog, occurrence, detail, benefit } = props;
+  const { challenge, catalog, occurrence, detail, benefit, acts } = props;
   const [sheet, setSheet] = useState<SettingsSheet | null>(null);
   const [frequency, setFrequency] = useState<ChallengeFrequency>(challenge.frequency);
   const updateEnrollment = useUpdateEnrollment();
@@ -192,10 +216,12 @@ function EnrolledSettings(props: SettingsBodyProps & { benefit: ReturnType<typeo
   }
 
   const hasSaveError = updateEnrollment.isError || removeReminder.isError;
+  const showsAct = occurrence !== null && isOpenOccurrence(occurrence.status);
 
   return (
     <>
       <DetailHero {...props} frequency={frequency} />
+      {showsAct ? <DetailAct acts={acts} occurrence={occurrence} /> : null}
       <PracticeAgain occurrence={occurrence} />
       <WhyItMatters tip={benefit} />
       {hasSaveError ? <DeckSheetMessage message={SETTINGS_COPY.saveFailed} /> : null}
@@ -227,12 +253,47 @@ function EnrolledSettings(props: SettingsBodyProps & { benefit: ReturnType<typeo
   );
 }
 
+/** Today's open act: the same verb the card uses, under the hero. */
+function DetailAct({ occurrence, acts }: { occurrence: TodayChallenge; acts: ChallengeActs }) {
+  const styles = useThemedStyles(createStyles);
+  const counted = isCountedOnCard(occurrence);
+  const glasses = waterGlassCount(occurrence);
+  const canDecrement = counted && glasses > 0;
+
+  return (
+    <View style={styles.act} testID="detail-act">
+      {counted ? (
+        <Text style={styles.actCount} testID="detail-act-glasses">
+          {glasses} of {waterGlassGoal(occurrence)} glasses
+        </Text>
+      ) : null}
+      <View style={styles.actRow}>
+        {canDecrement ? (
+          <DeckRoundButton
+            accessibilityLabel="Take one back"
+            glyph="minus"
+            onPress={() => acts.removeGlass(occurrence)}
+            testID="detail-act-decrement"
+          />
+        ) : null}
+        <DeckButton
+          isFlexible
+          label={deckCardVerb(occurrence)}
+          loading={acts.isActing(occurrence.id)}
+          onPress={() => acts.act(occurrence)}
+          testID="detail-act-button"
+        />
+      </View>
+    </View>
+  );
+}
+
 function DetailHero({
   challenge,
   detail,
   week,
   frequency = challenge.frequency,
-}: SettingsBodyProps & { frequency?: ChallengeFrequency }) {
+}: Omit<SettingsBodyProps, 'acts'> & { frequency?: ChallengeFrequency }) {
   const { deckCards } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { tone } = useChallengeTone(challenge);
@@ -363,6 +424,20 @@ const createStyles = (theme: Theme) =>
     content: {
       paddingHorizontal: 20,
       paddingTop: 14,
+    },
+    act: {
+      marginTop: spacing.md,
+      gap: spacing.sm,
+    },
+    actCount: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      textAlign: 'center',
+    },
+    actRow: {
+      flexDirection: 'row',
+      gap: 10,
     },
     practice: {
       marginTop: spacing.md,

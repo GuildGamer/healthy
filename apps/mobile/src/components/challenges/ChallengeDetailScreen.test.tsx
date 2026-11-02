@@ -7,11 +7,13 @@ import {
   todayDetails,
 } from '@/components/home/testing/today-fixtures';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import { ChallengeDetailScreen } from './ChallengeDetailScreen';
 import {
   catalogChallenge,
   catalogOutput,
   PUSHUPS_TWENTY,
+  SELF_REPORT,
   WALK_TEN,
 } from './testing/catalog-fixtures';
 import { renderScreen } from './testing/render-screen';
@@ -28,6 +30,10 @@ jest.mock('@/lib/api', () => ({
     addChallengeReminder: jest.fn(),
     removeChallengeReminder: jest.fn(),
     getPracticeTotals: jest.fn(),
+    listMyMatches: jest.fn(async () => ({ live: [], past: [] })),
+    startChallenge: jest.fn(),
+    completeChallenge: jest.fn(),
+    saveChallengeDraft: jest.fn(),
   },
   apiQuery: {},
 }));
@@ -36,7 +42,11 @@ jest.mock('expo-router', () => {
   const push = jest.fn();
   const replace = jest.fn();
   const back = jest.fn();
-  return { useRouter: () => ({ push, replace, back, canGoBack: () => true }) };
+  const dismiss = jest.fn();
+  return {
+    useRouter: () => ({ push, replace, back, canGoBack: () => true, canDismiss: () => true, dismiss }),
+    router: { push, replace, back, canGoBack: () => true, canDismiss: () => true, dismiss },
+  };
 });
 
 jest.mock('@/lib/go-back', () => ({ goBackOrHome: jest.fn() }));
@@ -198,13 +208,124 @@ describe('ChallengeDetailScreen', () => {
     await view.settle();
   });
 
-  it('offers no extra set before today’s is done', async () => {
+  it('starts today’s set from the page, and offers no extra set yet', async () => {
     const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
 
-    await screen.findByTestId('challenge-settings');
+    fireEvent.press(await screen.findByTestId('detail-act-button'));
 
+    expect(useRouter().push).toHaveBeenCalledWith('/challenge/push/pose');
     expect(screen.queryByTestId('detail-practice-again')).toBeNull();
     expect(mockedApi.getPracticeTotals).not.toHaveBeenCalled();
+    await view.settle();
+  });
+
+  it('marks a check-in done from the page and leaves for Today', async () => {
+    const stretch = catalogChallenge({
+      challengeId: 'stretch',
+      title: 'Stretch before bed',
+      isEnrolled: true,
+      completionKind: 'check_in',
+      capture: SELF_REPORT,
+    });
+    const occurrence = todayChallenge({
+      id: 'uc-stretch',
+      challengeId: 'stretch',
+      title: 'Stretch before bed',
+      completionKind: 'check_in',
+      capture: SELF_REPORT,
+    });
+    mockedApi.listChallengeCatalog.mockResolvedValue(catalogOutput([stretch]));
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [occurrence],
+      completedCount: 0,
+      totalCount: 1,
+    });
+    mockedApi.getTodayDetails.mockResolvedValue(
+      todayDetails([occurrenceDetail({ userChallengeId: 'uc-stretch' })]),
+    );
+    mockedApi.listChallengeHistory.mockResolvedValue({ challengeId: 'stretch', entries: [] });
+    mockedApi.startChallenge.mockResolvedValue({
+      challenge: { ...occurrence, status: 'in_progress' },
+    });
+    mockedApi.completeChallenge.mockResolvedValue({
+      challenge: { ...occurrence, status: 'completed' },
+      pointsBalance: 100,
+      currentStreakDays: 1,
+      pointsAwarded: 100,
+      evidenceRequest: null,
+      penaltyApplied: 0,
+    });
+    const view = renderScreen(<ChallengeDetailScreen challengeId="stretch" />);
+
+    fireEvent.press(await screen.findByText('Mark as done'));
+
+    await waitFor(() =>
+      expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
+        userChallengeId: 'uc-stretch',
+      }),
+    );
+    expect(goBackOrHome).toHaveBeenCalled();
+    await view.settle();
+  });
+
+  it('adds a glass from the page and offers to take it back', async () => {
+    const water = catalogChallenge({
+      challengeId: 'water',
+      title: 'Log your water',
+      isEnrolled: true,
+      completionKind: 'water',
+      capture: {
+        kind: 'structured_log',
+        metric: null,
+        target: { durationMinutes: null, distanceMeters: null, count: 8 },
+      },
+    });
+    const occurrence = todayChallenge({
+      id: 'uc-water',
+      challengeId: 'water',
+      title: 'Log your water',
+      completionKind: 'water',
+      status: 'in_progress',
+      draft: { kind: 'water', fields: { amount: 2, unit: 'glasses' } },
+      capture: {
+        kind: 'structured_log',
+        metric: null,
+        target: { durationMinutes: null, distanceMeters: null, count: 8 },
+      },
+    });
+    mockedApi.listChallengeCatalog.mockResolvedValue(catalogOutput([water]));
+    mockedApi.listTodayChallenges.mockResolvedValue({
+      dayKey: '2026-08-28',
+      challenges: [occurrence],
+      completedCount: 0,
+      totalCount: 1,
+    });
+    mockedApi.getTodayDetails.mockResolvedValue(
+      todayDetails([occurrenceDetail({ userChallengeId: 'uc-water' })]),
+    );
+    mockedApi.listChallengeHistory.mockResolvedValue({ challengeId: 'water', entries: [] });
+    mockedApi.saveChallengeDraft.mockResolvedValue({ challenge: occurrence });
+    const view = renderScreen(<ChallengeDetailScreen challengeId="water" />);
+
+    expect(await screen.findByTestId('detail-act-glasses')).toHaveTextContent('2 of 8 glasses');
+    fireEvent.press(screen.getByText('Add a glass'));
+
+    expect(await screen.findByText('Third glass logged')).toBeOnTheScreen();
+    expect(mockedApi.saveChallengeDraft).toHaveBeenCalledWith({
+      userChallengeId: 'uc-water',
+      draft: { kind: 'water', fields: { amount: 3, unit: 'glasses' } },
+    });
+    expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByTestId('detail-act-toast-action'));
+
+    await waitFor(() => {
+      expect(mockedApi.saveChallengeDraft).toHaveBeenLastCalledWith({
+        userChallengeId: 'uc-water',
+        draft: { kind: 'water', fields: { amount: 2, unit: 'glasses' } },
+      });
+    });
     await view.settle();
   });
 
@@ -226,6 +347,7 @@ describe('ChallengeDetailScreen', () => {
     const view = renderScreen(<ChallengeDetailScreen challengeId="push" />);
 
     expect(await screen.findByText('15 reps in 2 sets today')).toBeOnTheScreen();
+    expect(screen.queryByTestId('detail-act-button')).toBeNull();
     expect(mockedApi.getPracticeTotals).toHaveBeenCalledWith({ metric: 'pushups' });
 
     fireEvent.press(screen.getByTestId('detail-practice-again'));
