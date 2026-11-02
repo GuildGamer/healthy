@@ -91,11 +91,15 @@ function successFace(input: {
   minutes?: number;
   glasses?: number;
 }): SuccessFace {
-  if (input.face) {
+  if (input.face === 'minutes' || input.face === 'glasses' || input.face === 'gym' || input.face === 'logged') {
     return input.face;
   }
 
   if ((input.completedCount ?? 0) > 0 && input.matchMetric !== 'walk') {
+    return 'reps';
+  }
+
+  if (input.face === 'reps') {
     return 'reps';
   }
 

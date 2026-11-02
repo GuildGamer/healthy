@@ -1,7 +1,9 @@
+import type { MatchMetric } from '@product/client';
 import { isPoseMetric } from '@product/contract/match-board';
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import { ScreenLoader } from '@/components/feedback';
 import { ChallengeSuccessScreen } from '@/components/challenges';
+import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
 import type { FriendChallengeSource } from '@/components/challenges/types/friend-challenge';
 import { useSession } from '@/lib/auth-client';
 
@@ -48,6 +50,31 @@ function successFace(
 
   return undefined;
 }
+
+/**
+ * What the Well done screen scores the set as. Pose metrics keep their own
+ * identity; `other` stays off the push-up friend path.
+ */
+function resolveMatchMetric(
+  metric: string | undefined,
+  activityKey: string | undefined,
+): MatchMetric {
+  const raw = metric ?? activityKey;
+  if (raw === 'walk') {
+    return 'walk';
+  }
+
+  if (raw && isPoseMetric(raw)) {
+    return raw;
+  }
+
+  if (raw === 'other') {
+    return 'walk';
+  }
+
+  return MATCH_DEFAULT_METRIC;
+}
+
 function friendSourceFor(metric: string | undefined, count: number): FriendChallengeSource {
   if (metric === 'walk') {
     return { kind: 'walk' };
@@ -57,8 +84,7 @@ function friendSourceFor(metric: string | undefined, count: number): FriendChall
     return { kind: 'day' };
   }
 
-  const poseMetric =
-    metric && isPoseMetric(metric) ? metric : ('pushups' as const);
+  const poseMetric = metric && isPoseMetric(metric) ? metric : MATCH_DEFAULT_METRIC;
   return { kind: 'reps', count, metric: poseMetric };
 }
 
@@ -94,19 +120,17 @@ export default function ChallengeSuccessRoute() {
   }
 
   const metric = firstParam(params.metric);
+  const activityKeyParam = firstParam(params.activityKey);
   const count = firstParam(params.count);
-  /**
-   * Missing metric keeps the live pose path on push-ups. `other` (vitals,
-   * photo, check-in) must not enter the friend flywheel, so it maps away
-   * from push-ups. Personal kickers ignore this when there is no matchId.
-   */
-  const matchMetric = metric === 'walk' || metric === 'other' ? 'walk' : 'pushups';
-  const completedCount = count ? parseCount(count) : undefined;
+  const matchMetric = resolveMatchMetric(metric, activityKeyParam);
+  const activityKey =
+    activityKeyParam ?? (metric && isPoseMetric(metric) ? metric : undefined);
+  const completedCount = count !== undefined ? parseCount(count) : undefined;
 
   return (
     <ChallengeSuccessScreen
       completedCount={completedCount}
-      friendSource={friendSourceFor(metric, completedCount ?? 0)}
+      friendSource={friendSourceFor(metric ?? activityKey, completedCount ?? 0)}
       isDayFinished={firstParam(params.day) === '1'}
       currentStreakDays={parseCount(params.streak)}
       penaltyApplied={parseCount(params.penalty)}
@@ -117,7 +141,7 @@ export default function ChallengeSuccessRoute() {
       matchId={parseId(params.matchId)}
       userChallengeId={parseId(params.userChallengeId)}
       challengeId={parseId(params.challengeId)}
-      activityKey={firstParam(params.activityKey)}
+      activityKey={activityKey}
       matchMetric={matchMetric}
       face={successFace(firstParam(params.face))}
       minutes={firstParam(params.minutes) ? parseCount(params.minutes) : undefined}

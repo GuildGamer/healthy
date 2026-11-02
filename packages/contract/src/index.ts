@@ -191,7 +191,11 @@ export {
   DEFAULT_WATER_GLASS_GOAL,
   waterGlassGoalFor,
 } from './challenge-capture.js';
-export { displayChallengeTitle, formatPushupChallengeTitle } from './challenge-title.js';
+export {
+  displayChallengeTitle,
+  formatPoseChallengeTitle,
+  formatPushupChallengeTitle,
+} from './challenge-title.js';
 export {
   compareChallengeCatalogOrder,
   compareChallengeSortOrder,

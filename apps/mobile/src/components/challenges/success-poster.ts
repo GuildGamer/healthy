@@ -32,10 +32,6 @@ export function posterForSuccess(input: {
   const when = input.when ?? new Date();
   const whenIso = when.toISOString();
 
-  if (input.face === 'reps' && (input.count ?? 0) > 0) {
-    return card(input.title, 'reps', String(input.count), poseShareCopy(input.metric).unit, whenIso);
-  }
-
   if (input.face === 'minutes' && (input.minutes ?? 0) > 0) {
     return card(input.title, 'minutes', String(input.minutes), 'minutes walked', whenIso);
   }
@@ -48,14 +44,20 @@ export function posterForSuccess(input: {
     return card(input.title, 'gym', formatClockTime(when), 'at the gym', whenIso);
   }
 
-  const word = input.face === 'logged' ? 'Logged' : 'Done';
-  return card(
-    input.title,
-    input.face === 'logged' ? 'logged' : 'done',
-    word,
-    dayLabel(when),
-    whenIso,
-  );
+  if (input.face === 'logged') {
+    return card(input.title, 'logged', 'Logged', dayLabel(when), whenIso);
+  }
+
+  /**
+   * A counted camera set always heroes the number — same as push-ups.
+   * Never fall through to “Done” when a count is present, even if an older
+   * route forgot `face=reps`.
+   */
+  if ((input.count ?? 0) > 0) {
+    return card(input.title, 'reps', String(input.count), poseShareCopy(input.metric).unit, whenIso);
+  }
+
+  return card(input.title, 'done', 'Done', dayLabel(when), whenIso);
 }
 
 function card(

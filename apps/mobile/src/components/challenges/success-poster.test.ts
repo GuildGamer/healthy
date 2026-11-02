@@ -37,4 +37,26 @@ describe('posterForSuccess', () => {
       posterForSuccess({ title: 'Take your preventer inhaler', face: 'done', when }),
     ).toMatchObject({ value: 'Done', unit: '22 Oct' });
   });
+
+  it('heroes a count even when face was omitted or wrongly set to done', () => {
+    expect(
+      posterForSuccess({
+        title: 'Do 50 squats',
+        face: 'done',
+        count: 50,
+        metric: 'squats',
+        when,
+      }),
+    ).toMatchObject({ kind: 'strength', value: '50', unit: 'squats' });
+
+    expect(
+      posterForSuccess({
+        title: 'Do 20 squats',
+        face: 'reps',
+        count: 50,
+        metric: 'squats',
+        when,
+      }),
+    ).toMatchObject({ value: '50', unit: 'squats', label: 'Do 20 squats' });
+  });
 });
