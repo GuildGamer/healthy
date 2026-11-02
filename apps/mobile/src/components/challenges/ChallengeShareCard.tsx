@@ -7,6 +7,7 @@ import heroBanner from '@/assets/hero-banner.png';
 import { displayFontFamily, tipQuoteFontFamily } from '@/lib/fonts';
 import { formatClockTime } from '@/lib/clock-time';
 import { PhotoFade } from './PhotoFade';
+import { poseShareCopy } from './pose-share-copy';
 
 /**
  * Share card art direction: an editorial result slip on a mint billboard.
@@ -33,6 +34,8 @@ export type ChallengeShareCardProps = {
   capturedAt?: Date;
   completedCount?: number;
   targetCount?: number;
+  /** Camera exercise metric; names the unit under a reps hero. */
+  metric?: string | null;
   kicker?: string;
   /** True only when the camera counted the reps on this card. */
   verified?: boolean;
@@ -165,11 +168,13 @@ export function ChallengeShareCard({
   capturedAt,
   completedCount,
   targetCount,
+  metric,
   kicker = 'Challenge complete',
   verified = false,
 }: ChallengeShareCardProps) {
   const { cardWidth, scale, handleLayout } = useCardScale();
   const fieldRadius = designSize.fieldRadius * scale;
+  const metricUnit = poseShareCopy(metric).unit;
 
   return (
     <View onLayout={handleLayout} style={styles.shot} testID="challenge-share-card">
@@ -188,6 +193,7 @@ export function ChallengeShareCard({
             completedCount={completedCount}
             currentStreakDays={currentStreakDays}
             kicker={kicker}
+            metricUnit={metricUnit}
             photoUri={photoUri}
             scale={scale}
             verified={verified}
@@ -199,6 +205,7 @@ export function ChallengeShareCard({
             completedCount={completedCount}
             currentStreakDays={currentStreakDays}
             kicker={kicker}
+            metricUnit={metricUnit}
             pointsAwarded={pointsAwarded}
             scale={scale}
             targetCount={targetCount}
@@ -244,6 +251,7 @@ function PosterField({
   cardWidth,
   scale,
   kicker,
+  metricUnit,
   verified,
 }: {
   title: string;
@@ -255,11 +263,12 @@ function PosterField({
   cardWidth: number;
   scale: number;
   kicker: string;
+  metricUnit: string;
   verified: boolean;
 }) {
   const hasReps = completedCount != null && completedCount > 0;
   const hero = hasReps ? String(completedCount) : `+${pointsAwarded}`;
-  const unit = hasReps ? 'push-ups' : 'points';
+  const unit = hasReps ? metricUnit : 'points';
   const goal = hasReps && targetCount != null && targetCount > 0 ? targetCount : undefined;
 
   return (
@@ -405,6 +414,7 @@ function PhotoField({
   photoUri,
   scale,
   kicker,
+  metricUnit,
   verified,
   completedCount,
   capturedAt = new Date(),
@@ -413,6 +423,7 @@ function PhotoField({
   photoUri: string;
   scale: number;
   kicker: string;
+  metricUnit: string;
   verified: boolean;
   completedCount?: number;
   capturedAt?: Date;
@@ -438,6 +449,7 @@ function PhotoField({
             completedCount={completedCount}
             currentStreakDays={currentStreakDays}
             kicker={kicker}
+            metricUnit={metricUnit}
             scale={scale}
             stamp={stamp}
           />
@@ -454,12 +466,14 @@ function PhotoRepsHero({
   completedCount,
   currentStreakDays,
   kicker,
+  metricUnit,
   scale,
   stamp,
 }: {
   completedCount: number;
   currentStreakDays: number;
   kicker: string;
+  metricUnit: string;
   scale: number;
   stamp: string;
 }) {
@@ -494,7 +508,7 @@ function PhotoRepsHero({
             { fontSize: designSize.heroUnit * scale },
           ]}
         >
-          push-ups
+          {metricUnit}
         </Text>
       </View>
       <Text

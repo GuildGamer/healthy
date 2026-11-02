@@ -23,6 +23,7 @@ import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { SUCCESS_COPY } from './constants/success-copy';
 import { friendChallengeSpec } from './friend-challenge';
 import { nextGoalLadderOffer, type GoalLadderOffer } from './goal-ladder';
+import { poseShareCopy } from './pose-share-copy';
 import { ProofClipHero, ProofClipPrimaryRow } from './ProofClipActions';
 import { posterForSuccess, type SuccessFace } from './success-poster';
 import { posterRunLine } from './share-poster';
@@ -286,12 +287,14 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
           streakDays,
         })
       : null;
+  const pose = poseShareCopy(activityKey ?? matchMetric);
   const poster = posterForSuccess({
     title,
     face: successFace({ face, completedCount, matchMetric, minutes, glasses }),
     count: completedCount,
     minutes,
     glasses,
+    metric: pose.metric,
   });
   const showMembershipLink =
     friend.isReady && !(me?.hasMembership ?? false) && !isMatch && !practice && !friend.isOffered;
@@ -318,6 +321,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
           <GoalLadderPrompt
             challengeId={challengeId}
             currentTarget={targetCount ?? 0}
+            metricUnit={pose.unit}
             offer={ladderOffer}
             onDismiss={() => setLadderDismissed(true)}
             streakDays={streakDays}
@@ -382,12 +386,14 @@ function ClipFinishActions({
 function GoalLadderPrompt({
   challengeId,
   currentTarget,
+  metricUnit,
   offer,
   streakDays,
   onDismiss,
 }: {
   challengeId: string;
   currentTarget: number;
+  metricUnit: string;
   offer: GoalLadderOffer;
   streakDays: number;
   onDismiss: () => void;
@@ -435,7 +441,9 @@ function GoalLadderPrompt({
 
   return (
     <View style={styles.ladderBlock} testID="goal-ladder-offer">
-      <Text style={styles.actionPrompt}>{SUCCESS_COPY.goalLadderPrompt(offer.nextTarget)}</Text>
+      <Text style={styles.actionPrompt}>
+        {SUCCESS_COPY.goalLadderPrompt(offer.nextTarget, metricUnit)}
+      </Text>
       <DeckButton
         label={SUCCESS_COPY.goalLadderAccept(offer.nextTarget)}
         loading={updateEnrollment.isPending}

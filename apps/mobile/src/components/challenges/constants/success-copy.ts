@@ -15,7 +15,8 @@ export const SUCCESS_COPY = {
   unlockMembership: 'Unlock membership',
   photoCheckMissed: 'Photo check missed',
   penaltyLine: 'points were deducted. Tomorrow is a fresh start.',
-  goalLadderPrompt: (nextTarget: number) => `Ready for ${nextTarget} push-ups?`,
+  goalLadderPrompt: (nextTarget: number, metricUnit: string) =>
+    `Ready for ${nextTarget} ${metricUnit}?`,
   goalLadderAccept: (nextTarget: number) => `Yes. Make it ${nextTarget}`,
   goalLadderDecline: 'Not now',
 } as const;

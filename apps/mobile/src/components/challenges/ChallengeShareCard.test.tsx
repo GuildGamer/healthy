@@ -135,6 +135,23 @@ describe('ChallengeShareCard', () => {
     expect(screen.queryByText('+0')).toBeNull();
   });
 
+  it('names the unit from the exercise metric', () => {
+    render(
+      <ChallengeShareCard
+        capturedAt={capturedAt}
+        completedCount={50}
+        currentStreakDays={2}
+        metric="squats"
+        pointsAwarded={150}
+        title="Do 50 squats"
+      />,
+    );
+
+    expect(screen.getByText('50')).toBeOnTheScreen();
+    expect(screen.getByText('squats')).toBeOnTheScreen();
+    expect(screen.queryByText('push-ups')).toBeNull();
+  });
+
   it('makes the push-up count the photo hero, with streak and stamp under it', () => {
     render(
       <ChallengeShareCard

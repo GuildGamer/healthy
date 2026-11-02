@@ -7,6 +7,15 @@ describe('posterForSuccess', () => {
     expect(
       posterForSuccess({ title: 'Do 20 push-ups', face: 'reps', count: 22, when }),
     ).toMatchObject({ kind: 'strength', value: '22', unit: 'push-ups' });
+    expect(
+      posterForSuccess({
+        title: 'Do 50 squats',
+        face: 'reps',
+        count: 50,
+        metric: 'squats',
+        when,
+      }),
+    ).toMatchObject({ kind: 'strength', value: '50', unit: 'squats' });
 
     expect(
       posterForSuccess({ title: 'Morning walk', face: 'minutes', minutes: 20, when }),

@@ -1,5 +1,6 @@
 import type { DeckCardKind } from '@/components/deck';
 import { formatClockTime } from '@/lib/clock-time';
+import { poseShareCopy } from './pose-share-copy';
 import type { SharePoster } from './types/share-poster';
 
 /** How a just-finished challenge should read on the share card. */
@@ -24,13 +25,15 @@ export function posterForSuccess(input: {
   count?: number;
   minutes?: number;
   glasses?: number;
+  /** Camera exercise metric; names the unit under a reps hero. */
+  metric?: string | null;
   when?: Date;
 }): SharePoster {
   const when = input.when ?? new Date();
   const whenIso = when.toISOString();
 
   if (input.face === 'reps' && (input.count ?? 0) > 0) {
-    return card(input.title, 'reps', String(input.count), 'push-ups', whenIso);
+    return card(input.title, 'reps', String(input.count), poseShareCopy(input.metric).unit, whenIso);
   }
 
   if (input.face === 'minutes' && (input.minutes ?? 0) > 0) {

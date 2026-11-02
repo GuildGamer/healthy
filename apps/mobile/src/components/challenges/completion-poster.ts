@@ -12,6 +12,7 @@ import { isPoseMetric } from '@product/contract/match-board';
 import { deckCardKindFor } from '@/components/deck';
 import { formatClockTime } from '@/lib/clock-time';
 import { friendSourceForCompletion, shareFriendParams } from './friend-challenge';
+import { poseShareCopy } from './pose-share-copy';
 import { sharePosterParams } from './share-poster';
 import type { SharePoster } from './types/share-poster';
 
@@ -150,7 +151,7 @@ function measuredPoster(input: PosterInput): SharePoster | null {
   }
 
   if (share.kind === 'reps') {
-    return poster(input, String(share.count), 'push-ups');
+    return poster(input, String(share.count), poseShareCopy(input.mark.capture.metric).unit);
   }
 
   if (share.kind === 'minutes') {

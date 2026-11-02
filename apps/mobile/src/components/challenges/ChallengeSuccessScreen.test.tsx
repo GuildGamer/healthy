@@ -397,6 +397,23 @@ describe('ChallengeSuccessScreen goal ladder', () => {
     expect(screen.getByText('Ready for 8 push-ups?')).toBeOnTheScreen();
   });
 
+  it('names the ladder goal in the exercise unit', async () => {
+    renderSuccess({
+      activityKey: 'squats',
+      challengeId: 'c-squats',
+      currentStreakDays: 3,
+      targetCount: 5,
+      completedCount: 5,
+      title: 'Do 5 squats',
+      userChallengeId: 'uc-squats',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('goal-ladder-offer')).toBeOnTheScreen();
+    });
+    expect(screen.getByText('Ready for 8 squats?')).toBeOnTheScreen();
+  });
+
   it('hides the ladder for practice, matches, custom goals, and off-gate streaks', () => {
     const { unmount: unmountPractice } = renderSuccess({
       activityKey: 'pushups',

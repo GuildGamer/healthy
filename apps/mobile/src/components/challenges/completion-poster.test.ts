@@ -49,6 +49,21 @@ describe('posterForDoneItem', () => {
     expect(
       posterForDoneItem(
         done({
+          title: 'Do 50 squats',
+          capture: {
+            ...mark.capture,
+            kind: 'device_session',
+            metric: 'squats',
+            target: { ...mark.capture.target, count: 50 },
+          },
+          share: { kind: 'reps', count: 50 },
+        }),
+      ),
+    ).toMatchObject({ kind: 'gym', label: 'Do 50 squats', value: '50', unit: 'squats' });
+
+    expect(
+      posterForDoneItem(
+        done({
           capture: { ...mark.capture, kind: 'device_session', metric: 'walk' },
           share: { kind: 'minutes', minutes: 20 },
         }),

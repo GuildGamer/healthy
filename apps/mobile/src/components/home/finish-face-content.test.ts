@@ -42,7 +42,18 @@ describe('finishFaceContent', () => {
 
   it('puts the reps in big type, says how they were counted, and offers a poster', () => {
     const content = finishFaceContent(
-      finish({ outcome: { kind: 'reps', count: 22, durationSeconds: 41 }, pointsAwarded: 150 }),
+      finish({
+        challenge: todayChallenge({
+          title: 'Do 20 push-ups',
+          capture: {
+            kind: 'device_session',
+            metric: 'pushups',
+            target: { durationMinutes: null, distanceMeters: null, count: 20 },
+          },
+        }),
+        outcome: { kind: 'reps', count: 22, durationSeconds: 41 },
+        pointsAwarded: 150,
+      }),
       'strength',
     );
 
@@ -59,13 +70,70 @@ describe('finishFaceContent', () => {
     });
   });
 
+  it('names squats and plank from the challenge metric', () => {
+    const squats = finishFaceContent(
+      finish({
+        challenge: todayChallenge({
+          title: 'Do 50 squats',
+          capture: {
+            kind: 'device_session',
+            metric: 'squats',
+            target: { durationMinutes: null, distanceMeters: null, count: 50 },
+          },
+        }),
+        outcome: { kind: 'reps', count: 50, durationSeconds: 90 },
+        pointsAwarded: 150,
+      }),
+      'gym',
+    );
+    expect(squats.headline).toEqual({ kind: 'measure', value: '50', of: 'squats in 90 s' });
+    expect(squats.poster).toEqual({
+      kind: 'gym',
+      label: 'Squats',
+      value: '50',
+      unit: 'squats, counted by camera',
+    });
+
+    const plank = finishFaceContent(
+      finish({
+        challenge: todayChallenge({
+          title: 'Hold a plank',
+          capture: {
+            kind: 'device_session',
+            metric: 'plank',
+            target: { durationMinutes: null, distanceMeters: null, count: 60 },
+          },
+        }),
+        outcome: { kind: 'reps', count: 60, durationSeconds: 60 },
+        pointsAwarded: 150,
+      }),
+      'mobility',
+    );
+    expect(plank.headline).toEqual({ kind: 'measure', value: '60', of: 'seconds in 60 s' });
+    expect(plank.poster).toMatchObject({
+      label: 'Plank',
+      unit: 'seconds, counted by camera',
+    });
+  });
+
   it('labels an extra set and says plainly it earns nothing', () => {
     const content = finishFaceContent(
-      finish({ outcome: { kind: 'extraSet', count: 15 }, pointsAwarded: 0 }),
+      finish({
+        challenge: todayChallenge({
+          capture: {
+            kind: 'device_session',
+            metric: 'squats',
+            target: { durationMinutes: null, distanceMeters: null, count: 20 },
+          },
+        }),
+        outcome: { kind: 'extraSet', count: 15 },
+        pointsAwarded: 0,
+      }),
       'strength',
     );
 
     expect(content.eyebrowLabel).toBe('Extra set');
+    expect(content.headline).toEqual({ kind: 'measure', value: '15', of: 'more squats' });
     expect(content.proof?.line).toBe('Saved to your history · no points');
   });
 

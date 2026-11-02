@@ -50,6 +50,8 @@ export {
   resolveChallengeAct,
 } from './challenge-act';
 export type { ChallengeActKind } from './challenge-act';
+export { poseShareCopy } from './pose-share-copy';
+export type { PoseShareCopy } from './pose-share-copy';
 export { useActOnChallenge } from './useActOnChallenge';
 export { useCompleteChallenge } from './useCompleteChallenge';
 export { useWaterGlasses } from './useWaterGlasses';

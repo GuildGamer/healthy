@@ -1,3 +1,4 @@
+import { poseShareCopy } from '@/components/challenges/pose-share-copy';
 import type { SharePoster } from '@/components/challenges/types/share-poster';
 import type { DeckCardKind, DoneFaceHeadline, DoneFaceProof } from '@/components/deck';
 import type { ChallengeFinish, ChallengeFinishOutcome } from '@/lib/challenge-finish-session';
@@ -48,21 +49,23 @@ function measuredFace(finish: ChallengeFinish, kind: DeckCardKind): FinishFaceCo
 
   if (outcome.kind === 'reps') {
     const value = String(outcome.count);
+    const pose = poseShareCopy(finish.challenge.capture.metric);
     return {
       eyebrowLabel: null,
-      headline: { kind: 'measure', value, of: `push-ups in ${outcome.durationSeconds} s` },
+      headline: { kind: 'measure', value, of: `${pose.unit} in ${outcome.durationSeconds} s` },
       proof: { glyph: 'camera', line: joinLine([FINISH_COPY.countedByCamera, points]) },
-      poster: { kind, label: FINISH_COPY.pushups, value, unit: FINISH_COPY.repsUnit },
+      poster: { kind, label: pose.label, value, unit: pose.countedUnit },
     };
   }
 
   if (outcome.kind === 'extraSet') {
     const value = String(outcome.count);
+    const pose = poseShareCopy(finish.challenge.capture.metric);
     return {
       eyebrowLabel: FINISH_COPY.extraSet,
-      headline: { kind: 'measure', value, of: FINISH_COPY.moreReps },
+      headline: { kind: 'measure', value, of: `more ${pose.unit}` },
       proof: { glyph: 'clock', line: FINISH_COPY.noPoints },
-      poster: { kind, label: FINISH_COPY.pushups, value, unit: FINISH_COPY.repsUnit },
+      poster: { kind, label: pose.label, value, unit: pose.countedUnit },
     };
   }
 
