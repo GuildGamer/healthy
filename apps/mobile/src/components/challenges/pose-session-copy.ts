@@ -8,6 +8,12 @@ export const POSE_TARGET_BADGE = 'Target hit';
 
 export const PRACTICE_SESSION_TITLE = 'Extra set';
 
+/** QuickPose's plank orientation coach, rewritten for the banner. */
+export const POSE_PLANK_SIDE_ON =
+  'Lie on your front. Put the phone beside you so it sees your whole side.';
+
+const QUICKPOSE_PLANK_SIDE_ON = 'get on your front, side on';
+
 /** Side-on for push-ups, plank, sit-ups; front-on for the rest. */
 export function poseCameraPlacement(
   metric: 'pushups' | 'squats' | 'plank' | 'jumping_jacks' | 'burpees' | 'sit_ups' | 'mountain_climbers' | 'lunges' | string,
@@ -76,6 +82,23 @@ export function poseShortLine(input: { count: number; target: number }): string 
   return `${word} short. Take a breather, then go again.`;
 }
 
+/**
+ * Turns known QuickPose form lines into Healthy wording for the banner.
+ * Raw SDK strings still gate the hold timer; this is display-only.
+ */
+export function rewritePoseCoachPrompt(prompt: string): string {
+  const normalized = prompt.trim().toLowerCase();
+  if (normalized === QUICKPOSE_PLANK_SIDE_ON) {
+    return POSE_PLANK_SIDE_ON;
+  }
+
+  if (normalized.includes('front') && normalized.includes('side')) {
+    return POSE_PLANK_SIDE_ON;
+  }
+
+  return prompt;
+}
+
 /** Large on-camera prompt. Framing first, then QuickPose form copy. */
 export function poseCoachBanner(input: {
   tooClose: boolean;
@@ -87,7 +110,7 @@ export function poseCoachBanner(input: {
   }
 
   if (input.coachPrompt) {
-    return input.coachPrompt;
+    return rewritePoseCoachPrompt(input.coachPrompt);
   }
 
   if (!input.bodyInFrame) {

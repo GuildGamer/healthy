@@ -1,12 +1,29 @@
 import {
   POSE_MOVE_INTO_FRAME,
+  POSE_PLANK_SIDE_ON,
   POSE_TARGET_BADGE,
   POSE_TOO_CLOSE,
   poseCoachBanner,
   poseReviewTitle,
   poseShortLine,
   poseTargetBadge,
+  rewritePoseCoachPrompt,
 } from './pose-session-copy';
+
+describe('rewritePoseCoachPrompt', () => {
+  it('rewrites QuickPose’s plank side-on coach into Healthy wording', () => {
+    expect(rewritePoseCoachPrompt('Get on your front, side on')).toBe(POSE_PLANK_SIDE_ON);
+  });
+
+  it('still rewrites slight case and spacing variants via keywords', () => {
+    expect(rewritePoseCoachPrompt('  GET ON YOUR FRONT, SIDE ON  ')).toBe(POSE_PLANK_SIDE_ON);
+    expect(rewritePoseCoachPrompt('Get on your front — side view')).toBe(POSE_PLANK_SIDE_ON);
+  });
+
+  it('leaves unrelated form feedback alone', () => {
+    expect(rewritePoseCoachPrompt('Lower your hips')).toBe('Lower your hips');
+  });
+});
 
 describe('poseCoachBanner', () => {
   it('tells the user to step back when they overflow the frame', () => {
@@ -19,7 +36,17 @@ describe('poseCoachBanner', () => {
     ).toBe(POSE_TOO_CLOSE);
   });
 
-  it('shows QuickPose form feedback when framing is fine', () => {
+  it('shows rewritten plank coaching when framing is fine', () => {
+    expect(
+      poseCoachBanner({
+        tooClose: false,
+        coachPrompt: 'Get on your front, side on',
+        bodyInFrame: true,
+      }),
+    ).toBe(POSE_PLANK_SIDE_ON);
+  });
+
+  it('shows other QuickPose form feedback unchanged', () => {
     expect(
       poseCoachBanner({
         tooClose: false,
