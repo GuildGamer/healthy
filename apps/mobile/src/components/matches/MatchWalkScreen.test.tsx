@@ -8,6 +8,7 @@ import {
   loadPedometerModule,
   type AccelerometerSample,
 } from '@/lib/device-health';
+import { isWalkLocationTaskReady } from '@/lib/walk-background-location';
 import { MATCH_WALK_TOO_SHORT } from './match-copy';
 import { MatchWalkScreen } from './MatchWalkScreen';
 
@@ -46,10 +47,16 @@ jest.mock('@/lib/device-health', () => ({
   loadPedometerModule: jest.fn(),
 }));
 
+jest.mock('@/lib/walk-background-location', () => ({
+  ...jest.requireActual('@/lib/walk-background-location'),
+  isWalkLocationTaskReady: jest.fn(() => true),
+}));
+
 const mockedApi = apiClient as unknown as { submitMatchAttempt: jest.Mock };
 const mockedLoadLocationModule = loadLocationModule as jest.Mock;
 const mockedLoadAccelerometerModule = loadAccelerometerModule as jest.Mock;
 const mockedLoadPedometerModule = loadPedometerModule as jest.Mock;
+const mockedIsWalkLocationTaskReady = isWalkLocationTaskReady as jest.Mock;
 const requestForegroundPermissionsAsync = jest.fn();
 const requestBackgroundPermissionsAsync = jest.fn();
 const hasStartedLocationUpdatesAsync = jest.fn();
@@ -139,6 +146,7 @@ beforeEach(() => {
   jest.setSystemTime(START_MS);
   stepTotal = 0;
 
+  mockedIsWalkLocationTaskReady.mockReturnValue(true);
   mockedApi.submitMatchAttempt.mockResolvedValue({ ok: true });
   mockedLoadLocationModule.mockResolvedValue(locationModule);
   requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
@@ -265,6 +273,33 @@ describe('MatchWalkScreen', () => {
 
     expect(await screen.findByTestId('match-walk-start')).toBeOnTheScreen();
     expect(screen.queryByTestId('match-walk-log')).toBeNull();
+
+    await cleanup();
+  });
+
+  // Stale Android binaries lack the task manager / foreground-service entries.
+  // Starting the service there can kill the process; foreground watch is enough.
+  it('records on the foreground watch when the background task is unavailable', async () => {
+    mockedIsWalkLocationTaskReady.mockReturnValue(false);
+    const { cleanup } = renderScreen();
+
+    await startWalk();
+    await walkFor(70);
+
+    expect(requestBackgroundPermissionsAsync).not.toHaveBeenCalled();
+    expect(startLocationUpdatesAsync).not.toHaveBeenCalled();
+    expect(watchPositionAsync).toHaveBeenCalled();
+
+    fireEvent.press(screen.getByTestId('match-walk-stop'));
+
+    await waitFor(() => {
+      expect(mockedApi.submitMatchAttempt).toHaveBeenCalledWith({
+        matchId: 'm1',
+        count: 1,
+        durationSeconds: 70,
+        source: 'in_app_walk',
+      });
+    });
 
     await cleanup();
   });

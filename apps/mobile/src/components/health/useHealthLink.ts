@@ -9,8 +9,8 @@ import {
 const HEALTH_LINK_SAVE_FAILED_MESSAGE = 'We could not save that choice. Try again.';
 
 /**
- * Asks the phone for sleep (Apple Health / Health Connect) plus motion and
- * location, then records one status for this install.
+ * Asks the phone for sleep and workouts (Apple Health / Health Connect) plus
+ * motion and location, then records one status for this install.
  */
 export function useHealthLink({ onSaved }: { onSaved?: () => void } = {}) {
   const queryClient = useQueryClient();

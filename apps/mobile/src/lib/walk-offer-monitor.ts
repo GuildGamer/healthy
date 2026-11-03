@@ -1,7 +1,10 @@
 import { WALK_OFFER_FOREGROUND_SERVICE } from '@/lib/walk-offer-copy';
 import type { OpenWalkOfferGoal } from '@/lib/walk-offer-goal';
 import { ingestWalkOfferFixes, setWalkOfferAfterPrompt } from '@/lib/walk-offer-ingest';
-import { WALK_OFFER_LOCATION_TASK } from '@/lib/walk-offer-location';
+import {
+  WALK_OFFER_LOCATION_TASK,
+  isWalkOfferLocationTaskReady,
+} from '@/lib/walk-offer-location';
 import {
   clearWalkOfferSession,
   ensureWalkOfferSession,
@@ -50,7 +53,7 @@ function stopForegroundWatch(): void {
 }
 
 async function startBackgroundUpdates(location: LocationModule): Promise<boolean> {
-  if (!location.startLocationUpdatesAsync) {
+  if (!isWalkOfferLocationTaskReady() || !location.startLocationUpdatesAsync) {
     return false;
   }
 

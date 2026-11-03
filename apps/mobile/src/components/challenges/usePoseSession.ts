@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ComponentType, useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import type { ProofRecordingConfig } from 'quickpose-camera';
+import { isPoseCameraAvailable, type ProofRecordingConfig } from 'quickpose-camera';
 import { MATCH_DEFAULT_METRIC, MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
 import { announceChallengeFinish } from '@/lib/challenge-finish-session';
@@ -47,6 +47,8 @@ export type QuickPoseCameraProps = {
 
 const LIVE_CAMERA_NOT_READY = 'Live camera is not ready yet. Wait a moment and try again.';
 const PHONE_ONLY = 'Camera counting needs the Healthy phone app.';
+/** Stale binary: JS would mount a stub native view and crash. */
+export const POSE_CAMERA_NEEDS_UPDATE = 'Update Healthy to count reps on this phone.';
 
 function useQuickPoseCamera() {
   const [camera, setCamera] = useState<ComponentType<QuickPoseCameraProps> | null>(null);
@@ -60,6 +62,11 @@ function useQuickPoseCamera() {
 
     if (!QUICKPOSE_SDK_KEY) {
       setDetail('Live counting needs a QuickPose SDK key configured for this build.');
+      return;
+    }
+
+    if (!isPoseCameraAvailable()) {
+      setDetail(POSE_CAMERA_NEEDS_UPDATE);
       return;
     }
 

@@ -40,9 +40,9 @@ export function ConnectHealthSheet({
       <View style={styles.content}>
         <Text style={styles.title}>Movement & sleep</Text>
         <Text style={styles.body}>
-          Allow motion, location, and sleep so this phone can count steps, record walks, and offer
-          last night’s sleep from Apple Health or Health Connect. If you wear a watch, keep that
-          store connected so workouts and sleep can appear here.
+          Allow motion, location, workouts, and sleep so this phone can count steps, offer walks
+          you already tracked on a watch or fitness app, and show last night’s sleep from Apple
+          Health or Health Connect.
         </Text>
         <Text style={styles.body}>
           We only read workouts, steps, sleep, and the route you start in the app. You confirm

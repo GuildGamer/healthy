@@ -36,8 +36,9 @@ export function MovementScreen() {
           Count walks and sleep for you.
         </Text>
         <Text style={styles.sub}>
-          Allow motion, location, and sleep so this phone can count steps, record walks you start,
-          and offer last night’s sleep from Apple Health or Health Connect.
+          Allow motion, location, workouts, and sleep so this phone can count steps, offer walks
+          you already tracked elsewhere, and show last night’s sleep from Apple Health or Health
+          Connect.
         </Text>
       </View>
       {healthLink.errorMessage ? (

@@ -96,12 +96,15 @@ jest.mock('@kingstinct/react-native-healthkit', () => ({
   isHealthDataAvailableAsync: jest.fn(async () => false),
   requestAuthorization: jest.fn(async () => true),
   queryCategorySamples: jest.fn(async () => []),
+  queryWorkoutSamples: jest.fn(async () => []),
+  WorkoutActivityType: { walking: 52, hiking: 24, running: 37 },
 }));
 
 jest.mock('react-native-health-connect', () => ({
   initialize: jest.fn(async () => false),
   requestPermission: jest.fn(async () => []),
   readRecords: jest.fn(async () => ({ records: [] })),
+  ExerciseType: { WALKING: 79, HIKING: 37 },
 }));
 
 jest.mock('react-native-maps', () => {
@@ -194,6 +197,7 @@ jest.mock('quickpose-camera', () => {
   return {
     QuickPoseCameraView: MockQuickPoseCameraView,
     proofClipsDirectoryUri: jest.fn(() => null),
+    isPoseCameraAvailable: jest.fn(() => true),
     canRecordProofClips: jest.fn(() => true),
   };
 });

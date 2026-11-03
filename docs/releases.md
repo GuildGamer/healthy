@@ -16,16 +16,30 @@ Configured in `apps/mobile/eas.json`:
 
 ```bash
 cd apps/mobile
-eas update --branch preview --message "describe change"
+eas update --channel preview --message "describe change"
 ```
 
-Ship JS/asset changes over the air via EAS Update. Native dependency, permission, or SDK changes require a new store/build cycle.
+Ship JS/asset changes over the air via EAS Update. `runtimeVersion` uses the
+`fingerprint` policy in `app.config.ts`, so an update only reaches binaries
+whose native tree matches. Native dependency, permission, config-plugin, or
+local-module changes need a new store/build cycle; after that build, publish a
+fresh update for the new fingerprint.
 
-Native modules such as `expo-iap`, `expo-store-review`, `expo-splash-screen`, `expo-video`, `expo-media-library`, `@kingstinct/react-native-healthkit`, and `react-native-health-connect` are not present until you rebuild the development / preview / production binary (`make ios` / `make android`, or `eas build`). A JS-only EAS Update will not link them — stale installs fail closed instead of crashing.
+Older installs built under the previous `appVersion` policy still report
+runtime `1.0.0`. To push a JS safety net to them (for example guards that skip
+missing native modules instead of crashing), publish once with an explicit
+runtime:
+
+```bash
+cd apps/mobile
+eas update --channel production --runtime-version 1.0.0 --message "Guard stale native camera and walk service"
+```
+
+Native modules such as `expo-iap`, `expo-store-review`, `expo-splash-screen`, `expo-video`, `expo-media-library`, `@kingstinct/react-native-healthkit`, `react-native-health-connect`, and `quickpose-camera` are not present until you rebuild the development / preview / production binary (`make ios` / `make android`, or `eas build`). A JS-only EAS Update will not link them — stale installs should fail closed (update prompt / foreground-only walk) instead of crashing.
 
 **Proof clip playback and Save to Photos** need a store/dev-client build: `expo-video` and `expo-media-library` are native, and iOS needs `NSPhotoLibraryAddUsageDescription`. Do not ship that lane as an OTA-only change.
 
-**Sleep from Apple Health / Health Connect** is a store-build change: new native modules, HealthKit entitlement + usage strings on iOS, and Health Connect sleep permission on Android. Ship a new binary; do not rely on OTA for that release. App Store / Play privacy nutrition labels must list Sleep as a collected health type (read-only; Healthy never writes to the health store).
+**Sleep and walk workouts from Apple Health / Health Connect** are store-build changes: HealthKit entitlement + usage strings on iOS, and Health Connect sleep + exercise permissions on Android. Ship a new binary when those permissions or usage strings change; do not rely on OTA. App Store / Play privacy nutrition labels must list Sleep and Workouts / Exercise as collected health types (read-only; Healthy never writes to the health store).
 
 **Android push and camera counting** are build-time too. Push tokens need Firebase: create an EAS `file` variable `GOOGLE_SERVICES_JSON` with the `google-services.json` for `com.healthyapp.app`, and upload the FCM V1 service-account key under `eas credentials -p android` → Push Notifications. Without the file the build succeeds but Android gets no reminders. QuickPose counting and proof clips on Android ship in the binary (the `quickpose-camera` module), and the QuickPose key must be enabled for the Android package.
 

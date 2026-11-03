@@ -3,6 +3,9 @@ import { View } from 'react-native';
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { PoseSessionScreen } from './PoseSessionScreen';
 
+/** Mirrors `POSE_CAMERA_NEEDS_UPDATE` in usePoseSession (mocked below). */
+const POSE_CAMERA_NEEDS_UPDATE = 'Update Healthy to count reps on this phone.';
+
 const testSafeAreaMetrics: Metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
@@ -177,5 +180,27 @@ describe('PoseSessionScreen proof surfaces', () => {
 
     expect(screen.queryByTestId('proof-record-chip')).toBeNull();
     expect(screen.getByTestId('start-pose')).toBeOnTheScreen();
+  });
+
+  it('shows an update prompt and never mounts the camera on a stale binary', () => {
+    mockSession.mockReturnValue(
+      baseSession({
+        phase: 'setup',
+        camera: {
+          QuickPoseCamera: null,
+          isReady: false,
+          detail: POSE_CAMERA_NEEDS_UPDATE,
+        },
+        canRecordProof: false,
+        recordProof: false,
+        proofStatus: 'off',
+        proofRecording: null,
+      }),
+    );
+
+    renderScreen();
+
+    expect(screen.queryByTestId('qp-camera')).toBeNull();
+    expect(screen.getAllByText(POSE_CAMERA_NEEDS_UPDATE).length).toBeGreaterThan(0);
   });
 });

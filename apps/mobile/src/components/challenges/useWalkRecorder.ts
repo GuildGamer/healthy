@@ -13,6 +13,7 @@ import {
 import { haversineMeters, pathDistanceMeters, type GeoPoint } from '@/lib/geo-session';
 import {
   WALK_LOCATION_TASK,
+  isWalkLocationTaskReady,
   setWalkLocationListener,
   type WalkLocationFix,
 } from '@/lib/walk-background-location';
@@ -330,12 +331,19 @@ export function useWalkRecorder(): WalkRecorder {
       await disarmWalkOfferMonitor();
 
       // Background is what keeps the walk measuring after the phone locks.
-      // When the walker refuses it, fall back to a foreground watch so a walk
-      // with the app open still works.
-      const background = location.requestBackgroundPermissionsAsync
-        ? await location.requestBackgroundPermissionsAsync()
-        : { status: 'denied' };
-      const canBackground = background.status === location.PermissionStatus.GRANTED;
+      // When the walker refuses it, or this binary has no task manager /
+      // foreground-service entries, fall back to a foreground watch so a walk
+      // with the app open still works. Starting the service on a stale binary
+      // can throw a native SecurityException that JS try/catch cannot catch.
+      let canBackground = false;
+      if (isWalkLocationTaskReady() && location.requestBackgroundPermissionsAsync) {
+        try {
+          const background = await location.requestBackgroundPermissionsAsync();
+          canBackground = background.status === location.PermissionStatus.GRANTED;
+        } catch {
+          canBackground = false;
+        }
+      }
 
       await beforeRecording?.();
 

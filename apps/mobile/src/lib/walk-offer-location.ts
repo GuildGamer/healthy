@@ -4,6 +4,14 @@ import type { GeoPoint } from '@/lib/geo-session';
 /** Separate from the active walk recorder so both never share a task name. */
 export const WALK_OFFER_LOCATION_TASK = 'healthy-walk-offer';
 
+/** False on binaries without expo-task-manager — offer stays foreground-only. */
+let walkOfferLocationTaskReady = false;
+
+/** True once the walk-offer location task registered in this binary. */
+export function isWalkOfferLocationTaskReady(): boolean {
+  return walkOfferLocationTaskReady;
+}
+
 function toFixes(
   locations: ReadonlyArray<{
     coords: { latitude: number; longitude: number };
@@ -44,6 +52,7 @@ export function defineWalkOfferLocationTask(): void {
     };
 
     if (TaskManager.isTaskDefined(WALK_OFFER_LOCATION_TASK)) {
+      walkOfferLocationTaskReady = true;
       return;
     }
 
@@ -54,8 +63,10 @@ export function defineWalkOfferLocationTask(): void {
 
       await ingestWalkOfferFixes(toFixes(data.locations));
     });
+    walkOfferLocationTaskReady = true;
   } catch {
-    // Task Manager missing from this binary — offer monitor stays off.
+    // Task Manager missing from this binary — offer monitor stays foreground-only.
+    walkOfferLocationTaskReady = false;
   }
 }
 

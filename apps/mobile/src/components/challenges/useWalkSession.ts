@@ -2,6 +2,7 @@ import type { TodayChallenge } from '@product/client';
 import { activityMeetsTarget, type DeviceActivity } from '@product/contract/challenge-capture';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { apiClient } from '@/lib/api';
 import { listTodayDeviceSamples, type DeviceSample } from '@/lib/device-health';
 import { pathDistanceMeters } from '@/lib/geo-session';
@@ -39,18 +40,32 @@ function useTodaySamples(occurrence: TodayChallenge): DeviceSample[] {
 
   useEffect(() => {
     if (!metric) {
+      setSamples([]);
       return;
     }
 
     let isCancelled = false;
-    void listTodayDeviceSamples(metric).then((found) => {
-      if (!isCancelled) {
-        setSamples(found);
+    const load = () => {
+      void listTodayDeviceSamples(metric).then((found) => {
+        if (!isCancelled) {
+          setSamples(found);
+        }
+      });
+    };
+
+    load();
+
+    // Watch sync can land after the session opens; re-read when the app is active.
+    const onChange = (next: AppStateStatus) => {
+      if (next === 'active') {
+        load();
       }
-    });
+    };
+    const subscription = AppState.addEventListener('change', onChange);
 
     return () => {
       isCancelled = true;
+      subscription.remove();
     };
   }, [metric]);
 

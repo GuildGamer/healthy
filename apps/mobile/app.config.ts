@@ -46,8 +46,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'healthy',
   scheme: 'healthy',
   version: '1.0.0',
+  // Fingerprint changes when native deps, plugins, or modules change, so an
+  // OTA cannot land on a binary that lacks the native code the JS expects.
+  // Stale installs already on store still report appVersion "1.0.0" — publish
+  // their safety-net update with `--runtime-version 1.0.0` before relying on
+  // fingerprint-only channels.
   runtimeVersion: {
-    policy: 'appVersion',
+    policy: 'fingerprint',
   },
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
@@ -128,8 +133,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'ACCESS_COARSE_LOCATION',
       'ACCESS_FINE_LOCATION',
       'ACTIVITY_RECOGNITION',
-      // Health Connect sleep read (declared; runtime grant via the library).
+      // Health Connect reads (declared; runtime grant via the library).
       'android.permission.health.READ_SLEEP',
+      'android.permission.health.READ_EXERCISE',
     ],
     // Plugins add these by default, but Healthy records no audio, and saving
     // clips or picking a profile photo needs no media read access on Android
@@ -253,11 +259,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       '@kingstinct/react-native-healthkit',
       {
         NSHealthShareUsageDescription:
-          'Healthy reads last night’s sleep from Apple Health so you can confirm it in one tap.',
+          'Healthy reads walks and last night’s sleep from Apple Health so you can confirm them in one tap.',
         // Apple still requires this string when the HealthKit entitlement is present,
-        // even though Healthy only reads sleep and never writes to the store.
+        // even though Healthy only reads health data and never writes to the store.
         NSHealthUpdateUsageDescription:
-          'Healthy does not write sleep or other health data to Apple Health.',
+          'Healthy does not write sleep, workouts, or other health data to Apple Health.',
         background: false,
       },
     ],

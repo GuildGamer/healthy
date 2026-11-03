@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
 import {
+  listTodayDeviceSamples,
   loadAccelerometerModule,
   loadLocationModule,
   loadPedometerModule,
@@ -54,6 +55,7 @@ jest.mock('@/lib/device-health', () => ({
   loadLocationModule: jest.fn(),
   loadAccelerometerModule: jest.fn(),
   loadPedometerModule: jest.fn(),
+  listTodayDeviceSamples: jest.fn(async () => []),
 }));
 
 const mockedApi = apiClient as unknown as {
@@ -68,6 +70,7 @@ const mockedApi = apiClient as unknown as {
 const mockedLoadLocationModule = loadLocationModule as jest.Mock;
 const mockedLoadAccelerometerModule = loadAccelerometerModule as jest.Mock;
 const mockedLoadPedometerModule = loadPedometerModule as jest.Mock;
+const mockedListTodayDeviceSamples = listTodayDeviceSamples as jest.Mock;
 const requestForegroundPermissionsAsync = jest.fn();
 const watchPositionAsync = jest.fn();
 const removeWatch = jest.fn();
@@ -314,6 +317,7 @@ beforeEach(() => {
     evidenceRequest: null,
     penaltyApplied: 0,
   });
+  mockedListTodayDeviceSamples.mockResolvedValue([]);
   mockedLoadLocationModule.mockResolvedValue(locationModule);
   requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
   watchPositionAsync.mockResolvedValue({ remove: removeWatch });
@@ -605,6 +609,41 @@ describe('ChallengeSessionScreen walk goal', () => {
     expect(screen.getByTestId('session-goal-tick')).toBeOnTheScreen();
     expect(screen.getByText('Keep going, or finish when you like.')).toBeOnTheScreen();
     expect(screen.getByTestId('stop-session')).toHaveTextContent('Finish walk');
+
+    await cleanup();
+  });
+
+  it('offers a HealthKit walk and completes with that deviceActivity', async () => {
+    const healthSample = {
+      source: 'healthkit' as const,
+      metric: 'walk' as const,
+      durationSeconds: 720,
+      distanceMeters: 1_050,
+      startedAt: '2026-09-22T08:00:00.000Z',
+      endedAt: '2026-09-22T08:12:00.000Z',
+      externalId: 'healthkit:watch-walk-1',
+      label: '12 min walk from Apple Health',
+    };
+    mockedListTodayDeviceSamples.mockResolvedValue([healthSample]);
+
+    const { cleanup } = renderSession();
+
+    expect(await screen.findByTestId('found-sample')).toBeOnTheScreen();
+    expect(screen.getByText(healthSample.label)).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('use-sample'));
+
+    await waitFor(() => {
+      expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
+        userChallengeId: 'uc-walk',
+        deviceActivity: expect.objectContaining({
+          source: 'healthkit',
+          metric: 'walk',
+          durationSeconds: 720,
+          externalId: 'healthkit:watch-walk-1',
+        }),
+      });
+    });
 
     await cleanup();
   });

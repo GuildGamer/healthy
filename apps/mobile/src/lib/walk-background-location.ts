@@ -11,6 +11,8 @@ export type WalkLocationFix = GeoPoint;
 type WalkLocationListener = (fixes: readonly WalkLocationFix[]) => void;
 
 let listener: WalkLocationListener | null = null;
+/** False on binaries without expo-task-manager — skip the foreground service. */
+let walkLocationTaskReady = false;
 
 /**
  * The background task only delivers fixes. The recorder owns distance, the
@@ -18,6 +20,11 @@ let listener: WalkLocationListener | null = null;
  */
 export function setWalkLocationListener(next: WalkLocationListener | null): void {
   listener = next;
+}
+
+/** True once the walk location task registered in this binary. */
+export function isWalkLocationTaskReady(): boolean {
+  return walkLocationTaskReady;
 }
 
 function toFixes(
@@ -55,6 +62,7 @@ export function defineWalkLocationTask(): void {
     };
 
     if (TaskManager.isTaskDefined(WALK_LOCATION_TASK)) {
+      walkLocationTaskReady = true;
       return;
     }
 
@@ -65,8 +73,10 @@ export function defineWalkLocationTask(): void {
 
       listener?.(toFixes(data.locations));
     });
+    walkLocationTaskReady = true;
   } catch {
     // Task Manager is missing from this binary. Foreground walks still work.
+    walkLocationTaskReady = false;
   }
 }
 

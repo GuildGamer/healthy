@@ -73,7 +73,16 @@ export function proofClipsDirectoryUri(): string | null {
   return nativeModule?.proofClipsDirectoryUri || null;
 }
 
+/**
+ * True when this binary ships the real QuickPose camera (exports
+ * `proofClipsDirectoryUri`). Stale Android stubs expose the view manager but
+ * no constants — mounting them with current JS props can crash the app.
+ */
+export function isPoseCameraAvailable(): boolean {
+  return proofClipsDirectoryUri() !== null;
+}
+
 /** Whether this platform's camera view writes proof clips (iOS and Android; not web). */
 export function canRecordProofClips(): boolean {
-  return proofClipsDirectoryUri() !== null;
+  return isPoseCameraAvailable();
 }
