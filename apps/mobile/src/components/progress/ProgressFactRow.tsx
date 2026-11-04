@@ -7,7 +7,7 @@ export type ProgressFact = {
   value: string;
 };
 
-/** Three (or fewer) stats under a period hero — Best day / Days on / Avg. */
+/** Stats under a period hero — wraps when a recap lists several workouts. */
 export function ProgressFactRow({
   facts,
   testID = 'progress-fact-row',
@@ -38,11 +38,14 @@ const createStyles = (_theme: Theme) =>
   StyleSheet.create({
     row: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: spacing.md,
       marginBottom: spacing.xl,
     },
     cell: {
-      flex: 1,
+      flexGrow: 1,
+      flexBasis: '28%',
+      minWidth: 88,
       gap: spacing.xs,
     },
     value: {

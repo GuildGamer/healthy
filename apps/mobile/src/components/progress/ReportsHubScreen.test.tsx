@@ -76,11 +76,32 @@ describe('ReportsHubScreen', () => {
     fireEvent.press(screen.getByTestId('reports-open-metric-walk'));
 
     expect(screen.queryByTestId('reports-open-metric-squats')).toBeNull();
+    expect(screen.queryByTestId('reports-empty-workouts')).toBeNull();
     expect(mockPush.mock.calls.map(([href]) => href)).toEqual([
       '/progress/report?period=week',
       '/progress/metric/pushups?period=week',
       '/progress/metric/walk?period=week',
     ]);
+
+    await cleanup();
+  });
+
+  it('explains when no shareable workouts are enrolled', async () => {
+    mockedApi.listChallengeCatalog.mockResolvedValue({
+      challenges: [
+        {
+          id: 'c-water',
+          title: 'Water',
+          isEnrolled: true,
+          capture: { metric: null },
+        },
+      ],
+    });
+
+    const { cleanup } = renderHub();
+
+    expect(await screen.findByTestId('reports-empty-workouts')).toBeOnTheScreen();
+    expect(screen.queryByTestId('reports-open-metric-pushups')).toBeNull();
 
     await cleanup();
   });

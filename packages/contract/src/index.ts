@@ -1105,6 +1105,7 @@ export {
   MATCH_PRESET_DAYS,
   MATCH_WINDOWS_BY_SCORING_MODE,
   POSE_METRICS,
+  REPORT_STATS_METRICS,
   formatMatchMetricScore,
   isLengthAllowedForScoringMode,
   isPoseMetric,

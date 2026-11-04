@@ -63,18 +63,18 @@ export function periodReportRunLine(report: PeriodReport): string | null {
   return highlightLine(report);
 }
 
-/** Lead metric under the days-active hero — board place needs a richer API later. */
+/** Every measured workout under the days-active hero, in API report order. */
 export function periodReportFacts(report: PeriodReport): ProgressFact[] {
-  const leadLabel = highlightLabel(report);
-  if (!report.highlight || !leadLabel) {
-    return [];
-  }
-  return [
-    {
-      label: leadLabel,
-      value: formatCount(report.highlight.count),
-    },
-  ];
+  const rows = report.metrics.length > 0
+    ? report.metrics
+    : report.highlight
+      ? [report.highlight]
+      : [];
+
+  return rows.map((row) => ({
+    label: isMatchMetric(row.metric) ? MATCH_METRIC_LABEL[row.metric] : row.metric,
+    value: formatCount(row.count),
+  }));
 }
 
 export function periodReportShareText(report: PeriodReport): string {

@@ -41,4 +41,6 @@ export const PROGRESS_COPY = {
   periodOverviewTitle: 'Days active',
   periodOverviewMeta: 'Week, month, or year',
   activityStatsMeta: 'Totals you can share',
+  reportsEmptyWorkouts:
+    'Add a walk or workout on Challenges to see totals here.',
 } as const;

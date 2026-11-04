@@ -1,0 +1,8 @@
+# Firebase config is an EAS file secret. The on-disk path differs locally
+# (e.g. Downloads/…) vs on EAS (eas-environment-secrets/…); hashing either
+# side alone flips the fingerprint runtimeVersion and fails Configure expo-updates.
+# Push config is not native-module surface — omit it from the runtime hash.
+**/eas-environment-secrets/**
+.eas/.env/**
+**/google-services.json
+**/GoogleService-Info.plist

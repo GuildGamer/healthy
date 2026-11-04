@@ -41,7 +41,12 @@ import type {
   PracticeRow,
 } from './types/progress.js';
 import type { DeviceMetric } from '@product/db';
-import type { MetricPeriod, PeriodReportPeriod } from '@product/contract';
+import {
+  REPORT_STATS_METRICS,
+  type MetricPeriod,
+  type PeriodReportPeriod,
+} from '@product/contract';
+import { matchMetricSchema } from '@product/contract/match-board';
 
 type InstantRange = { from: Date; to: Date };
 
@@ -141,12 +146,15 @@ export class ProgressService {
       ...occurrences.filter((row) => row.isRewarded).map((row) => row.dayKey),
       ...this.measuredDayKeysFrom(activity),
     ]).size;
+    const metrics = this.metricsFrom(activity);
+    const highlight = this.highlightFrom(activity) ?? metrics[0] ?? null;
 
     return {
       period,
       periodLabel: window.periodLabel,
       activeDays,
-      highlight: this.highlightFrom(activity),
+      highlight,
+      metrics,
       startDayKey: window.startDayKey,
       endDayKey: window.endDayKey,
     };
@@ -229,9 +237,9 @@ export class ProgressService {
     return days;
   }
 
-  private highlightFrom(
+  private activityTotals(
     activity: { metric: DeviceMetric; count: number | null; durationSeconds: number | null }[],
-  ): PeriodReportDto['highlight'] {
+  ): Map<DeviceMetric, number> {
     const totals = new Map<DeviceMetric, number>();
     for (const row of activity) {
       const amount = sessionAmount(row.metric, row.count, row.durationSeconds);
@@ -240,9 +248,41 @@ export class ProgressService {
       }
       totals.set(row.metric, (totals.get(row.metric) ?? 0) + amount);
     }
+    return totals;
+  }
+
+  /** Every shareable workout with a positive total, in Reports display order. */
+  private metricsFrom(
+    activity: { metric: DeviceMetric; count: number | null; durationSeconds: number | null }[],
+  ): NonNullable<PeriodReportDto['metrics']> {
+    const totals = this.activityTotals(activity);
+    const metrics: NonNullable<PeriodReportDto['metrics']> = [];
+
+    for (const metric of REPORT_STATS_METRICS) {
+      const count = totals.get(metric);
+      if (count === undefined || count <= 0) {
+        continue;
+      }
+      metrics.push({
+        metric,
+        count,
+        unit: metricUnit(metric),
+      });
+    }
+
+    return metrics;
+  }
+
+  private highlightFrom(
+    activity: { metric: DeviceMetric; count: number | null; durationSeconds: number | null }[],
+  ): PeriodReportDto['highlight'] {
+    const totals = this.activityTotals(activity);
 
     let best: { metric: DeviceMetric; count: number } | null = null;
     for (const [metric, count] of totals) {
+      if (!matchMetricSchema.safeParse(metric).success) {
+        continue;
+      }
       if (!best || count > best.count) {
         best = { metric, count };
       }

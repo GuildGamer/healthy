@@ -93,6 +93,10 @@ describe('ProgressService.periodReport', () => {
       count: 60,
       unit: 'push-ups',
     });
+    expect(report.metrics).toEqual([
+      { metric: 'pushups', count: 60, unit: 'push-ups' },
+      { metric: 'walk', count: 10, unit: 'minutes' },
+    ]);
     expect(report.period).toBe('week');
   });
 
@@ -150,6 +154,9 @@ describe('ProgressService.periodReport', () => {
       count: 12,
       unit: 'push-ups',
     });
+    expect(report.metrics).toEqual([
+      { metric: 'pushups', count: 12, unit: 'push-ups' },
+    ]);
   });
 });
 

@@ -1,22 +1,27 @@
 import {
   metricPeriodFacts,
   metricPeriodPoster,
+  periodReportFacts,
   periodReportPoster,
   periodReportRunLine,
 } from './period-posters';
 
+const weekReport = {
+  period: 'week' as const,
+  periodLabel: 'Oct 19–22',
+  activeDays: 6,
+  highlight: { metric: 'pushups' as const, count: 240, unit: 'push-ups' },
+  metrics: [
+    { metric: 'pushups' as const, count: 240, unit: 'push-ups' },
+    { metric: 'walk' as const, count: 45, unit: 'minutes' },
+  ],
+  startDayKey: '2026-10-19',
+  endDayKey: '2026-10-22',
+};
+
 describe('periodReportPoster', () => {
   it('builds a streak poster for the week', () => {
-    expect(
-      periodReportPoster({
-        period: 'week',
-        periodLabel: 'Oct 19–22',
-        activeDays: 6,
-        highlight: { metric: 'pushups', count: 240, unit: 'push-ups' },
-        startDayKey: '2026-10-19',
-        endDayKey: '2026-10-22',
-      }),
-    ).toEqual({
+    expect(periodReportPoster(weekReport)).toEqual({
       kind: 'streak',
       label: 'Week recap',
       value: '6',
@@ -27,16 +32,25 @@ describe('periodReportPoster', () => {
   });
 
   it('puts the highlight on the brand line', () => {
+    expect(periodReportRunLine(weekReport)).toBe('240 push-ups');
+  });
+});
+
+describe('periodReportFacts', () => {
+  it('lists every measured workout from the report metrics', () => {
+    expect(periodReportFacts(weekReport)).toEqual([
+      { label: 'Push-ups', value: '240' },
+      { label: 'Walking', value: '45' },
+    ]);
+  });
+
+  it('falls back to highlight when metrics is empty', () => {
     expect(
-      periodReportRunLine({
-        period: 'week',
-        periodLabel: 'Oct 19–22',
-        activeDays: 6,
-        highlight: { metric: 'pushups', count: 240, unit: 'push-ups' },
-        startDayKey: '2026-10-19',
-        endDayKey: '2026-10-22',
+      periodReportFacts({
+        ...weekReport,
+        metrics: [],
       }),
-    ).toBe('240 push-ups');
+    ).toEqual([{ label: 'Push-ups', value: '240' }]);
   });
 });
 

@@ -157,6 +157,11 @@ export const periodReportSchema = z.object({
   activeDays: z.number().int().nonnegative(),
   /** Strongest measured metric in the window, when any session exists. */
   highlight: periodHighlightMetricSchema.nullable(),
+  /**
+   * Every shareable workout with a positive total in the window, in report
+   * display order. On-screen facts list these; highlight stays the share lead.
+   */
+  metrics: z.array(periodHighlightMetricSchema),
   startDayKey: dayKeySchema,
   endDayKey: dayKeySchema,
 });

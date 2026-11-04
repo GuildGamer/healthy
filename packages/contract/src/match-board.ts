@@ -335,6 +335,22 @@ export const POSE_METRICS = [
   'lunges',
 ] as const satisfies readonly MatchMetric[];
 
+/**
+ * Shareable workout metrics on Reports, in display order. Hub rows and period
+ * recap metric lists both follow this sequence.
+ */
+export const REPORT_STATS_METRICS = [
+  'pushups',
+  'squats',
+  'plank',
+  'jumping_jacks',
+  'burpees',
+  'sit_ups',
+  'mountain_climbers',
+  'lunges',
+  'walk',
+] as const satisfies readonly MatchMetric[];
+
 export function isPoseMetric(metric: string): metric is (typeof POSE_METRICS)[number] {
   return (POSE_METRICS as readonly string[]).includes(metric);
 }

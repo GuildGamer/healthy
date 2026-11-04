@@ -1,10 +1,12 @@
+import { fontSize, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import { type Href, useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { DeckDisc, DeckListRow, DeckPushedPage } from '@/components/deck';
 import { DECK_KIND_BY_METRIC, DECK_KIND_GLYPH } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
 import { enrolledStatsMetrics } from './stats-metrics';
 
@@ -14,6 +16,8 @@ import { enrolledStatsMetrics } from './stats-metrics';
  */
 export function ReportsHubScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const catalogQuery = useQuery({
     queryKey: ['challenges', 'catalog'],
     queryFn: () => apiClient.listChallengeCatalog(),
@@ -54,14 +58,26 @@ export function ReportsHubScreen() {
               />
             );
           })}
+          {metrics.length === 0 ? (
+            <Text style={[styles.empty, { color: colors.muted }]} testID="reports-empty-workouts">
+              {PROGRESS_COPY.reportsEmptyWorkouts}
+            </Text>
+          ) : null}
         </View>
       )}
     </DeckPushedPage>
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    marginTop: 8,
-  },
-});
+const createStyles = (_theme: Theme) =>
+  StyleSheet.create({
+    list: {
+      marginTop: 8,
+    },
+    empty: {
+      fontSize: fontSize.sm,
+      lineHeight: 20,
+      marginTop: spacing.lg,
+      paddingHorizontal: spacing.xs,
+    },
+  });
