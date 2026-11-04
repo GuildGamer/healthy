@@ -1,5 +1,6 @@
 import type { MatchMetric } from '@product/contract/match-board';
 import { isPoseMetric } from '@product/contract/match-board';
+import type { QuickPoseLandmarks } from 'quickpose-camera';
 import type { PushupCounterSnapshot } from './pushup-counter';
 import type { QuickPoseCountState } from './quickpose-threshold-counter';
 
@@ -33,6 +34,8 @@ export const QUICKPOSE_INSIDE_IN_FRAME = 0.95;
 export type QuickPoseExerciseUpdate = {
   results: Record<string, number>;
   feedbacks: Record<string, string>;
+  landmarks?: QuickPoseLandmarks;
+  landmarksAvailable?: boolean;
 };
 
 export function quickPoseFeaturesFor(metric: MatchMetric): readonly string[] {
@@ -123,21 +126,29 @@ export function quickPoseFraming(input: { measure: number | null; insideMeasure:
 
 /**
  * Whether this frame may move the rep counter. Needs a body reading from
- * QuickPose; a finishing half-rep may complete if the body flickers out.
- * The 0.95 green-box line is coaching only — any positive inside score counts.
+ * QuickPose and an accepted stance; a finishing half-rep may complete if the
+ * body/landmarks flicker after a good enter. The 0.95 green-box line is
+ * coaching only — any positive inside score counts once stance is ok.
  */
 export function shouldCountPoseRep(input: {
   measure: number | null;
   insideMeasure: number | null;
   formFeedback: string | null;
   finishingRep: boolean;
+  stanceOk: boolean;
+  /** True if any prior frame in this half-rep had an accepted stance. */
+  finishingStanceOk: boolean;
 }): boolean {
   if (input.measure == null || input.formFeedback != null) {
     return false;
   }
 
   if (input.finishingRep) {
-    return true;
+    return input.finishingStanceOk;
+  }
+
+  if (!input.stanceOk) {
+    return false;
   }
 
   return input.insideMeasure != null && input.insideMeasure > 0;
@@ -148,6 +159,7 @@ export function snapshotFromQuickPose(input: {
   insideMeasure: number | null;
   formFeedback: string | null;
   framingFeedback: string | null;
+  stanceFeedback: string | null;
   counter: QuickPoseCountState;
 }): PushupCounterSnapshot {
   const framing = quickPoseFraming({
@@ -155,7 +167,8 @@ export function snapshotFromQuickPose(input: {
     insideMeasure: input.insideMeasure,
   });
   const downness = input.measure ?? 0;
-  const coachPrompt = input.formFeedback ?? input.framingFeedback;
+  const coachPrompt =
+    input.formFeedback ?? input.framingFeedback ?? input.stanceFeedback;
 
   return {
     count: input.counter.count,

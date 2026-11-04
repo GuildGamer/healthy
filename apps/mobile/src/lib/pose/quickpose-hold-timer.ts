@@ -27,6 +27,8 @@ export function tickHoldTimer(
     measure: number | null;
     bodyInFrame: boolean;
     formFeedback: string | null;
+    /** False when landmarks say this is not a plank stance. */
+    stanceOk: boolean;
     deltaSeconds: number;
   },
 ): QuickPoseHoldState {
@@ -34,6 +36,7 @@ export function tickHoldTimer(
     input.measure == null ||
     !input.bodyInFrame ||
     input.formFeedback ||
+    !input.stanceOk ||
     input.deltaSeconds <= 0
   ) {
     return { ...state, isHolding: false, fraction: 0 };

@@ -76,6 +76,8 @@ export function QuickPoseExerciseCamera({
         onUpdate({
           results: event.nativeEvent.results,
           feedbacks: event.nativeEvent.feedbacks,
+          landmarks: event.nativeEvent.landmarks,
+          landmarksAvailable: event.nativeEvent.landmarksAvailable === true,
         });
       }}
       finishProofEndAtMs={finishProofEndAtMs}

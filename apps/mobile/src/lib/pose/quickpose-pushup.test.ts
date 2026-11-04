@@ -11,6 +11,7 @@ describe('snapshotFromQuickPose', () => {
       insideMeasure: 1,
       formFeedback: null,
       framingFeedback: null,
+      stanceFeedback: null,
       counter: { type: 'poseEntered', count: 3, isEntered: true },
     });
 
@@ -27,11 +28,25 @@ describe('snapshotFromQuickPose', () => {
       insideMeasure: 1,
       formFeedback: 'Lower your hips',
       framingFeedback: 'Move into the box',
+      stanceFeedback: 'Get into position',
       counter: { type: 'poseComplete', count: 1, isEntered: false },
     });
 
     expect(snapshot.coachPrompt).toBe('Lower your hips');
     expect(snapshot.phase).toBe('up');
+  });
+
+  it('surfaces stance feedback when form and framing are quiet', () => {
+    const snapshot = snapshotFromQuickPose({
+      measure: 0.5,
+      insideMeasure: 1,
+      formFeedback: null,
+      framingFeedback: null,
+      stanceFeedback: 'Get into position',
+      counter: { type: 'poseComplete', count: 0, isEntered: false },
+    });
+
+    expect(snapshot.coachPrompt).toBe('Get into position');
   });
 
   it('flags a body that overflows the framing box as too close', () => {
@@ -40,6 +55,7 @@ describe('snapshotFromQuickPose', () => {
       insideMeasure: 0.6,
       formFeedback: null,
       framingFeedback: 'Move whole body into the box',
+      stanceFeedback: null,
       counter: { type: 'poseComplete', count: 0, isEntered: false },
     });
 
@@ -77,6 +93,8 @@ describe('shouldCountPoseRep', () => {
         insideMeasure: null,
         formFeedback: null,
         finishingRep: false,
+        stanceOk: true,
+        finishingStanceOk: true,
       }),
     ).toBe(false);
   });
@@ -88,19 +106,49 @@ describe('shouldCountPoseRep', () => {
         insideMeasure: 0.4,
         formFeedback: null,
         finishingRep: false,
+        stanceOk: true,
+        finishingStanceOk: true,
       }),
     ).toBe(true);
   });
 
-  it('lets a finishing rep complete if the body reading flickers out', () => {
+  it('blocks when stance is rejected', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.9,
+        insideMeasure: 1,
+        formFeedback: null,
+        finishingRep: false,
+        stanceOk: false,
+        finishingStanceOk: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('lets a finishing rep complete if the body reading flickers out after a good stance', () => {
     expect(
       shouldCountPoseRep({
         measure: 0.2,
         insideMeasure: null,
         formFeedback: null,
         finishingRep: true,
+        stanceOk: false,
+        finishingStanceOk: true,
       }),
     ).toBe(true);
+  });
+
+  it('does not finish a rep that never had an accepted stance', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.2,
+        insideMeasure: 1,
+        formFeedback: null,
+        finishingRep: true,
+        stanceOk: false,
+        finishingStanceOk: false,
+      }),
+    ).toBe(false);
   });
 
   it('blocks form feedback', () => {
@@ -110,6 +158,8 @@ describe('shouldCountPoseRep', () => {
         insideMeasure: 1,
         formFeedback: 'Lower your hips',
         finishingRep: false,
+        stanceOk: true,
+        finishingStanceOk: true,
       }),
     ).toBe(false);
   });

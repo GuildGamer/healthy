@@ -119,15 +119,14 @@ final class HealthyQuickPoseView: ExpoView {
     frameTap = tap
     attachPreview(from: cam)
 
-    // Fifth argument is QuickPose landmarks. Shape confirmed on device in the
-    // recording spike; phase 5 skeleton replay will consume it once typed.
-    qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, _ in
+    qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, landmarks in
       DispatchQueue.main.async {
         self?.publishFrame(
           status: status,
           image: image,
           featureResults: featureResults,
-          feedback: feedback
+          feedback: feedback,
+          landmarks: landmarks
         )
       }
     })
@@ -140,7 +139,8 @@ final class HealthyQuickPoseView: ExpoView {
     status: QuickPose.Status,
     image: UIImage?,
     featureResults: [QuickPose.Feature: QuickPose.FeatureResult],
-    feedback: [QuickPose.Feature: QuickPose.PoseFeedback]
+    feedback: [QuickPose.Feature: QuickPose.PoseFeedback],
+    landmarks: QuickPose.Landmarks?
   ) {
     overlayView.image = image
 
@@ -160,10 +160,50 @@ final class HealthyQuickPoseView: ExpoView {
         feedbacks[key] = prompt
       }
     }
+    let landmarkMap = Self.landmarksPayload(landmarks)
     onUpdate([
       "results": results,
       "feedbacks": feedbacks,
+      "landmarks": landmarkMap,
+      "landmarksAvailable": landmarks != nil,
     ])
+  }
+
+  /// Compact joint map for JS stance gates. Missing / low-visibility joints are omitted.
+  private static let landmarkMinVisibility = 0.2
+  private static let landmarkJoints: [(String, QuickPose.Landmarks.Body)] = [
+    ("nose", .nose),
+    ("leftShoulder", .shoulder(side: .left)),
+    ("rightShoulder", .shoulder(side: .right)),
+    ("leftElbow", .elbow(side: .left)),
+    ("rightElbow", .elbow(side: .right)),
+    ("leftWrist", .wrist(side: .left)),
+    ("rightWrist", .wrist(side: .right)),
+    ("leftHip", .hip(side: .left)),
+    ("rightHip", .hip(side: .right)),
+    ("leftKnee", .knee(side: .left)),
+    ("rightKnee", .knee(side: .right)),
+    ("leftAnkle", .ankle(side: .left)),
+    ("rightAnkle", .ankle(side: .right)),
+  ]
+
+  private static func landmarksPayload(
+    _ landmarks: QuickPose.Landmarks?
+  ) -> [String: [String: Double]] {
+    guard let landmarks else { return [:] }
+    var out: [String: [String: Double]] = [:]
+    for (key, joint) in landmarkJoints {
+      let point = landmarks.landmark(forBody: joint)
+      if point.visibility < landmarkMinVisibility {
+        continue
+      }
+      out[key] = [
+        "x": point.x,
+        "y": point.y,
+        "score": point.visibility,
+      ]
+    }
+    return out
   }
 
   private func syncProofRecording() {

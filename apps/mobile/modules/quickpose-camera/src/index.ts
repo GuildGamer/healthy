@@ -2,11 +2,40 @@ import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modu
 import type { ComponentType } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 
+/** One joint from the native landmark bridge (normalized 0–1 image space). */
+export type QuickPoseLandmarkPoint = {
+  x: number;
+  y: number;
+  /** Visibility / confidence when the SDK provides it; JS defaults to 1. */
+  score?: number;
+};
+
+export type QuickPoseLandmarks = Partial<
+  Record<
+    | 'nose'
+    | 'leftShoulder'
+    | 'rightShoulder'
+    | 'leftElbow'
+    | 'rightElbow'
+    | 'leftWrist'
+    | 'rightWrist'
+    | 'leftHip'
+    | 'rightHip'
+    | 'leftKnee'
+    | 'rightKnee'
+    | 'leftAnkle'
+    | 'rightAnkle',
+    QuickPoseLandmarkPoint
+  >
+>;
+
 export type QuickPoseCameraUpdateEvent = {
   nativeEvent: {
     results: Record<string, number>;
     feedbacks: Record<string, string>;
-    /** True once QuickPose has delivered landmarks in this session (phase 5). */
+    /** Compact body joints for stance gates; omitted joints are absent. */
+    landmarks?: QuickPoseLandmarks;
+    /** True when the SDK handed landmarks for this frame (may still be empty). */
     landmarksAvailable?: boolean;
   };
 };

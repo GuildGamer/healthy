@@ -45,6 +45,12 @@ export const MAX_SHOULDER_WIDTH = 0.44;
  */
 export const STANDING_TORSO_SPAN = 0.5;
 
+/** Torso longer than a plank — kneeling or upright, not a press-up. */
+export const KNEELING_TORSO_MIN = 0.28;
+
+/** Both knees sit near the hips when someone is on their knees. */
+export const KNEE_NEAR_HIP_MAX = 0.14;
+
 export type ArmElbowReading = {
   side: 'left' | 'right';
   angleDegrees: number;
@@ -300,6 +306,37 @@ export function looksLikeStandingUp(frame: PoseFrame, minScore: number): boolean
   // Hands off the floor while the torso is already long — standing up.
   // A front-camera plank is also tall in 2D; wrists stay below the chest.
   return torsoSpan >= 0.3 && wristY <= shoulder.y + 0.03;
+}
+
+/**
+ * Kneeling upright or hands waving mid-torso — the false “push-up” from
+ * bouncing on knees. A real press-up keeps a short torso and planted wrists.
+ */
+export function looksLikeKneelingUpright(frame: PoseFrame, minScore: number): boolean {
+  const shoulder = shoulderMidpoint(frame, minScore);
+  const hip = hipMidpoint(frame, minScore);
+  if (!shoulder || !hip) {
+    return false;
+  }
+
+  const torsoSpan = hip.y - shoulder.y;
+  if (torsoSpan < KNEELING_TORSO_MIN) {
+    return false;
+  }
+
+  const leftKnee = frame.points.leftKnee;
+  const rightKnee = frame.points.rightKnee;
+  const kneesNearHips =
+    pointUsable(leftKnee, minScore) &&
+    pointUsable(rightKnee, minScore) &&
+    Math.abs(leftKnee.y - hip.y) <= KNEE_NEAR_HIP_MAX &&
+    Math.abs(rightKnee.y - hip.y) <= KNEE_NEAR_HIP_MAX;
+
+  const wristY = meanWristY(frame, minScore);
+  const midTorsoY = shoulder.y + torsoSpan * 0.5;
+  const wristsHigh = wristY != null && wristY <= midTorsoY;
+
+  return kneesNearHips || wristsHigh;
 }
 
 export function bodyExtent(frame: PoseFrame, minScore: number): number {

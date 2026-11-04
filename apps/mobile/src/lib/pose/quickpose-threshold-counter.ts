@@ -8,6 +8,11 @@
  */
 export const QUICKPOSE_ENTER_THRESHOLD = 0.8;
 export const QUICKPOSE_EXIT_THRESHOLD = 0.3;
+/** Push-ups: slightly softer enter so good-form dips are not missed. */
+export const QUICKPOSE_PUSHUP_ENTER_THRESHOLD = 0.7;
+/** Ignore a second complete that arrives too soon (waving / bounce). */
+export const QUICKPOSE_MIN_REP_INTERVAL_MS = 280;
+
 export type QuickPoseCountState =
   | {
       readonly type: 'poseEntered';
@@ -20,6 +25,12 @@ export type QuickPoseCountState =
       readonly isEntered: false;
     };
 
+export type QuickPoseThresholdCounterOptions = {
+  enterThreshold?: number;
+  exitThreshold?: number;
+  minIntervalMs?: number;
+};
+
 function poseEntered(count: number): QuickPoseCountState {
   return { type: 'poseEntered', count, isEntered: true };
 }
@@ -31,20 +42,24 @@ function poseComplete(count: number): QuickPoseCountState {
 export class QuickPoseThresholdCounter {
   readonly enterThreshold: number;
   readonly exitThreshold: number;
+  readonly minIntervalMs: number;
   state: QuickPoseCountState = poseComplete(0);
+  private lastCompleteAtMs = 0;
 
-  constructor(
-    enterThreshold = QUICKPOSE_ENTER_THRESHOLD,
-    exitThreshold = QUICKPOSE_EXIT_THRESHOLD,
-  ) {
-    this.enterThreshold = enterThreshold;
-    this.exitThreshold = exitThreshold;
+  constructor(options: QuickPoseThresholdCounterOptions = {}) {
+    this.enterThreshold = options.enterThreshold ?? QUICKPOSE_ENTER_THRESHOLD;
+    this.exitThreshold = options.exitThreshold ?? QUICKPOSE_EXIT_THRESHOLD;
+    this.minIntervalMs = options.minIntervalMs ?? QUICKPOSE_MIN_REP_INTERVAL_MS;
   }
 
-  count(value: number): QuickPoseCountState {
+  count(value: number, nowMs = Date.now()): QuickPoseCountState {
     if (!this.state.isEntered && value > this.enterThreshold) {
       this.state = poseEntered(this.state.count);
     } else if (this.state.isEntered && value < this.exitThreshold) {
+      if (nowMs - this.lastCompleteAtMs < this.minIntervalMs) {
+        return this.state;
+      }
+      this.lastCompleteAtMs = nowMs;
       this.state = poseComplete(this.state.count + 1);
     }
 
@@ -53,5 +68,6 @@ export class QuickPoseThresholdCounter {
 
   reset(): void {
     this.state = poseComplete(0);
+    this.lastCompleteAtMs = 0;
   }
 }

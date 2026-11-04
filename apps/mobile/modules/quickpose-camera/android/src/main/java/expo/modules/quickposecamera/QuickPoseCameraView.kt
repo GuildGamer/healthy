@@ -3,8 +3,11 @@ package expo.modules.quickposecamera
 import ai.quickpose.camera.QuickPoseCameraSwitchView
 import ai.quickpose.core.Feature
 import ai.quickpose.core.FeatureResult
+import ai.quickpose.core.Landmarks
 import ai.quickpose.core.PoseFeedback
+import ai.quickpose.core.Point3d
 import ai.quickpose.core.QuickPose
+import ai.quickpose.core.Side
 import ai.quickpose.core.Status
 import android.Manifest
 import android.content.Context
@@ -135,8 +138,8 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
         return@launch
       }
       isCameraRunning = true
-      pose.start(mapped.map { it.second }.toTypedArray(), onFrame = { status, _, results, feedback, _ ->
-        post { publishFrame(status, results, feedback) }
+      pose.start(mapped.map { it.second }.toTypedArray(), onFrame = { status, _, results, feedback, landmarks ->
+        post { publishFrame(status, results, feedback, landmarks) }
       })
       syncProofRecording()
     }
@@ -162,6 +165,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     status: Status,
     featureResults: Map<Feature, FeatureResult>,
     feedback: Map<Feature, PoseFeedback>,
+    landmarks: Landmarks?,
   ) {
     if (quickPose == null) return
 
@@ -178,7 +182,48 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       featureResults[feature]?.let { results[key] = it.value.toDouble() }
       feedback[feature]?.displayString?.takeIf { it.isNotEmpty() }?.let { feedbacks[key] = it }
     }
-    onUpdate(mapOf("results" to results, "feedbacks" to feedbacks))
+    onUpdate(
+      mapOf(
+        "results" to results,
+        "feedbacks" to feedbacks,
+        "landmarks" to landmarksPayload(landmarks),
+        "landmarksAvailable" to (landmarks != null),
+      ),
+    )
+  }
+
+  /** Compact joint map for JS stance gates. Missing / low-visibility joints are omitted. */
+  private fun landmarksPayload(landmarks: Landmarks?): Map<String, Map<String, Double>> {
+    if (landmarks == null) {
+      return emptyMap()
+    }
+    val out = linkedMapOf<String, Map<String, Double>>()
+    fun put(key: String, body: Landmarks.Body) {
+      val point: Point3d = landmarks.landmarkForBody(body)
+      if (point.visibility < LANDMARK_MIN_VISIBILITY) {
+        return
+      }
+      out[key] =
+        mapOf(
+          "x" to point.x.toDouble(),
+          "y" to point.y.toDouble(),
+          "score" to point.visibility.toDouble(),
+        )
+    }
+    put("nose", Landmarks.Body.Nose())
+    put("leftShoulder", Landmarks.Body.Shoulder(Side.LEFT))
+    put("rightShoulder", Landmarks.Body.Shoulder(Side.RIGHT))
+    put("leftElbow", Landmarks.Body.Elbow(Side.LEFT))
+    put("rightElbow", Landmarks.Body.Elbow(Side.RIGHT))
+    put("leftWrist", Landmarks.Body.Wrist(Side.LEFT))
+    put("rightWrist", Landmarks.Body.Wrist(Side.RIGHT))
+    put("leftHip", Landmarks.Body.Hip(Side.LEFT))
+    put("rightHip", Landmarks.Body.Hip(Side.RIGHT))
+    put("leftKnee", Landmarks.Body.Knee(Side.LEFT))
+    put("rightKnee", Landmarks.Body.Knee(Side.RIGHT))
+    put("leftAnkle", Landmarks.Body.Ankle(Side.LEFT))
+    put("rightAnkle", Landmarks.Body.Ankle(Side.RIGHT))
+    return out
   }
 
   /** The visible camera surface inside the switch view; the skeleton draws on a separate overlay surface. */
@@ -307,6 +352,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   }
 
   private companion object {
+    const val LANDMARK_MIN_VISIBILITY = 0.2f
     const val START_FAILED = "Could not start proof recording."
     const val FINISH_FAILED = "Could not finish proof recording."
     const val DEFAULT_BIT_RATE = 1_500_000
