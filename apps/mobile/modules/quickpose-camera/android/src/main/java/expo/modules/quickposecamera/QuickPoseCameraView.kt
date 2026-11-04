@@ -5,7 +5,7 @@ import ai.quickpose.core.Feature
 import ai.quickpose.core.FeatureResult
 import ai.quickpose.core.Landmarks
 import ai.quickpose.core.PoseFeedback
-import ai.quickpose.core.Point3d
+import Point3d
 import ai.quickpose.core.QuickPose
 import ai.quickpose.core.Side
 import ai.quickpose.core.Status
