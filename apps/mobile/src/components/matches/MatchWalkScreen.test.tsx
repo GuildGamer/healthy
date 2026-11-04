@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
 import {
@@ -11,6 +12,13 @@ import {
 import { isWalkLocationTaskReady } from '@/lib/walk-background-location';
 import { MATCH_WALK_TOO_SHORT } from './match-copy';
 import { MatchWalkScreen } from './MatchWalkScreen';
+
+function setPlatformOs(os: typeof Platform.OS) {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    get: () => os,
+  });
+}
 
 const testSafeAreaMetrics: Metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -140,11 +148,14 @@ async function startWalk() {
   });
 }
 
+const originalPlatformOs = Platform.OS;
+
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
   jest.setSystemTime(START_MS);
   stepTotal = 0;
+  setPlatformOs(originalPlatformOs);
 
   mockedIsWalkLocationTaskReady.mockReturnValue(true);
   mockedApi.submitMatchAttempt.mockResolvedValue({ ok: true });
@@ -180,6 +191,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setPlatformOs(originalPlatformOs);
   jest.useRealTimers();
 });
 
@@ -277,10 +289,39 @@ describe('MatchWalkScreen', () => {
     await cleanup();
   });
 
-  // Stale Android binaries lack the task manager / foreground-service entries.
+  // Stale binaries lack the task manager / foreground-service entries.
   // Starting the service there can kill the process; foreground watch is enough.
   it('records on the foreground watch when the background task is unavailable', async () => {
+    setPlatformOs('ios');
     mockedIsWalkLocationTaskReady.mockReturnValue(false);
+    const { cleanup } = renderScreen();
+
+    await startWalk();
+    await walkFor(70);
+
+    expect(requestBackgroundPermissionsAsync).not.toHaveBeenCalled();
+    expect(startLocationUpdatesAsync).not.toHaveBeenCalled();
+    expect(watchPositionAsync).toHaveBeenCalled();
+
+    fireEvent.press(screen.getByTestId('match-walk-stop'));
+
+    await waitFor(() => {
+      expect(mockedApi.submitMatchAttempt).toHaveBeenCalledWith({
+        matchId: 'm1',
+        count: 1,
+        durationSeconds: 70,
+        source: 'in_app_walk',
+      });
+    });
+
+    await cleanup();
+  });
+
+  // expo-location FGS can SecurityException-kill the process on Android 14+
+  // after the JS promise resolves (expo/expo#49424). Never arm it.
+  it('records on the foreground watch on Android even when the background task is ready', async () => {
+    setPlatformOs('android');
+    mockedIsWalkLocationTaskReady.mockReturnValue(true);
     const { cleanup } = renderScreen();
 
     await startWalk();

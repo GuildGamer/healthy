@@ -197,6 +197,29 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           },
           enableMinifyInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
+          // Same rules as modules/quickpose-camera/android/proguard-rules.pro —
+          // EAS prebuild injects these into android/app/proguard-rules.pro.
+          // Verify push-ups on a fresh production-apk; OTA cannot apply them.
+          extraProguardRules: [
+            '-keep public interface com.google.mediapipe.framework.* {',
+            '  public *;',
+            '}',
+            '-keep public class com.google.mediapipe.framework.Packet {',
+            '  public static *** create(***);',
+            '  public long getNativeHandle();',
+            '  public void release();',
+            '}',
+            '-keep public class com.google.mediapipe.framework.PacketCreator {',
+            '  *** releaseWithSyncToken(...);',
+            '}',
+            '-keep public class com.google.mediapipe.framework.MediaPipeException {',
+            '  <init>(int, byte[]);',
+            '}',
+            '-keep class com.google.mediapipe.framework.ProtoUtil$SerializedMessage { *; }',
+            '-keep public class * extends com.google.protobuf.GeneratedMessageLite { *; }',
+            '-keepclassmembers class com.google.common.flogger.** { *; }',
+            '-keep class ai.quickpose.core.Status$* { *; }',
+          ].join('\n'),
         },
         ios: {
           deploymentTarget: '15.1',

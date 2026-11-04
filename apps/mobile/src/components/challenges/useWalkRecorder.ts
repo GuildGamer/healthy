@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import {
   endWalkLiveActivity,
   startWalkLiveActivity,
@@ -115,7 +116,10 @@ async function startBackgroundUpdates(
   location: LocationModule,
   card: WalkCardCopy,
 ): Promise<boolean> {
-  if (!location.startLocationUpdatesAsync) {
+  // expo-location 19.0.8: startForeground can throw SecurityException on the
+  // main looper after the JS promise resolves (expo/expo#49424). Uncatchable —
+  // use the foreground watch on Android until upstream ships the survival fix.
+  if (Platform.OS === 'android' || !location.startLocationUpdatesAsync) {
     return false;
   }
 
@@ -333,10 +337,14 @@ export function useWalkRecorder(): WalkRecorder {
       // Background is what keeps the walk measuring after the phone locks.
       // When the walker refuses it, or this binary has no task manager /
       // foreground-service entries, fall back to a foreground watch so a walk
-      // with the app open still works. Starting the service on a stale binary
-      // can throw a native SecurityException that JS try/catch cannot catch.
+      // with the app open still works. Android skips the FGS path entirely
+      // (expo/expo#49424); do not ask for Always location we will not use.
       let canBackground = false;
-      if (isWalkLocationTaskReady() && location.requestBackgroundPermissionsAsync) {
+      if (
+        Platform.OS !== 'android' &&
+        isWalkLocationTaskReady() &&
+        location.requestBackgroundPermissionsAsync
+      ) {
         try {
           const background = await location.requestBackgroundPermissionsAsync();
           canBackground = background.status === location.PermissionStatus.GRANTED;

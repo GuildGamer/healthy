@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { WALK_OFFER_FOREGROUND_SERVICE } from '@/lib/walk-offer-copy';
 import type { OpenWalkOfferGoal } from '@/lib/walk-offer-goal';
 import { ingestWalkOfferFixes, setWalkOfferAfterPrompt } from '@/lib/walk-offer-ingest';
@@ -53,7 +54,13 @@ function stopForegroundWatch(): void {
 }
 
 async function startBackgroundUpdates(location: LocationModule): Promise<boolean> {
-  if (!isWalkOfferLocationTaskReady() || !location.startLocationUpdatesAsync) {
+  // Same Android FGS race as the walk recorder (expo/expo#49424). Offer
+  // monitoring stays on the foreground watch until expo-location is fixed.
+  if (
+    Platform.OS === 'android' ||
+    !isWalkOfferLocationTaskReady() ||
+    !location.startLocationUpdatesAsync
+  ) {
     return false;
   }
 
