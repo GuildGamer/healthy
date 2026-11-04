@@ -283,8 +283,9 @@ function meanWristY(frame: PoseFrame, minScore: number): number | null {
 }
 
 /**
- * Plank → knees → stand: torso goes vertical and hands leave the floor.
- * A real press-up keeps a short hip–shoulder gap and wrists below the chest.
+ * Plank → stand: torso goes clearly vertical in the frame.
+ * Do not use “wrists near shoulders” — that is normal on a front-camera plank
+ * and blocked TestFlight counting the same way kneeling’s wristsHigh did.
  */
 export function looksLikeStandingUp(frame: PoseFrame, minScore: number): boolean {
   const shoulder = shoulderMidpoint(frame, minScore);
@@ -293,24 +294,13 @@ export function looksLikeStandingUp(frame: PoseFrame, minScore: number): boolean
     return false;
   }
 
-  const torsoSpan = hip.y - shoulder.y;
-  if (torsoSpan >= STANDING_TORSO_SPAN) {
-    return true;
-  }
-
-  const wristY = meanWristY(frame, minScore);
-  if (wristY == null) {
-    return false;
-  }
-
-  // Hands off the floor while the torso is already long — standing up.
-  // A front-camera plank is also tall in 2D; wrists stay below the chest.
-  return torsoSpan >= 0.3 && wristY <= shoulder.y + 0.03;
+  return hip.y - shoulder.y >= STANDING_TORSO_SPAN;
 }
 
 /**
- * Kneeling upright or hands waving mid-torso — the false “push-up” from
- * bouncing on knees. A real press-up keeps a short torso and planted wrists.
+ * Kneeling upright — the false “push-up” from bouncing on knees.
+ * Requires knees near the hips. High wrists alone are normal on a
+ * front-camera plank and must not block counting (TestFlight landmarks).
  */
 export function looksLikeKneelingUpright(frame: PoseFrame, minScore: number): boolean {
   const shoulder = shoulderMidpoint(frame, minScore);
@@ -326,17 +316,12 @@ export function looksLikeKneelingUpright(frame: PoseFrame, minScore: number): bo
 
   const leftKnee = frame.points.leftKnee;
   const rightKnee = frame.points.rightKnee;
-  const kneesNearHips =
+  return (
     pointUsable(leftKnee, minScore) &&
     pointUsable(rightKnee, minScore) &&
     Math.abs(leftKnee.y - hip.y) <= KNEE_NEAR_HIP_MAX &&
-    Math.abs(rightKnee.y - hip.y) <= KNEE_NEAR_HIP_MAX;
-
-  const wristY = meanWristY(frame, minScore);
-  const midTorsoY = shoulder.y + torsoSpan * 0.5;
-  const wristsHigh = wristY != null && wristY <= midTorsoY;
-
-  return kneesNearHips || wristsHigh;
+    Math.abs(rightKnee.y - hip.y) <= KNEE_NEAR_HIP_MAX
+  );
 }
 
 export function bodyExtent(frame: PoseFrame, minScore: number): number {

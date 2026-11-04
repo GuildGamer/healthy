@@ -102,13 +102,43 @@ function jackFrame(timestampMs = 0): PoseFrame {
   return standingFrame(timestampMs);
 }
 
+/**
+ * Front plank with a longer 2D torso and wrists near the shoulders — the
+ * MediaPipe shape that used to trip both kneeling (wristsHigh) and standing
+ * (torsoSpan ≥ 0.3 + high wrists) on TestFlight.
+ */
+function frontPlankHighWristsFrame(timestampMs = 0): PoseFrame {
+  return {
+    timestampMs,
+    points: {
+      nose: point(0.5, 0.18),
+      leftShoulder: point(0.4, 0.28),
+      rightShoulder: point(0.6, 0.28),
+      leftElbow: point(0.36, 0.26),
+      rightElbow: point(0.64, 0.26),
+      leftWrist: point(0.34, 0.24),
+      rightWrist: point(0.66, 0.24),
+      leftHip: point(0.42, 0.6),
+      rightHip: point(0.58, 0.6),
+      leftKnee: point(0.42, 0.78),
+      rightKnee: point(0.58, 0.78),
+      leftAnkle: point(0.42, 0.92),
+      rightAnkle: point(0.58, 0.92),
+    },
+  };
+}
+
 describe('looksLikeKneelingUpright', () => {
-  it('flags kneeling with wrists waving high', () => {
+  it('flags kneeling when knees sit near the hips', () => {
     expect(looksLikeKneelingUpright(kneelingWaveFrame(), 0.2)).toBe(true);
   });
 
   it('does not flag a front-camera push-up plank', () => {
     expect(looksLikeKneelingUpright(syntheticFrontPushupFrame(0, 0.5), 0.2)).toBe(false);
+  });
+
+  it('does not flag a front plank whose wrists sit high in the frame', () => {
+    expect(looksLikeKneelingUpright(frontPlankHighWristsFrame(), 0.2)).toBe(false);
   });
 });
 
@@ -120,6 +150,12 @@ describe('poseStance', () => {
   it('accepts a front-camera push-up plank', () => {
     expect(poseStance('pushups', syntheticFrontPushupFrame(0, 0.4))).toEqual({ ok: true });
     expect(poseStance('plank', syntheticFrontPushupFrame(0, 0))).toEqual({ ok: true });
+  });
+
+  it('accepts a front plank with high wrists (TestFlight MediaPipe shape)', () => {
+    const frame = frontPlankHighWristsFrame();
+    expect(poseStance('pushups', frame)).toEqual({ ok: true });
+    expect(poseStance('plank', frame)).toEqual({ ok: true });
   });
 
   it('rejects kneeling + waving for push-ups and plank', () => {
