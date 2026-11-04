@@ -11,9 +11,9 @@ android {
   defaultConfig {
     versionCode 1
     versionName "0.0.1"
+    // Merged into the app when enableMinifyInReleaseBuilds is on (AGP 8+: must be in defaultConfig).
+    consumerProguardFiles("proguard-rules.pro")
   }
-  // Merged into the app when enableMinifyInReleaseBuilds is on.
-  consumerProguardFiles("proguard-rules.pro")
 }
 
 // QuickPose publishes its AARs without a dependency list; these are the ones
