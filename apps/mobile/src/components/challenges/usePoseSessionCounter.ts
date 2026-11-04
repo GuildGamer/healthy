@@ -22,6 +22,7 @@ import {
   QuickPoseThresholdCounter,
 } from '@/lib/pose/quickpose-threshold-counter';
 import { resolveCountingStance, STANCE_COACH_PROMPT } from '@/lib/pose/pose-stance';
+import { recordStanceRejectSample } from '@/lib/pose/stance-reject-sample';
 
 const EMPTY_SNAPSHOT: PushupCounterSnapshot = {
   count: 0,
@@ -113,6 +114,12 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
       });
       if (stance.ok) {
         lastOkStanceRef.current = true;
+      } else if (frame != null && update.landmarksAvailable === true) {
+        recordStanceRejectSample({
+          metric: activeMetric,
+          reason: stance.reason,
+          frame,
+        });
       }
       // Only coach stance when we actually gated on landmarks.
       const stanceFeedback =

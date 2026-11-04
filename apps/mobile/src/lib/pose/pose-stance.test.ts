@@ -1,6 +1,11 @@
 import type { PoseFrame, PosePoint } from './landmarks';
 import { poseStance, resolveCountingStance } from './pose-stance';
-import { looksLikeKneelingUpright } from './pushup-form';
+import {
+  hasPushupFraming,
+  looksLikeKneelingUpright,
+  MAX_SHOULDER_WIDTH,
+  MIN_BODY_EXTENT,
+} from './pushup-form';
 import { syntheticFrontPushupFrame } from './synthetic-front-pushup';
 
 function point(x: number, y: number, score = 0.95): PosePoint {
@@ -156,6 +161,59 @@ describe('poseStance', () => {
     const frame = frontPlankHighWristsFrame();
     expect(poseStance('pushups', frame)).toEqual({ ok: true });
     expect(poseStance('plank', frame)).toEqual({ ok: true });
+  });
+
+  it('still counts push-ups when framing would fail (TestFlight mid-rep / close framing)', () => {
+    // Face-forward close-up: shoulders span past MAX_SHOULDER_WIDTH and body
+    // extent is short — hasPushupFraming rejects, but the old gate then showed
+    // "Get into position" and blocked QuickPose reps entirely.
+    const wideShoulders: PoseFrame = {
+      timestampMs: 0,
+      points: {
+        nose: point(0.5, 0.2),
+        leftShoulder: point(0.2, 0.35),
+        rightShoulder: point(0.8, 0.35),
+        leftElbow: point(0.15, 0.4),
+        rightElbow: point(0.85, 0.4),
+        leftWrist: point(0.12, 0.45),
+        rightWrist: point(0.88, 0.45),
+        leftHip: point(0.35, 0.48),
+        rightHip: point(0.65, 0.48),
+        leftKnee: point(0.35, 0.55),
+        rightKnee: point(0.65, 0.55),
+        leftAnkle: point(0.35, 0.62),
+        rightAnkle: point(0.65, 0.62),
+      },
+    };
+    const shoulderWidth = Math.hypot(0.8 - 0.2, 0);
+    expect(shoulderWidth).toBeGreaterThan(MAX_SHOULDER_WIDTH);
+    expect(hasPushupFraming(wideShoulders, 0.2)).toBe(false);
+    expect(poseStance('pushups', wideShoulders)).toEqual({ ok: true });
+    expect(poseStance('plank', wideShoulders)).toEqual({ ok: true });
+
+    const shortExtent: PoseFrame = {
+      timestampMs: 0,
+      points: {
+        nose: point(0.5, 0.4),
+        leftShoulder: point(0.42, 0.45),
+        rightShoulder: point(0.58, 0.45),
+        leftElbow: point(0.4, 0.48),
+        rightElbow: point(0.6, 0.48),
+        leftWrist: point(0.38, 0.5),
+        rightWrist: point(0.62, 0.5),
+        leftHip: point(0.44, 0.52),
+        rightHip: point(0.56, 0.52),
+        leftKnee: point(0.44, 0.56),
+        rightKnee: point(0.56, 0.56),
+        leftAnkle: point(0.44, 0.58),
+        rightAnkle: point(0.58, 0.58),
+      },
+    };
+    expect(hasPushupFraming(shortExtent, 0.2)).toBe(false);
+    // Guard the fixture still represents "too short" framing.
+    const ys = [0.4, 0.45, 0.48, 0.5, 0.52, 0.56, 0.58];
+    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(MIN_BODY_EXTENT);
+    expect(poseStance('pushups', shortExtent)).toEqual({ ok: true });
   });
 
   it('rejects kneeling + waving for push-ups and plank', () => {

@@ -18,6 +18,13 @@ export {
   type StanceVerdict,
 } from './pose-stance';
 export {
+  clearStanceRejectSample,
+  getLastStanceRejectSample,
+  recordStanceRejectSample,
+  serializeStanceRejectSample,
+  type StanceRejectSample,
+} from './stance-reject-sample';
+export {
   QUICKPOSE_MIN_REP_INTERVAL_MS,
   QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
   QuickPoseThresholdCounter,

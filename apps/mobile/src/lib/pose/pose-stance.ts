@@ -185,15 +185,17 @@ export function poseStance(metric: MatchMetric, frame: PoseFrame | null): Stance
   switch (metric) {
     case 'pushups':
     case 'plank':
+      // Hard-block only clear upright fakes (standing / kneeling-wave).
+      // Do not require hasPushupFraming / prone-press shape — front-camera
+      // mid-rep and partial skeletons fail that check and blocked real
+      // TestFlight counting while local Metro still looked fine.
       if (looksLikeStandingUp(frame, minScore)) {
         return { ok: false, reason: 'standing' };
       }
       if (looksLikeKneelingUpright(frame, minScore)) {
         return { ok: false, reason: 'upright' };
       }
-      return looksLikePronePress(frame, minScore)
-        ? { ok: true }
-        : { ok: false, reason: 'upright' };
+      return { ok: true };
     case 'sit_ups':
       if (looksLikeStandingUp(frame, minScore) || looksLikeKneelingUpright(frame, minScore)) {
         return { ok: false, reason: 'upright' };
