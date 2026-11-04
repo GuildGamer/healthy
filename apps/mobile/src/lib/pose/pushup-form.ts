@@ -266,22 +266,6 @@ function hipMidpoint(frame: PoseFrame, minScore: number): PosePoint | null {
   );
 }
 
-function meanWristY(frame: PoseFrame, minScore: number): number | null {
-  const ys: number[] = [];
-  for (const name of ['leftWrist', 'rightWrist'] as const) {
-    const point = frame.points[name];
-    if (pointUsable(point, minScore)) {
-      ys.push(point.y);
-    }
-  }
-
-  if (ys.length === 0) {
-    return null;
-  }
-
-  return ys.reduce((sum, value) => sum + value, 0) / ys.length;
-}
-
 /**
  * Plank → stand: torso goes clearly vertical in the frame.
  * Do not use “wrists near shoulders” — that is normal on a front-camera plank
