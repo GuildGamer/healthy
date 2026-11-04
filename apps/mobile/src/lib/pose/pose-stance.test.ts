@@ -1,5 +1,5 @@
 import type { PoseFrame, PosePoint } from './landmarks';
-import { poseStance } from './pose-stance';
+import { poseStance, resolveCountingStance } from './pose-stance';
 import { looksLikeKneelingUpright } from './pushup-form';
 import { syntheticFrontPushupFrame } from './synthetic-front-pushup';
 
@@ -150,5 +150,61 @@ describe('poseStance', () => {
     frame.points.leftKnee = point(0.44, 0.55);
     frame.points.rightKnee = point(0.56, 0.7);
     expect(poseStance('mountain_climbers', frame)).toEqual({ ok: true });
+  });
+});
+
+describe('resolveCountingStance', () => {
+  it('fails open when landmarks are unavailable so reps still count', () => {
+    expect(
+      resolveCountingStance({
+        metric: 'pushups',
+        frame: null,
+        landmarksAvailable: false,
+      }),
+    ).toEqual({ ok: true });
+    expect(
+      resolveCountingStance({
+        metric: 'pushups',
+        frame: null,
+        landmarksAvailable: undefined,
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('fails open when the landmark flag is set but no usable joints arrived', () => {
+    expect(
+      resolveCountingStance({
+        metric: 'pushups',
+        frame: null,
+        landmarksAvailable: true,
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('accepts a typical front-camera push-up when landmarks are present', () => {
+    expect(
+      resolveCountingStance({
+        metric: 'pushups',
+        frame: syntheticFrontPushupFrame(0, 0.4),
+        landmarksAvailable: true,
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('still blocks kneeling + wave when landmarks are present', () => {
+    expect(
+      resolveCountingStance({
+        metric: 'pushups',
+        frame: kneelingWaveFrame(),
+        landmarksAvailable: true,
+      }).ok,
+    ).toBe(false);
+    expect(
+      resolveCountingStance({
+        metric: 'plank',
+        frame: kneelingWaveFrame(),
+        landmarksAvailable: true,
+      }).ok,
+    ).toBe(false);
   });
 });

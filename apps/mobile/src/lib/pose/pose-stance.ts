@@ -165,7 +165,8 @@ function looksLikeBurpee(frame: PoseFrame, minScore: number): boolean {
 
 /**
  * Whether the skeleton looks like the exercise being counted.
- * Fail closed when landmarks are missing — fitness scores alone are not enough.
+ * Callers that drive live counting should use `resolveCountingStance`, which
+ * fails open when native landmarks are unavailable (stale binary / empty map).
  */
 export function poseStance(metric: MatchMetric, frame: PoseFrame | null): StanceVerdict {
   if (!isPoseMetric(metric)) {
@@ -228,4 +229,22 @@ export function poseStance(metric: MatchMetric, frame: PoseFrame | null): Stance
     default:
       return { ok: false, reason: 'no_pose' };
   }
+}
+
+/**
+ * Stance gate for live rep / hold counting.
+ *
+ * Only rejects when native landmarks are present and usable. Missing bridges
+ * (JS update on an older binary, empty joint map) fail open so QuickPose
+ * fitness scores still count — kneeling-wave rejection needs landmarks.
+ */
+export function resolveCountingStance(input: {
+  metric: MatchMetric;
+  frame: PoseFrame | null;
+  landmarksAvailable?: boolean;
+}): StanceVerdict {
+  if (input.landmarksAvailable !== true || input.frame == null) {
+    return { ok: true };
+  }
+  return poseStance(input.metric, input.frame);
 }

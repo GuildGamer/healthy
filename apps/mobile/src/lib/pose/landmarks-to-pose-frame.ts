@@ -23,7 +23,8 @@ function isFiniteNumber(value: unknown): value is number {
 
 /**
  * Maps the native QuickPose landmark dict into the shared PoseFrame shape.
- * Returns null when nothing usable arrived (fail closed for stance).
+ * Returns null when nothing usable arrived — callers gate counting with
+ * `resolveCountingStance`, which fails open without landmarks.
  */
 export function landmarksToPoseFrame(
   landmarks: QuickPoseLandmarks | null | undefined,

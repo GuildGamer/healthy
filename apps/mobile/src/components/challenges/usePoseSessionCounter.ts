@@ -21,7 +21,7 @@ import {
   QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
   QuickPoseThresholdCounter,
 } from '@/lib/pose/quickpose-threshold-counter';
-import { poseStance, STANCE_COACH_PROMPT } from '@/lib/pose/pose-stance';
+import { resolveCountingStance, STANCE_COACH_PROMPT } from '@/lib/pose/pose-stance';
 
 const EMPTY_SNAPSHOT: PushupCounterSnapshot = {
   count: 0,
@@ -106,11 +106,19 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
       const framingFeedback = update.feedbacks['inside.wholeBody'] ?? null;
       const framing = quickPoseFraming({ measure, insideMeasure });
       const frame = landmarksToPoseFrame(update.landmarks, Date.now());
-      const stance = poseStance(activeMetric, frame);
+      const stance = resolveCountingStance({
+        metric: activeMetric,
+        frame,
+        landmarksAvailable: update.landmarksAvailable,
+      });
       if (stance.ok) {
         lastOkStanceRef.current = true;
       }
-      const stanceFeedback = stance.ok ? null : STANCE_COACH_PROMPT;
+      // Only coach stance when we actually gated on landmarks.
+      const stanceFeedback =
+        update.landmarksAvailable === true && frame != null && !stance.ok
+          ? STANCE_COACH_PROMPT
+          : null;
 
       if (holdMode) {
         const now = Date.now();

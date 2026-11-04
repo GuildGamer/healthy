@@ -12,6 +12,7 @@ export {
 } from './pushup-counter';
 export {
   poseStance,
+  resolveCountingStance,
   STANCE_COACH_PROMPT,
   type StanceReason,
   type StanceVerdict,

@@ -125,6 +125,19 @@ describe('shouldCountPoseRep', () => {
     ).toBe(false);
   });
 
+  it('counts a front push-up when stance fails open without landmarks', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.9,
+        insideMeasure: 0.5,
+        formFeedback: null,
+        finishingRep: false,
+        stanceOk: true,
+        finishingStanceOk: false,
+      }),
+    ).toBe(true);
+  });
+
   it('lets a finishing rep complete if the body reading flickers out after a good stance', () => {
     expect(
       shouldCountPoseRep({
