@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { dayKeyFor, previousDayKey } from '../../../shared/utils/day-key.js';
+import { readEnvironment } from '../../shared-modules/config/environment.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { RemindersService } from '../reminders/reminders.service.js';
 import { MeService } from './me.service.js';
@@ -40,7 +41,11 @@ async function seedDailyCompletions(
 
 beforeAll(() => {
   prisma = createTestPrismaClient();
-  me = new MeService(prisma, new EnrollmentsService(prisma, new RemindersService(prisma)));
+  me = new MeService(
+    prisma,
+    readEnvironment(process.env as NodeJS.ProcessEnv),
+    new EnrollmentsService(prisma, new RemindersService(prisma)),
+  );
 });
 
 afterAll(async () => {

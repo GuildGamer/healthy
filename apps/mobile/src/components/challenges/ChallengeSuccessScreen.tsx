@@ -11,6 +11,7 @@ import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck
 import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
 import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
+import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
 import { markMembershipCtaShownThisSession, markSuccessWasPenalty } from '@/lib/app-review-session';
 import { getSessionData, isEmailVerified } from '@/lib/auth-client';
 import { hasDeferredOnboarding } from '@/lib/post-auth-route';
@@ -235,6 +236,12 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   });
   const shareImage = useShareCardImage({ matchId, userChallengeId, practice });
   const proof = useProofClip(proofClipId ?? null, proofAudience, { isGroup: isMatch });
+  const meForProofLimits = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+    staleTime: 60_000,
+  });
+  const proofMaxDurationSeconds = proofClipMaxDurationSeconds(meForProofLimits.data?.proofClipLimits);
   const { me, leave } = useLeaveSuccess(matchId);
   const benefitTip = useSuccessBenefitTip({ challengeId, activityKey, practice, isMatch });
   const [photoUri] = useState(() => pendingSharePhotoFor(userChallengeId));
@@ -273,9 +280,19 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
       <SafeAreaView style={styles.container} testID="challenge-success-screen">
         {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
         <View style={styles.body}>
-          {proof.isLoading ? <ActivityIndicator /> : <ProofClipHero fill proof={proof} />}
+          {proof.isLoading ? (
+            <ActivityIndicator />
+          ) : (
+            <ProofClipHero fill maxDurationSeconds={proofMaxDurationSeconds} proof={proof} />
+          )}
         </View>
-        <ClipFinishActions doneLabel={doneLabel} friend={friend} onDone={leave} proof={proof} />
+        <ClipFinishActions
+          doneLabel={doneLabel}
+          friend={friend}
+          maxDurationSeconds={proofMaxDurationSeconds}
+          onDone={leave}
+          proof={proof}
+        />
       </SafeAreaView>
     );
   }
@@ -357,11 +374,13 @@ function ClipFinishActions({
   proof,
   friend,
   doneLabel,
+  maxDurationSeconds,
   onDone,
 }: {
   proof: ProofClipState;
   friend: ReturnType<typeof useFriendChallenge>;
   doneLabel: string;
+  maxDurationSeconds: number;
   onDone: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -371,7 +390,7 @@ function ClipFinishActions({
     <View style={styles.actions}>
       {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
       {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
-      <ProofClipPrimaryRow proof={proof} />
+      <ProofClipPrimaryRow maxDurationSeconds={maxDurationSeconds} proof={proof} />
       <View style={[styles.quietRow, offersFriend ? styles.quietRowSplit : null]}>
         {offersFriend ? (
           <QuietAction

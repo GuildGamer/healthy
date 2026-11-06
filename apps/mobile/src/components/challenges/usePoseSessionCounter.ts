@@ -12,6 +12,7 @@ import {
   exerciseFormFeedback,
   exerciseMeasureFromResults,
   insideMeasureFromResults,
+  QUICKPOSE_INSIDE_IN_FRAME_HOLD,
   quickPoseFraming,
   shouldCountPoseRep,
   snapshotFromQuickPose,
@@ -105,7 +106,13 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
       const insideMeasure = insideMeasureFromResults(update.results);
       const formFeedback = exerciseFormFeedback(activeMetric, update.feedbacks);
       const framingFeedback = update.feedbacks['inside.wholeBody'] ?? null;
-      const framing = quickPoseFraming({ measure, insideMeasure });
+      const framing = quickPoseFraming({
+        measure,
+        insideMeasure,
+        ...(holdMode
+          ? { insideWellFramedThreshold: QUICKPOSE_INSIDE_IN_FRAME_HOLD }
+          : {}),
+      });
       const frame = landmarksToPoseFrame(update.landmarks, Date.now());
       const stance = resolveCountingStance({
         metric: activeMetric,

@@ -12,7 +12,14 @@ jest.mock('@/lib/api', () => ({
     reserveProofClip: jest.fn(),
     recordProofClip: jest.fn(),
     removeProofClip: jest.fn(),
-    me: jest.fn(async () => ({ proofClipAudience: 'anyone' })),
+    me: jest.fn(async () => ({
+      proofClipAudience: 'anyone',
+      proofClipLimits: {
+        maxDurationSeconds: 3_600,
+        maxVideoBytes: 512 * 1024 * 1024,
+        maxPosterBytes: 5 * 1024 * 1024,
+      },
+    })),
     updateProofClipAudience: jest.fn(async () => ({ proofClipAudience: 'anyone' })),
   },
 }));
@@ -54,12 +61,18 @@ const context = {
   isReady: true,
 };
 
+/** Must exceed maxDurationSeconds + headroom (see hasHeadroom in useProofClipRecording). */
+function reservedUntilIso() {
+  return new Date(Date.now() + 3_700 * 1000).toISOString();
+}
+
 function reservation(clipId = 'clip-1') {
   return {
     clipId,
     code: 'ABCDEFG',
     displayCode: 'ABCD-EFG',
-    reservedUntil: new Date(Date.now() + 30 * 60_000).toISOString(),
+    reservedUntil: reservedUntilIso(),
+    maxDurationSeconds: 3_600,
     encoding: {
       bitRate: 1_500_000,
       frameRate: 24,
@@ -116,6 +129,7 @@ describe('useProofClipRecording', () => {
     expect(result.current.proofRecording).toEqual(
       expect.objectContaining({
         code: 'ABCD-EFG',
+        maxDurationSeconds: 3_600,
         bitRate: 1_500_000,
         frameRate: 24,
         width: 720,
@@ -129,7 +143,8 @@ describe('useProofClipRecording', () => {
       clipId: 'clip-1',
       code: 'ABCDEFG',
       displayCode: 'ABCD-EFG',
-      reservedUntil: new Date(Date.now() + 30 * 60_000).toISOString(),
+      reservedUntil: reservedUntilIso(),
+      maxDurationSeconds: 3_600,
     });
     const { result } = await renderArmed(() => 0);
     await startRecording(result);
@@ -137,10 +152,11 @@ describe('useProofClipRecording', () => {
     expect(result.current.proofRecording).toEqual(
       expect.objectContaining({
         code: 'ABCD-EFG',
-        bitRate: 1_500_000,
-        frameRate: 24,
-        width: 720,
-        height: 1280,
+        maxDurationSeconds: 3_600,
+        bitRate: 8_000_000,
+        frameRate: 30,
+        width: 1080,
+        height: 1920,
       }),
     );
   });
@@ -265,11 +281,21 @@ describe('useProofClipRecording', () => {
       });
     });
 
-    expect(mockedQueueUpload).toHaveBeenCalledWith('clip-1');
+    expect(mockedQueueUpload).toHaveBeenCalledWith(
+      'clip-1',
+      expect.objectContaining({ maxDurationSeconds: 3_600 }),
+    );
   });
 
   it('does not upload when audience is Only me', async () => {
-    mockedApi.me.mockResolvedValueOnce({ proofClipAudience: 'only_me' });
+    mockedApi.me.mockResolvedValueOnce({
+      proofClipAudience: 'only_me',
+      proofClipLimits: {
+        maxDurationSeconds: 3_600,
+        maxVideoBytes: 512 * 1024 * 1024,
+        maxPosterBytes: 5 * 1024 * 1024,
+      },
+    });
     const { result } = await renderArmed(() => 12);
     await waitFor(() => expect(result.current.audience).toBe('only_me'));
     await startRecording(result);

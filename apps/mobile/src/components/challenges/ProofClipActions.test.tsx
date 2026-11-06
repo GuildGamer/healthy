@@ -4,14 +4,6 @@ import type { ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { ProofClipActions } from './ProofClipActions';
 
-jest.mock('@tanstack/react-query', () => {
-  const actual = jest.requireActual('@tanstack/react-query');
-  return {
-    ...actual,
-    useQuery: jest.fn(),
-  };
-});
-
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
 }));
@@ -23,6 +15,13 @@ jest.mock('expo-sharing', () => ({
 
 jest.mock('@/lib/api', () => ({
   apiClient: {
+    me: jest.fn(async () => ({
+      proofClipLimits: {
+        maxDurationSeconds: 3_600,
+        maxVideoBytes: 512 * 1024 * 1024,
+        maxPosterBytes: 5 * 1024 * 1024,
+      },
+    })),
     setProofClipAudience: jest.fn(),
     removeProofClip: jest.fn(),
   },
@@ -39,18 +38,25 @@ jest.mock('@/lib/proof-clip-upload', () => ({
   discardLocalProofClip: jest.fn(async () => undefined),
 }));
 
+const { getLocalProofClip } = jest.requireMock('@/lib/proof-clip-store') as {
+  getLocalProofClip: jest.Mock;
+};
+
 jest.mock('./save-proof-to-photos', () => ({
   saveProofToPhotos: jest.fn(async () => null),
 }));
 
-const { useQuery } = jest.requireMock('@tanstack/react-query') as {
-  useQuery: jest.Mock;
-};
 const { uploadProofClip, queueAnyoneProofClipUpload } = jest.requireMock(
   '@/lib/proof-clip-upload',
 ) as {
   uploadProofClip: jest.Mock;
   queueAnyoneProofClipUpload: jest.Mock;
+};
+
+const proofClipLimits = {
+  maxDurationSeconds: 3_600,
+  maxVideoBytes: 512 * 1024 * 1024,
+  maxPosterBytes: 5 * 1024 * 1024,
 };
 
 const localClip = {
@@ -62,16 +68,33 @@ const localClip = {
   count: 10,
 };
 
-function renderActions(element: ReactElement) {
+function createQueryClient() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
+  client.setQueryData(['me'], { proofClipLimits });
+  return client;
+}
+
+function renderActions(
+  element: ReactElement,
+  options: { clipId?: string | null; local?: typeof localClip | null } = {},
+) {
+  const client = createQueryClient();
+  const clipId = options.clipId;
+  if (clipId != null && options.local !== undefined) {
+    getLocalProofClip.mockImplementation(async (id: string) =>
+      id === clipId ? options.local : null,
+    );
+    client.setQueryData(['proof-clip-local', clipId], options.local);
+  }
   return render(<QueryClientProvider client={client}>{element}</QueryClientProvider>);
 }
 
 describe('ProofClipActions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    getLocalProofClip.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -79,8 +102,6 @@ describe('ProofClipActions', () => {
   });
 
   it('shows an explicit failure message when the clip did not save', () => {
-    useQuery.mockReturnValue({ isPending: false, data: null, refetch: jest.fn() });
-
     renderActions(<ProofClipActions audience="anyone" clipId={null} failed />);
 
     expect(screen.getByTestId('proof-clip-failed')).toHaveTextContent(
@@ -89,13 +110,10 @@ describe('ProofClipActions', () => {
   });
 
   it('shows actions when a local clip is present', () => {
-    useQuery.mockReturnValue({
-      isPending: false,
-      data: localClip,
-      refetch: jest.fn(),
+    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />, {
+      clipId: 'clip-1',
+      local: localClip,
     });
-
-    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />);
 
     expect(screen.getByTestId('proof-clip-actions')).toBeOnTheScreen();
     expect(screen.getByTestId('proof-primary')).toHaveTextContent('Post to group');
@@ -103,18 +121,21 @@ describe('ProofClipActions', () => {
   });
 
   it('shows failure when the clip id is set but nothing is on the phone', () => {
-    useQuery.mockReturnValue({ isPending: false, data: null, refetch: jest.fn() });
-
-    renderActions(<ProofClipActions audience="anyone" clipId="clip-missing" />);
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-missing" />, {
+      clipId: 'clip-missing',
+      local: null,
+    });
 
     expect(screen.getByTestId('proof-clip-failed')).toBeOnTheScreen();
   });
 
   it('never shows a raw upload error', async () => {
-    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     uploadProofClip.mockRejectedValue(new Error('PUT https://bucket/abc 403 SignatureDoesNotMatch'));
 
-    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />);
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />, {
+      clipId: 'clip-1',
+      local: localClip,
+    });
     fireEvent.press(screen.getByTestId('proof-primary'));
 
     expect(await screen.findByText('Could not upload the clip. Try again.')).toBeOnTheScreen();
@@ -122,14 +143,16 @@ describe('ProofClipActions', () => {
   });
 
   it('says why a second group post today was refused', async () => {
-    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     uploadProofClip.mockRejectedValue(
       Object.assign(new Error('You already posted a clip to this group today.'), {
         code: 'CONFLICT',
       }),
     );
 
-    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />);
+    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />, {
+      clipId: 'clip-1',
+      local: localClip,
+    });
     fireEvent.press(screen.getByTestId('proof-primary'));
 
     expect(
@@ -140,42 +163,48 @@ describe('ProofClipActions', () => {
   });
 
   it('updates the status line after saving to Photos', async () => {
-    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     queueAnyoneProofClipUpload.mockResolvedValue(true);
 
-    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />);
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />, {
+      clipId: 'clip-1',
+      local: localClip,
+    });
     expect(screen.queryByTestId('proof-status-line')).toBeNull();
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('proof-save-photos'));
     });
 
-    expect(queueAnyoneProofClipUpload).toHaveBeenCalledWith('clip-1');
+    expect(queueAnyoneProofClipUpload).toHaveBeenCalledWith('clip-1', proofClipLimits);
     expect(screen.getByTestId('proof-status-line')).toHaveTextContent(
       'Saved to Photos. Anyone with the code can watch.',
     );
   });
 
   it('uploads when audience flips to Anyone before the clip is cloud-ready', async () => {
-    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     queueAnyoneProofClipUpload.mockResolvedValue(true);
 
-    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" />);
+    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" />, {
+      clipId: 'clip-1',
+      local: localClip,
+    });
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('proof-audience-control-anyone'));
     });
 
-    expect(queueAnyoneProofClipUpload).toHaveBeenCalledWith('clip-1');
+    expect(queueAnyoneProofClipUpload).toHaveBeenCalledWith('clip-1', proofClipLimits);
   });
 
   it('treats a discarded clip as gone, not as a failed save', async () => {
-    useQuery.mockReturnValue({ isPending: false, data: localClip, refetch: jest.fn() });
     jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
       buttons?.[1]?.onPress?.();
     });
 
-    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />);
+    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />, {
+      clipId: 'clip-1',
+      local: localClip,
+    });
     await act(async () => {
       fireEvent.press(screen.getByTestId('proof-discard'));
     });

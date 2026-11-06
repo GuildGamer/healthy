@@ -6,6 +6,7 @@ import { Alert } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { shareWithTracking, trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
+import { proofClipLimitsFromQuery } from '@/lib/proof-clip-limits-cache';
 import { getLocalProofClip, markLocalProofClipPendingUpload } from '@/lib/proof-clip-store';
 import { isGroupPostCapError } from '@/lib/proof-clip-errors';
 import {
@@ -52,6 +53,8 @@ export function useProofClip(
     enabled: Boolean(clipId),
   });
 
+  const proofClipLimits = proofClipLimitsFromQuery(queryClient);
+
   const clip = wasDiscarded ? null : (localQuery.data ?? null);
   const isLoading = Boolean(clipId) && localQuery.isPending;
   const isMissing = Boolean(clipId) && !isLoading && !wasDiscarded && !clip;
@@ -63,7 +66,7 @@ export function useProofClip(
     }
     if (!hasUploaded) {
       if (next === 'anyone') {
-        void queueAnyoneProofClipUpload(clipId).then((ok) => {
+        void queueAnyoneProofClipUpload(clipId, proofClipLimits).then((ok) => {
           if (ok) {
             setHasUploaded(true);
             void queryClient.invalidateQueries({ queryKey: ['progress'] });
@@ -94,6 +97,7 @@ export function useProofClip(
         clipId,
         audience,
         postToGroup,
+        limits: proofClipLimits,
       });
       setHasUploaded(true);
       await markLocalProofClipPendingUpload(clipId, null);
@@ -200,7 +204,7 @@ export function useProofClip(
       }
       setStatusLine(audience === 'anyone' ? POSE_COPY.savedAnyone : POSE_COPY.savedOnlyMe);
       if (audience === 'anyone') {
-        void queueAnyoneProofClipUpload(clipId).then((ok) => {
+        void queueAnyoneProofClipUpload(clipId, proofClipLimits).then((ok) => {
           if (ok) {
             setHasUploaded(true);
             setStatusLine(POSE_COPY.savedAnyone);

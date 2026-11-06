@@ -1,6 +1,5 @@
 import type { MatchMetric, ProofClipAudience } from '@product/client';
 import type { ReserveProofClipInput } from '@product/contract';
-import { PROOF_CLIP_MAX_DURATION_SECONDS } from '@product/contract/proof-clip-limits';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { canRecordProofClips, type ProofRecordingConfig } from 'quickpose-camera';
@@ -17,6 +16,7 @@ import {
   markLocalProofClipServerRecorded,
   saveLocalProofClip,
 } from '@/lib/proof-clip-store';
+import { proofClipLimitsFromQuery } from '@/lib/proof-clip-limits-cache';
 import { queueAnyoneProofClipUpload } from '@/lib/proof-clip-upload';
 import type {
   ProofClipContext,
@@ -27,8 +27,6 @@ import type {
 } from './types/proof-clip-recording';
 
 const SETTLE_TIMEOUT_MS = 10_000;
-/** A held code must outlive the longest set plus the record call that follows it. */
-const RESERVATION_HEADROOM_MS = PROOF_CLIP_MAX_DURATION_SECONDS * 1000 + 60_000;
 
 type SettleWaiter = {
   resolve: (outcome: ProofClipOutcome) => void;
@@ -65,7 +63,8 @@ function reservationRequest(context: ProofClipContext): ReservationRequest | nul
 }
 
 function hasHeadroom(reservation: Reservation): boolean {
-  return Date.parse(reservation.reservedUntil) - Date.now() > RESERVATION_HEADROOM_MS;
+  const headroomMs = reservation.maxDurationSeconds * 1000 + 60_000;
+  return Date.parse(reservation.reservedUntil) - Date.now() > headroomMs;
 }
 
 function removeQuietly(clipId: string): void {
@@ -301,7 +300,7 @@ export function useProofClipRecording(
         setProofRecording({
           code: reservation.displayCode,
           label: MATCH_METRIC_LABEL[metric as MatchMetric],
-          maxDurationSeconds: PROOF_CLIP_MAX_DURATION_SECONDS,
+          maxDurationSeconds: reservation.maxDurationSeconds,
           bitRate: encoding.bitRate,
           frameRate: encoding.frameRate,
           width: encoding.width,
@@ -431,13 +430,13 @@ export function useProofClipRecording(
         }
 
         if (audienceRef.current === 'anyone') {
-          void queueAnyoneProofClipUpload(clipId);
+          void queueAnyoneProofClipUpload(clipId, proofClipLimitsFromQuery(queryClient));
         }
       } catch {
         markFailed();
       }
     },
-    [clearWaiter, getRepCount, markFailed, setStatusSync],
+    [clearWaiter, getRepCount, markFailed, queryClient, setStatusSync],
   );
 
   const handleProofRecordingError = useCallback(

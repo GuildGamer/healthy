@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createGeminiEvidenceValidator } from './gemini-evidence-validator.js';
 
@@ -14,9 +15,10 @@ describe('createGeminiEvidenceValidator', () => {
   it('accepts a photo Gemini approves', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        candidates: [{ content: { parts: [{ text: '{"accepted":true}' }] } }],
-      }),
+      text: async () =>
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: '{"accepted":true}' }] } }],
+        }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -49,18 +51,19 @@ describe('createGeminiEvidenceValidator', () => {
       'fetch',
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({
-          candidates: [
-            {
-              content: {
-                parts: [
-                  { thought: true, text: 'checking the room' },
-                  { text: '{"accepted":false,"reason":"No gym equipment."}' },
-                ],
+        text: async () =>
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    { thought: true, text: 'checking the room' },
+                    { text: '{"accepted":false,"reason":"No gym equipment."}' },
+                  ],
+                },
               },
-            },
-          ],
-        }),
+            ],
+          }),
       }),
     );
 
@@ -77,6 +80,7 @@ describe('createGeminiEvidenceValidator', () => {
   });
 
   it('fails closed when Gemini is unreachable', async () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
 
     const validator = createGeminiEvidenceValidator({
@@ -89,5 +93,41 @@ describe('createGeminiEvidenceValidator', () => {
       accepted: false,
       reason: 'We could not check that photo. Try again in a moment.',
     });
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"reason":"request_failed"'));
+    warnSpy.mockRestore();
+  });
+
+  it('fails closed when Gemini returns HTTP error and logs a warning', async () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: async () =>
+          JSON.stringify({
+            error: { code: 403, message: 'API key not valid.', status: 'PERMISSION_DENIED' },
+          }),
+      }),
+    );
+
+    const validator = createGeminiEvidenceValidator({
+      mode: 'gemini',
+      apiKey: 'gemini-test',
+      model: 'gemini-2.5-flash',
+    });
+
+    await expect(validator.validateGymPhoto(photo)).resolves.toEqual({
+      accepted: false,
+      reason: 'We could not check that photo. Try again in a moment.',
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"reason":"http_error"'),
+    );
+
+    warnSpy.mockRestore();
   });
 });

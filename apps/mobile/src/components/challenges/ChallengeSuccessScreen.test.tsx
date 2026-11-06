@@ -17,6 +17,11 @@ jest.mock('@/lib/api', () => ({
       name: 'Ada',
       countryCode: 'US',
       categories: ['general'],
+      proofClipLimits: {
+        maxDurationSeconds: 3_600,
+        maxVideoBytes: 512 * 1024 * 1024,
+        maxPosterBytes: 5 * 1024 * 1024,
+      },
     })),
     listTips: jest.fn(async () => ({ tips: [] })),
     listChallengeCatalog: jest.fn(async () => ({

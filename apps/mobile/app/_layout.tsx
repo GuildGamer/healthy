@@ -12,6 +12,7 @@ import {
   FULL_PHONE_SCREEN_OPTIONS,
 } from '@/components/navigation/screen-options';
 import { flushPendingProofUploads } from '@/lib/flush-pending-proof-uploads';
+import { setAppQueryClient } from '@/lib/query-client-holder';
 import { useDisplayFont } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
@@ -84,17 +85,18 @@ export default function RootLayout() {
     void resumeWalkOfferMonitorIfNeeded();
   }, []);
 
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            retry: 1,
-          },
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 30_000,
+          retry: 1,
         },
-      }),
-  );
+      },
+    });
+    setAppQueryClient(client);
+    return client;
+  });
 
   return (
     <ThemeProvider>

@@ -18,11 +18,14 @@ describe('readEnvironment', () => {
     expect(environment.adminBootstrapEmail).toBeNull();
     expect(environment.testingMembership).toBe(true);
     expect(environment.proofClipEncoding).toEqual({
-      bitRate: 1_500_000,
-      frameRate: 24,
-      width: 720,
-      height: 1280,
+      bitRate: 8_000_000,
+      frameRate: 30,
+      width: 1080,
+      height: 1920,
     });
+    expect(environment.proofClipMaxDurationSeconds).toBe(3_600);
+    expect(environment.proofClipMaxBytes).toBe(512 * 1024 * 1024);
+    expect(environment.proofClipPosterMaxBytes).toBe(5 * 1024 * 1024);
   });
 
   it('keeps a valid proof-clip encoding override', () => {
@@ -41,8 +44,8 @@ describe('readEnvironment', () => {
     });
   });
 
-  it('refuses an out-of-range proof-clip bitrate', () => {
-    expect(() => readEnvironment({ PROOF_CLIP_BIT_RATE: '2000000' })).toThrow(
+  it('refuses an absurd proof-clip bitrate', () => {
+    expect(() => readEnvironment({ PROOF_CLIP_BIT_RATE: '250000000' })).toThrow(
       /PROOF_CLIP_BIT_RATE/,
     );
   });

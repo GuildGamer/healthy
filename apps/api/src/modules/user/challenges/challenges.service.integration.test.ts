@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { previousDayKey } from '../../../shared/utils/day-key.js';
+import { readEnvironment } from '../../shared-modules/config/environment.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
@@ -80,7 +81,7 @@ beforeAll(() => {
   streak = new StreakService(prisma);
   challenges = new ChallengesService(prisma, streak);
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
-  me = new MeService(prisma, enrollments);
+  me = new MeService(prisma, readEnvironment(process.env as NodeJS.ProcessEnv), enrollments);
   todayDetails = new TodayService(prisma);
 });
 

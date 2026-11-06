@@ -103,6 +103,11 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
     hasMembership: true,
     maxRemindersPerChallenge: 1,
     proofClipAudience: null,
+    proofClipLimits: {
+      maxDurationSeconds: 3_600,
+      maxVideoBytes: 512 * 1024 * 1024,
+      maxPosterBytes: 5 * 1024 * 1024,
+    },
     ...overrides,
   };
 }

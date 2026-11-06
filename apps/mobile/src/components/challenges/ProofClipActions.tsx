@@ -1,7 +1,9 @@
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import type { ProofClipAudience } from '@product/client';
-import { PROOF_CLIP_MAX_DURATION_SECONDS } from '@product/contract/proof-clip-limits';
+import { useQuery } from '@tanstack/react-query';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { apiClient } from '@/lib/api';
+import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
 import {
   DeckButton,
   DeckRoundButton,
@@ -20,7 +22,15 @@ const PANEL_POSTER_MAX_HEIGHT = 220;
  * into it. Discard sits with the clip it removes rather than with the buttons.
  * `fill` grows it into the space it is given; otherwise it stays compact.
  */
-export function ProofClipHero({ proof, fill = false }: { proof: ProofClipState; fill?: boolean }) {
+export function ProofClipHero({
+  proof,
+  fill = false,
+  maxDurationSeconds,
+}: {
+  proof: ProofClipState;
+  fill?: boolean;
+  maxDurationSeconds: number;
+}) {
   const styles = useThemedStyles(createStyles);
   const clip = proof.clip;
 
@@ -66,9 +76,11 @@ export function ProofClipHero({ proof, fill = false }: { proof: ProofClipState; 
 export function ProofClipPrimaryRow({
   proof,
   showNarrowedHint = false,
+  maxDurationSeconds,
 }: {
   proof: ProofClipState;
   showNarrowedHint?: boolean;
+  maxDurationSeconds: number;
 }) {
   const styles = useThemedStyles(createStyles);
 
@@ -124,9 +136,9 @@ export function ProofClipPrimaryRow({
           {proof.statusLine}
         </Text>
       ) : null}
-      {proof.clip && proof.clip.durationSeconds >= PROOF_CLIP_MAX_DURATION_SECONDS ? (
+      {proof.clip && proof.clip.durationSeconds >= maxDurationSeconds ? (
         <Text style={styles.hint} testID="proof-clip-capped">
-          {POSE_COPY.clipCapped(PROOF_CLIP_MAX_DURATION_SECONDS / 60, proof.clip.count)}
+          {POSE_COPY.clipCapped(maxDurationSeconds / 60, proof.clip.count)}
         </Text>
       ) : null}
     </View>
@@ -150,6 +162,12 @@ export function ProofClipActions({
 }: ProofClipActionsProps) {
   const styles = useThemedStyles(createStyles);
   const proof = useProofClip(clipId, audience, { isGroup });
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+    staleTime: 60_000,
+  });
+  const maxDurationSeconds = proofClipMaxDurationSeconds(meQuery.data?.proofClipLimits);
 
   if (failed || proof.isMissing) {
     return (
@@ -169,9 +187,9 @@ export function ProofClipActions({
 
   return (
     <View style={styles.wrap} testID="proof-clip-actions">
-      <ProofClipHero proof={proof} />
+      <ProofClipHero maxDurationSeconds={maxDurationSeconds} proof={proof} />
       {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
-      <ProofClipPrimaryRow proof={proof} />
+      <ProofClipPrimaryRow maxDurationSeconds={maxDurationSeconds} proof={proof} />
     </View>
   );
 }

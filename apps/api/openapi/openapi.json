@@ -164,6 +164,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -188,7 +210,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -351,6 +374,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -375,7 +420,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -529,6 +575,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -553,7 +621,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -707,6 +776,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -731,7 +822,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -889,6 +981,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -913,7 +1027,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -1090,6 +1205,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -1114,7 +1251,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -1270,6 +1408,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -1294,7 +1454,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -1450,6 +1611,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -1474,7 +1657,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -1654,6 +1838,28 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "proofClipLimits": {
+                      "type": "object",
+                      "properties": {
+                        "maxDurationSeconds": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxVideoBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maxPosterBytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "maxDurationSeconds",
+                        "maxVideoBytes",
+                        "maxPosterBytes"
+                      ]
                     }
                   },
                   "required": [
@@ -1678,7 +1884,8 @@
                     "healthLinkStatus",
                     "hasMembership",
                     "maxRemindersPerChallenge",
-                    "proofClipAudience"
+                    "proofClipAudience",
+                    "proofClipLimits"
                   ]
                 }
               }
@@ -11212,6 +11419,28 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "proofClipLimits": {
+                          "type": "object",
+                          "properties": {
+                            "maxDurationSeconds": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "maxVideoBytes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "maxPosterBytes": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "maxDurationSeconds",
+                            "maxVideoBytes",
+                            "maxPosterBytes"
+                          ]
                         }
                       },
                       "required": [
@@ -11236,7 +11465,8 @@
                         "healthLinkStatus",
                         "hasMembership",
                         "maxRemindersPerChallenge",
-                        "proofClipAudience"
+                        "proofClipAudience",
+                        "proofClipLimits"
                       ]
                     },
                     "today": {
@@ -13039,23 +13269,23 @@
                       "properties": {
                         "bitRate": {
                           "type": "integer",
-                          "minimum": 200000,
-                          "maximum": 1500000
+                          "minimum": 1,
+                          "maximum": 200000000
                         },
                         "frameRate": {
                           "type": "integer",
-                          "minimum": 15,
-                          "maximum": 30
+                          "minimum": 1,
+                          "maximum": 120
                         },
                         "width": {
                           "type": "integer",
-                          "minimum": 480,
-                          "maximum": 720
+                          "minimum": 256,
+                          "maximum": 2160
                         },
                         "height": {
                           "type": "integer",
-                          "minimum": 854,
-                          "maximum": 1280
+                          "minimum": 256,
+                          "maximum": 3840
                         }
                       },
                       "required": [
@@ -13064,13 +13294,19 @@
                         "width",
                         "height"
                       ]
+                    },
+                    "maxDurationSeconds": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
                     "clipId",
                     "code",
                     "displayCode",
-                    "reservedUntil"
+                    "reservedUntil",
+                    "encoding",
+                    "maxDurationSeconds"
                   ]
                 }
               }
@@ -13100,12 +13336,12 @@
                   "byteSize": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 41943040
+                    "maximum": 2147483647
                   },
                   "durationSeconds": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 180
+                    "maximum": 86400
                   },
                   "count": {
                     "type": "integer",
@@ -13186,12 +13422,12 @@
                   "videoByteSize": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 41943040
+                    "maximum": 2147483647
                   },
                   "posterByteSize": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 512000
+                    "maximum": 2147483647
                   },
                   "audience": {
                     "enum": [

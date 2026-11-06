@@ -1,11 +1,13 @@
 import type { ActivityProofClip } from '@product/client';
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckNoteCard, DeckPushedPage, DeckSheetMessage } from '@/components/deck';
 import { Loader } from '@/components/feedback';
 import { formatPointsDelta } from '@/components/points';
 import { apiClient } from '@/lib/api';
+import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
 import { type Theme, useThemedStyles } from '@/theme';
 import type { completionShareRoute } from './completion-poster';
 import { ACTIVITY_COPY, POSE_COPY } from './constants/doing-copy';
@@ -96,6 +98,12 @@ function ActivityBody({
 function ActivityContent({ detail }: { detail: ActivityDetail }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
+  const meForProofLimits = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+    staleTime: 60_000,
+  });
+  const maxDurationSeconds = proofClipMaxDurationSeconds(meForProofLimits.data?.proofClipLimits);
   const clip = useActivityClip(detail.proofClip, detail.userChallengeId);
   const hasClip = clip.clipId !== null;
   const shareCard = detail.shareCard;
@@ -114,7 +122,11 @@ function ActivityContent({ detail }: { detail: ActivityDetail }) {
       <View style={styles.actions}>
         {clip.proof.error ? <DeckSheetMessage message={clip.proof.error} /> : null}
         {clip.canAct ? (
-          <ProofClipPrimaryRow proof={clip.proof} showNarrowedHint={clip.isUploaded} />
+          <ProofClipPrimaryRow
+            maxDurationSeconds={maxDurationSeconds}
+            proof={clip.proof}
+            showNarrowedHint={clip.isUploaded}
+          />
         ) : null}
         {shareCard ? (
           <DeckButton

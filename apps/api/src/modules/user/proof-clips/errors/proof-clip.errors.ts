@@ -6,6 +6,7 @@ export const PROOF_CLIP_RESERVE_EXPIRED = 'The recording window for this clip ha
 export const PROOF_CLIP_DAILY_CAP = 'You already posted a clip to this group today.';
 export const PROOF_CLIP_UPLOAD_MISSING = 'The uploaded file was not found.';
 export const PROOF_CLIP_UPLOAD_SIZE_MISMATCH = 'The uploaded file size does not match.';
+export const PROOF_CLIP_EXCEEDS_LIMITS = 'This clip is longer or larger than allowed.';
 export const PROOF_CLIP_STORAGE_UNAVAILABLE = 'Clip storage is not configured.';
 export const PROOF_CLIP_VERIFY_RATE_LIMITED = 'Too many verification attempts. Try again shortly.';
 export const PROOF_CLIP_CANNOT_BLOCK_SELF = 'You cannot block yourself.';

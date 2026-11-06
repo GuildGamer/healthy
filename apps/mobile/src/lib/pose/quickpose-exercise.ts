@@ -31,6 +31,12 @@ const QUICKPOSE_LUNGES_FEATURES = [
 /** Matches the green inside-box style: nearly every joint must sit in frame. */
 export const QUICKPOSE_INSIDE_IN_FRAME = 0.95;
 
+/**
+ * Hold metrics (plank) use a looser bar so partial crop still accrues seconds.
+ * Reps keep the stricter green-box line above.
+ */
+export const QUICKPOSE_INSIDE_IN_FRAME_HOLD = 0.88;
+
 export type QuickPoseExerciseUpdate = {
   results: Record<string, number>;
   feedbacks: Record<string, string>;
@@ -107,7 +113,12 @@ export function insideMeasureFromResults(results: Record<string, number>): numbe
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-export function quickPoseFraming(input: { measure: number | null; insideMeasure: number | null }): {
+export function quickPoseFraming(input: {
+  measure: number | null;
+  insideMeasure: number | null;
+  /** Defaults to the strict green-box line; holds pass a looser threshold. */
+  insideWellFramedThreshold?: number;
+}): {
   tooClose: boolean;
   bodyInFrame: boolean;
 } {
@@ -117,7 +128,8 @@ export function quickPoseFraming(input: { measure: number | null; insideMeasure:
     return { tooClose: false, bodyInFrame: false };
   }
 
-  const wellFramed = input.insideMeasure >= QUICKPOSE_INSIDE_IN_FRAME;
+  const threshold = input.insideWellFramedThreshold ?? QUICKPOSE_INSIDE_IN_FRAME;
+  const wellFramed = input.insideMeasure >= threshold;
   return {
     tooClose: !wellFramed,
     bodyInFrame: wellFramed,

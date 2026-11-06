@@ -4,10 +4,10 @@ import { resolveProofClipEncoding } from './proof-clip-encoding';
 describe('resolveProofClipEncoding', () => {
   it('keeps a valid server profile', () => {
     const encoding = {
-      bitRate: 800_000,
-      frameRate: 20,
-      width: 640,
-      height: 1136,
+      bitRate: 8_000_000,
+      frameRate: 30,
+      width: 1080,
+      height: 1920,
     };
 
     expect(resolveProofClipEncoding(encoding)).toEqual(encoding);
@@ -21,21 +21,21 @@ describe('resolveProofClipEncoding', () => {
   it('falls back when a dimension is odd', () => {
     expect(
       resolveProofClipEncoding({
-        bitRate: 1_500_000,
-        frameRate: 24,
-        width: 721,
-        height: 1280,
+        bitRate: 8_000_000,
+        frameRate: 30,
+        width: 1081,
+        height: 1920,
       }),
     ).toEqual(PROOF_CLIP_DEFAULT_ENCODING);
   });
 
-  it('falls back when the bitrate is out of range', () => {
+  it('falls back when the bitrate is invalid', () => {
     expect(
       resolveProofClipEncoding({
-        bitRate: 100_000,
-        frameRate: 24,
-        width: 720,
-        height: 1280,
+        bitRate: 0,
+        frameRate: 30,
+        width: 1080,
+        height: 1920,
       }),
     ).toEqual(PROOF_CLIP_DEFAULT_ENCODING);
   });

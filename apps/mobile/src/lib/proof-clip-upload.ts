@@ -1,6 +1,7 @@
 import type { ProofClipAudience } from '@product/client';
-import { PROOF_CLIP_POSTER_MAX_BYTES } from '@product/contract/proof-clip-limits';
+import type { MeOutput } from '@product/contract';
 import { apiClient } from '@/lib/api';
+import { defaultProofClipLimits } from '@/lib/proof-clip-limits-cache';
 import {
   getLocalProofClip,
   markLocalProofClipPendingUpload,
@@ -13,6 +14,8 @@ export type UploadProofClipInput = {
   audience: ProofClipAudience;
   /** Puts the clip on the group board. Distinct from who can check the code. */
   postToGroup?: boolean;
+  /** From `/me` when available; defaults to contract defaults. */
+  limits?: MeOutput['proofClipLimits'];
 };
 
 /**
@@ -21,6 +24,7 @@ export type UploadProofClipInput = {
  * the set finished offline or the earlier record call failed.
  */
 export async function uploadProofClip(input: UploadProofClipInput): Promise<void> {
+  const limits = input.limits ?? defaultProofClipLimits();
   const local = await getLocalProofClip(input.clipId);
   if (!local) {
     throw new Error('This clip is no longer on this phone.');
@@ -43,7 +47,7 @@ export async function uploadProofClip(input: UploadProofClipInput): Promise<void
     }
   }
 
-  const poster = await readPoster(local.posterUri);
+  const poster = await readPoster(local.posterUri, limits.maxPosterBytes);
   const urls = await apiClient.requestProofClipUpload({
     clipId: input.clipId,
     videoByteSize: local.byteSize,
@@ -85,7 +89,10 @@ export async function uploadProofClip(input: UploadProofClipInput): Promise<void
  * Queues an Anyone upload and starts it. On failure the pending flag stays so
  * app open / reconnect can retry. Does not post to a group board.
  */
-export async function queueAnyoneProofClipUpload(clipId: string): Promise<boolean> {
+export async function queueAnyoneProofClipUpload(
+  clipId: string,
+  limits?: MeOutput['proofClipLimits'],
+): Promise<boolean> {
   await markLocalProofClipPendingUpload(clipId, {
     audience: 'anyone',
     postToGroup: false,
@@ -95,6 +102,7 @@ export async function queueAnyoneProofClipUpload(clipId: string): Promise<boolea
       clipId,
       audience: 'anyone',
       postToGroup: false,
+      limits,
     });
     await markLocalProofClipPendingUpload(clipId, null);
     return true;
@@ -104,14 +112,14 @@ export async function queueAnyoneProofClipUpload(clipId: string): Promise<boolea
 }
 
 /** The poster is optional: a missing or oversized one never blocks the clip. */
-async function readPoster(posterUri: string | null): Promise<Blob | null> {
+async function readPoster(posterUri: string | null, maxBytes: number): Promise<Blob | null> {
   if (!posterUri) {
     return null;
   }
   try {
     const response = await fetch(posterUri);
     const blob = await response.blob();
-    if (blob.size === 0 || blob.size > PROOF_CLIP_POSTER_MAX_BYTES) {
+    if (blob.size === 0 || blob.size > maxBytes) {
       return null;
     }
     return blob;

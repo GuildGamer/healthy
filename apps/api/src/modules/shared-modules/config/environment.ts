@@ -4,15 +4,18 @@
  */
 
 import {
-  PROOF_CLIP_BIT_RATE_MAX,
-  PROOF_CLIP_BIT_RATE_MIN,
   PROOF_CLIP_DEFAULT_ENCODING,
-  PROOF_CLIP_FRAME_RATE_MAX,
-  PROOF_CLIP_FRAME_RATE_MIN,
-  PROOF_CLIP_HEIGHT_MAX,
-  PROOF_CLIP_HEIGHT_MIN,
-  PROOF_CLIP_WIDTH_MAX,
-  PROOF_CLIP_WIDTH_MIN,
+  PROOF_CLIP_ENCODING_BIT_RATE_MAX,
+  PROOF_CLIP_ENCODING_BIT_RATE_MIN,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MAX,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MIN,
+  PROOF_CLIP_ENCODING_HEIGHT_MAX,
+  PROOF_CLIP_ENCODING_HEIGHT_MIN,
+  PROOF_CLIP_ENCODING_WIDTH_MAX,
+  PROOF_CLIP_ENCODING_WIDTH_MIN,
+  PROOF_CLIP_MAX_BYTES,
+  PROOF_CLIP_MAX_DURATION_SECONDS,
+  PROOF_CLIP_POSTER_MAX_BYTES,
   type ProofClipEncoding,
 } from '@product/contract';
 import { readTestingMembership } from '../../../shared/membership/testing-membership.js';
@@ -159,6 +162,10 @@ export type Environment = {
   testingMembership: boolean;
   /** Bitrate, frame rate, and size the phone uses when it records a proof clip. */
   proofClipEncoding: ProofClipEncodingConfig;
+  /** Max recording length and upload sizes enforced by the API (env overridable). */
+  proofClipMaxDurationSeconds: number;
+  proofClipMaxBytes: number;
+  proofClipPosterMaxBytes: number;
 };
 
 function readOptional(value: string | undefined): string | null {
@@ -467,40 +474,91 @@ function readEvenDimension(
 }
 
 /**
- * Unset keys keep the contract defaults. A set value outside the allowed range
- * refuses to boot so a typo cannot ship a soft or oversized clip profile.
+ * Proof-clip encoder profile: unset keys use contract defaults. Bounds match
+ * `proofClipEncodingSchema` so reserve responses always validate client-side.
  */
 function readProofClipEncoding(source: NodeJS.ProcessEnv): ProofClipEncodingConfig {
   const bitRate =
     readOptionalInt(
       source.PROOF_CLIP_BIT_RATE,
       'PROOF_CLIP_BIT_RATE',
-      PROOF_CLIP_BIT_RATE_MIN,
-      PROOF_CLIP_BIT_RATE_MAX,
+      PROOF_CLIP_ENCODING_BIT_RATE_MIN,
+      PROOF_CLIP_ENCODING_BIT_RATE_MAX,
     ) ?? PROOF_CLIP_DEFAULT_ENCODING.bitRate;
   const frameRate =
     readOptionalInt(
       source.PROOF_CLIP_FRAME_RATE,
       'PROOF_CLIP_FRAME_RATE',
-      PROOF_CLIP_FRAME_RATE_MIN,
-      PROOF_CLIP_FRAME_RATE_MAX,
+      PROOF_CLIP_ENCODING_FRAME_RATE_MIN,
+      PROOF_CLIP_ENCODING_FRAME_RATE_MAX,
     ) ?? PROOF_CLIP_DEFAULT_ENCODING.frameRate;
   const width =
     readEvenDimension(
       source.PROOF_CLIP_WIDTH,
       'PROOF_CLIP_WIDTH',
-      PROOF_CLIP_WIDTH_MIN,
-      PROOF_CLIP_WIDTH_MAX,
+      PROOF_CLIP_ENCODING_WIDTH_MIN,
+      PROOF_CLIP_ENCODING_WIDTH_MAX,
     ) ?? PROOF_CLIP_DEFAULT_ENCODING.width;
   const height =
     readEvenDimension(
       source.PROOF_CLIP_HEIGHT,
       'PROOF_CLIP_HEIGHT',
-      PROOF_CLIP_HEIGHT_MIN,
-      PROOF_CLIP_HEIGHT_MAX,
+      PROOF_CLIP_ENCODING_HEIGHT_MIN,
+      PROOF_CLIP_ENCODING_HEIGHT_MAX,
     ) ?? PROOF_CLIP_DEFAULT_ENCODING.height;
 
   return { bitRate, frameRate, width, height };
+}
+
+const PROOF_CLIP_DURATION_ENV_MIN_SECONDS = 60;
+const PROOF_CLIP_DURATION_ENV_MAX_SECONDS = 86_400;
+const PROOF_CLIP_MAX_BYTES_ENV_MIN = 1024 * 1024;
+const PROOF_CLIP_MAX_BYTES_ENV_MAX = 2_147_483_647;
+const PROOF_CLIP_POSTER_MAX_BYTES_ENV_MIN = 10_000;
+const PROOF_CLIP_POSTER_MAX_BYTES_ENV_MAX = 20 * 1024 * 1024;
+
+function readProofClipContentLimits(source: NodeJS.ProcessEnv): {
+  proofClipMaxDurationSeconds: number;
+  proofClipMaxBytes: number;
+  proofClipPosterMaxBytes: number;
+} {
+  const proofClipMaxDurationSeconds =
+    readOptionalInt(
+      source.PROOF_CLIP_MAX_DURATION_SECONDS,
+      'PROOF_CLIP_MAX_DURATION_SECONDS',
+      PROOF_CLIP_DURATION_ENV_MIN_SECONDS,
+      PROOF_CLIP_DURATION_ENV_MAX_SECONDS,
+    ) ?? PROOF_CLIP_MAX_DURATION_SECONDS;
+
+  const fromVideoBytes = readOptionalInt(
+    source.PROOF_CLIP_MAX_VIDEO_BYTES,
+    'PROOF_CLIP_MAX_VIDEO_BYTES',
+    PROOF_CLIP_MAX_BYTES_ENV_MIN,
+    PROOF_CLIP_MAX_BYTES_ENV_MAX,
+  );
+  const fromLegacyMaxBytes = readOptionalInt(
+    source.PROOF_CLIP_MAX_BYTES,
+    'PROOF_CLIP_MAX_BYTES',
+    PROOF_CLIP_MAX_BYTES_ENV_MIN,
+    PROOF_CLIP_MAX_BYTES_ENV_MAX,
+  );
+  const proofClipMaxBytes = fromVideoBytes ?? fromLegacyMaxBytes ?? PROOF_CLIP_MAX_BYTES;
+
+  const fromPosterBytes = readOptionalInt(
+    source.PROOF_CLIP_MAX_POSTER_BYTES,
+    'PROOF_CLIP_MAX_POSTER_BYTES',
+    PROOF_CLIP_POSTER_MAX_BYTES_ENV_MIN,
+    PROOF_CLIP_POSTER_MAX_BYTES_ENV_MAX,
+  );
+  const fromLegacyPoster = readOptionalInt(
+    source.PROOF_CLIP_POSTER_MAX_BYTES,
+    'PROOF_CLIP_POSTER_MAX_BYTES',
+    PROOF_CLIP_POSTER_MAX_BYTES_ENV_MIN,
+    PROOF_CLIP_POSTER_MAX_BYTES_ENV_MAX,
+  );
+  const proofClipPosterMaxBytes = fromPosterBytes ?? fromLegacyPoster ?? PROOF_CLIP_POSTER_MAX_BYTES;
+
+  return { proofClipMaxDurationSeconds, proofClipMaxBytes, proofClipPosterMaxBytes };
 }
 
 function readStorage(
@@ -594,5 +652,6 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
     testingMembership: readTestingMembership(source),
     proofClipEncoding: readProofClipEncoding(source),
+    ...readProofClipContentLimits(source),
   };
 }

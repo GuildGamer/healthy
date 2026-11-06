@@ -252,18 +252,18 @@ internal class ProofRecorder(private val context: Context) {
 
   companion object {
     private const val PROOF_CLIPS_FOLDER = "proof-clips"
-    private const val DEFAULT_WIDTH = 720
-    private const val DEFAULT_HEIGHT = 1280
-    private const val DEFAULT_BIT_RATE = 1_500_000
-    private const val DEFAULT_FRAME_RATE = 24
-    private const val BIT_RATE_MIN = 200_000
-    private const val BIT_RATE_MAX = 1_500_000
-    private const val FRAME_RATE_MIN = 15
-    private const val FRAME_RATE_MAX = 30
-    private const val WIDTH_MIN = 480
-    private const val WIDTH_MAX = 720
-    private const val HEIGHT_MIN = 854
-    private const val HEIGHT_MAX = 1280
+    private const val DEFAULT_WIDTH = 1080
+    private const val DEFAULT_HEIGHT = 1920
+    private const val DEFAULT_BIT_RATE = 8_000_000
+    private const val DEFAULT_FRAME_RATE = 30
+    private const val BIT_RATE_MIN = 50_000
+    private const val BIT_RATE_MAX = 200_000_000
+    private const val FRAME_RATE_MIN = 1
+    private const val FRAME_RATE_MAX = 120
+    private const val WIDTH_MIN = 256
+    private const val WIDTH_MAX = 3840
+    private const val HEIGHT_MIN = 256
+    private const val HEIGHT_MAX = 3840
     private const val POSTER_JPEG_QUALITY = 70
     private const val NANOS_PER_SECOND = 1_000_000_000.0
     private const val NANOS_PER_SECOND_LONG = 1_000_000_000L

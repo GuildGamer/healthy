@@ -131,6 +131,9 @@ function createHarness(initial?: ClipRow) {
         width: 720,
         height: 1280,
       },
+      proofClipMaxDurationSeconds: 3_600,
+      proofClipMaxBytes: 512 * 1024 * 1024,
+      proofClipPosterMaxBytes: 5 * 1024 * 1024,
     } as never,
     new ProofCodeVerifyRateLimiter(),
   );
@@ -157,6 +160,7 @@ describe('ProofClipsService.reserve', () => {
       }),
     ).resolves.toMatchObject({
       clipId: 'reserved-clip',
+      maxDurationSeconds: 3_600,
       encoding: {
         bitRate: 1_500_000,
         frameRate: 24,

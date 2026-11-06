@@ -1,3 +1,4 @@
+import { QUICKPOSE_INSIDE_IN_FRAME_HOLD } from './quickpose-exercise';
 import {
   quickPoseFraming,
   shouldCountPoseRep,
@@ -81,6 +82,36 @@ describe('quickPoseFraming', () => {
     expect(quickPoseFraming({ measure: 0.5, insideMeasure: 0.95 })).toEqual({
       tooClose: false,
       bodyInFrame: true,
+    });
+  });
+
+  it('accepts a near-full body for holds below the strict green-box line', () => {
+    expect(
+      quickPoseFraming({
+        measure: 0.6,
+        insideMeasure: 0.9,
+        insideWellFramedThreshold: QUICKPOSE_INSIDE_IN_FRAME_HOLD,
+      }),
+    ).toEqual({
+      tooClose: false,
+      bodyInFrame: true,
+    });
+    expect(quickPoseFraming({ measure: 0.6, insideMeasure: 0.9 })).toEqual({
+      tooClose: true,
+      bodyInFrame: false,
+    });
+  });
+
+  it('still rejects a sparse body reading under the hold threshold', () => {
+    expect(
+      quickPoseFraming({
+        measure: 0.6,
+        insideMeasure: 0.8,
+        insideWellFramedThreshold: QUICKPOSE_INSIDE_IN_FRAME_HOLD,
+      }),
+    ).toEqual({
+      tooClose: true,
+      bodyInFrame: false,
     });
   });
 });

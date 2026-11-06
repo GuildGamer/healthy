@@ -64,6 +64,7 @@ import {
   getProofClipContract,
   listMatchProofClipsContract,
   proofClipAudienceSchema,
+  proofClipLimitsSchema,
   publicVerifyProofCodeContract,
   recordProofClipContract,
   removeProofClipContract,
@@ -383,6 +384,8 @@ export const meOutputSchema = z.object({
    * the one-time sheet.
    */
   proofClipAudience: proofClipAudienceSchema.nullable(),
+  /** Max duration and upload sizes for proof clips on this deployment. */
+  proofClipLimits: proofClipLimitsSchema,
 });
 
 export const updateCategoriesInputSchema = z.object({
@@ -1193,27 +1196,27 @@ export type {
 } from './crews.js';
 
 export {
-  PROOF_CLIP_BIT_RATE_MAX,
-  PROOF_CLIP_BIT_RATE_MIN,
   PROOF_CLIP_DEFAULT_BIT_RATE,
   PROOF_CLIP_DEFAULT_ENCODING,
   PROOF_CLIP_DEFAULT_FRAME_RATE,
   PROOF_CLIP_DEFAULT_HEIGHT,
   PROOF_CLIP_DEFAULT_WIDTH,
-  PROOF_CLIP_FRAME_RATE_MAX,
-  PROOF_CLIP_FRAME_RATE_MIN,
+  PROOF_CLIP_ENCODING_BIT_RATE_MAX,
+  PROOF_CLIP_ENCODING_BIT_RATE_MIN,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MAX,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MIN,
+  PROOF_CLIP_ENCODING_HEIGHT_MAX,
+  PROOF_CLIP_ENCODING_HEIGHT_MIN,
+  PROOF_CLIP_ENCODING_WIDTH_MAX,
+  PROOF_CLIP_ENCODING_WIDTH_MIN,
   PROOF_CLIP_GROUP_RETENTION_DAYS,
   PROOF_CLIP_HARD_RETENTION_DAYS,
-  PROOF_CLIP_HEIGHT_MAX,
-  PROOF_CLIP_HEIGHT_MIN,
   PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_MAX_DURATION_SECONDS,
   PROOF_CLIP_POSTER_MAX_BYTES,
   PROOF_CLIP_RESERVE_WINDOW_MINUTES,
   PROOF_CLIP_SIGNED_URL_TTL_SECONDS,
   PROOF_CLIP_SOLO_RETENTION_DAYS,
-  PROOF_CLIP_WIDTH_MAX,
-  PROOF_CLIP_WIDTH_MIN,
   PROOF_CODE_ALPHABET,
   PROOF_CODE_BODY_LENGTH,
   formatProofCode,
@@ -1239,6 +1242,7 @@ export {
   verifyProofCodeContract,
   proofClipAudienceSchema,
   proofClipEncodingSchema,
+  proofClipLimitsSchema,
 } from './proof-clips.js';
 export type {
   ActivityProofClip,

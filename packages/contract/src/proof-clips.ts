@@ -14,42 +14,39 @@ export {
 } from './proof-code.js';
 
 import {
-  PROOF_CLIP_BIT_RATE_MAX,
-  PROOF_CLIP_BIT_RATE_MIN,
   PROOF_CLIP_DEFAULT_ENCODING,
-  PROOF_CLIP_FRAME_RATE_MAX,
-  PROOF_CLIP_FRAME_RATE_MIN,
-  PROOF_CLIP_HEIGHT_MAX,
-  PROOF_CLIP_HEIGHT_MIN,
-  PROOF_CLIP_MAX_BYTES,
-  PROOF_CLIP_MAX_DURATION_SECONDS,
-  PROOF_CLIP_POSTER_MAX_BYTES,
-  PROOF_CLIP_WIDTH_MAX,
-  PROOF_CLIP_WIDTH_MIN,
+  PROOF_CLIP_ENCODING_BIT_RATE_MAX,
+  PROOF_CLIP_ENCODING_BIT_RATE_MIN,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MAX,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MIN,
+  PROOF_CLIP_ENCODING_HEIGHT_MAX,
+  PROOF_CLIP_ENCODING_HEIGHT_MIN,
+  PROOF_CLIP_ENCODING_WIDTH_MAX,
+  PROOF_CLIP_ENCODING_WIDTH_MIN,
 } from './proof-clip-limits.js';
 
 export {
-  PROOF_CLIP_BIT_RATE_MAX,
-  PROOF_CLIP_BIT_RATE_MIN,
   PROOF_CLIP_DEFAULT_BIT_RATE,
   PROOF_CLIP_DEFAULT_ENCODING,
   PROOF_CLIP_DEFAULT_FRAME_RATE,
   PROOF_CLIP_DEFAULT_HEIGHT,
   PROOF_CLIP_DEFAULT_WIDTH,
-  PROOF_CLIP_FRAME_RATE_MAX,
-  PROOF_CLIP_FRAME_RATE_MIN,
+  PROOF_CLIP_ENCODING_BIT_RATE_MAX,
+  PROOF_CLIP_ENCODING_BIT_RATE_MIN,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MAX,
+  PROOF_CLIP_ENCODING_FRAME_RATE_MIN,
+  PROOF_CLIP_ENCODING_HEIGHT_MAX,
+  PROOF_CLIP_ENCODING_HEIGHT_MIN,
+  PROOF_CLIP_ENCODING_WIDTH_MAX,
+  PROOF_CLIP_ENCODING_WIDTH_MIN,
   PROOF_CLIP_GROUP_RETENTION_DAYS,
   PROOF_CLIP_HARD_RETENTION_DAYS,
-  PROOF_CLIP_HEIGHT_MAX,
-  PROOF_CLIP_HEIGHT_MIN,
   PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_MAX_DURATION_SECONDS,
   PROOF_CLIP_POSTER_MAX_BYTES,
   PROOF_CLIP_RESERVE_WINDOW_MINUTES,
   PROOF_CLIP_SIGNED_URL_TTL_SECONDS,
   PROOF_CLIP_SOLO_RETENTION_DAYS,
-  PROOF_CLIP_WIDTH_MAX,
-  PROOF_CLIP_WIDTH_MIN,
 } from './proof-clip-limits.js';
 export type { ProofClipEncodingLimits } from './proof-clip-limits.js';
 
@@ -154,22 +151,15 @@ export const reserveProofClipInputSchema = z.object({
   metric: deviceMetricSchema,
 });
 
-/** On-device encoder settings the phone may take from reserve or its own defaults. */
-export const proofClipEncodingSchema = z.object({
-  bitRate: z.number().int().min(PROOF_CLIP_BIT_RATE_MIN).max(PROOF_CLIP_BIT_RATE_MAX),
-  frameRate: z.number().int().min(PROOF_CLIP_FRAME_RATE_MIN).max(PROOF_CLIP_FRAME_RATE_MAX),
-  width: z
-    .number()
-    .int()
-    .min(PROOF_CLIP_WIDTH_MIN)
-    .max(PROOF_CLIP_WIDTH_MAX)
-    .refine((value) => value % 2 === 0, { message: 'width must be even' }),
-  height: z
-    .number()
-    .int()
-    .min(PROOF_CLIP_HEIGHT_MIN)
-    .max(PROOF_CLIP_HEIGHT_MAX)
-    .refine((value) => value % 2 === 0, { message: 'height must be even' }),
+import { proofClipEncodingSchema } from './proof-clip-encoding-schema.js';
+
+export { proofClipEncodingSchema };
+
+/** Upload and recording ceilings for the running API (mirrors server env). */
+export const proofClipLimitsSchema = z.object({
+  maxDurationSeconds: z.number().int().positive(),
+  maxVideoBytes: z.number().int().positive(),
+  maxPosterBytes: z.number().int().positive(),
 });
 
 export const reserveProofClipOutputSchema = z.object({
@@ -178,15 +168,20 @@ export const reserveProofClipOutputSchema = z.object({
   /** Display form with hyphen, e.g. `7KQ4-M2XD`. */
   displayCode: z.string().min(1),
   reservedUntil: z.string().datetime(),
-  /** Present when the API ships an encoder profile; older servers omit it. */
-  encoding: proofClipEncodingSchema.optional(),
+  /** Encoder profile from the server; required on current APIs. */
+  encoding: proofClipEncodingSchema,
+  /** Hard cap for this session’s recording length (native + server validate). */
+  maxDurationSeconds: z.number().int().positive(),
 });
+
+const proofClipRecordByteCeiling = 2_147_483_647;
+const proofClipRecordDurationCeiling = 86_400;
 
 export const recordProofClipInputSchema = z.object({
   clipId: z.string().min(1),
   sha256: proofClipSha256Schema,
-  byteSize: z.number().int().positive().max(PROOF_CLIP_MAX_BYTES),
-  durationSeconds: z.number().int().positive().max(PROOF_CLIP_MAX_DURATION_SECONDS),
+  byteSize: z.number().int().positive().max(proofClipRecordByteCeiling),
+  durationSeconds: z.number().int().positive().max(proofClipRecordDurationCeiling),
   count: z.number().int().nonnegative().max(200_000),
   matchAttemptId: z.string().min(1).optional(),
   /** Base64 App Attest assertion; optional until phase 5 hardens attestation. */
@@ -203,8 +198,8 @@ export const recordProofClipOutputSchema = z.object({
 
 export const requestProofClipUploadInputSchema = z.object({
   clipId: z.string().min(1),
-  videoByteSize: z.number().int().positive().max(PROOF_CLIP_MAX_BYTES),
-  posterByteSize: z.number().int().positive().max(PROOF_CLIP_POSTER_MAX_BYTES).optional(),
+  videoByteSize: z.number().int().positive().max(proofClipRecordByteCeiling),
+  posterByteSize: z.number().int().positive().max(proofClipRecordByteCeiling).optional(),
   audience: proofClipAudienceSchema.optional(),
   /** Puts the clip on the group board. Distinct from who can check the code. */
   postToGroup: z.boolean().optional(),

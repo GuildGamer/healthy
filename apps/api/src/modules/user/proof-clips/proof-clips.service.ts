@@ -34,7 +34,6 @@ import {
 } from '../../shared-modules/storage/index.js';
 import {
   PROOF_CLIP_ALL_DAYS_LIMIT,
-  PROOF_CLIP_MAX_BYTES,
   PROOF_CLIP_POSTER_CONTENT_TYPE,
   PROOF_CLIP_PUBLIC_VERIFY_RATE_LIMIT,
   PROOF_CLIP_RESERVE_WINDOW_MINUTES,
@@ -45,6 +44,7 @@ import {
   PROOF_CLIP_CANNOT_BLOCK_SELF,
   PROOF_CLIP_CONTEXT_NOT_FOUND,
   PROOF_CLIP_DAILY_CAP,
+  PROOF_CLIP_EXCEEDS_LIMITS,
   PROOF_CLIP_NOT_FOUND,
   PROOF_CLIP_NOT_OWNER,
   PROOF_CLIP_NOT_PARTICIPANT,
@@ -112,6 +112,16 @@ export class ProofClipsService {
     private readonly verifyRateLimiter: ProofCodeVerifyRateLimiter,
   ) {}
 
+  /**
+   * Code must stay valid through the longest recording the env allows plus a
+   * short tail (trim, upload). Never below the legacy 30-minute minimum.
+   */
+  private reserveWindowMs(): number {
+    const minMs = PROOF_CLIP_RESERVE_WINDOW_MINUTES * 60_000;
+    const configuredMs = this.environment.proofClipMaxDurationSeconds * 1000 + 90_000;
+    return Math.max(minMs, configuredMs);
+  }
+
   async reserve(
     currentUser: AuthenticatedUser | null | undefined,
     input: ReserveProofClipInput,
@@ -129,9 +139,7 @@ export class ProofClipsService {
     }
 
     const reservedAt = new Date();
-    const reservedUntil = new Date(
-      reservedAt.getTime() + PROOF_CLIP_RESERVE_WINDOW_MINUTES * 60_000,
-    );
+    const reservedUntil = new Date(reservedAt.getTime() + this.reserveWindowMs());
 
     const clip = await this.prisma.proofClip.create({
       data: {
@@ -151,6 +159,7 @@ export class ProofClipsService {
       displayCode: toDisplayProofCode(clip.code),
       reservedUntil: reservedUntil.toISOString(),
       encoding: this.environment.proofClipEncoding,
+      maxDurationSeconds: this.environment.proofClipMaxDurationSeconds,
     };
   }
 
@@ -168,14 +177,19 @@ export class ProofClipsService {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_WRONG_STATUS });
     }
 
-    const reservedUntil = new Date(
-      clip.reservedAt.getTime() + PROOF_CLIP_RESERVE_WINDOW_MINUTES * 60_000,
-    );
+    const reservedUntil = new Date(clip.reservedAt.getTime() + this.reserveWindowMs());
     if (Date.now() > reservedUntil.getTime()) {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_RESERVE_EXPIRED });
     }
 
     const attested = evaluateProofAttestation(input.attestation);
+
+    if (
+      input.durationSeconds > this.environment.proofClipMaxDurationSeconds ||
+      input.byteSize > this.environment.proofClipMaxBytes
+    ) {
+      throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_EXCEEDS_LIMITS });
+    }
 
     const updated = await this.prisma.proofClip.update({
       where: { id: clip.id },
@@ -216,7 +230,13 @@ export class ProofClipsService {
     if (!clip.sha256) {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_WRONG_STATUS });
     }
-    if (input.videoByteSize > PROOF_CLIP_MAX_BYTES) {
+    if (input.videoByteSize > this.environment.proofClipMaxBytes) {
+      throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_UPLOAD_SIZE_MISMATCH });
+    }
+    if (
+      input.posterByteSize != null &&
+      input.posterByteSize > this.environment.proofClipPosterMaxBytes
+    ) {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_UPLOAD_SIZE_MISMATCH });
     }
     if (intent.postToGroup && clip.status === 'recorded') {

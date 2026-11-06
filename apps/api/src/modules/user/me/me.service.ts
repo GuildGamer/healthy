@@ -12,6 +12,7 @@ import {
   isValidTimeZone,
 } from '../../../shared/utils/day-key.js';
 import { longestConsecutiveDayRun } from '../../../shared/utils/day-run.js';
+import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
@@ -22,6 +23,7 @@ import type { MeDto } from './dto/index.js';
 export class MeService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Inject(ENVIRONMENT) private readonly environment: Environment,
     private readonly enrollments: EnrollmentsService,
   ) {}
 
@@ -90,6 +92,11 @@ export class MeService {
       hasMembership: membershipActive,
       maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
       proofClipAudience: profile?.proofClipAudience ?? null,
+      proofClipLimits: {
+        maxDurationSeconds: this.environment.proofClipMaxDurationSeconds,
+        maxVideoBytes: this.environment.proofClipMaxBytes,
+        maxPosterBytes: this.environment.proofClipPosterMaxBytes,
+      },
     };
   }
 

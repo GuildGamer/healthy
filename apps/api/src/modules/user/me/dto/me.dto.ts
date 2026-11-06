@@ -1,4 +1,4 @@
-import type { HealthLinkStatus, ProofClipAudience } from '@product/contract';
+import type { HealthLinkStatus, MeOutput, ProofClipAudience } from '@product/contract';
 import type { HealthCategory } from '@product/db';
 
 export type MeDto = {
@@ -25,4 +25,5 @@ export type MeDto = {
   hasMembership: boolean;
   maxRemindersPerChallenge: number;
   proofClipAudience: ProofClipAudience | null;
+  proofClipLimits: MeOutput['proofClipLimits'];
 };

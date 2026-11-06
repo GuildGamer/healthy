@@ -46,11 +46,11 @@ final class ProofRecorder {
   private let writeQueue = DispatchQueue(label: "healthy.proof-recorder")
   private let imageContext = CIContext()
 
-  /// Balanced defaults when the JS config omits a field (1.5 Mbps, 24 fps, 720×1280).
-  private static let defaultWidth = 720
-  private static let defaultHeight = 1280
-  private static let defaultBitRate = 1_500_000
-  private static let defaultFrameRate = 24.0
+  /// Defaults when JS sends an unusable value (mainstream vertical).
+  private static let defaultWidth = 1080
+  private static let defaultHeight = 1920
+  private static let defaultBitRate = 8_000_000
+  private static let defaultFrameRate = 30.0
   private static let timescale: CMTimeScale = 600
 
   private var targetWidth = ProofRecorder.defaultWidth
@@ -72,19 +72,14 @@ final class ProofRecorder {
   ) throws {
     stopWithoutFinishing()
 
-    let width = Self.evenInRange(encoding.width, default: Self.defaultWidth, min: 480, max: 720)
-    let height = Self.evenInRange(encoding.height, default: Self.defaultHeight, min: 854, max: 1280)
-    let bitRate = Self.clamped(
-      encoding.bitRate,
-      default: Self.defaultBitRate,
-      min: 200_000,
-      max: 1_500_000
-    )
+    let width = Self.evenDimensionOrDefault(encoding.width, default: Self.defaultWidth)
+    let height = Self.evenDimensionOrDefault(encoding.height, default: Self.defaultHeight)
+    let bitRate = Self.clamped(encoding.bitRate, default: Self.defaultBitRate, min: 50_000, max: 200_000_000)
     let frameRate = Self.clamped(
       encoding.frameRate,
       default: Self.defaultFrameRate,
-      min: 15,
-      max: 30
+      min: 1,
+      max: 120
     )
 
     let directory = FileManager.default.temporaryDirectory
@@ -151,8 +146,9 @@ final class ProofRecorder {
     isRecording = true
   }
 
-  private static func evenInRange(_ value: Int, default fallback: Int, min: Int, max: Int) -> Int {
-    guard value >= min, value <= max, value % 2 == 0 else { return fallback }
+  /** Even dimensions only; range matches the API contract (256…3840). */
+  private static func evenDimensionOrDefault(_ value: Int, default fallback: Int) -> Int {
+    guard value >= 256, value <= 3840, value % 2 == 0 else { return fallback }
     return value
   }
 
