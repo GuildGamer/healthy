@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, forwardRef } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
   activityMeetsTarget,
@@ -44,6 +44,7 @@ import {
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
+import { MatchesService } from '../matches/index.js';
 import { StreakService } from '../streak/index.js';
 import type {
   ActivityItemDto,
@@ -203,6 +204,9 @@ export class ChallengesService {
     surpriseRoll?: () => number,
     @Optional()
     private readonly delivery?: EngagementDeliveryService,
+    @Optional()
+    @Inject(forwardRef(() => MatchesService))
+    private readonly matches?: MatchesService,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }
@@ -696,9 +700,45 @@ export class ChallengesService {
         },
       );
       void this.streak.announceMilestone(user.id, result.streak);
+      await this.creditOpenPoseContests(user, activity);
     }
 
     return result.dto;
+  }
+
+  /**
+   * A camera-counted habit set also belongs on every open contest that scores
+   * that exercise. Quiet on failure so a board error never undoes the finish.
+   */
+  private async creditOpenPoseContests(
+    user: AuthenticatedUser,
+    activity: DeviceActivity | null,
+  ): Promise<void> {
+    if (!this.matches || !activity) {
+      return;
+    }
+
+    if (
+      activity.source !== 'in_app_pose' ||
+      !isPoseMetric(activity.metric) ||
+      (activity.count ?? 0) <= 0
+    ) {
+      return;
+    }
+
+    try {
+      await this.matches.creditPosePractice(user, {
+        metric: activity.metric,
+        count: activity.count ?? 0,
+        durationSeconds: activity.durationSeconds ?? 0,
+        source: 'in_app_pose',
+      });
+    } catch (error) {
+      this.logger.warn(
+        'Could not credit pose completion to open contests',
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   /**

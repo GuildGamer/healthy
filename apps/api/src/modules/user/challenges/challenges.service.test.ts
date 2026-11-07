@@ -12,6 +12,7 @@ function createService(
   prisma: unknown,
   evidenceValidator?: unknown,
   delivery?: { send: ReturnType<typeof vi.fn> },
+  matches?: { creditPosePractice: ReturnType<typeof vi.fn> },
 ): ChallengesService {
   return new ChallengesService(
     prisma as never,
@@ -19,6 +20,7 @@ function createService(
     evidenceValidator as never,
     undefined,
     delivery as never,
+    matches as never,
   );
 }
 
@@ -624,6 +626,71 @@ describe('ChallengesService.complete', () => {
       }),
     );
   });
+
+  it('credits open contests when a fresh pose set finishes the habit', async () => {
+    const assignment = pushupHabitAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, undefined, {
+        source: 'in_app_pose',
+        metric: 'pushups',
+        count: 40,
+        durationSeconds: 90,
+        externalId: 'challenge:uc1:start',
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    expect(matches.creditPosePractice).toHaveBeenCalledTimes(1);
+    expect(matches.creditPosePractice).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({
+        metric: 'pushups',
+        count: 40,
+        durationSeconds: 90,
+        source: 'in_app_pose',
+      }),
+    );
+  });
+
+  it('does not credit contests again when the completion is already ledgered', async () => {
+    const assignment = pushupHabitAssignment();
+    const { prisma } = createCompletePrismaMock(assignment, { alreadyLedgered: true });
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, undefined, {
+        source: 'in_app_pose',
+        metric: 'pushups',
+        count: 40,
+        durationSeconds: 90,
+        externalId: 'challenge:uc1:start',
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 0 });
+
+    expect(matches.creditPosePractice).not.toHaveBeenCalled();
+  });
+
+  it('does not credit contests for a completion with no pose activity', async () => {
+    const assignment = sleepAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue([]),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(service.complete(user, 'uc1')).resolves.toMatchObject({
+      pointsAwarded: 20,
+    });
+    expect(matches.creditPosePractice).not.toHaveBeenCalled();
+  });
 });
 
 function sleepAssignment() {
@@ -640,7 +707,25 @@ function sleepAssignment() {
   });
 }
 
-function createCompletePrismaMock(assignment: ReturnType<typeof createAssignment>) {
+function pushupHabitAssignment() {
+  return createAssignment({
+    status: 'in_progress',
+    challenge: {
+      ...createAssignment().challenge,
+      title: 'Do 20 push-ups',
+      completionKind: 'check_in',
+      captureKind: 'device_session',
+      deviceMetric: 'pushups',
+      targetCount: 20,
+      surpriseEvidenceChancePercent: 0,
+    },
+  });
+}
+
+function createCompletePrismaMock(
+  assignment: ReturnType<typeof createAssignment>,
+  options: { alreadyLedgered?: boolean } = {},
+) {
   const completed = {
     ...assignment,
     status: 'completed',
@@ -658,7 +743,9 @@ function createCompletePrismaMock(assignment: ReturnType<typeof createAssignment
   const challengeLogUpsert = vi.fn().mockResolvedValue({});
   const tx = {
     pointLedgerEntry: {
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(options.alreadyLedgered ? { id: 'ledger1' } : null),
       create: vi.fn().mockResolvedValue({}),
     },
     userChallenge: {
@@ -669,6 +756,11 @@ function createCompletePrismaMock(assignment: ReturnType<typeof createAssignment
     },
     challengeLog: {
       upsert: challengeLogUpsert,
+    },
+    deviceActivityLog: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      delete: vi.fn().mockResolvedValue({}),
+      upsert: vi.fn().mockResolvedValue({}),
     },
     userProfile: {
       upsert: vi.fn().mockResolvedValue(profile),

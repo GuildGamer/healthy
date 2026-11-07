@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { EngagementModule } from '../../shared-modules/engagement/index.js';
 import { AnalyticsModule } from '../analytics/index.js';
 import { ChallengesModule } from '../challenges/index.js';
@@ -14,7 +14,13 @@ import { MatchesController } from './matches.controller.js';
 import { MatchesService } from './matches.service.js';
 
 @Module({
-  imports: [CrewsModule, AnalyticsModule, EngagementModule, StreakModule, ChallengesModule],
+  imports: [
+    CrewsModule,
+    AnalyticsModule,
+    EngagementModule,
+    StreakModule,
+    forwardRef(() => ChallengesModule),
+  ],
   controllers: [MatchesController],
   providers: [
     MatchesService,

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
   MATCH_ATTEMPT_MAX_BY_METRIC,
@@ -124,6 +124,7 @@ export class MatchesService {
     private readonly matchReactionNotifier: MatchReactionNotifierService,
     private readonly streak: StreakService,
     private readonly matchSettledNotifier: MatchSettledNotifierService,
+    @Inject(forwardRef(() => ChallengesService))
     private readonly challenges: ChallengesService,
   ) {}
 

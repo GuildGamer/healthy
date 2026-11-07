@@ -25,8 +25,10 @@ export {
   type StanceRejectSample,
 } from './stance-reject-sample';
 export {
+  QUICKPOSE_DEAD_ZONE_ABANDON_MS,
   QUICKPOSE_MIN_REP_INTERVAL_MS,
   QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
+  QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
   QuickPoseThresholdCounter,
 } from './quickpose-threshold-counter';
 export {
