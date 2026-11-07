@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional, forwardRef } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
   activityMeetsTarget,
@@ -44,7 +44,10 @@ import {
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
-import { MatchesService } from '../matches/index.js';
+import {
+  MATCHES_SERVICE,
+  type PoseContestCreditor,
+} from '../matches/matches.tokens.js';
 import { StreakService } from '../streak/index.js';
 import type {
   ActivityItemDto,
@@ -205,8 +208,8 @@ export class ChallengesService {
     @Optional()
     private readonly delivery?: EngagementDeliveryService,
     @Optional()
-    @Inject(forwardRef(() => MatchesService))
-    private readonly matches?: MatchesService,
+    @Inject(MATCHES_SERVICE)
+    private readonly matches?: PoseContestCreditor,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }

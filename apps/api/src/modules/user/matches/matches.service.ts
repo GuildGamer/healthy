@@ -25,7 +25,7 @@ import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { AnalyticsService } from '../analytics/index.js';
-import { ChallengesService } from '../challenges/index.js';
+import { ChallengesService } from '../challenges/challenges.service.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
 import { StreakService } from '../streak/index.js';
 import { groupNameFor } from '../../../shared/utils/group-name.js';
