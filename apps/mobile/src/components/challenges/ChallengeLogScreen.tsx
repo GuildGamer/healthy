@@ -1,4 +1,6 @@
-import { Redirect } from 'expo-router';
+import type { TodayChallenge } from '@product/client';
+import type { Href } from 'expo-router';
+import { useReplaceRoute } from '@/lib/use-replace-route';
 import { BloodPressureSheet } from './BloodPressureSheet';
 import { isSleepCapture } from './completion-route';
 import { NOT_ON_TODAY } from './constants/doing-copy';
@@ -11,9 +13,40 @@ import { WaterSheet } from './WaterSheet';
 
 const ALREADY_LOGGED = 'This one is already logged today.';
 
+/**
+ * When the log route is the wrong surface for this occurrence, replace to the
+ * right one so Back does not land on a gate that immediately forwards again.
+ */
+function logGateHref(challengeId: string, occurrence: TodayChallenge): Href | null {
+  if (occurrence.status === 'awaiting_evidence') {
+    return `/challenge/${challengeId}/verify`;
+  }
+
+  if (
+    !isSleepCapture(occurrence.capture) &&
+    occurrence.completionKind !== 'vitals_bp' &&
+    occurrence.completionKind !== 'water' &&
+    !isSingleReadingKind(occurrence.completionKind)
+  ) {
+    if (occurrence.completionKind === 'check_in') {
+      return `/challenge/${challengeId}/confirm`;
+    }
+
+    return `/challenge/${challengeId}/evidence`;
+  }
+
+  return null;
+}
+
 /** Picks the sheet for a log: the blood-pressure pair, one number, or the water count. */
 export function ChallengeLogScreen({ challengeId }: { challengeId: string }) {
   const { occurrence, isPending } = useTodayOccurrence(challengeId);
+  const gateHref =
+    !isPending && occurrence && occurrence.status !== 'completed'
+      ? logGateHref(challengeId, occurrence)
+      : null;
+
+  useReplaceRoute(gateHref);
 
   if (isPending) {
     return null;
@@ -27,8 +60,8 @@ export function ChallengeLogScreen({ challengeId }: { challengeId: string }) {
     return <ClosedReadingSheet message={ALREADY_LOGGED} testID="log-reading-done" />;
   }
 
-  if (occurrence.status === 'awaiting_evidence') {
-    return <Redirect href={`/challenge/${challengeId}/verify`} />;
+  if (gateHref) {
+    return null;
   }
 
   if (isSleepCapture(occurrence.capture)) {
@@ -47,9 +80,5 @@ export function ChallengeLogScreen({ challengeId }: { challengeId: string }) {
     return <SingleReadingSheet kind={occurrence.completionKind} occurrence={occurrence} />;
   }
 
-  if (occurrence.completionKind === 'check_in') {
-    return <Redirect href={`/challenge/${challengeId}/confirm`} />;
-  }
-
-  return <Redirect href={`/challenge/${challengeId}/evidence`} />;
+  return null;
 }

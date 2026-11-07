@@ -10,12 +10,13 @@ const notice = {
   actorDisplayName: 'Bee',
   actorScoreBefore: 25,
   actorScoreAfter: 40,
+  actorRank: 1,
   // 26 hours after NOW.
   endsAt: '2026-10-27T12:00:00.000Z',
   recipients: [
-    { userId: 'bee', score: 40 },
-    { userId: 'host', score: 30 },
-    { userId: 'cam', score: 100 },
+    { userId: 'bee', score: 40, rank: 1 },
+    { userId: 'host', score: 30, rank: 2 },
+    { userId: 'cam', score: 100, rank: 3 },
   ],
 };
 
@@ -39,13 +40,38 @@ function createDelivery() {
   };
 }
 
+function growContext(recipientIds: readonly string[] = ['host', 'cam']) {
+  return {
+    loadForNotify: vi.fn().mockResolvedValue({
+      acceptedCount: 3,
+      attemptsLast60m: 1,
+      attemptsLast24h: 1,
+      historyByRecipient: new Map(
+        recipientIds.map((userId) => [
+          userId,
+          {
+            pushedInCoalesceWindow: false,
+            routinePushedToday: false,
+            dayKey: '2026-10-26',
+          },
+        ]),
+      ),
+    }),
+  };
+}
+
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   delivery = createDelivery(),
+  pushContext = growContext(),
 ) {
-  const service = new BoardMoveNotifierService(prisma as never, delivery as never);
+  const service = new BoardMoveNotifierService(
+    prisma as never,
+    delivery as never,
+    pushContext as never,
+  );
 
-  return { service, delivery };
+  return { service, delivery, pushContext };
 }
 
 describe('BoardMoveNotifierService', () => {
@@ -93,13 +119,17 @@ describe('BoardMoveNotifierService', () => {
           userId: 'host',
           title: 'Bee passed you',
           body: '40 to your 30 · 1 day left',
-          data: { matchId: 'm1' },
+          data: { matchId: 'm1', actorUserId: 'bee' },
+          situation: 'ahead',
+          templateKey: 'board_move',
         },
         {
           userId: 'cam',
           title: 'Bee scored',
           body: '40 to your 100 · 1 day left',
-          data: { matchId: 'm1' },
+          data: { matchId: 'm1', actorUserId: 'bee' },
+          situation: 'routine',
+          templateKey: 'board_move',
         },
       ],
     });
@@ -107,13 +137,14 @@ describe('BoardMoveNotifierService', () => {
 
   it('uses closing-in copy when the actor is close behind', async () => {
     const prisma = createPrismaMock();
-    const { service } = createService(prisma);
+    const { service } = createService(prisma, createDelivery(), growContext(['host']));
 
     await service.notifyParticipants({
       ...notice,
       actorScoreBefore: 20,
       actorScoreAfter: 28,
-      recipients: [{ userId: 'host', score: 30 }],
+      actorRank: 2,
+      recipients: [{ userId: 'host', score: 30, rank: 1 }],
     });
 
     expect(prisma.notification.createMany).toHaveBeenCalledWith({
@@ -130,13 +161,14 @@ describe('BoardMoveNotifierService', () => {
 
   it('uses caught-you copy when scores are tied', async () => {
     const prisma = createPrismaMock();
-    const { service } = createService(prisma);
+    const { service } = createService(prisma, createDelivery(), growContext(['host']));
 
     await service.notifyParticipants({
       ...notice,
       actorScoreBefore: 20,
       actorScoreAfter: 30,
-      recipients: [{ userId: 'host', score: 30 }],
+      actorRank: 1,
+      recipients: [{ userId: 'host', score: 30, rank: 1 }],
     });
 
     expect(prisma.notification.createMany).toHaveBeenCalledWith({
@@ -156,7 +188,7 @@ describe('BoardMoveNotifierService', () => {
 
     await service.notifyParticipants({
       ...notice,
-      recipients: [{ userId: 'bee', score: 40 }],
+      recipients: [{ userId: 'bee', score: 40, rank: 1 }],
     });
 
     expect(prisma.notification.createMany).not.toHaveBeenCalled();
@@ -186,14 +218,291 @@ describe('BoardMoveNotifierService', () => {
       usersWithDevice: [],
       usersWithoutDevice: ['host'],
     });
-    const { service } = createService(prisma, delivery);
+    const { service } = createService(prisma, delivery, growContext(['host']));
 
     await service.notifyParticipants({
       ...notice,
-      recipients: [{ userId: 'host', score: 30 }],
+      recipients: [{ userId: 'host', score: 30, rank: 2 }],
     });
 
     expect(prisma.notification.createMany).toHaveBeenCalled();
     expect(delivery.send).toHaveBeenCalled();
+  });
+
+  it('writes three grow inbox rows but only one routine push when coalesced', async () => {
+    const prisma = createPrismaMock();
+    const delivery = createDelivery();
+    const pushContext = {
+      loadForNotify: vi
+        .fn()
+        .mockResolvedValueOnce({
+          acceptedCount: 3,
+          attemptsLast60m: 1,
+          attemptsLast24h: 1,
+          historyByRecipient: new Map([
+            [
+              'host',
+              {
+                pushedInCoalesceWindow: false,
+                routinePushedToday: false,
+                dayKey: '2026-10-26',
+              },
+            ],
+          ]),
+        })
+        .mockResolvedValue({
+          acceptedCount: 3,
+          attemptsLast60m: 2,
+          attemptsLast24h: 2,
+          historyByRecipient: new Map([
+            [
+              'host',
+              {
+                pushedInCoalesceWindow: true,
+                routinePushedToday: true,
+                dayKey: '2026-10-26',
+              },
+            ],
+          ]),
+        }),
+    };
+    const { service } = createService(prisma, delivery, pushContext);
+
+    await service.notifyParticipants({
+      ...notice,
+      attemptOrEventId: 'a1',
+      actorScoreBefore: 0,
+      actorScoreAfter: 10,
+      actorRank: 2,
+      recipients: [{ userId: 'host', score: 100, rank: 1 }],
+    });
+    await service.notifyParticipants({
+      ...notice,
+      attemptOrEventId: 'a2',
+      actorScoreBefore: 10,
+      actorScoreAfter: 20,
+      actorRank: 2,
+      recipients: [{ userId: 'host', score: 100, rank: 1 }],
+    });
+    await service.notifyParticipants({
+      ...notice,
+      attemptOrEventId: 'a3',
+      actorScoreBefore: 20,
+      actorScoreAfter: 30,
+      actorRank: 2,
+      recipients: [{ userId: 'host', score: 100, rank: 1 }],
+    });
+
+    expect(prisma.notification.createMany).toHaveBeenCalledTimes(3);
+    expect(delivery.send).toHaveBeenCalledTimes(1);
+    expect(delivery.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pushes: [
+          expect.objectContaining({
+            userId: 'host',
+            situation: 'routine',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('still pushes a competitive escalation after a coalesced routine', async () => {
+    const prisma = createPrismaMock();
+    const delivery = createDelivery();
+    const pushContext = {
+      loadForNotify: vi
+        .fn()
+        .mockResolvedValueOnce({
+          acceptedCount: 3,
+          attemptsLast60m: 1,
+          attemptsLast24h: 1,
+          historyByRecipient: new Map([
+            [
+              'host',
+              {
+                pushedInCoalesceWindow: false,
+                routinePushedToday: false,
+                dayKey: '2026-10-26',
+              },
+            ],
+          ]),
+        })
+        .mockResolvedValue({
+          acceptedCount: 3,
+          attemptsLast60m: 2,
+          attemptsLast24h: 2,
+          historyByRecipient: new Map([
+            [
+              'host',
+              {
+                pushedInCoalesceWindow: true,
+                routinePushedToday: true,
+                dayKey: '2026-10-26',
+              },
+            ],
+          ]),
+        }),
+    };
+    const { service } = createService(prisma, delivery, pushContext);
+
+    await service.notifyParticipants({
+      ...notice,
+      attemptOrEventId: 'a1',
+      actorScoreBefore: 0,
+      actorScoreAfter: 10,
+      actorRank: 2,
+      recipients: [{ userId: 'host', score: 100, rank: 1 }],
+    });
+    await service.notifyParticipants({
+      ...notice,
+      attemptOrEventId: 'a2',
+      actorScoreBefore: 25,
+      actorScoreAfter: 40,
+      actorRank: 1,
+      recipients: [{ userId: 'host', score: 30, rank: 2 }],
+    });
+
+    expect(delivery.send).toHaveBeenCalledTimes(2);
+    expect(delivery.send.mock.calls[1]?.[0].pushes).toEqual([
+      expect.objectContaining({
+        userId: 'host',
+        situation: 'ahead',
+        title: 'Bee passed you',
+      }),
+    ]);
+  });
+
+  it('announces routine in standard mode when not coalesced', async () => {
+    const prisma = createPrismaMock();
+    const delivery = createDelivery();
+    const pushContext = {
+      loadForNotify: vi.fn().mockResolvedValue({
+        acceptedCount: 6,
+        attemptsLast60m: 1,
+        attemptsLast24h: 2,
+        historyByRecipient: new Map([
+          [
+            'host',
+            {
+              pushedInCoalesceWindow: false,
+              routinePushedToday: false,
+              dayKey: '2026-10-26',
+            },
+          ],
+          [
+            'cam',
+            {
+              pushedInCoalesceWindow: false,
+              routinePushedToday: false,
+              dayKey: '2026-10-26',
+            },
+          ],
+        ]),
+      }),
+    };
+    const { service } = createService(prisma, delivery, pushContext);
+
+    await service.notifyParticipants(notice);
+
+    expect(prisma.notification.createMany).toHaveBeenCalled();
+    expect(delivery.send).toHaveBeenCalledWith({
+      source: 'board_move',
+      audience: 'group_opt_in',
+      pushes: [
+        expect.objectContaining({
+          userId: 'host',
+          situation: 'ahead',
+        }),
+        expect.objectContaining({
+          userId: 'cam',
+          situation: 'routine',
+        }),
+      ],
+    });
+  });
+
+  it('limits busy competitive fan-out to the top three rivals', async () => {
+    const prisma = createPrismaMock();
+    const delivery = createDelivery();
+    const recipients = Array.from({ length: 10 }, (_, index) => ({
+      userId: `u${index}`,
+      score: 50 - index,
+      rank: index + 1,
+    }));
+    const pushContext = {
+      loadForNotify: vi.fn().mockResolvedValue({
+        acceptedCount: 11,
+        attemptsLast60m: 1,
+        attemptsLast24h: 1,
+        historyByRecipient: new Map(
+          recipients.map((row) => [
+            row.userId,
+            {
+              pushedInCoalesceWindow: false,
+              routinePushedToday: false,
+              dayKey: '2026-10-26',
+            },
+          ]),
+        ),
+      }),
+    };
+    const { service } = createService(prisma, delivery, pushContext);
+
+    await service.notifyParticipants({
+      ...notice,
+      actorScoreBefore: 0,
+      actorScoreAfter: 55,
+      actorRank: 1,
+      recipients,
+    });
+
+    expect(prisma.notification.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ userId: 'u0' }),
+          expect.objectContaining({ userId: 'u9' }),
+        ]),
+      }),
+    );
+    const pushes = delivery.send.mock.calls[0]?.[0].pushes as Array<{ userId: string }>;
+    expect(pushes).toHaveLength(3);
+    // Actor is rank 1: adjacent runner-up (u1) outranks the displaced leader (u0).
+    expect(pushes.map((push) => push.userId)).toEqual(['u1', 'u0', 'u2']);
+  });
+
+  it('skips delivery entirely when every recipient is policy-suppressed', async () => {
+    const prisma = createPrismaMock();
+    const delivery = createDelivery();
+    const pushContext = {
+      loadForNotify: vi.fn().mockResolvedValue({
+        // Busy: routine never pushes.
+        acceptedCount: 12,
+        attemptsLast60m: 1,
+        attemptsLast24h: 2,
+        historyByRecipient: new Map([
+          [
+            'host',
+            {
+              pushedInCoalesceWindow: false,
+              routinePushedToday: false,
+              dayKey: '2026-10-26',
+            },
+          ],
+        ]),
+      }),
+    };
+    const { service } = createService(prisma, delivery, pushContext);
+
+    await service.notifyParticipants({
+      ...notice,
+      actorScoreBefore: 0,
+      actorScoreAfter: 10,
+      actorRank: 2,
+      recipients: [{ userId: 'host', score: 100, rank: 1 }],
+    });
+
+    expect(prisma.notification.createMany).toHaveBeenCalled();
+    expect(delivery.send).not.toHaveBeenCalled();
   });
 });

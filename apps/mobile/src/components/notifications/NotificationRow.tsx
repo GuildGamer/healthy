@@ -29,6 +29,11 @@ function destinationFor(notification: InboxNotification): Href | null {
   return null;
 }
 
+/** Challenge detail reuses an existing stack entry; other destinations always push. */
+function isChallengeDetailHref(destination: Href): boolean {
+  return typeof destination === 'string' && /^\/challenge\/[^/]+$/.test(destination);
+}
+
 /** A record of something that happened, tinted until it has been seen. */
 export function NotificationRow({ notification, kind, isFirst, now }: NotificationRowProps) {
   const styles = useThemedStyles(createStyles);
@@ -67,7 +72,11 @@ export function NotificationRow({ notification, kind, isFirst, now }: Notificati
     <Pressable
       accessibilityLabel={notification.title}
       accessibilityRole="button"
-      onPress={() => router.push(destination)}
+      onPress={() =>
+        isChallengeDetailHref(destination)
+          ? router.navigate(destination)
+          : router.push(destination)
+      }
       style={({ pressed }) => [...rowStyle, pressed ? styles.pressed : null]}
       testID={`notification-open-${notification.id}`}
     >

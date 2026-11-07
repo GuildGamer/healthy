@@ -113,6 +113,11 @@ background settler. Re-engagement is "Run it back", not an open-ended club.
 At most one group push per group per day, plus the settlement result. Cheers and
 nudges are rate-limited and idempotent on `(groupId, fromUserId, toUserId, day)`.
 
+Board moves: inbox per attempt for every mate; lock-screen push announces by
+default via `group-board-push-policy` (coalesce same-actor bursts; busy mode
+suppresses routine and fans out competitive to top rivals only). See
+`docs/social.md` § Notifications.
+
 ## Contract
 
 Additive changes only — new enum values and optional fields. Store clients

@@ -81,3 +81,28 @@ export function defineWalkLocationTask(): void {
 }
 
 defineWalkLocationTask();
+
+/**
+ * Stops the walk GPS task if a previous process left it running. Call on cold
+ * start when no recorder is mounted yet.
+ */
+export async function ensureWalkLocationTaskStopped(): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Location = require('expo-location') as {
+      hasStartedLocationUpdatesAsync?: (taskName: string) => Promise<boolean>;
+      stopLocationUpdatesAsync?: (taskName: string) => Promise<void>;
+    };
+
+    if (!Location.hasStartedLocationUpdatesAsync || !Location.stopLocationUpdatesAsync) {
+      return;
+    }
+
+    const running = await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK);
+    if (running) {
+      await Location.stopLocationUpdatesAsync(WALK_LOCATION_TASK);
+    }
+  } catch {
+    // Already stopped, or this binary has no background location.
+  }
+}

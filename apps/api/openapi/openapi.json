@@ -18692,6 +18692,22 @@
                           "count"
                         ]
                       }
+                    },
+                    "groupNotificationsOptedOutShare": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "groupNotificationsDisabledInRange": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "groupNotificationsEnabledInRange": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "groupNotificationsDisableSpike": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -18706,7 +18722,11 @@
                     "notificationsInRange",
                     "notificationsReadInRange",
                     "notificationReadRate",
-                    "surpriseEvidenceInRange"
+                    "surpriseEvidenceInRange",
+                    "groupNotificationsOptedOutShare",
+                    "groupNotificationsDisabledInRange",
+                    "groupNotificationsEnabledInRange",
+                    "groupNotificationsDisableSpike"
                   ]
                 }
               }

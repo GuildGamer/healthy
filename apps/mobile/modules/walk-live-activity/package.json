@@ -9,6 +9,7 @@
   "peerDependencies": {
     "expo": "*",
     "expo-live-activity": "*",
+    "expo-secure-store": "*",
     "react": "*",
     "react-native": "*"
   }

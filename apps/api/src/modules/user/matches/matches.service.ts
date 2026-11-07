@@ -1193,7 +1193,11 @@ export class MatchesService {
     const acceptedIds = new Set(this.acceptedUserIds(match));
     const recipients = board.standings
       .filter((row) => acceptedIds.has(row.userId) && row.userId !== actorUserId)
-      .map((row) => ({ userId: row.userId, score: row.score }));
+      .map((row) => ({
+        userId: row.userId,
+        score: row.score,
+        rank: row.rank,
+      }));
 
     if (recipients.length === 0) {
       return;
@@ -1207,6 +1211,7 @@ export class MatchesService {
         actorDisplayName: actorStanding.displayName,
         actorScoreBefore,
         actorScoreAfter: actorStanding.score,
+        actorRank: actorStanding.rank,
         endsAt: board.endsAt,
         recipients,
       });

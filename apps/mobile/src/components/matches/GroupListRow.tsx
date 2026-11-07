@@ -46,7 +46,9 @@ export function GroupListRow({
             faces={stackFacesFrom(standings.slice(0, MAX_LIST_FACES))}
             testID={`match-faces-${item.id}`}
           />
-          <Text style={styles.meta}>{GROUPS_COPY.todayCount(done, total)}</Text>
+          <Text numberOfLines={1} style={styles.todayMeta}>
+            {GROUPS_COPY.todayCount(done, total)}
+          </Text>
         </View>
       </View>
       <View style={styles.side}>
@@ -101,6 +103,7 @@ const createStyles = (theme: Theme) =>
     text: {
       flex: 1,
       minWidth: 0,
+      overflow: 'hidden',
     },
     title: {
       color: theme.colors.text,
@@ -113,6 +116,11 @@ const createStyles = (theme: Theme) =>
       gap: spacing.sm,
       marginTop: 6,
     },
+    todayMeta: {
+      flexShrink: 1,
+      color: theme.colors.muted,
+      fontSize: 13,
+    },
     meta: {
       color: theme.colors.muted,
       fontSize: 13,
@@ -123,6 +131,8 @@ const createStyles = (theme: Theme) =>
       marginTop: 2,
     },
     side: {
+      flexShrink: 0,
+      minWidth: 72,
       alignItems: 'flex-end',
     },
     place: {

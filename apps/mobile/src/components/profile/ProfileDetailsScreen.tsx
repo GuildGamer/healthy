@@ -1,6 +1,6 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { InlineNotice, InsetField } from '@/components/forms';
 import { useSession } from '@/lib/auth-client';
 import { goBackOrHome } from '@/lib/go-back';
@@ -99,7 +99,10 @@ export function ProfileDetailsScreen() {
       <SettingsGroup isSpaced={false}>
         <SettingsLinkRow
           label="Account name"
-          onPress={() => setIsFullNameOpen(true)}
+          onPress={() => {
+            Keyboard.dismiss();
+            setIsFullNameOpen(true);
+          }}
           testID="open-full-name"
           value={fullName}
         />

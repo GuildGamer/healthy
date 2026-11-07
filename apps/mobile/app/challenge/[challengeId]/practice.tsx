@@ -6,6 +6,7 @@ import { ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { challengesTabHref } from '@/lib/challenges-tab';
+import { useReplaceRoute } from '@/lib/use-replace-route';
 
 /**
  * Free sets after the daily challenge is done. When an open group contest
@@ -25,6 +26,22 @@ export default function ChallengePracticeRoute() {
     enabled: Boolean(session),
   });
 
+  const dataReady =
+    Boolean(session) &&
+    Boolean(challengeId) &&
+    !todayQuery.isPending &&
+    !matchesQuery.isPending;
+  const occurrence = dataReady
+    ? todayQuery.data?.challenges.find(
+        (item: { challengeId: string }) => item.challengeId === challengeId,
+      )
+    : undefined;
+  const contestRoute = dataReady
+    ? openPoseContestRoute(matchesQuery.data?.live ?? [], occurrence?.capture?.metric)
+    : null;
+
+  useReplaceRoute(contestRoute);
+
   if (isPending || !challengeId) {
     return isPending ? <ScreenLoader /> : <Redirect href={challengesTabHref('mine')} />;
   }
@@ -33,19 +50,8 @@ export default function ChallengePracticeRoute() {
     return <Redirect href="/login" />;
   }
 
-  if (todayQuery.isPending || matchesQuery.isPending) {
+  if (todayQuery.isPending || matchesQuery.isPending || contestRoute) {
     return <ScreenLoader />;
-  }
-
-  const occurrence = todayQuery.data?.challenges.find(
-    (item: { challengeId: string }) => item.challengeId === challengeId,
-  );
-  const contestRoute = openPoseContestRoute(
-    matchesQuery.data?.live ?? [],
-    occurrence?.capture?.metric,
-  );
-  if (contestRoute) {
-    return <Redirect href={contestRoute} />;
   }
 
   return <PoseSessionScreen challengeId={challengeId} mode="practice" />;

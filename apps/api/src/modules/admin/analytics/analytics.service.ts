@@ -23,6 +23,8 @@ import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
   bucketByDay,
   countryShares,
+  isDailyCountSpike,
+  parseGroupNotificationToggle,
   rate,
   resolveRange,
   streakBucketKey,
@@ -448,6 +450,8 @@ export class AdminAnalyticsService {
     requireAdmin(currentAdmin);
     const { days, rangeStart, now } = resolveRange(input.days);
 
+    const activeProfileWhere = { deactivatedAt: null, deletedAt: null } as const;
+
     const [
       activeEnrollments,
       enrollmentsWithReminder,
@@ -455,6 +459,9 @@ export class AdminAnalyticsService {
       pushDevices,
       notifications,
       surpriseRows,
+      activeProfiles,
+      optedOutProfiles,
+      settingChangedEvents,
     ] = await Promise.all([
       this.prisma.challengeEnrollment.count({ where: { isActive: true } }),
       this.prisma.challengeEnrollment.count({
@@ -476,6 +483,17 @@ export class AdminAnalyticsService {
         where: { createdAt: { gte: rangeStart } },
         _count: { _all: true },
       }),
+      this.prisma.userProfile.count({ where: activeProfileWhere }),
+      this.prisma.userProfile.count({
+        where: { ...activeProfileWhere, groupNotificationsEnabled: false },
+      }),
+      this.prisma.analyticsEvent.findMany({
+        where: {
+          name: 'setting_changed',
+          occurredAt: { gte: rangeStart },
+        },
+        select: { occurredAt: true, properties: true },
+      }),
     ]);
 
     const platformMap = new Map<string, number>();
@@ -485,6 +503,27 @@ export class AdminAnalyticsService {
     }
 
     const readCount = notifications.filter((row) => row.readAt != null).length;
+
+    let groupNotificationsDisabledInRange = 0;
+    let groupNotificationsEnabledInRange = 0;
+    const disableDates: Date[] = [];
+    for (const event of settingChangedEvents) {
+      const toggle = parseGroupNotificationToggle(event.properties);
+      if (!toggle) {
+        continue;
+      }
+      if (toggle.disabled) {
+        groupNotificationsDisabledInRange += 1;
+        disableDates.push(event.occurredAt);
+      } else {
+        groupNotificationsEnabledInRange += 1;
+      }
+    }
+
+    const disablesByDay = bucketByDay(disableDates, rangeStart, days);
+    const groupNotificationsDisableSpike = isDailyCountSpike(
+      disablesByDay.map((row) => row.count),
+    );
 
     return {
       generatedAt: now.toISOString(),
@@ -505,6 +544,10 @@ export class AdminAnalyticsService {
         label: row.status,
         count: row._count._all,
       })),
+      groupNotificationsOptedOutShare: rate(optedOutProfiles, activeProfiles),
+      groupNotificationsDisabledInRange,
+      groupNotificationsEnabledInRange,
+      groupNotificationsDisableSpike,
     };
   }
 

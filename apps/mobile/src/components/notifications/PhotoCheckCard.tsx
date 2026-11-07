@@ -36,7 +36,7 @@ export function PhotoCheckCard({ challenge }: { challenge: TodayChallenge }) {
       <Text style={styles.title}>{challenge.title}</Text>
       <Pressable
         accessibilityRole="button"
-        onPress={() => router.push(`/challenge/${challenge.challengeId}/verify`)}
+        onPress={() => router.navigate(`/challenge/${challenge.challengeId}/verify`)}
         style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}
         testID={`inbox-open-camera-${challenge.id}`}
       >

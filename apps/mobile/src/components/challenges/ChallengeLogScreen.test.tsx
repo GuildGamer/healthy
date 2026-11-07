@@ -159,6 +159,22 @@ describe('ChallengeLogScreen', () => {
     expect(takeChallengeFinish()).toBeNull();
   });
 
+  it('replaces to the photo check when the occurrence is already awaiting evidence', async () => {
+    renderSheet(
+      reading({
+        status: 'awaiting_evidence',
+        evidenceRequest: {
+          expiresAt: '2026-10-22T08:11:00.000Z',
+          windowSeconds: 60,
+          penaltyPoints: 25,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/challenge/c-log/verify'));
+    expect(screen.queryByTestId('log-vitals-screen')).toBeNull();
+  });
+
   it('keeps the numbers and offers to try again when the connection drops', async () => {
     mockedApi.completeChallenge.mockRejectedValue(new TypeError('Network request failed'));
     renderSheet(reading({}));

@@ -19,7 +19,8 @@ jest.mock('@/lib/api', () => ({
 
 jest.mock('expo-router', () => {
   const push = jest.fn();
-  return { useRouter: () => ({ push }) };
+  const navigate = jest.fn();
+  return { useRouter: () => ({ push, navigate }) };
 });
 
 const mockedApi = apiClient as unknown as Record<
@@ -60,7 +61,7 @@ describe('ChallengesScreen', () => {
     expect(screen.queryByText('Go to the gym')).toBeNull();
 
     fireEvent.press(screen.getByTestId('open-challenge-walk'));
-    expect(useRouter().push).toHaveBeenCalledWith('/challenge/walk');
+    expect(useRouter().navigate).toHaveBeenCalledWith('/challenge/walk');
     await view.settle();
   });
 

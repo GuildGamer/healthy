@@ -20,11 +20,13 @@ import { useAnalyticsSession, useScreenAnalytics } from '@/lib/analytics';
 import { usePushResponse } from '@/lib/use-push-response';
 import { useUserActive } from '@/lib/use-user-active';
 import { useWalkOfferResponse } from '@/lib/use-walk-offer-response';
+import { ensureWalkLocationTaskStopped } from '@/lib/walk-background-location';
 import '@/lib/walk-background-location';
 import '@/lib/walk-offer-location';
 import { resumeWalkOfferMonitorIfNeeded } from '@/lib/walk-offer-monitor';
 import { dispatchWalkControlUrl } from '@/lib/walk-control';
 import { ThemeProvider, useTheme } from '@/theme';
+import { clearOrphanWalkLiveActivities } from 'walk-live-activity';
 
 /**
  * The native splash holds until the display font resolves, so the first thing
@@ -81,8 +83,11 @@ export default function RootLayout() {
   }, []);
 
   // Keep counting a same-day walk offer after a cold start, before Today mounts.
+  // Also drop any walk Live Activity / GPS task left behind by a force-quit.
   useEffect(() => {
     void resumeWalkOfferMonitorIfNeeded();
+    void clearOrphanWalkLiveActivities();
+    void ensureWalkLocationTaskStopped();
   }, []);
 
   const [queryClient] = useState(() => {

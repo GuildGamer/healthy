@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
 import { apiClient } from '@/lib/api';
 import { ProfileDetailsScreen } from './ProfileDetailsScreen';
 import { meFixture, renderWithProviders } from './testing/settings-fixtures';
@@ -40,6 +41,17 @@ describe('ProfileDetailsScreen', () => {
     expect(screen.getByText('What others see')).toBeOnTheScreen();
     expect(screen.getByText('Private')).toBeOnTheScreen();
     expect(screen.getByText('Nurul Masih')).toBeOnTheScreen();
+  });
+
+  it('dismisses the keyboard before opening the account-name sheet', async () => {
+    const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    await renderProfile();
+
+    fireEvent.press(screen.getByTestId('open-full-name'));
+
+    expect(dismiss).toHaveBeenCalled();
+    expect(screen.getByTestId('full-name-sheet')).toBeOnTheScreen();
+    dismiss.mockRestore();
   });
 
   it('only offers Save once the name has changed', async () => {

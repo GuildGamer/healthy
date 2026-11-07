@@ -776,8 +776,9 @@ describe('MatchesService', () => {
       actorDisplayName: 'Bee',
       actorScoreBefore: 0,
       actorScoreAfter: 18,
+      actorRank: 1,
       endsAt: board.endsAt,
-      recipients: [{ userId: host.id, score: 0 }],
+      recipients: [{ userId: host.id, score: 0, rank: 2 }],
     });
   });
 

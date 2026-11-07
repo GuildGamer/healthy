@@ -82,9 +82,12 @@ export type WalkRecorder = {
     beforeRecording?: () => Promise<void>;
     analytics?: WalkAnalyticsContext;
   }) => Promise<void>;
-  /** Holds the clock without ending the session or the lock-screen card. */
+  /**
+   * Holds the clock and stops GPS (clears the Island location indicator)
+   * without ending the session or the lock-screen card.
+   */
   pause: () => void;
-  /** Clears a manual pause; the clock follows movement again. */
+  /** Clears a manual pause, restarts GPS, and the clock follows movement again. */
   resume: () => void;
   /** Banks the walk and moves to review. */
   stop: () => WalkRecording;
@@ -161,6 +164,8 @@ export function useWalkRecorder(): WalkRecorder {
   const isMovingNowRef = useRef<() => boolean>(() => false);
   const reportDisplacementRef = useRef<(atMs: number) => void>(() => undefined);
   const usingBackgroundRef = useRef(false);
+  /** Last successful start chose background GPS; resume reuses the choice. */
+  const canBackgroundRef = useRef(false);
   const {
     isMoving,
     isMovingNow,
@@ -183,10 +188,12 @@ export function useWalkRecorder(): WalkRecorder {
   const [error, setError] = useState<string | null>(null);
   const [userPaused, setUserPaused] = useState(false);
   const userPausedRef = useRef(false);
+  const phaseRef = useRef<WalkPhase>('idle');
 
   isMovingNowRef.current = isMovingNow;
   reportDisplacementRef.current = reportDisplacement;
   userPausedRef.current = userPaused;
+  phaseRef.current = phase;
 
   const applyFixes = useCallback((fixes: readonly WalkLocationFix[]) => {
     for (const point of fixes) {
@@ -206,8 +213,11 @@ export function useWalkRecorder(): WalkRecorder {
     }
   }, []);
 
-  const stopWatching = useCallback(() => {
-    sessionIdRef.current += 1;
+  /**
+   * Stops GPS without bumping the session id, so an in-flight start is not
+   * cancelled and Resume can reopen the stream.
+   */
+  const pauseLocationTracking = useCallback(() => {
     setWalkLocationListener(null);
     foregroundWatchRef.current?.remove();
     foregroundWatchRef.current = null;
@@ -218,7 +228,72 @@ export function useWalkRecorder(): WalkRecorder {
     }
   }, []);
 
-  useEffect(() => stopWatching, [stopWatching]);
+  const stopWatching = useCallback(() => {
+    sessionIdRef.current += 1;
+    setWalkLocationListener(null);
+    foregroundWatchRef.current?.remove();
+    foregroundWatchRef.current = null;
+    usingBackgroundRef.current = false;
+    canBackgroundRef.current = false;
+    const location = locationRef.current;
+    if (location) {
+      void stopBackgroundUpdates(location);
+    }
+  }, []);
+
+  const beginLocationStream = useCallback(
+    async (location: LocationModule, card: WalkCardCopy): Promise<boolean> => {
+      const sessionId = sessionIdRef.current;
+      setWalkLocationListener(applyFixes);
+
+      if (canBackgroundRef.current) {
+        const started = await startBackgroundUpdates(location, card);
+        if (sessionId !== sessionIdRef.current || phaseRef.current !== 'recording') {
+          await stopBackgroundUpdates(location);
+          return false;
+        }
+
+        if (started) {
+          usingBackgroundRef.current = true;
+          return true;
+        }
+      }
+
+      const watch = await location.watchPositionAsync(
+        {
+          accuracy: location.Accuracy.High,
+          distanceInterval: ROUTE_FIX_INTERVAL_METERS,
+          timeInterval: ROUTE_FIX_INTERVAL_MS,
+        },
+        (fix) => {
+          applyFixes([
+            {
+              latitude: fix.coords.latitude,
+              longitude: fix.coords.longitude,
+              recordedAt: fix.timestamp,
+            },
+          ]);
+        },
+      );
+
+      if (sessionId !== sessionIdRef.current || phaseRef.current !== 'recording') {
+        watch.remove();
+        return false;
+      }
+
+      foregroundWatchRef.current = watch;
+      return true;
+    },
+    [applyFixes],
+  );
+
+  useEffect(() => {
+    return () => {
+      stopWatching();
+      endWalkLiveActivity();
+      lastCardRef.current = null;
+    };
+  }, [stopWatching]);
 
   // Manual pause wins; otherwise the clock follows the walker's feet.
   useEffect(() => {
@@ -376,8 +451,8 @@ export function useWalkRecorder(): WalkRecorder {
       await startMotion();
 
       stopWatching();
+      canBackgroundRef.current = canBackground;
       const sessionId = sessionIdRef.current;
-      setWalkLocationListener(applyFixes);
 
       const initialCard = walkCardCopy({
         elapsedSeconds: resume ? elapsedSeconds : 0,
@@ -388,49 +463,21 @@ export function useWalkRecorder(): WalkRecorder {
       lastCardRef.current = initialCard;
       startWalkLiveActivity(initialCard);
 
-      if (canBackground) {
-        const started = await startBackgroundUpdates(location, initialCard);
-        if (sessionId !== sessionIdRef.current) {
-          await stopBackgroundUpdates(location);
-          endWalkLiveActivity();
-          return;
-        }
-
-        if (started) {
-          usingBackgroundRef.current = true;
-          resumeTimer();
-          return;
-        }
-      }
-
-      const watch = await location.watchPositionAsync(
-        {
-          accuracy: location.Accuracy.High,
-          distanceInterval: ROUTE_FIX_INTERVAL_METERS,
-          timeInterval: ROUTE_FIX_INTERVAL_MS,
-        },
-        (fix) => {
-          applyFixes([
-            {
-              latitude: fix.coords.latitude,
-              longitude: fix.coords.longitude,
-              recordedAt: fix.timestamp,
-            },
-          ]);
-        },
-      );
-
+      const streamed = await beginLocationStream(location, initialCard);
       if (sessionId !== sessionIdRef.current) {
-        watch.remove();
         endWalkLiveActivity();
         return;
       }
 
-      foregroundWatchRef.current = watch;
+      if (!streamed) {
+        endWalkLiveActivity();
+        return;
+      }
+
       resumeTimer();
     },
     [
-      applyFixes,
+      beginLocationStream,
       elapsedSeconds,
       points,
       resetTimer,
@@ -448,7 +495,8 @@ export function useWalkRecorder(): WalkRecorder {
 
     setUserPaused(true);
     pauseTimer();
-  }, [pauseTimer, phase]);
+    pauseLocationTracking();
+  }, [pauseLocationTracking, pauseTimer, phase]);
 
   const resume = useCallback(() => {
     if (phase !== 'recording' || !userPausedRef.current) {
@@ -456,7 +504,23 @@ export function useWalkRecorder(): WalkRecorder {
     }
 
     setUserPaused(false);
-  }, [phase]);
+    const location = locationRef.current;
+    if (!location) {
+      return;
+    }
+
+    const card =
+      lastCardRef.current ??
+      walkCardCopy({
+        elapsedSeconds,
+        distanceMeters: pathDistanceMeters(points),
+        paused: false,
+        scheme,
+      });
+    lastCardRef.current = card;
+    updateWalkLiveActivity(card);
+    void beginLocationStream(location, card);
+  }, [beginLocationStream, elapsedSeconds, phase, points, scheme]);
 
   useEffect(() => {
     if (phase !== 'recording') {

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   bucketByDay,
   countryShares,
+  isDailyCountSpike,
+  parseGroupNotificationToggle,
   rate,
   resolveRange,
   streakBucketKey,
@@ -43,5 +45,30 @@ describe('analytics.helpers', () => {
       { day: '2026-08-02', count: 0 },
       { day: '2026-08-03', count: 0 },
     ]);
+  });
+
+  it('flags a disable spike when the peak is above twice the median', () => {
+    expect(isDailyCountSpike([1, 1, 1, 1, 5])).toBe(true);
+    expect(isDailyCountSpike([2, 2, 2, 3])).toBe(false);
+    expect(isDailyCountSpike([])).toBe(false);
+    expect(isDailyCountSpike([0, 0, 0])).toBe(false);
+  });
+
+  it('reads group notification toggles from setting_changed properties', () => {
+    expect(
+      parseGroupNotificationToggle({
+        setting: 'groupNotificationsEnabled',
+        value: false,
+      }),
+    ).toEqual({ disabled: true });
+    expect(
+      parseGroupNotificationToggle({
+        setting: 'groupNotificationsEnabled',
+        value: true,
+      }),
+    ).toEqual({ disabled: false });
+    expect(
+      parseGroupNotificationToggle({ setting: 'reminderEnabled', value: false }),
+    ).toBeNull();
   });
 });

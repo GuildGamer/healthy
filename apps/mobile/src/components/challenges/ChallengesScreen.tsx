@@ -67,7 +67,7 @@ export function ChallengesScreen() {
 
     return (
       <RoutineList
-        onOpen={(challengeId) => router.push(`/challenge/${challengeId}`)}
+        onOpen={(challengeId) => router.navigate(`/challenge/${challengeId}`)}
         onOpenPaused={setPaused}
         routine={routine}
       />

@@ -11,6 +11,7 @@ import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
 import { ProgressFactRow } from './ProgressFactRow';
@@ -103,7 +104,7 @@ export function MetricStatsScreen() {
   if (!metric) {
     return (
       <DeckPushedPage
-        onBack={() => router.back()}
+        onBack={() => goBackOrHome('/progress/reports')}
         onPullRefresh={async () => undefined}
         title={PROGRESS_COPY.statsTitle}
       >
@@ -116,7 +117,7 @@ export function MetricStatsScreen() {
 
   return (
     <DeckPushedPage
-      onBack={() => router.back()}
+      onBack={() => goBackOrHome('/progress/reports')}
       onPullRefresh={() => statsQuery.refetch()}
       testID="metric-stats-screen"
       title={titleFor(metric)}

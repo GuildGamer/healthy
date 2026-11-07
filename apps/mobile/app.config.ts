@@ -94,6 +94,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/icon.png',
       backgroundColor: '#3DDC97',
     },
+    // Resize the window when the soft keyboard opens so focused fields stay visible.
+    // Requires a new native build; EAS Update alone does not apply this.
+    softwareKeyboardLayoutMode: 'resize',
     package: ANDROID_PACKAGE,
     googleServicesFile: GOOGLE_SERVICES_FILE,
     intentFilters: [

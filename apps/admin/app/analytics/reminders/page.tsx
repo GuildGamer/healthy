@@ -27,7 +27,8 @@ export default function RemindersAnalyticsPage() {
               Reminders & notifications
             </h1>
             <p className="muted" style={{ margin: '8px 0 0' }}>
-              Nudge coverage, push devices, and surprise-evidence outcomes.
+              Nudge coverage, push devices, group opt-outs, and surprise-evidence
+              outcomes.
             </p>
           </div>
           <RangeSelect days={days} onChange={setDays} />
@@ -55,6 +56,28 @@ export default function RemindersAnalyticsPage() {
             hint={`${data ? formatNumber(data.notificationsReadInRange) : '—'} read`}
             label="Notification read rate"
             value={data ? formatPercent(data.notificationReadRate) : '—'}
+          />
+        </div>
+
+        <div className="row">
+          <StatCard
+            label="Group push opted out"
+            value={
+              data ? formatPercent(data.groupNotificationsOptedOutShare) : '—'
+            }
+          />
+          <StatCard
+            hint={
+              data?.groupNotificationsDisableSpike
+                ? 'Spike: a day topped 2× the median disable rate'
+                : `${data ? formatNumber(data.groupNotificationsEnabledInRange) : '—'} re-enabled`
+            }
+            label={`Group disables (${days}d)`}
+            value={
+              data
+                ? formatNumber(data.groupNotificationsDisabledInRange)
+                : '—'
+            }
           />
         </div>
 

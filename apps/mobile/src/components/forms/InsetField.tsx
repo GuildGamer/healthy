@@ -149,11 +149,14 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
+      marginTop: spacing.xs,
     },
     input: {
       flex: 1,
       color: theme.colors.text,
       fontSize: fontSize.md,
+      lineHeight: fontSize.md + 6,
+      minHeight: 26,
       paddingVertical: 3,
     },
     value: {

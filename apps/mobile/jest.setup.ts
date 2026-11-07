@@ -69,6 +69,7 @@ jest.mock('walk-live-activity', () => ({
   startWalkLiveActivity: jest.fn(),
   updateWalkLiveActivity: jest.fn(),
   endWalkLiveActivity: jest.fn(),
+  clearOrphanWalkLiveActivities: jest.fn(async () => undefined),
 }));
 
 jest.mock('expo-live-activity', () => ({

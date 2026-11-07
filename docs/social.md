@@ -64,6 +64,32 @@ Tenet 10 carries more weight than it looks. A group that ends produces a result
 moment, a shareable card, and a natural re-engagement prompt, and it keeps the
 group list short without anyone having to prune it.
 
+## Notifications
+
+Inbox always, lock-screen push by default. Every scored board move still writes
+an in-app notification row (one per attempt per mate). Push is throttled only
+when the group would overwhelm people: same-actor bursts and large/hot groups.
+
+### Modes
+
+Computed from accepted seat count and recent attempt velocity on each notify.
+Announce by default; **busy** is the brake.
+
+| Mode | When | Routine push | Competitive push (`ahead` / `tied` / `close`) |
+|------|------|--------------|-----------------------------------------------|
+| **grow** | ≤ 5 accepted and quiet 24h volume | Yes, coalesce (one per actor → recipient → day, 60m window) | All mates |
+| **standard** | Default mid-size / moderate activity | Same coalesce rules as grow | All mates |
+| **busy** | ≥ 10 accepted, or hot 60-minute velocity | No | Top 3 rivals by rivalry weight |
+
+Competitive events always bypass the coalesce window (a “passed you” still
+fires even if a routine push went minutes earlier). Same-actor routine moves
+inside a 60-minute window do not send another push.
+
+Any inbox row carrying `matchId` spends that group's daily rivalry-reminder
+slot — including inbox-only rows where the push was suppressed. Settlement and
+cheers keep their own rules (cheers still bundle to one push per recipient per
+group per day).
+
 ## Scoring modes
 
 The host picks how the group is won at creation. Three modes ship together —

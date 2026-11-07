@@ -1,8 +1,9 @@
 import { spacing } from '@product/brand';
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeckPageNav } from '@/components/deck';
+import { KEYBOARD_AVOIDING_BEHAVIOR } from '@/lib/keyboard-avoiding';
 import { type Theme, useThemedStyles } from '@/theme';
 
 interface SettingsPageProps {
@@ -29,14 +30,15 @@ export function SettingsPage({
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.screen} testID={testID}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
+      <KeyboardAvoidingView behavior={KEYBOARD_AVOIDING_BEHAVIOR} style={styles.flex}>
         <View style={styles.nav}>
           <DeckPageNav onBack={onBack} right={navRight} title={title} />
         </View>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           {children}
         </ScrollView>
         {dock ? <View style={styles.dock}>{dock}</View> : null}

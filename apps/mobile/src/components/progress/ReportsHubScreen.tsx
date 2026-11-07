@@ -6,6 +6,7 @@ import { DeckDisc, DeckListRow, DeckPushedPage } from '@/components/deck';
 import { DECK_KIND_BY_METRIC, DECK_KIND_GLYPH } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
 import { enrolledStatsMetrics } from './stats-metrics';
@@ -26,7 +27,7 @@ export function ReportsHubScreen() {
 
   return (
     <DeckPushedPage
-      onBack={() => router.back()}
+      onBack={() => goBackOrHome('/(tabs)/profile')}
       onPullRefresh={() => catalogQuery.refetch()}
       testID="reports-hub-screen"
       title={PROGRESS_COPY.reportsTitle}

@@ -3,13 +3,13 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KEYBOARD_AVOIDING_BEHAVIOR } from '@/lib/keyboard-avoiding';
 import { useReduceMotion } from '@/lib/use-reduce-motion';
 import { type Theme, useThemedStyles } from '@/theme';
 import { DECK_CARD_RADIUS } from './constants';
@@ -70,7 +70,8 @@ export function DeckSheet({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+      keyboardVerticalOffset={insets.top}
       style={styles.screen}
     >
       <Pressable

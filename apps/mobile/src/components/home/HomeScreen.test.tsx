@@ -267,7 +267,7 @@ describe('HomeScreen', () => {
     expect(useRouter().push).toHaveBeenCalledWith('/challenge/push/practice');
 
     fireEvent.press(screen.getByTestId('home-done-uc-walk'));
-    expect(useRouter().push).toHaveBeenCalledWith('/challenge/walk');
+    expect(useRouter().navigate).toHaveBeenCalledWith('/challenge/walk');
 
     await cleanup();
   });
@@ -484,7 +484,7 @@ describe('HomeScreen', () => {
     expect(mockedApi.completeChallenge).not.toHaveBeenCalled();
 
     fireEvent.press(screen.getByTestId('open-challenge-c-bp'));
-    expect(useRouter().push).toHaveBeenCalledWith('/challenge/c-bp');
+    expect(useRouter().navigate).toHaveBeenCalledWith('/challenge/c-bp');
 
     await cleanup();
   });

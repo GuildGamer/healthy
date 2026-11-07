@@ -100,6 +100,26 @@ describe('MatchReminderRivalryService', () => {
     expect(rivalries.get('you')?.matchId).toBe('m2');
   });
 
+  it('treats an inbox-only board row as spending the group push budget', async () => {
+    // Board-move policy may suppress the lock-screen push while still writing
+    // the inbox row with matchId — rivalry must not double-dip that group.
+    const { service } = createService({
+      optedIn: ['you'],
+      inbox: [
+        {
+          userId: 'you',
+          payload: { matchId: 'm1' },
+          createdAt: new Date('2026-10-26T09:00:00.000Z'),
+        },
+      ],
+      contests: [trailingContest('m1')],
+    });
+
+    const rivalries = await service.loadMany([{ userId: 'you', timeZone: 'UTC' }], NOW);
+
+    expect(rivalries.has('you')).toBe(false);
+  });
+
   it('judges "today" in the member’s own zone', async () => {
     const { service } = createService({
       optedIn: ['you'],

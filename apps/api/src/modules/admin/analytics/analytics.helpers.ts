@@ -83,6 +83,52 @@ export function streakBucketKey(days: number): string {
   return '31+';
 }
 
+/**
+ * True when the busiest day exceeds 2× the median daily count and at least
+ * one event occurred. Empty or all-zero series is never a spike.
+ */
+export function isDailyCountSpike(dailyCounts: readonly number[]): boolean {
+  const positive = dailyCounts.filter((count) => count > 0);
+  if (positive.length === 0) {
+    return false;
+  }
+
+  const sorted = [...positive].sort((left, right) => left - right);
+  const mid = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length % 2 === 0
+      ? ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2
+      : (sorted[mid] ?? 0);
+  const peak = Math.max(...positive);
+  return peak > 2 * median;
+}
+
+export type GroupNotificationToggle = {
+  disabled: boolean;
+};
+
+/**
+ * Pulls group-notification toggle flips out of `setting_changed` payloads.
+ */
+export function parseGroupNotificationToggle(
+  properties: unknown,
+): GroupNotificationToggle | null {
+  if (!properties || typeof properties !== 'object') {
+    return null;
+  }
+
+  const record = properties as Record<string, unknown>;
+  if (record.setting !== 'groupNotificationsEnabled') {
+    return null;
+  }
+
+  if (typeof record.value !== 'boolean') {
+    return null;
+  }
+
+  return { disabled: record.value === false };
+}
+
 function startOfUtcDay(value: Date): Date {
   return new Date(
     Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()),

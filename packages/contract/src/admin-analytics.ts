@@ -151,6 +151,17 @@ export const adminRemindersAnalyticsSchema = z.object({
   notificationsReadInRange: z.number().int().nonnegative(),
   notificationReadRate: z.number().min(0).max(1),
   surpriseEvidenceInRange: z.array(adminAnalyticsNamedCountSchema),
+  /** Share of active profiles with group push toggled off. */
+  groupNotificationsOptedOutShare: z.number().min(0).max(1),
+  /** `setting_changed` flips to false for groupNotificationsEnabled in range. */
+  groupNotificationsDisabledInRange: z.number().int().nonnegative(),
+  /** `setting_changed` flips to true for groupNotificationsEnabled in range. */
+  groupNotificationsEnabledInRange: z.number().int().nonnegative(),
+  /**
+   * True when a day's disables in range peak above 2× the median daily
+   * disable count (and at least one disable occurred).
+   */
+  groupNotificationsDisableSpike: z.boolean(),
 });
 
 export const getAdminOverviewAnalyticsContract = oc

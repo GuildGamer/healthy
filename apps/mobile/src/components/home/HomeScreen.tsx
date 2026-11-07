@@ -209,7 +209,7 @@ function DeckSection({
 
 function useOpenChallenge() {
   const router = useRouter();
-  return (challengeId: string) => router.push(`/challenge/${challengeId}`);
+  return (challengeId: string) => router.navigate(`/challenge/${challengeId}`);
 }
 
 /** A finished camera exercise goes straight to another set; anything else opens its page. */

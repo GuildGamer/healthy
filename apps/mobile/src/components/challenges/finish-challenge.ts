@@ -39,7 +39,7 @@ export function finishOnCard(
   outcome: ChallengeFinishOutcome,
 ): void {
   if (result.evidenceRequest) {
-    router.push(`/challenge/${result.challenge.challengeId}/verify`);
+    router.replace(`/challenge/${result.challenge.challengeId}/verify`);
     return;
   }
 

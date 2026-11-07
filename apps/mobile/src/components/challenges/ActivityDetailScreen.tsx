@@ -53,7 +53,12 @@ export function ActivityDetailScreen({
       testID="activity-detail-screen"
       title={detail?.title ?? ''}
     >
-      <ActivityBody detail={detail} isPending={isPending} onRetry={() => void onRefresh()} />
+      <ActivityBody
+        detail={detail}
+        isPending={isPending}
+        onBack={onBack}
+        onRetry={() => void onRefresh()}
+      />
     </DeckPushedPage>
   );
 }
@@ -61,10 +66,12 @@ export function ActivityDetailScreen({
 function ActivityBody({
   detail,
   isPending,
+  onBack,
   onRetry,
 }: {
   detail: ActivityDetail | undefined;
   isPending: boolean;
+  onBack: () => void;
   onRetry: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -92,10 +99,10 @@ function ActivityBody({
     );
   }
 
-  return <ActivityContent detail={detail} />;
+  return <ActivityContent detail={detail} onBack={onBack} />;
 }
 
-function ActivityContent({ detail }: { detail: ActivityDetail }) {
+function ActivityContent({ detail, onBack }: { detail: ActivityDetail; onBack: () => void }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const meForProofLimits = useQuery({
@@ -136,14 +143,15 @@ function ActivityContent({ detail }: { detail: ActivityDetail }) {
             variant={clip.canAct ? 'quiet' : 'primary'}
           />
         ) : null}
-        {clip.isUploaded && clip.clipId ? <RemoveFromHealthy clipId={clip.clipId} /> : null}
+        {clip.isUploaded && clip.clipId ? (
+          <RemoveFromHealthy clipId={clip.clipId} onLeave={onBack} />
+        ) : null}
       </View>
     </View>
   );
 }
 
-function RemoveFromHealthy({ clipId }: { clipId: string }) {
-  const router = useRouter();
+function RemoveFromHealthy({ clipId, onLeave }: { clipId: string; onLeave: () => void }) {
   const styles = useThemedStyles(createStyles);
 
   function confirm() {
@@ -156,7 +164,7 @@ function RemoveFromHealthy({ clipId }: { clipId: string }) {
           void apiClient
             .removeProofClip({ clipId })
             .then(() => {
-              router.back();
+              onLeave();
             })
             .catch(() => undefined);
         },
