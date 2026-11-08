@@ -49,11 +49,7 @@ function growContext(recipientIds: readonly string[] = ['host', 'cam']) {
       historyByRecipient: new Map(
         recipientIds.map((userId) => [
           userId,
-          {
-            pushedInCoalesceWindow: false,
-            routinePushedToday: false,
-            dayKey: '2026-10-26',
-          },
+          { pushedInCoalesceWindow: false },
         ]),
       ),
     }),
@@ -242,11 +238,7 @@ describe('BoardMoveNotifierService', () => {
           historyByRecipient: new Map([
             [
               'host',
-              {
-                pushedInCoalesceWindow: false,
-                routinePushedToday: false,
-                dayKey: '2026-10-26',
-              },
+              { pushedInCoalesceWindow: false },
             ],
           ]),
         })
@@ -257,11 +249,7 @@ describe('BoardMoveNotifierService', () => {
           historyByRecipient: new Map([
             [
               'host',
-              {
-                pushedInCoalesceWindow: true,
-                routinePushedToday: true,
-                dayKey: '2026-10-26',
-              },
+              { pushedInCoalesceWindow: true },
             ],
           ]),
         }),
@@ -320,11 +308,7 @@ describe('BoardMoveNotifierService', () => {
           historyByRecipient: new Map([
             [
               'host',
-              {
-                pushedInCoalesceWindow: false,
-                routinePushedToday: false,
-                dayKey: '2026-10-26',
-              },
+              { pushedInCoalesceWindow: false },
             ],
           ]),
         })
@@ -335,11 +319,7 @@ describe('BoardMoveNotifierService', () => {
           historyByRecipient: new Map([
             [
               'host',
-              {
-                pushedInCoalesceWindow: true,
-                routinePushedToday: true,
-                dayKey: '2026-10-26',
-              },
+              { pushedInCoalesceWindow: true },
             ],
           ]),
         }),
@@ -384,19 +364,11 @@ describe('BoardMoveNotifierService', () => {
         historyByRecipient: new Map([
           [
             'host',
-            {
-              pushedInCoalesceWindow: false,
-              routinePushedToday: false,
-              dayKey: '2026-10-26',
-            },
+            { pushedInCoalesceWindow: false },
           ],
           [
             'cam',
-            {
-              pushedInCoalesceWindow: false,
-              routinePushedToday: false,
-              dayKey: '2026-10-26',
-            },
+            { pushedInCoalesceWindow: false },
           ],
         ]),
       }),
@@ -438,11 +410,7 @@ describe('BoardMoveNotifierService', () => {
         historyByRecipient: new Map(
           recipients.map((row) => [
             row.userId,
-            {
-              pushedInCoalesceWindow: false,
-              routinePushedToday: false,
-              dayKey: '2026-10-26',
-            },
+            { pushedInCoalesceWindow: false },
           ]),
         ),
       }),
@@ -483,11 +451,7 @@ describe('BoardMoveNotifierService', () => {
         historyByRecipient: new Map([
           [
             'host',
-            {
-              pushedInCoalesceWindow: false,
-              routinePushedToday: false,
-              dayKey: '2026-10-26',
-            },
+            { pushedInCoalesceWindow: false },
           ],
         ]),
       }),

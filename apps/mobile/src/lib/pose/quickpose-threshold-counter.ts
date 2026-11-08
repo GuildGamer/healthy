@@ -11,15 +11,15 @@ export const QUICKPOSE_EXIT_THRESHOLD = 0.3;
 /** Push-ups: slightly softer enter so good-form dips are not missed. */
 export const QUICKPOSE_PUSHUP_ENTER_THRESHOLD = 0.7;
 /**
- * Push-ups: exit closer to enter so a compressed lock-out (reads ~0.35–0.45)
- * still completes the rep instead of freezing in `poseEntered`.
+ * Push-ups: exit closer to enter so the tick fires earlier on the way up and
+ * a compressed lock-out (reads ~0.5–0.55) still completes.
  */
-export const QUICKPOSE_PUSHUP_EXIT_THRESHOLD = 0.45;
+export const QUICKPOSE_PUSHUP_EXIT_THRESHOLD = 0.55;
 /** Ignore a second complete that arrives too soon (waving / bounce). */
 export const QUICKPOSE_MIN_REP_INTERVAL_MS = 280;
 /**
- * If the signal sits between exit and enter this long while entered, abandon
- * the half-rep so the next clean dip can arm. Does not increment the count.
+ * If the signal sits between exit and enter this long while entered, soft-
+ * complete the rep so a compressed lock-out is not lost.
  */
 export const QUICKPOSE_DEAD_ZONE_ABANDON_MS = 1_800;
 
@@ -75,16 +75,11 @@ export class QuickPoseThresholdCounter {
 
     if (this.state.isEntered && value < this.exitThreshold) {
       this.deadZoneSinceMs = null;
-      if (nowMs - this.lastCompleteAtMs < this.minIntervalMs) {
-        return this.state;
-      }
-      this.lastCompleteAtMs = nowMs;
-      this.state = poseComplete(this.state.count + 1);
-      return this.state;
+      return this.completeRep(nowMs);
     }
 
     if (this.state.isEntered) {
-      this.maybeAbandonDeadZone(value, nowMs);
+      this.maybeSoftCompleteDeadZone(value, nowMs);
     }
 
     return this.state;
@@ -96,12 +91,23 @@ export class QuickPoseThresholdCounter {
     this.deadZoneSinceMs = null;
   }
 
+  private completeRep(nowMs: number): QuickPoseCountState {
+    if (nowMs - this.lastCompleteAtMs < this.minIntervalMs) {
+      return this.state;
+    }
+
+    this.lastCompleteAtMs = nowMs;
+    this.state = poseComplete(this.state.count + 1);
+    this.deadZoneSinceMs = null;
+    return this.state;
+  }
+
   /**
    * A compressed lock-out can sit forever between exit and enter. After the
-   * abandon window, drop back to complete without counting so the next dip
-   * can arm a real rep.
+   * window, count the rep anyway — they already reached the bottom — so the
+   * next dip can arm without losing work.
    */
-  private maybeAbandonDeadZone(value: number, nowMs: number): void {
+  private maybeSoftCompleteDeadZone(value: number, nowMs: number): void {
     const inDeadZone = value >= this.exitThreshold && value <= this.enterThreshold;
     if (!inDeadZone) {
       this.deadZoneSinceMs = null;
@@ -117,7 +123,6 @@ export class QuickPoseThresholdCounter {
       return;
     }
 
-    this.state = poseComplete(this.state.count);
-    this.deadZoneSinceMs = null;
+    this.completeRep(nowMs);
   }
 }

@@ -58,6 +58,10 @@ jest.mock('expo-router', () => {
   };
 });
 
+jest.mock('@/lib/go-back', () => ({
+  goBackOrHome: jest.fn(),
+}));
+
 const mockGetLocalProofClip = jest.fn();
 
 jest.mock('@/lib/proof-clip-store', () => ({
@@ -248,12 +252,16 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByText('Not now')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('challenge-success-done'));
+    const { goBackOrHome } = jest.requireMock('@/lib/go-back') as {
+      goBackOrHome: jest.Mock;
+    };
     const { useRouter } = jest.requireMock('expo-router') as {
       useRouter: () => { replace: jest.Mock };
     };
     await waitFor(() => {
-      expect(useRouter().replace).toHaveBeenCalledWith('/matches/m1');
+      expect(goBackOrHome).toHaveBeenCalledWith('/matches/m1');
     });
+    expect(useRouter().replace).not.toHaveBeenCalledWith('/matches/m1');
   });
 
   it('shows challenge-a-friend as the primary treatment CTA', async () => {

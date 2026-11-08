@@ -150,7 +150,6 @@ export class BoardMoveNotifierService {
         actorRank: notice.actorRank,
         movedToday: recipient?.movedToday,
         pushedInCoalesceWindow: history?.pushedInCoalesceWindow ?? false,
-        routinePushedToday: history?.routinePushedToday ?? false,
       };
     });
     const decision = selectPushRecipients(mode, candidates);

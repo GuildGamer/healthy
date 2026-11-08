@@ -40,19 +40,19 @@ describe('QuickPoseThresholdCounter', () => {
     expect(counter.count(0.2).count).toBe(1);
   });
 
-  it('lets push-ups complete when lock-out only reaches the push-up exit', () => {
+  it('lets push-ups complete earlier on the way up at the push-up exit', () => {
     const counter = new QuickPoseThresholdCounter({
       enterThreshold: QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
       exitThreshold: QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
     });
 
     counter.count(0.85);
-    // Global exit is 0.3; push-up exit 0.45 lets a compressed lock-out at 0.42 finish.
-    expect(counter.count(0.42).count).toBe(1);
+    // Global exit is 0.3; push-up exit 0.55 lets a rise to ~0.52 finish the tick.
+    expect(counter.count(0.52).count).toBe(1);
     expect(counter.state.type).toBe('poseComplete');
   });
 
-  it('abandons a half-rep stuck in the dead zone so the next cycle can count', () => {
+  it('soft-completes a half-rep stuck in the dead zone so the next cycle can count', () => {
     const counter = new QuickPoseThresholdCounter({
       enterThreshold: QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
       exitThreshold: QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
@@ -61,20 +61,18 @@ describe('QuickPoseThresholdCounter', () => {
     const t0 = 1_000;
 
     expect(counter.count(0.85, t0).type).toBe('poseEntered');
-    expect(counter.count(0.45, t0 + 100).type).toBe('poseEntered');
-    expect(counter.count(0.45, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS).type).toBe('poseEntered');
-    expect(counter.count(0.45, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS + 100).type).toBe(
-      'poseComplete',
-    );
-    expect(counter.state.count).toBe(0);
+    expect(counter.count(0.6, t0 + 100).type).toBe('poseEntered');
+    expect(counter.count(0.6, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS).type).toBe('poseEntered');
+    expect(counter.count(0.6, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS + 100).count).toBe(1);
+    expect(counter.state.type).toBe('poseComplete');
 
-    expect(counter.count(0.85, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS + 200).type).toBe(
+    expect(counter.count(0.85, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS + 400).type).toBe(
       'poseEntered',
     );
-    expect(counter.count(0.2, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS + 400).count).toBe(1);
+    expect(counter.count(0.2, t0 + QUICKPOSE_DEAD_ZONE_ABANDON_MS + 600).count).toBe(2);
   });
 
-  it('does not abandon while still deep past the enter threshold', () => {
+  it('does not soft-complete while still deep past the enter threshold', () => {
     const counter = new QuickPoseThresholdCounter({
       enterThreshold: QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
       exitThreshold: QUICKPOSE_PUSHUP_EXIT_THRESHOLD,

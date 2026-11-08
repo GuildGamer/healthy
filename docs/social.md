@@ -77,13 +77,13 @@ Announce by default; **busy** is the brake.
 
 | Mode | When | Routine push | Competitive push (`ahead` / `tied` / `close`) |
 |------|------|--------------|-----------------------------------------------|
-| **grow** | ≤ 5 accepted and quiet 24h volume | Yes, coalesce (one per actor → recipient → day, 60m window) | All mates |
+| **grow** | ≤ 5 accepted and quiet 24h volume | Yes, coalesce (same actor → recipient, 10m window) | All mates |
 | **standard** | Default mid-size / moderate activity | Same coalesce rules as grow | All mates |
-| **busy** | ≥ 10 accepted, or hot 60-minute velocity | No | Top 3 rivals by rivalry weight |
+| **busy** | ≥ 10 accepted, or hot 60-minute velocity (floor 10 attempts) | No | Top 3 rivals by rivalry weight |
 
 Competitive events always bypass the coalesce window (a “passed you” still
 fires even if a routine push went minutes earlier). Same-actor routine moves
-inside a 60-minute window do not send another push.
+inside a 10-minute window do not send another push.
 
 Any inbox row carrying `matchId` spends that group's daily rivalry-reminder
 slot — including inbox-only rows where the push was suppressed. Settlement and

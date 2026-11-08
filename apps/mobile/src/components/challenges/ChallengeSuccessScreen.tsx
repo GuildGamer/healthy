@@ -14,6 +14,7 @@ import { apiClient } from '@/lib/api';
 import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
 import { markMembershipCtaShownThisSession, markSuccessWasPenalty } from '@/lib/app-review-session';
 import { getSessionData, isEmailVerified } from '@/lib/auth-client';
+import { goBackOrHome } from '@/lib/go-back';
 import { hasDeferredOnboarding } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 import { clearPendingSharePhoto, pendingSharePhotoFor } from '@/lib/share-card-session';
@@ -188,7 +189,14 @@ function useLeaveSuccess(matchId: string | undefined) {
       }
     }
 
-    router.replace(matchId ? `/matches/${matchId}` : '/(tabs)');
+    // Dismiss onto the board still under this success screen — replace would
+    // stack a second board and force a double Back.
+    if (matchId) {
+      goBackOrHome(`/matches/${matchId}`);
+      return;
+    }
+
+    router.replace('/(tabs)');
   }
 
   return { me: meQuery.data, leave: () => void leave() };

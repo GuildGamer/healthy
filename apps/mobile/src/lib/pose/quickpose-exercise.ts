@@ -151,12 +151,18 @@ export function shouldCountPoseRep(input: {
   /** True if any prior frame in this half-rep had an accepted stance. */
   finishingStanceOk: boolean;
 }): boolean {
-  if (input.measure == null || input.formFeedback != null) {
+  if (input.measure == null) {
     return false;
   }
 
+  // An already-armed half-rep may finish even if form coaching flickers —
+  // dropping the exit costs a real count. New enters still need clean form.
   if (input.finishingRep) {
     return input.finishingStanceOk;
+  }
+
+  if (input.formFeedback != null) {
+    return false;
   }
 
   if (!input.stanceOk) {

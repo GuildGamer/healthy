@@ -195,7 +195,7 @@ describe('shouldCountPoseRep', () => {
     ).toBe(false);
   });
 
-  it('blocks form feedback', () => {
+  it('blocks form feedback on a new enter', () => {
     expect(
       shouldCountPoseRep({
         measure: 0.9,
@@ -206,5 +206,18 @@ describe('shouldCountPoseRep', () => {
         finishingStanceOk: true,
       }),
     ).toBe(false);
+  });
+
+  it('lets a finishing half-rep complete even when form feedback flickers', () => {
+    expect(
+      shouldCountPoseRep({
+        measure: 0.2,
+        insideMeasure: 1,
+        formFeedback: 'Lower your hips',
+        finishingRep: true,
+        stanceOk: false,
+        finishingStanceOk: true,
+      }),
+    ).toBe(true);
   });
 });

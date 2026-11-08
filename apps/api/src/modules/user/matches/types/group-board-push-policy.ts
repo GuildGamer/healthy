@@ -22,8 +22,6 @@ export type RecipientPushState = {
   movedToday?: boolean;
   /** A board_move push already went to them for this actor+match in the window. */
   pushedInCoalesceWindow: boolean;
-  /** A routine board_move push already went today for this actor+match. */
-  routinePushedToday: boolean;
 };
 
 export type BoardPushDecision = {

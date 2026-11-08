@@ -42,8 +42,9 @@ export function isCompetitiveUrgency(urgency: BoardMoveUrgency): boolean {
 
 /**
  * Whether this recipient is eligible for a lock-screen push before busy
- * fan-out. Announce by default: competitive always, routine in grow/standard
- * with coalesce + once-per-day. Busy is the only mode that suppresses routine.
+ * fan-out. Announce by default: competitive always; routine in grow/standard
+ * unless the same actor already pushed them in the short coalesce window.
+ * Busy is the only mode that suppresses routine.
  */
 export function shouldPushToRecipient(
   mode: GroupPushMode,
@@ -57,7 +58,7 @@ export function shouldPushToRecipient(
     return false;
   }
 
-  if (state.routinePushedToday || state.pushedInCoalesceWindow) {
+  if (state.pushedInCoalesceWindow) {
     return false;
   }
 

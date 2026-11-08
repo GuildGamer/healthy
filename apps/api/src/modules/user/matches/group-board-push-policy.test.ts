@@ -21,7 +21,6 @@ function recipient(
     rank: 2,
     actorRank: 1,
     pushedInCoalesceWindow: false,
-    routinePushedToday: false,
     ...overrides,
   };
 }
@@ -47,12 +46,22 @@ describe('resolveGroupPushMode', () => {
     ).toBe('busy');
   });
 
-  it('is busy when 60-minute velocity trips even for a small group', () => {
+  it('stays grow for a small group below the busy velocity floor', () => {
     expect(
       resolveGroupPushMode({
         acceptedCount: 4,
         attemptsLast60m: 3,
         attemptsLast24h: 3,
+      }),
+    ).toBe('grow');
+  });
+
+  it('is busy when 60-minute velocity trips even for a small group', () => {
+    expect(
+      resolveGroupPushMode({
+        acceptedCount: 4,
+        attemptsLast60m: 10,
+        attemptsLast24h: 10,
       }),
     ).toBe('busy');
   });
@@ -76,8 +85,9 @@ describe('resolveGroupPushMode', () => {
   });
 
   it('scales the busy velocity floor with group size', () => {
-    expect(busyVelocityThreshold(4)).toBe(3);
-    expect(busyVelocityThreshold(20)).toBe(8);
+    expect(busyVelocityThreshold(4)).toBe(10);
+    expect(busyVelocityThreshold(20)).toBe(10);
+    expect(busyVelocityThreshold(30)).toBe(12);
   });
 });
 
@@ -91,7 +101,6 @@ describe('shouldPushToRecipient', () => {
             userId: 'host',
             urgency: 'ahead',
             pushedInCoalesceWindow: true,
-            routinePushedToday: true,
           }),
         ),
       ).toBe(true);
@@ -116,12 +125,6 @@ describe('shouldPushToRecipient', () => {
         shouldPushToRecipient(
           mode,
           recipient({ userId: 'host', pushedInCoalesceWindow: true }),
-        ),
-      ).toBe(false);
-      expect(
-        shouldPushToRecipient(
-          mode,
-          recipient({ userId: 'host', routinePushedToday: true }),
         ),
       ).toBe(false);
     }
