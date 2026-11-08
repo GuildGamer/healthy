@@ -20,7 +20,6 @@ import {
 } from '@/lib/pose/quickpose-exercise';
 import {
   QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
-  QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
   QuickPoseThresholdCounter,
 } from '@/lib/pose/quickpose-threshold-counter';
 import { resolveCountingStance, STANCE_COACH_PROMPT } from '@/lib/pose/pose-stance';
@@ -55,7 +54,6 @@ function createLiveCounter(metric: MatchMetric): QuickPoseThresholdCounter {
   if (metric === 'pushups') {
     return new QuickPoseThresholdCounter({
       enterThreshold: QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
-      exitThreshold: QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
     });
   }
   return new QuickPoseThresholdCounter();
