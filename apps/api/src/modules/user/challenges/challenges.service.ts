@@ -729,12 +729,17 @@ export class ChallengesService {
       return;
     }
 
+    const clientAttemptId =
+      activity.externalId ??
+      `pose-credit:${user.id}:${activity.metric}:${activity.count ?? 0}:${activity.durationSeconds ?? 0}:${activity.startedAt ?? activity.endedAt ?? ''}`;
+
     try {
       await this.matches.creditPosePractice(user, {
         metric: activity.metric,
         count: activity.count ?? 0,
         durationSeconds: activity.durationSeconds ?? 0,
         source: 'in_app_pose',
+        clientAttemptId,
       });
     } catch (error) {
       this.logger.warn(

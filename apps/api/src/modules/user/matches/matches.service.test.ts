@@ -42,6 +42,7 @@ type MockAttempt = {
   count: number;
   durationSeconds: number;
   source: string;
+  clientAttemptId: string;
   recordedAt: Date;
 };
 
@@ -211,6 +212,32 @@ function createPrismaMock(match = loadedMatch()) {
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     matchAttempt: {
+      findUnique: vi.fn().mockImplementation(
+        async ({
+          where,
+        }: {
+          where: {
+            matchId_userId_clientAttemptId?: {
+              matchId: string;
+              userId: string;
+              clientAttemptId: string;
+            };
+          };
+        }) => {
+          const key = where.matchId_userId_clientAttemptId;
+          if (!key) {
+            return null;
+          }
+          return (
+            current.match.attempts.find(
+              (row) =>
+                row.matchId === key.matchId &&
+                row.userId === key.userId &&
+                row.clientAttemptId === key.clientAttemptId,
+            ) ?? null
+          );
+        },
+      ),
       create: vi.fn().mockImplementation(
         async ({
           data,
@@ -220,24 +247,35 @@ function createPrismaMock(match = loadedMatch()) {
             count: number;
             durationSeconds: number;
             source: string;
+            clientAttemptId: string;
           };
         }) => {
+          const duplicate = current.match.attempts.find(
+            (row) =>
+              row.userId === data.userId && row.clientAttemptId === data.clientAttemptId,
+          );
+          if (duplicate) {
+            const error = Object.assign(new Error('Unique constraint'), { code: 'P2002' });
+            throw error;
+          }
+          const id = `a${current.match.attempts.length + 1}`;
           current.match = {
             ...current.match,
             attempts: [
               ...current.match.attempts,
               {
-                id: 'a1',
+                id,
                 matchId: current.match.id,
                 userId: data.userId,
                 count: data.count,
                 durationSeconds: data.durationSeconds,
                 source: data.source,
+                clientAttemptId: data.clientAttemptId,
                 recordedAt: new Date(),
               },
             ],
           };
-          return { id: 'a1' };
+          return { id };
         },
       ),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -404,6 +442,7 @@ describe('MatchesService', () => {
           count: 22,
           durationSeconds: 40,
           source: 'in_app_pose',
+          clientAttemptId: 'fixture-a1',
           recordedAt: new Date(),
         },
         {
@@ -413,6 +452,7 @@ describe('MatchesService', () => {
           count: 18,
           durationSeconds: 35,
           source: 'in_app_pose',
+          clientAttemptId: 'fixture-a2',
           recordedAt: new Date(),
         },
       ],
@@ -596,8 +636,8 @@ describe('MatchesService', () => {
     expect(inviteAccepted.notifyHost).not.toHaveBeenCalled();
   });
 
-  it('rejects a join once eight people are in', async () => {
-    const participants = Array.from({ length: 8 }, (_, index) => {
+  it('rejects a join once the participant cap is full', async () => {
+    const participants = Array.from({ length: 25 }, (_, index) => {
       const userId = index === 0 ? host.id : `u${index}`;
       return {
         id: `p${index}`,
@@ -654,6 +694,7 @@ describe('MatchesService', () => {
         count: 10,
         durationSeconds: 20,
         source: 'in_app_pose',
+        clientAttemptId: 'attempt-test-1',
       }),
     ).rejects.toMatchObject({
       code: 'BAD_REQUEST',
@@ -699,6 +740,7 @@ describe('MatchesService', () => {
           count: 30,
           durationSeconds: 40,
           source: 'in_app_pose',
+          clientAttemptId: 'fixture-a1',
           recordedAt: new Date('2019-12-31T12:00:00.000Z'),
         },
       ],
@@ -765,6 +807,7 @@ describe('MatchesService', () => {
       count: 18,
       durationSeconds: 40,
       source: 'in_app_pose',
+      clientAttemptId: 'attempt-test-1',
     });
 
     expect(board.yourBestCount).toBe(18);
@@ -780,6 +823,98 @@ describe('MatchesService', () => {
       endsAt: board.endsAt,
       recipients: [{ userId: host.id, score: 0, rank: 2 }],
     });
+  });
+
+  it('does not double-count when the same clientAttemptId is submitted twice', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    const boardMove = createBoardMoveSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      boardMove,
+    );
+    const payload = {
+      matchId: 'm1',
+      count: 35,
+      durationSeconds: 60,
+      source: 'in_app_pose' as const,
+      clientAttemptId: 'match-attempt:m1:same-set',
+    };
+
+    const first = await service.submitAttempt(guest, payload);
+    const second = await service.submitAttempt(guest, payload);
+
+    expect(first.yourBestCount).toBe(35);
+    expect(second.yourBestCount).toBe(35);
+    expect(prisma.matchAttempt.create).toHaveBeenCalledTimes(1);
+    expect(boardMove.notifyParticipants).toHaveBeenCalledTimes(1);
+    expect(prisma.current.match.attempts).toHaveLength(1);
+  });
+
+  it('counts a second set when the clientAttemptId differs', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+      scoringMode: 'cumulative_total',
+    });
+    const prisma = createPrismaMock(match);
+    const service = createService(prisma);
+
+    await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 35,
+      durationSeconds: 60,
+      source: 'in_app_pose',
+      clientAttemptId: 'set-1',
+    });
+    const board = await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 35,
+      durationSeconds: 60,
+      source: 'in_app_pose',
+      clientAttemptId: 'set-2',
+    });
+
+    expect(board.yourScore).toBe(70);
+    expect(prisma.matchAttempt.create).toHaveBeenCalledTimes(2);
   });
 
   it('counts a contest set toward the member streak', async () => {
@@ -821,6 +956,7 @@ describe('MatchesService', () => {
       count: 18,
       durationSeconds: 40,
       source: 'in_app_pose',
+      clientAttemptId: 'attempt-test-1',
     });
 
     expect(streak.recordActiveDay).toHaveBeenCalledWith(guest.id, prisma);
@@ -871,6 +1007,7 @@ describe('MatchesService', () => {
       count: 30,
       durationSeconds: 55,
       source: 'in_app_pose',
+      clientAttemptId: 'attempt-test-1',
     });
 
     expect(prisma.deviceActivityLog.upsert).toHaveBeenCalledWith(
@@ -939,6 +1076,7 @@ describe('MatchesService', () => {
         count: 30,
         durationSeconds: 55,
         source: 'in_app_pose',
+        clientAttemptId: 'attempt-test-1',
       },
       { applyTowardPersonalGoals: false },
     );
@@ -1032,6 +1170,7 @@ describe('MatchesService', () => {
       count: 18,
       durationSeconds: 40,
       source: 'in_app_pose',
+      clientAttemptId: 'attempt-test-1',
     });
 
     expect(board.yourScore).toBe(18);
@@ -1050,6 +1189,7 @@ describe('MatchesService', () => {
         count: 30,
         durationSeconds: 1_800,
         source: 'in_app_walk',
+        clientAttemptId: 'attempt-test-1',
       }),
     ).rejects.toMatchObject({
       code: 'BAD_REQUEST',
@@ -1069,6 +1209,7 @@ describe('MatchesService', () => {
         count: 5_000,
         durationSeconds: 3_600,
         source: 'in_app_walk',
+        clientAttemptId: 'attempt-test-1',
       }),
     ).rejects.toMatchObject({
       code: 'BAD_REQUEST',
@@ -1104,6 +1245,7 @@ describe('MatchesService', () => {
             count: 20,
             durationSeconds: 60,
             source: 'in_app_pose',
+            clientAttemptId: 'fixture-a-guest',
             recordedAt: movedAt,
           },
         ],
@@ -1135,6 +1277,7 @@ describe('MatchesService', () => {
             count: 12,
             durationSeconds: 40,
             source: 'in_app_pose',
+            clientAttemptId: 'fixture-a-guest',
             recordedAt: new Date(),
           },
         ],
@@ -1455,6 +1598,7 @@ describe('MatchesService', () => {
           count: 27,
           durationSeconds: 45,
           source: 'in_app_pose',
+          clientAttemptId: 'seed:m1:host',
         }),
       }),
     );
@@ -1784,6 +1928,7 @@ describe('MatchesService', () => {
             count: 90,
             durationSeconds: 60,
             source: 'in_app_pose',
+            clientAttemptId: 'fixture-a1',
             recordedAt: new Date('2026-09-04T10:00:00.000Z'),
           },
         ],
@@ -1808,6 +1953,7 @@ describe('MatchesService', () => {
             count: 20,
             durationSeconds: 60,
             source: 'in_app_pose',
+            clientAttemptId: 'fixture-a1',
             recordedAt: new Date('2026-09-04T10:00:00.000Z'),
           },
           {
@@ -1817,6 +1963,7 @@ describe('MatchesService', () => {
             count: 15,
             durationSeconds: 60,
             source: 'in_app_pose',
+            clientAttemptId: 'fixture-a2',
             recordedAt: new Date('2026-09-05T10:00:00.000Z'),
           },
         ],

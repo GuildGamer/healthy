@@ -1088,9 +1088,13 @@ model MatchAttempt {
   /// Checked against the match's metric on write, so a walk cannot be logged
   /// into a push-up contest.
   source          MatchAttemptSource @default(in_app_pose)
+  /// Client-stable id for this set. Retries with the same key must not create
+  /// a second row (unique per match + member).
+  clientAttemptId String
   recordedAt      DateTime           @default(now())
   proofClips      ProofClip[]
 
+  @@unique([matchId, userId, clientAttemptId])
   @@index([matchId, userId, recordedAt])
   @@map("match_attempts")
 }

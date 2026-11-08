@@ -360,6 +360,11 @@ export const submitMatchAttemptInputSchema = z.object({
    * metric rather than taking the client's word for what was logged.
    */
   source: matchAttemptSourceSchema,
+  /**
+   * Stable id for this set on the device. Retries with the same id must not
+   * create a second MatchAttempt (flaky network must not double the board).
+   */
+  clientAttemptId: z.string().min(1).max(128),
 });
 
 export const createMatchContract = oc

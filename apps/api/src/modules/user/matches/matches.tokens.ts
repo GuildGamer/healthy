@@ -16,6 +16,7 @@ export type PoseContestCreditor = {
       count: number;
       durationSeconds: number;
       source: 'in_app_pose';
+      clientAttemptId: string;
     },
   ): Promise<string[]>;
 };

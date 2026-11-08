@@ -214,6 +214,7 @@ describe('MatchWalkScreen', () => {
         count: 5,
         durationSeconds: 310,
         source: 'in_app_walk',
+        clientAttemptId: expect.stringMatching(/^match-walk:m1:/),
       });
     });
     expect(mockDismiss).toHaveBeenCalled();
@@ -237,6 +238,7 @@ describe('MatchWalkScreen', () => {
         count: 3,
         durationSeconds: 200,
         source: 'in_app_walk',
+        clientAttemptId: expect.stringMatching(/^match-walk:m1:/),
       });
     });
 
@@ -311,6 +313,7 @@ describe('MatchWalkScreen', () => {
         count: 1,
         durationSeconds: 70,
         source: 'in_app_walk',
+        clientAttemptId: expect.stringMatching(/^match-walk:m1:/),
       });
     });
 
@@ -339,6 +342,7 @@ describe('MatchWalkScreen', () => {
         count: 1,
         durationSeconds: 70,
         source: 'in_app_walk',
+        clientAttemptId: expect.stringMatching(/^match-walk:m1:/),
       });
     });
 

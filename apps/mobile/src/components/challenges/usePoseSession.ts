@@ -13,7 +13,7 @@ import { goBackOrHome } from '@/lib/go-back';
 import type { QuickPoseExerciseUpdate } from '@/lib/pose/quickpose-exercise';
 import { trackEvent } from '@/lib/track-event';
 import { finishAndLeave } from './finish-challenge';
-import { partialSetSession, setSessionId } from './partial-session';
+import { matchAttemptClientId, partialSetSession, setSessionId } from './partial-session';
 import { poseDisplayCount, poseMeetsTarget } from './pose-session-count';
 import { setEndDecision } from './set-end-decision';
 import type { PoseSessionProps } from './types/pose-session';
@@ -123,6 +123,7 @@ function useSubmitSet(
           count: reps,
           durationSeconds,
           source: 'in_app_pose',
+          clientAttemptId: matchAttemptClientId('pose', props.matchId, startedAt),
         });
         return {
           mode: 'match' as const,

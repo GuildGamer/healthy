@@ -1,5 +1,9 @@
 import type { TodayChallenge } from '@product/client';
-import { partialSetSession, partialWalkSession } from './partial-session';
+import {
+  matchAttemptClientId,
+  partialSetSession,
+  partialWalkSession,
+} from './partial-session';
 
 const noTarget = { durationMinutes: null, distanceMeters: null, count: null };
 
@@ -18,6 +22,15 @@ const walk = {
 };
 
 describe('partial sessions', () => {
+  it('mints a stable contest attempt id from match and start time', () => {
+    expect(matchAttemptClientId('pose', 'm1', '2026-11-08T09:00:00.000Z')).toBe(
+      'match-attempt:m1:2026-11-08T09:00:00.000Z',
+    );
+    expect(matchAttemptClientId('walk', 'm1', '2026-11-08T09:00:00.000Z')).toBe(
+      'match-walk:m1:2026-11-08T09:00:00.000Z',
+    );
+  });
+
   it('keeps a short walk under the same id its final submit will use', () => {
     expect(partialWalkSession(occurrence('walk'), walk)).toEqual({
       metric: 'walk',

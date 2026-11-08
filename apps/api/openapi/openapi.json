@@ -8753,13 +8753,19 @@
                       "in_app_walk"
                     ],
                     "type": "string"
+                  },
+                  "clientAttemptId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
                   }
                 },
                 "required": [
                   "matchId",
                   "count",
                   "durationSeconds",
-                  "source"
+                  "source",
+                  "clientAttemptId"
                 ]
               }
             }

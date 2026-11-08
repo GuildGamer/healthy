@@ -100,6 +100,7 @@ export class PracticeService {
             count: input.count ?? 0,
             durationSeconds: input.durationSeconds,
             source: 'in_app_pose',
+            clientAttemptId: input.externalId,
           })
         : [];
 

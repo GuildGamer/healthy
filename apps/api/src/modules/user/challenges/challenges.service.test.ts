@@ -653,6 +653,7 @@ describe('ChallengesService.complete', () => {
         count: 40,
         durationSeconds: 90,
         source: 'in_app_pose',
+        clientAttemptId: 'challenge:uc1:start',
       }),
     );
   });

@@ -327,6 +327,7 @@ describe('PracticeService.record', () => {
       count: input.count,
       durationSeconds: input.durationSeconds,
       source: input.source,
+      clientAttemptId: input.externalId,
     });
     expect(result.creditedMatchIds).toEqual(['m1']);
   });

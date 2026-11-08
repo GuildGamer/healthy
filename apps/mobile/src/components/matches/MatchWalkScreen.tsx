@@ -13,6 +13,7 @@ import { displayFontFamily } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { formatDistance, formatDuration, pathDistanceMeters } from '@/lib/geo-session';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
+import { matchAttemptClientId } from '@/components/challenges/partial-session';
 import {
   MATCH_WALK_FAILED,
   MATCH_WALK_LOG,
@@ -46,6 +47,7 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
         count: Math.floor(recording.durationSeconds / 60),
         durationSeconds: recording.durationSeconds,
         source: 'in_app_walk',
+        clientAttemptId: matchAttemptClientId('walk', matchId, recording.startedAt),
       }),
     onSuccess: async () => {
       refreshAfterCompletion(queryClient);

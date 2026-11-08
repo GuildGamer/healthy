@@ -74,6 +74,23 @@ function scoringRulesFor(match: LoadedMatch): MatchScoringRules {
   return { scoringMode: match.scoringMode, metric: match.metric };
 }
 
+const CLIENT_ATTEMPT_ID_MAX = 128;
+
+/** One habit set → many contests: keep the base id, scope it per match, fit the column. */
+export function matchScopedClientAttemptId(base: string, matchId: string): string {
+  const raw = `${base}:match:${matchId}`;
+  return raw.length <= CLIENT_ATTEMPT_ID_MAX ? raw : raw.slice(0, CLIENT_ATTEMPT_ID_MAX);
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'P2002'
+  );
+}
+
 /**
  * Walk sources a contest will score: every one of them is measured by a
  * sensor. `manual` is absent on purpose — see `loadTrackedWalkEvents`.
@@ -298,6 +315,7 @@ export class MatchesService {
             count: seedAttempt.count,
             durationSeconds: seedAttempt.durationSeconds,
             source: seedAttempt.source,
+            clientAttemptId: `seed:${match.id}:${user.id}`,
             recordedAt: now,
           },
         });
@@ -607,6 +625,8 @@ export class MatchesService {
       count: number;
       durationSeconds: number;
       source: SubmitMatchAttemptInput['source'];
+      /** Habit/practice session external id — namespaced per match on write. */
+      clientAttemptId: string;
     },
   ): Promise<string[]> {
     if (!isPoseMetric(input.metric) || input.count <= 0) {
@@ -634,6 +654,7 @@ export class MatchesService {
             count: input.count,
             durationSeconds: input.durationSeconds,
             source: input.source,
+            clientAttemptId: matchScopedClientAttemptId(input.clientAttemptId, match.id),
           },
           { applyTowardPersonalGoals: false },
         );
@@ -668,6 +689,19 @@ export class MatchesService {
 
     this.assertAttemptFitsMetric(match.metric, input);
 
+    const existing = await this.prisma.matchAttempt.findUnique({
+      where: {
+        matchId_userId_clientAttemptId: {
+          matchId: match.id,
+          userId: user.id,
+          clientAttemptId: input.clientAttemptId,
+        },
+      },
+    });
+    if (existing) {
+      return this.buildBoard(await this.loadById(match.id), user.id);
+    }
+
     const isRecipient = user.id !== match.hostUserId;
     const priorRecipientAttempts = match.attempts.filter(
       (attempt) => attempt.userId === user.id,
@@ -675,18 +709,28 @@ export class MatchesService {
 
     const scoreBefore = await this.viewerScore(match, user.id);
 
-    const { attempt, streak } = await this.prisma.$transaction(async (tx) => ({
-      attempt: await tx.matchAttempt.create({
-        data: {
-          matchId: match.id,
-          userId: user.id,
-          count: input.count,
-          durationSeconds: input.durationSeconds,
-          source: input.source,
-        },
-      }),
-      streak: await this.streak.recordActiveDay(user.id, tx),
-    }));
+    let attempt: { id: string };
+    let streak: Awaited<ReturnType<StreakService['recordActiveDay']>>;
+    try {
+      ({ attempt, streak } = await this.prisma.$transaction(async (tx) => ({
+        attempt: await tx.matchAttempt.create({
+          data: {
+            matchId: match.id,
+            userId: user.id,
+            count: input.count,
+            durationSeconds: input.durationSeconds,
+            source: input.source,
+            clientAttemptId: input.clientAttemptId,
+          },
+        }),
+        streak: await this.streak.recordActiveDay(user.id, tx),
+      })));
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+      return this.buildBoard(await this.loadById(match.id), user.id);
+    }
     void this.streak.announceMilestone(user.id, streak);
 
     if (isRecipient && priorRecipientAttempts === 0) {

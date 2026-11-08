@@ -13,6 +13,21 @@ export function setSessionId(occurrence: Pick<TodayChallenge, 'id'>, startedAt: 
   return `in-app-pose:${occurrence.id}:${startedAt}`;
 }
 
+const CLIENT_ATTEMPT_ID_MAX = 128;
+
+/**
+ * Contest set id stable across save retries. Pose and walk share the shape;
+ * the prefix keeps the two activities from colliding on the same match.
+ */
+export function matchAttemptClientId(
+  kind: 'pose' | 'walk',
+  matchId: string,
+  startedAt: string,
+): string {
+  const prefix = kind === 'walk' ? 'match-walk' : 'match-attempt';
+  return `${prefix}:${matchId}:${startedAt}`.slice(0, CLIENT_ATTEMPT_ID_MAX);
+}
+
 /** A recorded walk that stopped short, as progress; null when there is nothing measured to keep. */
 export function partialWalkSession(
   occurrence: Occurrence,
