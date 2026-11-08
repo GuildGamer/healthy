@@ -24,6 +24,13 @@ import {
   QuickPoseThresholdCounter,
 } from '@/lib/pose/quickpose-threshold-counter';
 import { resolveCountingStance, STANCE_COACH_PROMPT } from '@/lib/pose/pose-stance';
+import {
+  SUBJECT_LOCK_COACH_PROMPT,
+  createSubjectLock,
+  resetSubjectLock,
+  tickSubjectLock,
+  type SubjectLockState,
+} from '@/lib/pose/pose-subject-lock';
 import { recordStanceRejectSample } from '@/lib/pose/stance-reject-sample';
 
 const EMPTY_SNAPSHOT: PushupCounterSnapshot = {
@@ -67,6 +74,7 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
   const isHold = MATCH_METRIC_MEASURE[metric] === 'seconds';
   const liveCounterRef = useRef(createLiveCounter(metric));
   const holdRef = useRef<QuickPoseHoldState>(createHoldTimer());
+  const subjectLockRef = useRef<SubjectLockState>(createSubjectLock());
   const lastOkStanceRef = useRef(false);
   const lastTickMs = useRef(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -91,6 +99,7 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
     clearTick();
     liveCounterRef.current.reset();
     holdRef.current = createHoldTimer();
+    subjectLockRef.current = resetSubjectLock();
     lastOkStanceRef.current = false;
     lastTickMs.current = 0;
     setSnapshot(EMPTY_SNAPSHOT);
@@ -172,8 +181,24 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
       }
 
       const finishingRep = liveCounterRef.current.state.isEntered;
+      const now = Date.now();
+      const subjectLock = tickSubjectLock(subjectLockRef.current, frame, {
+        finishingRep,
+        nowMs: now,
+      });
+      subjectLockRef.current = subjectLock.state;
+
+      const lockFeedback =
+        update.landmarksAvailable === true &&
+        frame != null &&
+        stance.ok &&
+        !subjectLock.isLocked
+          ? SUBJECT_LOCK_COACH_PROMPT
+          : null;
+
       if (
         measure != null &&
+        subjectLock.mayFeedCounter &&
         shouldCountPoseRep({
           measure,
           insideMeasure,
@@ -191,10 +216,9 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
         insideMeasure,
         formFeedback,
         framingFeedback,
-        stanceFeedback,
+        stanceFeedback: stanceFeedback ?? lockFeedback,
         counter: liveCounterRef.current.state,
       });
-      const now = Date.now();
       const countChanged = next.count !== lastPublishedCount.current;
       if (!countChanged && now - lastEmitMs.current < 66) {
         return;
@@ -215,6 +239,7 @@ export function usePoseSessionCounter(options: PoseSessionCounterOptions = {}) {
         reset();
         liveCounterRef.current = createLiveCounter(metricRef.current);
         holdRef.current = createHoldTimer();
+        subjectLockRef.current = resetSubjectLock();
         lastOkStanceRef.current = false;
       } else {
         sessionOriginMs.current = Date.now();
