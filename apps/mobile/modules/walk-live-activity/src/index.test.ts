@@ -3,9 +3,9 @@ import { Platform } from 'react-native';
 
 jest.unmock('walk-live-activity');
 
-const mockStartActivity = jest.fn(() => 'activity-42');
-const mockStopActivity = jest.fn();
-const mockUpdateActivity = jest.fn();
+const mockStartActivity = jest.fn((..._args: unknown[]) => 'activity-42');
+const mockStopActivity = jest.fn((..._args: unknown[]) => undefined);
+const mockUpdateActivity = jest.fn((..._args: unknown[]) => undefined);
 
 jest.mock('expo-live-activity', () => ({
   startActivity: (...args: unknown[]) => mockStartActivity(...args),

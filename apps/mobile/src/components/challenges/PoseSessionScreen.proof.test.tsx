@@ -77,6 +77,7 @@ function baseSession(overrides: Record<string, unknown> = {}) {
     isStarting: false,
     isSaving: false,
     saveFailed: false,
+    saveError: null,
     canRecordProof: true,
     recordProof: true,
     showProofExplainer: false,

@@ -11,12 +11,14 @@ import {
   DECK_SHEET_SCREEN_OPTIONS,
   FULL_PHONE_SCREEN_OPTIONS,
 } from '@/components/navigation/screen-options';
+import { flushPendingCompletions } from '@/lib/flush-pending-completions';
 import { flushPendingProofUploads } from '@/lib/flush-pending-proof-uploads';
 import { setAppQueryClient } from '@/lib/query-client-holder';
 import { useDisplayFont } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
 import { useAnalyticsSession, useScreenAnalytics } from '@/lib/analytics';
+import { useNetworkReconnected } from '@/lib/use-network-reconnected';
 import { usePushResponse } from '@/lib/use-push-response';
 import { useUserActive } from '@/lib/use-user-active';
 import { useWalkOfferResponse } from '@/lib/use-walk-offer-response';
@@ -27,6 +29,11 @@ import { resumeWalkOfferMonitorIfNeeded } from '@/lib/walk-offer-monitor';
 import { dispatchWalkControlUrl } from '@/lib/walk-control';
 import { ThemeProvider, useTheme } from '@/theme';
 import { clearOrphanWalkLiveActivities } from 'walk-live-activity';
+
+function flushPendingOfflineWork(): void {
+  void flushPendingProofUploads();
+  void flushPendingCompletions();
+}
 
 /**
  * The native splash holds until the display font resolves, so the first thing
@@ -71,16 +78,17 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
-  // Save-queued proof uploads land once the person is back online.
+  // Queued completions and proof uploads land once the person is back online.
   useEffect(() => {
-    void flushPendingProofUploads();
+    flushPendingOfflineWork();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void flushPendingProofUploads();
+        flushPendingOfflineWork();
       }
     });
     return () => subscription.remove();
   }, []);
+  useNetworkReconnected(flushPendingOfflineWork);
 
   // Keep counting a same-day walk offer after a cold start, before Today mounts.
   // Also drop any walk Live Activity / GPS task left behind by a force-quit.

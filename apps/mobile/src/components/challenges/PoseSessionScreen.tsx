@@ -15,7 +15,7 @@ import { DeckButton, DeckNavButton } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
-import { POSE_COPY, SAVE_FAILED_MESSAGE } from './constants/doing-copy';
+import { POSE_COPY } from './constants/doing-copy';
 import { PoseCountHud } from './PoseCountHud';
 import { ProofClipActions } from './ProofClipActions';
 import { ProofClipAudienceSheet } from './ProofClipAudienceSheet';
@@ -26,6 +26,7 @@ import {
   poseShortLine,
   PRACTICE_SESSION_TITLE,
 } from './pose-session-copy';
+import { saveFailedMessage } from './save-error';
 import { type PoseSession, type PoseSessionProps, usePoseSession } from './usePoseSession';
 
 export type PoseSessionScreenProps = PoseSessionProps;
@@ -320,13 +321,16 @@ function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSession
   }
 
   const canSave = session.meetsTarget;
-  const line = canSave
-    ? SAVE_FAILED_MESSAGE
-    : session.target > 0
-      ? poseShortLine({ count, target: session.target })
-      : poseReviewTitle({ mode, count, meetsTarget: false });
+  const line = session.saveFailed
+    ? saveFailedMessage(session.saveError)
+    : canSave
+      ? poseReviewTitle({ mode, count, meetsTarget: true })
+      : session.target > 0
+        ? poseShortLine({ count, target: session.target })
+        : poseReviewTitle({ mode, count, meetsTarget: false });
   const showProof =
     !canSave && (Boolean(session.proofClipId) || session.proofFailed);
+  const primaryAction = canSave || session.saveFailed ? session.save : session.retry;
 
   return (
     <>
@@ -346,8 +350,8 @@ function PoseReview({ session, mode }: { session: PoseSession; mode: PoseSession
       <View style={styles.panelAction}>
         <DeckButton
           label={POSE_COPY.tryAgain}
-          onPress={canSave ? session.save : session.retry}
-          testID={canSave ? 'submit-pose' : 'retry-pose'}
+          onPress={primaryAction}
+          testID={canSave || session.saveFailed ? 'submit-pose' : 'retry-pose'}
           variant="cameraSolid"
         />
       </View>

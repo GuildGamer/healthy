@@ -3,6 +3,7 @@ import type { GlucoseContext } from '@product/client';
 export const SAVE_OFFLINE_MESSAGE =
   'That didn’t save. Your numbers are still here, so try again when you’re back online.';
 export const SAVE_FAILED_MESSAGE = 'That didn’t save. Your numbers are still here, so try again.';
+export const SAVE_QUEUED_OFFLINE_MESSAGE = 'We’ll save this set when you’re back online.';
 export const SAVE_RETRY_LABEL = 'Try again';
 export const NOT_ON_TODAY = 'This challenge isn’t on today’s list.';
 

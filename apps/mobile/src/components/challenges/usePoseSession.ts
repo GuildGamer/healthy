@@ -5,13 +5,21 @@ import { useRouter } from 'expo-router';
 import { type ComponentType, useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { isPoseCameraAvailable, type ProofRecordingConfig } from 'quickpose-camera';
+import { useOptionalToastHost } from '@/components/forms/ToastProvider';
 import { MATCH_DEFAULT_METRIC, MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
 import { announceChallengeFinish } from '@/lib/challenge-finish-session';
+import {
+  getPendingCompletion,
+  removePendingCompletion,
+  upsertPendingCompletion,
+} from '@/lib/completion-outbox';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
+import { executePendingCompletion } from '@/lib/execute-pending-completion';
 import { goBackOrHome } from '@/lib/go-back';
 import type { QuickPoseExerciseUpdate } from '@/lib/pose/quickpose-exercise';
 import { trackEvent } from '@/lib/track-event';
+import { SAVE_QUEUED_OFFLINE_MESSAGE } from './constants/doing-copy';
 import { finishAndLeave } from './finish-challenge';
 import { matchAttemptClientId, partialSetSession, setSessionId } from './partial-session';
 import { poseDisplayCount, poseMeetsTarget } from './pose-session-count';
@@ -109,6 +117,7 @@ function useSubmitSet(
   proofClipIdRef: { current: string | null },
   proofFailedRef: { current: boolean },
   proofAudienceRef: { current: string | null },
+  lastOutboxIdRef: { current: string | null },
 ) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -118,13 +127,20 @@ function useSubmitSet(
       const endedAt = new Date().toISOString();
 
       if (props.mode === 'match') {
-        await apiClient.submitMatchAttempt({
-          matchId: props.matchId,
-          count: reps,
-          durationSeconds,
-          source: 'in_app_pose',
-          clientAttemptId: matchAttemptClientId('pose', props.matchId, startedAt),
+        const pending = await upsertPendingCompletion({
+          kind: 'submit_match_attempt',
+          input: {
+            matchId: props.matchId,
+            count: reps,
+            durationSeconds,
+            source: 'in_app_pose',
+            clientAttemptId: matchAttemptClientId('pose', props.matchId, startedAt),
+          },
         });
+        lastOutboxIdRef.current = pending.id;
+        await executePendingCompletion(pending);
+        await removePendingCompletion(pending.id);
+        lastOutboxIdRef.current = null;
         return {
           mode: 'match' as const,
           reps,
@@ -136,17 +152,27 @@ function useSubmitSet(
 
       if (props.mode === 'practice') {
         const practiceMetric = poseMetricFromCapture(occurrence?.capture.metric);
-        const recorded = await apiClient.recordPracticeSession({
-          metric: practiceMetric,
-          source: 'in_app_pose',
-          count: reps,
-          durationSeconds,
-          startedAt,
-          endedAt,
-          externalId: `practice:${props.challengeId}:${startedAt}`,
-          ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
+        const pending = await upsertPendingCompletion({
+          kind: 'record_practice',
+          input: {
+            metric: practiceMetric,
+            source: 'in_app_pose',
+            count: reps,
+            durationSeconds,
+            startedAt,
+            endedAt,
+            externalId: `practice:${props.challengeId}:${startedAt}`,
+            ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
+          },
         });
-        const creditedMatchId = recorded.creditedMatchIds[0];
+        lastOutboxIdRef.current = pending.id;
+        const executed = await executePendingCompletion(pending);
+        await removePendingCompletion(pending.id);
+        lastOutboxIdRef.current = null;
+        if (executed.kind !== 'record_practice') {
+          throw new Error('Unexpected practice result.');
+        }
+        const creditedMatchId = executed.result.creditedMatchIds[0];
         if (creditedMatchId) {
           return {
             mode: 'match' as const,
@@ -163,24 +189,31 @@ function useSubmitSet(
         throw new Error('This challenge is not on today’s list.');
       }
 
-      if (occurrence.status === 'pending') {
-        await apiClient.startChallenge({ userChallengeId: occurrence.id });
-      }
-
       const challengeMetric = poseMetricFromCapture(occurrence.capture.metric);
-      const result = await apiClient.completeChallenge({
+      const pending = await upsertPendingCompletion({
+        kind: 'complete_challenge',
         userChallengeId: occurrence.id,
-        deviceActivity: {
-          source: 'in_app_pose',
-          metric: challengeMetric,
-          count: reps,
-          durationSeconds,
-          startedAt,
-          endedAt,
-          externalId: setSessionId(occurrence, startedAt),
+        occurrenceStatus: occurrence.status,
+        payload: {
+          deviceActivity: {
+            source: 'in_app_pose',
+            metric: challengeMetric,
+            count: reps,
+            durationSeconds,
+            startedAt,
+            endedAt,
+            externalId: setSessionId(occurrence, startedAt),
+          },
         },
       });
-      return { mode: 'challenge' as const, reps, durationSeconds, result };
+      lastOutboxIdRef.current = pending.id;
+      const executed = await executePendingCompletion(pending);
+      await removePendingCompletion(pending.id);
+      lastOutboxIdRef.current = null;
+      if (executed.kind !== 'complete_challenge') {
+        throw new Error('Unexpected challenge result.');
+      }
+      return { mode: 'challenge' as const, reps, durationSeconds, result: executed.result };
     },
     onError: () => {
       trackEvent('client_error', { surface: 'pose_submit', code: 'submit_failed' });
@@ -377,6 +410,8 @@ export function usePoseSession(props: PoseSessionProps) {
   proofFailedRef.current = proof.proofFailed;
   const proofAudienceRef = useRef<string | null>(null);
   proofAudienceRef.current = proof.audience;
+  const lastOutboxIdRef = useRef<string | null>(null);
+  const toast = useOptionalToastHost();
 
   const submitSet = useSubmitSet(
     props,
@@ -385,6 +420,7 @@ export function usePoseSession(props: PoseSessionProps) {
     proof.clipIdRef,
     proofFailedRef,
     proofAudienceRef,
+    lastOutboxIdRef,
   );
   const { savePartial } = useSavePartialSession();
   const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
@@ -606,6 +642,7 @@ export function usePoseSession(props: PoseSessionProps) {
     isStarting: startOccurrence.isPending,
     isSaving: submitSet.isPending,
     saveFailed: submitSet.isError,
+    saveError: submitSet.error,
     canRecordProof: proof.isSupported,
     recordProof: proof.recordProof,
     showProofExplainer: proof.showProofExplainer,
@@ -648,9 +685,17 @@ export function usePoseSession(props: PoseSessionProps) {
         });
       }
       stop();
-      void proof.discardReservation().finally(() => {
+      const queuedId = lastOutboxIdRef.current;
+      void (async () => {
+        if (queuedId) {
+          const stillQueued = await getPendingCompletion(queuedId);
+          if (stillQueued) {
+            toast?.show({ message: SAVE_QUEUED_OFFLINE_MESSAGE });
+          }
+        }
+        await proof.discardReservation();
         goBackOrHome(props.mode === 'match' ? `/matches/${props.matchId}` : '/(tabs)');
-      });
+      })();
     },
   };
 }
