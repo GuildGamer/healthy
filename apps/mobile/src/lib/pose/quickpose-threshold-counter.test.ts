@@ -1,6 +1,7 @@
 import {
   QUICKPOSE_MIN_REP_INTERVAL_MS,
   QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
+  QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
   QuickPoseThresholdCounter,
 } from './quickpose-threshold-counter';
 
@@ -27,6 +28,7 @@ describe('QuickPoseThresholdCounter', () => {
   it('lets push-ups enter at 0.7 while still ignoring a 0.65 dip', () => {
     const counter = new QuickPoseThresholdCounter({
       enterThreshold: QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
+      exitThreshold: QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
     });
 
     counter.count(0.65);
@@ -35,6 +37,19 @@ describe('QuickPoseThresholdCounter', () => {
 
     expect(counter.count(0.72).type).toBe('poseEntered');
     expect(counter.count(0.2).count).toBe(1);
+  });
+
+  it('completes a push-up when lock-out drops just under 0.35, not at 0.40', () => {
+    const counter = new QuickPoseThresholdCounter({
+      enterThreshold: QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
+      exitThreshold: QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
+    });
+
+    expect(counter.count(0.75).type).toBe('poseEntered');
+    expect(counter.count(0.4).count).toBe(0);
+    expect(counter.state.isEntered).toBe(true);
+    expect(counter.count(0.34).type).toBe('poseComplete');
+    expect(counter.state.count).toBe(1);
   });
 
   it('blocks a second complete inside the min interval', () => {

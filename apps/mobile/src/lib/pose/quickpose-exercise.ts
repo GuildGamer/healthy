@@ -136,6 +136,9 @@ export function quickPoseFraming(input: {
   };
 }
 
+/** Shown when a half-rep is armed but nothing else is coaching. */
+export const POSE_COME_ALL_THE_WAY_UP = 'Come all the way up.';
+
 /**
  * Whether this frame may move the rep counter. Needs a body reading from
  * QuickPose and an accepted stance; a finishing half-rep may complete if the
@@ -179,8 +182,11 @@ export function snapshotFromQuickPose(input: {
     insideMeasure: input.insideMeasure,
   });
   const downness = input.measure ?? 0;
-  const coachPrompt =
+  const explicitCoach =
     input.formFeedback ?? input.framingFeedback ?? input.stanceFeedback;
+  const coachPrompt =
+    explicitCoach ??
+    (input.counter.isEntered ? POSE_COME_ALL_THE_WAY_UP : null);
 
   return {
     count: input.counter.count,

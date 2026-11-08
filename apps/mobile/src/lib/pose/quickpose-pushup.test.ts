@@ -1,4 +1,7 @@
-import { QUICKPOSE_INSIDE_IN_FRAME_HOLD } from './quickpose-exercise';
+import {
+  POSE_COME_ALL_THE_WAY_UP,
+  QUICKPOSE_INSIDE_IN_FRAME_HOLD,
+} from './quickpose-exercise';
 import {
   quickPoseFraming,
   shouldCountPoseRep,
@@ -6,7 +9,7 @@ import {
 } from './quickpose-pushup';
 
 describe('snapshotFromQuickPose', () => {
-  it('maps an entered pose to the down phase without counting yet', () => {
+  it('maps an entered pose to the down phase and coaches the lock-out', () => {
     const snapshot = snapshotFromQuickPose({
       measure: 0.82,
       insideMeasure: 1,
@@ -20,7 +23,20 @@ describe('snapshotFromQuickPose', () => {
     expect(snapshot.phase).toBe('down');
     expect(snapshot.bodyInFrame).toBe(true);
     expect(snapshot.tooClose).toBe(false);
-    expect(snapshot.coachPrompt).toBeNull();
+    expect(snapshot.coachPrompt).toBe(POSE_COME_ALL_THE_WAY_UP);
+  });
+
+  it('keeps form feedback ahead of the stuck mid-rep coach', () => {
+    const snapshot = snapshotFromQuickPose({
+      measure: 0.5,
+      insideMeasure: 1,
+      formFeedback: 'Lower your hips',
+      framingFeedback: null,
+      stanceFeedback: null,
+      counter: { type: 'poseEntered', count: 2, isEntered: true },
+    });
+
+    expect(snapshot.coachPrompt).toBe('Lower your hips');
   });
 
   it('surfaces form feedback for the HUD', () => {
