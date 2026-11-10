@@ -100,6 +100,7 @@ function baseSession(overrides: Record<string, unknown> = {}) {
     setProofAudience: jest.fn(),
     confirmAudienceSheet: jest.fn(),
     proofCount: 5,
+    resetCountToken: 0,
     finishProofToken: 1,
     finishProofEndAtMs: 0,
     finishCountdown: null,

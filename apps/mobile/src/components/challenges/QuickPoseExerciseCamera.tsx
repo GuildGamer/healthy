@@ -1,6 +1,8 @@
 import type { MatchMetric } from '@product/contract/match-board';
 import {
+  nativePoseCountFromEvent,
   QuickPoseCameraView,
+  type NativePoseCountUpdate,
   type ProofRecordedEvent,
   type ProofRecordingConfig,
   type ProofRecordingErrorEvent,
@@ -11,15 +13,19 @@ import {
   QUICKPOSE_INSIDE_FEATURE,
   QUICKPOSE_OVERLAY_FEATURE,
   quickPoseFeaturesFor,
-  type QuickPoseExerciseUpdate,
 } from '@/lib/pose/quickpose-exercise';
 import { useTheme } from '@/theme';
+
+export type { NativePoseCountUpdate };
 
 type QuickPoseExerciseCameraProps = {
   sdkKey: string;
   metric: MatchMetric;
-  onUpdate: (update: QuickPoseExerciseUpdate) => void;
+  /** Bump to reset native count (non-preserve session start). */
+  resetCountToken?: number;
+  onUpdate: (update: NativePoseCountUpdate) => void;
   proofRecording?: ProofRecordingConfig | null;
+  /** Optional freeze/review overlay override; live count is native-owned. */
   proofCount?: number;
   finishProofToken?: number;
   finishProofEndAtMs?: number;
@@ -35,6 +41,7 @@ type QuickPoseExerciseCameraProps = {
 export function QuickPoseExerciseCamera({
   sdkKey,
   metric,
+  resetCountToken = 0,
   onUpdate,
   proofRecording = null,
   proofCount = 0,
@@ -66,6 +73,7 @@ export function QuickPoseExerciseCamera({
     <QuickPoseCameraView
       features={features}
       featureStyles={featureStyles}
+      metric={metric}
       onProofRecorded={(event: ProofRecordedEvent) => {
         onProofRecorded?.(event.nativeEvent);
       }}
@@ -73,17 +81,13 @@ export function QuickPoseExerciseCamera({
         onProofRecordingError?.(event.nativeEvent.message);
       }}
       onUpdate={(event) => {
-        onUpdate({
-          results: event.nativeEvent.results,
-          feedbacks: event.nativeEvent.feedbacks,
-          landmarks: event.nativeEvent.landmarks,
-          landmarksAvailable: event.nativeEvent.landmarksAvailable === true,
-        });
+        onUpdate(nativePoseCountFromEvent(event.nativeEvent));
       }}
       finishProofEndAtMs={finishProofEndAtMs}
       finishProofToken={finishProofToken}
       proofCount={proofCount}
       proofRecording={proofRecording}
+      resetCountToken={resetCountToken}
       sdkKey={sdkKey}
       style={styles.camera}
       useFrontCamera

@@ -17,7 +17,7 @@ import {
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
 import { executePendingCompletion } from '@/lib/execute-pending-completion';
 import { goBackOrHome } from '@/lib/go-back';
-import type { QuickPoseExerciseUpdate } from '@/lib/pose/quickpose-exercise';
+import type { NativePoseCountUpdate } from 'quickpose-camera';
 import { trackEvent } from '@/lib/track-event';
 import { SAVE_QUEUED_OFFLINE_MESSAGE } from './constants/doing-copy';
 import { finishAndLeave } from './finish-challenge';
@@ -38,7 +38,8 @@ export type PoseSessionPhase = 'setup' | 'counting' | 'review';
 export type QuickPoseCameraProps = {
   sdkKey: string;
   metric: MatchMetric;
-  onUpdate: (update: QuickPoseExerciseUpdate) => void;
+  resetCountToken?: number;
+  onUpdate: (update: NativePoseCountUpdate) => void;
   proofRecording?: ProofRecordingConfig | null;
   proofCount?: number;
   finishProofToken?: number;
@@ -377,9 +378,10 @@ export function usePoseSession(props: PoseSessionProps) {
     : poseMetricFromCapture(occurrence?.capture.metric);
   const queryClient = useQueryClient();
   const camera = useQuickPoseCamera();
-  const { snapshot, elapsedSeconds, start, stop, ingestQuickPose } = usePoseSessionCounter({
-    metric,
-  });
+  const { snapshot, elapsedSeconds, start, stop, applyNativeUpdate, resetCountToken } =
+    usePoseSessionCounter({
+      metric,
+    });
   const [phase, setPhase] = useState<PoseSessionPhase>('setup');
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [cameraSessionKey, setCameraSessionKey] = useState(0);
@@ -432,12 +434,12 @@ export function usePoseSession(props: PoseSessionProps) {
   }, [phase]);
 
   const handleQuickPoseUpdate = useCallback(
-    (update: QuickPoseExerciseUpdate) => {
+    (update: NativePoseCountUpdate) => {
       if (phaseRef.current === 'setup' || phaseRef.current === 'counting') {
-        ingestQuickPose(update);
+        applyNativeUpdate(update);
       }
     },
-    [ingestQuickPose],
+    [applyNativeUpdate],
   );
 
   const startOccurrence = useMutation({
@@ -633,6 +635,7 @@ export function usePoseSession(props: PoseSessionProps) {
     camera,
     cameraSessionKey,
     handleQuickPoseUpdate,
+    resetCountToken,
     snapshot,
     count,
     phase,

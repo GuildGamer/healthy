@@ -27,6 +27,14 @@ public class QuickPoseCameraModule: Module {
         view.useFrontCamera = useFrontCamera
       }
 
+      Prop("metric") { (view: HealthyQuickPoseView, metric: String?) in
+        view.metric = metric ?? "pushups"
+      }
+
+      Prop("resetCountToken") { (view: HealthyQuickPoseView, token: Int?) in
+        view.resetCountToken = token ?? 0
+      }
+
       Prop("proofRecording") { (view: HealthyQuickPoseView, config: [String: Any]?) in
         view.proofRecording = config
       }

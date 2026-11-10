@@ -1,3 +1,7 @@
+/**
+ * Spec for native PoseStance (Swift/Kotlin). Live stance gates run in the
+ * QuickPose module; keep thresholds and branch rules identical.
+ */
 import type { MatchMetric } from '@product/contract/match-board';
 import { isPoseMetric } from '@product/contract/match-board';
 import type { PoseFrame, PosePoint } from './landmarks';

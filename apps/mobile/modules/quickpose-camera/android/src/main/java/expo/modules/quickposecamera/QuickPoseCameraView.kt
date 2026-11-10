@@ -62,6 +62,27 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       applyFeatures()
     }
 
+  /** MatchMetric pose value — drives native threshold/hold/stance. */
+  var metric: String = "pushups"
+    set(value) {
+      if (field == value) return
+      field = value
+      countEngine.metric = value
+    }
+
+  /** Increment to reset the native counter (session reset / non-preserve start). */
+  var resetCountToken: Int = 0
+    set(value) {
+      if (field == value) return
+      field = value
+      if (value > 0) {
+        countEngine.reset()
+        lastPublishedCount = -1
+        lastPublishedPhase = ""
+        lastPublishedCoach = null
+      }
+    }
+
   var useFrontCamera: Boolean = true
     set(value) {
       if (field == value) return
@@ -76,7 +97,10 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       syncProofRecording()
     }
 
-  /** Live rep count pushed from JS while a proof clip is recording. */
+  /**
+   * Optional overlay count override (freeze/review). Live recording burns in
+   * [PoseCountEngine.liveCount] by default until [finishProofToken] fires.
+   */
   var proofCount: Int = 0
     set(value) {
       field = value
@@ -91,6 +115,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     set(value) {
       field = value
       if (value > 0) {
+        overlayFromNative = false
         finishProofRecording()
       }
     }
@@ -102,6 +127,8 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   private var isRequestingPermission = false
   private var isCameraRunning = false
   private var proofRecorder: ProofRecorder? = null
+  private val countEngine = PoseCountEngine()
+  private val countLock = Any()
   /**
    * iOS taps camera buffers beside QuickPose; Android used to call
    * [QuickPose.captureFrame] from every pose callback, which stalled inference
@@ -109,8 +136,18 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
    */
   private val proofCaptureHandler = Handler(Looper.getMainLooper())
   private var proofCaptureTick: Runnable? = null
+  private val emitHandler = Handler(Looper.getMainLooper())
+  private var pendingEmit: Map<String, Any>? = null
+  private var emitScheduled = false
+  private var lastEmitMs = 0L
+  private var lastPublishedCount = -1
+  private var lastPublishedPhase = ""
+  private var lastPublishedCoach: String? = null
   @Volatile
   private var lastPoseStatusSuccess = false
+  /** Live burn-in until JS finishes the clip (frozen proofCount wins after). */
+  @Volatile
+  private var overlayFromNative = true
 
   init {
     setBackgroundColor(Color.BLACK)
@@ -151,7 +188,8 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       }
       isCameraRunning = true
       pose.start(mapped.map { it.second }.toTypedArray(), onFrame = { status, _, results, feedback, landmarks ->
-        post { publishFrame(status, results, feedback, landmarks) }
+        // Count on the pose callback path — do not wait for main/JS.
+        publishFrame(status, results, feedback, landmarks)
       })
       syncProofRecording()
     }
@@ -191,32 +229,93 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       featureResults[feature]?.let { results[key] = it.value.toDouble() }
       feedback[feature]?.displayString?.takeIf { it.isNotEmpty() }?.let { feedbacks[key] = it }
     }
-    onUpdate(
+
+    val stanceFrame = stanceFrame(landmarks)
+    val landmarksAvailable = landmarks != null
+    val snapshot =
+      synchronized(countLock) {
+        countEngine.process(
+          results = results,
+          feedbacks = feedbacks,
+          frame = stanceFrame,
+          landmarksAvailable = landmarksAvailable,
+          nowMs = System.currentTimeMillis(),
+        )
+      }
+
+    val liveCount = snapshot.count
+    if (overlayFromNative && proofRecorder?.isRecording == true) {
+      post { proofRecorder?.updateOverlay(count = liveCount) }
+    }
+
+    val payload =
       mapOf(
         "results" to results,
         "feedbacks" to feedbacks,
-        "landmarks" to landmarksPayload(landmarks),
-        "landmarksAvailable" to (landmarks != null),
-      ),
-    )
+        "landmarks" to landmarksPayload(stanceFrame),
+        "landmarksAvailable" to landmarksAvailable,
+        "count" to liveCount,
+        "phase" to snapshot.phase,
+        "bodyInFrame" to snapshot.bodyInFrame,
+        "tooClose" to snapshot.tooClose,
+        "coachPrompt" to (snapshot.coachPrompt ?: ""),
+        "measure" to (snapshot.measure ?: -1.0),
+      )
+    coalesceEmit(payload, snapshot.countChanged, snapshot)
   }
 
-  /** Compact joint map for JS stance gates. Missing / low-visibility joints are omitted. */
-  private fun landmarksPayload(landmarks: Landmarks?): Map<String, Map<String, Double>> {
-    if (landmarks == null) {
-      return emptyMap()
+  /** Latest-wins JS emit: immediate on count change, else ~30 Hz. */
+  private fun coalesceEmit(
+    payload: Map<String, Any>,
+    countChanged: Boolean,
+    snapshot: PoseCountEngine.Snapshot,
+  ) {
+    val now = System.currentTimeMillis()
+    val phaseChanged = snapshot.phase != lastPublishedPhase
+    val coachChanged = snapshot.coachPrompt != lastPublishedCoach
+    val due = countChanged || phaseChanged || coachChanged || now - lastEmitMs >= EMIT_MIN_INTERVAL_MS
+    pendingEmit = payload
+    if (countChanged) {
+      flushEmit()
+      return
     }
-    val out = linkedMapOf<String, Map<String, Double>>()
+    if (!due) {
+      if (!emitScheduled) {
+        emitScheduled = true
+        emitHandler.postDelayed({ flushEmit() }, EMIT_MIN_INTERVAL_MS)
+      }
+      return
+    }
+    flushEmit()
+  }
+
+  private fun flushEmit() {
+    emitScheduled = false
+    val payload = pendingEmit ?: return
+    pendingEmit = null
+    lastEmitMs = System.currentTimeMillis()
+    lastPublishedCount = (payload["count"] as? Number)?.toInt() ?: lastPublishedCount
+    lastPublishedPhase = payload["phase"] as? String ?: lastPublishedPhase
+    val coach = payload["coachPrompt"] as? String
+    lastPublishedCoach = coach?.takeIf { it.isNotEmpty() }
+    post { onUpdate(payload) }
+  }
+
+  private fun stanceFrame(landmarks: Landmarks?): PoseStanceFrame? {
+    if (landmarks == null) {
+      return null
+    }
+    val out = linkedMapOf<String, PoseStance.Point>()
     fun put(key: String, body: Landmarks.Body) {
       val point: Point3d = landmarks.landmarkForBody(body)
       if (point.visibility < LANDMARK_MIN_VISIBILITY) {
         return
       }
       out[key] =
-        mapOf(
-          "x" to point.x.toDouble(),
-          "y" to point.y.toDouble(),
-          "score" to point.visibility.toDouble(),
+        PoseStance.Point(
+          x = point.x.toDouble(),
+          y = point.y.toDouble(),
+          score = point.visibility.toDouble(),
         )
     }
     put("nose", Landmarks.Body.Nose())
@@ -233,6 +332,16 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     put("leftAnkle", Landmarks.Body.Ankle(Side.LEFT))
     put("rightAnkle", Landmarks.Body.Ankle(Side.RIGHT))
     return out
+  }
+
+  /** Compact joint map for JS debug. Missing / low-visibility joints are omitted. */
+  private fun landmarksPayload(frame: PoseStanceFrame?): Map<String, Map<String, Double>> {
+    if (frame == null) {
+      return emptyMap()
+    }
+    return frame.mapValues { (_, point) ->
+      mapOf("x" to point.x, "y" to point.y, "score" to point.score)
+    }
   }
 
   /** The visible camera surface inside the switch view; the skeleton draws on a separate overlay surface. */
@@ -257,13 +366,15 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     }
 
     val existing = proofRecorder
+    val liveCount = synchronized(countLock) { countEngine.liveCount() }
+
     if (existing != null && existing.isRecording) {
-      existing.updateOverlay(code = code, label = label, count = proofCount)
+      existing.updateOverlay(code = code, label = label, count = liveCount)
       return
     }
 
     startProofRecording(
-      ProofOverlay(code, label, proofCount),
+      ProofOverlay(code, label, liveCount),
       maxDurationSeconds,
       ProofRecorder.Encoding(
         bitRate = intValue(config["bitRate"], DEFAULT_BIT_RATE),
@@ -281,6 +392,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   ) {
     val recorder = proofRecorder ?: ProofRecorder(context).also { proofRecorder = it }
     try {
+      overlayFromNative = true
       recorder.start(overlay, maxDurationSeconds, encoding)
       startProofCaptureLoop(encoding.frameRate)
     } catch (error: Exception) {
@@ -378,6 +490,9 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
 
   private fun stop() {
     stopProofCaptureLoop()
+    emitHandler.removeCallbacksAndMessages(null)
+    pendingEmit = null
+    emitScheduled = false
     proofRecorder?.shutdown()
     proofRecorder = null
     sessionScope?.cancel()
@@ -403,5 +518,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     const val DEFAULT_HEIGHT = 1280
     /** Cap proof capture at ~30 fps even when encoding asks for more. */
     const val PROOF_CAPTURE_MIN_INTERVAL_MS = 33L
+    /** Coalesce JS onUpdate to ~30 Hz unless count changes. */
+    const val EMIT_MIN_INTERVAL_MS = 33L
   }
 }

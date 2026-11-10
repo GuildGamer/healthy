@@ -1,4 +1,7 @@
 /**
+ * Spec for native HoldTimer (Swift/Kotlin). Live hold accrual runs in the
+ * QuickPose module; keep enter/exit and pause-on-form rules identical.
+ *
  * Accumulates whole seconds while the person is in the hold position
  * (QuickPose measure above the enter threshold) and well framed.
  */

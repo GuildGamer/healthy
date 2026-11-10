@@ -126,6 +126,7 @@ function PoseCamera({ session }: { session: PoseSession }) {
           onUpdate={session.handleQuickPoseUpdate}
           proofCount={session.proofCount}
           proofRecording={session.proofRecording}
+          resetCountToken={session.resetCountToken}
           sdkKey={QUICKPOSE_SDK_KEY}
         />
       ) : (

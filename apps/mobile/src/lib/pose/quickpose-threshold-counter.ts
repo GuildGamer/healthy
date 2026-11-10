@@ -1,4 +1,7 @@
 /**
+ * Spec for native ThresholdCounter (Swift/Kotlin). Live counting runs in the
+ * QuickPose module; keep these constants and hysteresis rules identical.
+ *
  * 1:1 port of QuickPose's JS helper (`QuickPoseThresholdCounter`): a rep
  * completes when the feature value crosses enter (bottom) then exit (top).
  * That hysteresis is what stops half-reps from counting.

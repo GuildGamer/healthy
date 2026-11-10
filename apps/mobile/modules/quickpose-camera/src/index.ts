@@ -29,14 +29,37 @@ export type QuickPoseLandmarks = Partial<
   >
 >;
 
+/** Native-owned count snapshot (enriched onUpdate). */
+export type NativePoseCountUpdate = {
+  count: number;
+  phase: 'up' | 'down';
+  bodyInFrame: boolean;
+  tooClose: boolean;
+  /** Form / framing / stance coach; empty string from native means null. */
+  coachPrompt: string | null;
+  /** Fitness measure for HUD/debug; negative means missing. */
+  measure: number | null;
+  results: Record<string, number>;
+  feedbacks: Record<string, string>;
+  landmarks?: QuickPoseLandmarks;
+  landmarksAvailable?: boolean;
+};
+
 export type QuickPoseCameraUpdateEvent = {
   nativeEvent: {
     results: Record<string, number>;
     feedbacks: Record<string, string>;
-    /** Compact body joints for stance gates; omitted joints are absent. */
+    /** Compact body joints; omitted joints are absent. */
     landmarks?: QuickPoseLandmarks;
     /** True when the SDK handed landmarks for this frame (may still be empty). */
     landmarksAvailable?: boolean;
+    /** Native rep or whole-second hold count. */
+    count?: number;
+    phase?: 'up' | 'down';
+    bodyInFrame?: boolean;
+    tooClose?: boolean;
+    coachPrompt?: string | null;
+    measure?: number;
   };
 };
 
@@ -76,11 +99,15 @@ export type QuickPoseCameraViewProps = {
   features: string[];
   featureStyles?: Record<string, Record<string, unknown>>;
   useFrontCamera?: boolean;
+  /** MatchMetric pose value — native threshold/hold/stance. */
+  metric?: string;
+  /** Increment to reset the native counter. */
+  resetCountToken?: number;
   style?: StyleProp<ViewStyle>;
   onUpdate?: (event: QuickPoseCameraUpdateEvent) => void;
   /** When set, the native view records a muted proof clip (HEVC on iOS, H.264 on Android). */
   proofRecording?: ProofRecordingConfig | null;
-  /** Live rep count burned into the proof overlay. */
+  /** Optional overlay override (freeze/review). Live count is native-owned. */
   proofCount?: number;
   /** Increment to finish the in-flight recording (emits onProofRecorded). */
   finishProofToken?: number;
@@ -114,4 +141,25 @@ export function isPoseCameraAvailable(): boolean {
 /** Whether this platform's camera view writes proof clips (iOS and Android; not web). */
 export function canRecordProofClips(): boolean {
   return isPoseCameraAvailable();
+}
+
+/** Map a native onUpdate event into the thin JS counter shape. */
+export function nativePoseCountFromEvent(
+  event: QuickPoseCameraUpdateEvent['nativeEvent'],
+): NativePoseCountUpdate {
+  const coach = event.coachPrompt;
+  const measure = event.measure;
+  return {
+    count: typeof event.count === 'number' && Number.isFinite(event.count) ? event.count : 0,
+    phase: event.phase === 'down' ? 'down' : 'up',
+    bodyInFrame: event.bodyInFrame === true,
+    tooClose: event.tooClose === true,
+    coachPrompt: typeof coach === 'string' && coach.length > 0 ? coach : null,
+    measure:
+      typeof measure === 'number' && Number.isFinite(measure) && measure >= 0 ? measure : null,
+    results: event.results ?? {},
+    feedbacks: event.feedbacks ?? {},
+    landmarks: event.landmarks,
+    landmarksAvailable: event.landmarksAvailable === true,
+  };
 }

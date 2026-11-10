@@ -21,6 +21,29 @@ final class HealthyQuickPoseView: ExpoView {
     didSet { applyFeatures() }
   }
 
+  /// MatchMetric pose value — drives native threshold/hold/stance.
+  var metric: String = "pushups" {
+    didSet {
+      guard oldValue != metric else { return }
+      countQueue.async { [weak self] in
+        self?.countEngine.metric = self?.metric ?? "pushups"
+      }
+    }
+  }
+
+  /// Increment to reset the native counter (session reset / non-preserve start).
+  var resetCountToken: Int = 0 {
+    didSet {
+      guard oldValue != resetCountToken, resetCountToken > 0 else { return }
+      countQueue.async { [weak self] in
+        self?.countEngine.reset()
+        self?.lastPublishedCount = -1
+        self?.lastPublishedPhase = ""
+        self?.lastPublishedCoach = nil
+      }
+    }
+  }
+
   var useFrontCamera = true {
     didSet { tryStart() }
   }
@@ -30,7 +53,7 @@ final class HealthyQuickPoseView: ExpoView {
     didSet { syncProofRecording() }
   }
 
-  /// Live rep count pushed from JS while a proof clip is recording.
+  /// Optional overlay count override (freeze/review). Live recording uses native count.
   var proofCount: Int = 0 {
     didSet {
       proofRecorder?.updateOverlay(count: proofCount)
@@ -44,6 +67,7 @@ final class HealthyQuickPoseView: ExpoView {
   var finishProofToken: Int = 0 {
     didSet {
       if finishProofToken > 0 {
+        overlayFromNative = false
         finishProofRecording()
       }
     }
@@ -58,6 +82,16 @@ final class HealthyQuickPoseView: ExpoView {
   private var hasStarted = false
   private var currentFeatures: [(String, QuickPose.Feature)] = []
   private var proofRecorder: ProofRecorder?
+  private let countEngine = PoseCountEngine()
+  private let countQueue = DispatchQueue(label: "healthy.quickpose.count")
+  private var pendingEmit: [String: Any]?
+  private var emitWorkItem: DispatchWorkItem?
+  private var lastEmitMs: Int64 = 0
+  private var lastPublishedCount = -1
+  private var lastPublishedPhase = ""
+  private var lastPublishedCoach: String?
+  /// Live burn-in until JS finishes the clip (frozen proofCount wins after).
+  private var overlayFromNative = true
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
@@ -120,34 +154,31 @@ final class HealthyQuickPoseView: ExpoView {
     attachPreview(from: cam)
 
     qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, landmarks in
+      // Overlay + proof append on main; counting stays off the JS bridge.
       DispatchQueue.main.async {
-        self?.publishFrame(
-          status: status,
-          image: image,
-          featureResults: featureResults,
-          feedback: feedback,
-          landmarks: landmarks
-        )
+        self?.overlayView.image = image
+        if let recorder = self?.proofRecorder, recorder.isRecording {
+          recorder.append(cameraFrame: self?.frameTap?.newestFrame())
+        }
       }
+      self?.publishFrame(
+        status: status,
+        featureResults: featureResults,
+        feedback: feedback,
+        landmarks: landmarks
+      )
     })
 
     syncProofRecording()
   }
 
-  /// SDK Status.success carries a single labeled `info:` payload — not two wildcards.
+  /// Count on the pose callback path, then coalesce JS emits (~30 Hz / count change).
   private func publishFrame(
     status: QuickPose.Status,
-    image: UIImage?,
     featureResults: [QuickPose.Feature: QuickPose.FeatureResult],
     feedback: [QuickPose.Feature: QuickPose.PoseFeedback],
     landmarks: QuickPose.Landmarks?
   ) {
-    overlayView.image = image
-
-    if let recorder = proofRecorder, recorder.isRecording {
-      recorder.append(cameraFrame: frameTap?.newestFrame())
-    }
-
     guard case .success(info: _) = status else { return }
 
     var results: [String: Double] = [:]
@@ -160,17 +191,87 @@ final class HealthyQuickPoseView: ExpoView {
         feedbacks[key] = prompt
       }
     }
-    let landmarkMap = Self.landmarksPayload(landmarks)
-    onUpdate([
-      "results": results,
-      "feedbacks": feedbacks,
-      "landmarks": landmarkMap,
-      "landmarksAvailable": landmarks != nil,
-    ])
+
+    let stanceFrame = Self.stanceFrame(landmarks)
+    let landmarksAvailable = landmarks != nil
+    let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+
+    countQueue.async { [weak self] in
+      guard let self else { return }
+      let snapshot = self.countEngine.process(
+        results: results,
+        feedbacks: feedbacks,
+        frame: stanceFrame,
+        landmarksAvailable: landmarksAvailable,
+        nowMs: nowMs
+      )
+      let liveCount = snapshot.count
+      DispatchQueue.main.async {
+        if self.overlayFromNative, self.proofRecorder?.isRecording == true {
+          self.proofRecorder?.updateOverlay(count: liveCount)
+        }
+      }
+      let payload: [String: Any] = [
+        "results": results,
+        "feedbacks": feedbacks,
+        "landmarks": Self.landmarksPayload(stanceFrame),
+        "landmarksAvailable": landmarksAvailable,
+        "count": liveCount,
+        "phase": snapshot.phase,
+        "bodyInFrame": snapshot.bodyInFrame,
+        "tooClose": snapshot.tooClose,
+        "coachPrompt": snapshot.coachPrompt ?? "",
+        "measure": snapshot.measure ?? -1.0,
+      ]
+      self.coalesceEmit(payload, countChanged: snapshot.countChanged, snapshot: snapshot)
+    }
   }
 
-  /// Compact joint map for JS stance gates. Missing / low-visibility joints are omitted.
+  private func coalesceEmit(
+    _ payload: [String: Any],
+    countChanged: Bool,
+    snapshot: PoseCountEngine.Snapshot
+  ) {
+    let now = Int64(Date().timeIntervalSince1970 * 1000)
+    let phaseChanged = snapshot.phase != lastPublishedPhase
+    let coachChanged = snapshot.coachPrompt != lastPublishedCoach
+    let due =
+      countChanged || phaseChanged || coachChanged || now - lastEmitMs >= Self.emitMinIntervalMs
+    pendingEmit = payload
+    if countChanged {
+      flushEmit()
+      return
+    }
+    if !due {
+      if emitWorkItem == nil {
+        let work = DispatchWorkItem { [weak self] in
+          self?.flushEmit()
+        }
+        emitWorkItem = work
+        countQueue.asyncAfter(deadline: .now() + .milliseconds(Int(Self.emitMinIntervalMs)), execute: work)
+      }
+      return
+    }
+    flushEmit()
+  }
+
+  private func flushEmit() {
+    emitWorkItem?.cancel()
+    emitWorkItem = nil
+    guard let payload = pendingEmit else { return }
+    pendingEmit = nil
+    lastEmitMs = Int64(Date().timeIntervalSince1970 * 1000)
+    lastPublishedCount = payload["count"] as? Int ?? lastPublishedCount
+    lastPublishedPhase = payload["phase"] as? String ?? lastPublishedPhase
+    let coach = payload["coachPrompt"] as? String
+    lastPublishedCoach = (coach?.isEmpty == false) ? coach : nil
+    DispatchQueue.main.async { [weak self] in
+      self?.onUpdate(payload)
+    }
+  }
+
   private static let landmarkMinVisibility = 0.2
+  private static let emitMinIntervalMs: Int64 = 33
   private static let landmarkJoints: [(String, QuickPose.Landmarks.Body)] = [
     ("nose", .nose),
     ("leftShoulder", .shoulder(side: .left)),
@@ -187,21 +288,24 @@ final class HealthyQuickPoseView: ExpoView {
     ("rightAnkle", .ankle(side: .right)),
   ]
 
-  private static func landmarksPayload(
-    _ landmarks: QuickPose.Landmarks?
-  ) -> [String: [String: Double]] {
-    guard let landmarks else { return [:] }
-    var out: [String: [String: Double]] = [:]
+  private static func stanceFrame(_ landmarks: QuickPose.Landmarks?) -> PoseStance.Frame? {
+    guard let landmarks else { return nil }
+    var out: PoseStance.Frame = [:]
     for (key, joint) in landmarkJoints {
       let point = landmarks.landmark(forBody: joint)
       if point.visibility < landmarkMinVisibility {
         continue
       }
-      out[key] = [
-        "x": point.x,
-        "y": point.y,
-        "score": point.visibility,
-      ]
+      out[key] = PoseStance.Point(x: point.x, y: point.y, score: point.visibility)
+    }
+    return out
+  }
+
+  private static func landmarksPayload(_ frame: PoseStance.Frame?) -> [String: [String: Double]] {
+    guard let frame else { return [:] }
+    var out: [String: [String: Double]] = [:]
+    for (key, point) in frame {
+      out[key] = ["x": point.x, "y": point.y, "score": point.score]
     }
     return out
   }
@@ -222,22 +326,25 @@ final class HealthyQuickPoseView: ExpoView {
       return
     }
 
+    let liveCount = countQueue.sync { countEngine.liveCount() }
+
     if proofRecorder?.isRecording == true {
       proofRecorder?.updateOverlay(
         code: code,
         label: (config["label"] as? String) ?? "",
-        count: proofCount
+        count: liveCount
       )
       return
     }
 
     let recorder = ProofRecorder()
     do {
+      overlayFromNative = true
       try recorder.start(
         overlay: ProofRecorder.Overlay(
           code: code,
           label: (config["label"] as? String) ?? "",
-          count: proofCount
+          count: liveCount
         ),
         mirrorsCamera: useFrontCamera,
         maxDurationSeconds: maxDurationSeconds,
@@ -329,6 +436,11 @@ final class HealthyQuickPoseView: ExpoView {
       proofRecorder?.cancel()
     }
     proofRecorder = nil
+    countQueue.async { [weak self] in
+      self?.emitWorkItem?.cancel()
+      self?.emitWorkItem = nil
+      self?.pendingEmit = nil
+    }
     quickPose?.stop()
     quickPose = nil
     camera?.stop()
