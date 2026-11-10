@@ -142,19 +142,19 @@ export const POSE_COME_ALL_THE_WAY_UP = 'Come all the way up.';
 /**
  * Whether this frame may move the rep counter. Needs a body reading from
  * QuickPose and an accepted stance; a finishing half-rep may complete if the
- * body/landmarks flicker after a good enter. The 0.95 green-box line is
- * coaching only — any positive inside score counts once stance is ok.
+ * body/landmarks flicker after a good enter. Form coaching is display-only —
+ * it must not mute depth samples. The 0.95 green-box line is coaching only —
+ * any positive inside score counts once stance is ok.
  */
 export function shouldCountPoseRep(input: {
   measure: number | null;
   insideMeasure: number | null;
-  formFeedback: string | null;
   finishingRep: boolean;
   stanceOk: boolean;
   /** True if any prior frame in this half-rep had an accepted stance. */
   finishingStanceOk: boolean;
 }): boolean {
-  if (input.measure == null || input.formFeedback != null) {
+  if (input.measure == null) {
     return false;
   }
 

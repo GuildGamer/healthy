@@ -43,6 +43,8 @@ Native modules such as `expo-iap`, `expo-store-review`, `expo-splash-screen`, `e
 
 **Android push and camera counting** are build-time too. Push tokens need Firebase: create an EAS `file` variable `GOOGLE_SERVICES_JSON` with the `google-services.json` for `com.healthyapp.app`, and upload the FCM V1 service-account key under `eas credentials -p android` → Push Notifications. Without the file the build succeeds but Android gets no reminders. QuickPose counting and proof clips on Android ship in the binary (the `quickpose-camera` module), and the QuickPose key must be enabled for the Android package.
 
+**Android walk map tiles** need a separate Maps SDK for Android key: set EAS secret `GOOGLE_MAPS_API_KEY` on the `production` environment (used by `production-apk`), enable **Maps SDK for Android** in Google Cloud, and restrict the key to package `com.healthyapp.app` plus the production keystore SHA-1 from Expo Credentials. This is not `GOOGLE_SERVICES_JSON`. Without the key, Start walk shows a solid navy strip instead of tiles. Ship a new binary after adding or changing the key — OTA cannot inject it.
+
 The native splash (background, icon, corner radius) is generated at prebuild from the `expo-splash-screen` plugin config in `app.config.ts`. Changing it needs a new binary, not an update; on a stale install the native splash simply auto-hides early and the animated `SplashScreen` replays.
 
 ### Store / internal testing

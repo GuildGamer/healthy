@@ -2,9 +2,9 @@ import type { BoardMoveUrgency } from './constants/board-move-notification.js';
 import {
   BUSY_MAX_RECIPIENTS,
   BUSY_MIN_PARTICIPANTS,
+  BUSY_VELOCITY_ATTEMPTS,
   GROW_MAX_PARTICIPANTS,
   GROW_VELOCITY_24H_FACTOR,
-  busyVelocityThreshold,
 } from './constants/group-board-push-policy.js';
 import type {
   BoardPushDecision,
@@ -15,13 +15,12 @@ import type {
 
 /**
  * Busy wins when the group is large or hot; grow only when both small and
- * quiet; everything else is standard (competitive pushes only).
+ * quiet; everything else is standard. Announce by default; busy is the brake.
  */
 export function resolveGroupPushMode(input: GroupPushModeInput): GroupPushMode {
-  const velocityCap = busyVelocityThreshold(input.acceptedCount);
   if (
     input.acceptedCount >= BUSY_MIN_PARTICIPANTS ||
-    input.attemptsLast60m >= velocityCap
+    input.attemptsLast30m >= BUSY_VELOCITY_ATTEMPTS
   ) {
     return 'busy';
   }
@@ -41,10 +40,8 @@ export function isCompetitiveUrgency(urgency: BoardMoveUrgency): boolean {
 }
 
 /**
- * Whether this recipient is eligible for a lock-screen push before busy
- * fan-out. Announce by default: competitive always; routine in grow/standard
- * unless the same actor already pushed them in the short coalesce window.
- * Busy is the only mode that suppresses routine.
+ * Lock-screen eligibility before busy fan-out. Competitive always; routine in
+ * grow/standard always. Busy is the only mode that suppresses routine.
  */
 export function shouldPushToRecipient(
   mode: GroupPushMode,
@@ -55,10 +52,6 @@ export function shouldPushToRecipient(
   }
 
   if (mode === 'busy') {
-    return false;
-  }
-
-  if (state.pushedInCoalesceWindow) {
     return false;
   }
 

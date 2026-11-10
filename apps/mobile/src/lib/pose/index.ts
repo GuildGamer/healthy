@@ -18,14 +18,6 @@ export {
   type StanceVerdict,
 } from './pose-stance';
 export {
-  SUBJECT_LOCK_COACH_PROMPT,
-  createSubjectLock,
-  resetSubjectLock,
-  tickSubjectLock,
-  type SubjectLockState,
-  type SubjectLockTick,
-} from './pose-subject-lock';
-export {
   clearStanceRejectSample,
   getLastStanceRejectSample,
   recordStanceRejectSample,

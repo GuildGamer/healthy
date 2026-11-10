@@ -37,8 +37,21 @@ const IOS_BUILD_NUMBER = process.env.IOS_BUILD_NUMBER?.trim() || '1';
  * the build still succeeds, but Android installs get no reminders.
  */
 const GOOGLE_SERVICES_FILE = process.env.GOOGLE_SERVICES_JSON?.trim() || undefined;
+/**
+ * Maps SDK for Android API key for `react-native-maps` tiles in release APKs.
+ * Not Firebase — that is `GOOGLE_SERVICES_JSON`. On EAS, set this as a secret
+ * on the `production` environment so `production-apk` can bake it in at
+ * prebuild. Without it the walk map strip paints solid navy and shows no tiles.
+ */
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY?.trim() || undefined;
 /** EAS project that hosts updates for this app. */
 const EAS_PROJECT_ID = 'be6f70ce-9076-4d48-8d07-b841eb0dce17';
+
+if (process.env.EAS_BUILD && !GOOGLE_MAPS_API_KEY) {
+  console.warn(
+    '[app.config] GOOGLE_MAPS_API_KEY is unset; Android walk maps will show blank tiles in this build.',
+  );
+}
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -99,6 +112,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     softwareKeyboardLayoutMode: 'resize',
     package: ANDROID_PACKAGE,
     googleServicesFile: GOOGLE_SERVICES_FILE,
+    config: {
+      googleMaps: {
+        apiKey: GOOGLE_MAPS_API_KEY,
+      },
+    },
     intentFilters: [
       {
         action: 'VIEW',

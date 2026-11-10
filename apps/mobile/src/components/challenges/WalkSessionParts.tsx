@@ -174,7 +174,8 @@ const createStyles = (theme: Theme) =>
       borderRadius: radii.xl,
       overflow: 'hidden',
       marginTop: 18,
-      backgroundColor: theme.colors.background,
+      // Surface, not app background, so a tile-less map is not navy-on-navy.
+      backgroundColor: theme.colors.surface,
     },
     stat: {
       marginTop: spacing.md,

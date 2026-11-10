@@ -138,7 +138,6 @@ describe('shouldCountPoseRep', () => {
       shouldCountPoseRep({
         measure: 0.9,
         insideMeasure: null,
-        formFeedback: null,
         finishingRep: false,
         stanceOk: true,
         finishingStanceOk: true,
@@ -151,7 +150,6 @@ describe('shouldCountPoseRep', () => {
       shouldCountPoseRep({
         measure: 0.9,
         insideMeasure: 0.4,
-        formFeedback: null,
         finishingRep: false,
         stanceOk: true,
         finishingStanceOk: true,
@@ -164,7 +162,6 @@ describe('shouldCountPoseRep', () => {
       shouldCountPoseRep({
         measure: 0.9,
         insideMeasure: 1,
-        formFeedback: null,
         finishingRep: false,
         stanceOk: false,
         finishingStanceOk: false,
@@ -177,7 +174,6 @@ describe('shouldCountPoseRep', () => {
       shouldCountPoseRep({
         measure: 0.9,
         insideMeasure: 0.5,
-        formFeedback: null,
         finishingRep: false,
         stanceOk: true,
         finishingStanceOk: false,
@@ -190,7 +186,6 @@ describe('shouldCountPoseRep', () => {
       shouldCountPoseRep({
         measure: 0.2,
         insideMeasure: null,
-        formFeedback: null,
         finishingRep: true,
         stanceOk: false,
         finishingStanceOk: true,
@@ -203,7 +198,6 @@ describe('shouldCountPoseRep', () => {
       shouldCountPoseRep({
         measure: 0.2,
         insideMeasure: 1,
-        formFeedback: null,
         finishingRep: true,
         stanceOk: false,
         finishingStanceOk: false,
@@ -211,16 +205,15 @@ describe('shouldCountPoseRep', () => {
     ).toBe(false);
   });
 
-  it('blocks form feedback', () => {
+  it('counts despite form feedback (coaching is display-only)', () => {
     expect(
       shouldCountPoseRep({
         measure: 0.9,
         insideMeasure: 1,
-        formFeedback: 'Lower your hips',
         finishingRep: false,
         stanceOk: true,
         finishingStanceOk: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });

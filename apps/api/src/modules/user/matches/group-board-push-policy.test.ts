@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   boardPushEscalationIdempotencyKey,
   boardPushRoutineIdempotencyKey,
-  busyVelocityThreshold,
+  BUSY_VELOCITY_ATTEMPTS,
 } from './constants/group-board-push-policy.js';
 import {
   rankRecipientsForBusyFanOut,
@@ -20,7 +20,6 @@ function recipient(
     urgency: 'routine',
     rank: 2,
     actorRank: 1,
-    pushedInCoalesceWindow: false,
     ...overrides,
   };
 }
@@ -30,7 +29,7 @@ describe('resolveGroupPushMode', () => {
     expect(
       resolveGroupPushMode({
         acceptedCount: 4,
-        attemptsLast60m: 1,
+        attemptsLast30m: 1,
         attemptsLast24h: 2,
       }),
     ).toBe('grow');
@@ -39,29 +38,37 @@ describe('resolveGroupPushMode', () => {
   it('is busy when accepted seats hit the large-group floor', () => {
     expect(
       resolveGroupPushMode({
-        acceptedCount: 10,
-        attemptsLast60m: 0,
+        acceptedCount: 15,
+        attemptsLast30m: 0,
         attemptsLast24h: 0,
       }),
     ).toBe('busy');
   });
 
-  it('stays grow for a small group below the busy velocity floor', () => {
+  it('stays grow below the large-group floor when velocity is quiet', () => {
+    expect(
+      resolveGroupPushMode({
+        acceptedCount: 14,
+        attemptsLast30m: 3,
+        attemptsLast24h: 3,
+      }),
+    ).toBe('standard');
+
     expect(
       resolveGroupPushMode({
         acceptedCount: 4,
-        attemptsLast60m: 3,
+        attemptsLast30m: 3,
         attemptsLast24h: 3,
       }),
     ).toBe('grow');
   });
 
-  it('is busy when 60-minute velocity trips even for a small group', () => {
+  it('is busy when 30-minute velocity trips even for a small group', () => {
     expect(
       resolveGroupPushMode({
         acceptedCount: 4,
-        attemptsLast60m: 10,
-        attemptsLast24h: 10,
+        attemptsLast30m: BUSY_VELOCITY_ATTEMPTS,
+        attemptsLast24h: BUSY_VELOCITY_ATTEMPTS,
       }),
     ).toBe('busy');
   });
@@ -70,7 +77,7 @@ describe('resolveGroupPushMode', () => {
     expect(
       resolveGroupPushMode({
         acceptedCount: 6,
-        attemptsLast60m: 1,
+        attemptsLast30m: 1,
         attemptsLast24h: 2,
       }),
     ).toBe('standard');
@@ -78,16 +85,14 @@ describe('resolveGroupPushMode', () => {
     expect(
       resolveGroupPushMode({
         acceptedCount: 4,
-        attemptsLast60m: 1,
+        attemptsLast30m: 1,
         attemptsLast24h: 8,
       }),
     ).toBe('standard');
   });
 
-  it('scales the busy velocity floor with group size', () => {
-    expect(busyVelocityThreshold(4)).toBe(10);
-    expect(busyVelocityThreshold(20)).toBe(10);
-    expect(busyVelocityThreshold(30)).toBe(12);
+  it('uses a flat busy velocity floor of ten attempts', () => {
+    expect(BUSY_VELOCITY_ATTEMPTS).toBe(10);
   });
 });
 
@@ -100,7 +105,6 @@ describe('shouldPushToRecipient', () => {
           recipient({
             userId: 'host',
             urgency: 'ahead',
-            pushedInCoalesceWindow: true,
           }),
         ),
       ).toBe(true);
@@ -116,17 +120,11 @@ describe('shouldPushToRecipient', () => {
     ).toBe(true);
   });
 
-  it('allows one routine push in grow and standard, then coalesces', () => {
+  it('announces every routine push in grow and standard', () => {
     for (const mode of ['grow', 'standard'] as const) {
       expect(shouldPushToRecipient(mode, recipient({ userId: 'host' }))).toBe(
         true,
       );
-      expect(
-        shouldPushToRecipient(
-          mode,
-          recipient({ userId: 'host', pushedInCoalesceWindow: true }),
-        ),
-      ).toBe(false);
     }
   });
 });

@@ -4,7 +4,7 @@ export type GroupPushMode = 'grow' | 'standard' | 'busy';
 
 export type GroupPushModeInput = {
   acceptedCount: number;
-  attemptsLast60m: number;
+  attemptsLast30m: number;
   attemptsLast24h: number;
 };
 
@@ -20,8 +20,6 @@ export type RecipientPushState = {
    * the signal is unused (attempt-driven contests).
    */
   movedToday?: boolean;
-  /** A board_move push already went to them for this actor+match in the window. */
-  pushedInCoalesceWindow: boolean;
 };
 
 export type BoardPushDecision = {

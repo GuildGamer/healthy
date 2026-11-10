@@ -1,6 +1,6 @@
 import { fontSize, spacing } from '@product/brand';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import type MapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { DARK_MAP_STYLE } from '@/components/challenges/constants/dark-map-style';
@@ -13,6 +13,12 @@ const ROUTE_SPAN_DEGREES = 0.006;
 const IDLE_SPAN_DEGREES = 0.02;
 const LONDON = { latitude: 51.5074, longitude: -0.1278 };
 const FOLLOW_DURATION_MS = 500;
+
+/**
+ * Absolute fill + overflow:hidden + borderRadius blanks the map on some Android
+ * devices. Fill the fixed-height strip with flex instead.
+ */
+const MAP_FILL_STYLE = { flex: 1, width: '100%' as const, height: '100%' as const };
 
 const MAP_UNAVAILABLE = 'Map appears after a native rebuild';
 const MAP_RECORDING = 'Recording your walk';
@@ -76,8 +82,10 @@ export function WalkRouteMap({
       showsCompass={false}
       showsMyLocationButton={false}
       showsPointsOfInterest={false}
-      showsUserLocation
-      style={StyleSheet.absoluteFill}
+      // Android: expo-location already owns GPS; the maps blue-dot layer can clash
+      // with Play Services and blank the strip. Polyline + follow-camera stay.
+      showsUserLocation={Platform.OS !== 'android'}
+      style={MAP_FILL_STYLE}
       toolbarEnabled={false}
       userInterfaceStyle={scheme}
     >

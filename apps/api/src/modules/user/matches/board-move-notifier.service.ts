@@ -58,9 +58,9 @@ type InboxRow = {
 /**
  * Tells accepted group mates that someone moved the board. Inbox rows are
  * written per attempt for every mate; lock-screen pushes are filtered by the
- * group-board push policy (coalesce, routine suppression, grow/busy fan-out).
- * Retries are idempotent on (match, attempt, recipient); a failed push never
- * undoes the score write.
+ * group-board push policy (announce by default; busy suppresses routine and
+ * fans out competitive). Retries are idempotent on (match, attempt, recipient);
+ * a failed push never undoes the score write.
  */
 @Injectable()
 export class BoardMoveNotifierService {
@@ -142,14 +142,12 @@ export class BoardMoveNotifierService {
     const recipientById = new Map(pending.map((row) => [row.userId, row]));
     const candidates: RecipientPushState[] = rows.map((row) => {
       const recipient = recipientById.get(row.userId);
-      const history = context.historyByRecipient.get(row.userId);
       return {
         userId: row.userId,
         urgency: row.urgency,
         rank: recipient?.rank ?? Number.MAX_SAFE_INTEGER,
         actorRank: notice.actorRank,
         movedToday: recipient?.movedToday,
-        pushedInCoalesceWindow: history?.pushedInCoalesceWindow ?? false,
       };
     });
     const decision = selectPushRecipients(mode, candidates);

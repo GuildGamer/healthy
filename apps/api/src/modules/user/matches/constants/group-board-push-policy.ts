@@ -1,11 +1,14 @@
-/** Rolling window: same actor → same recipient, no second routine push. */
-export const BOARD_PUSH_COALESCE_MS = 10 * 60 * 1000;
+/**
+ * Documented same-actor burst window (5 minutes). Lock-screen eligibility no
+ * longer coalesces on this — busy mode is the only push throttle.
+ */
+export const BOARD_PUSH_COALESCE_MS = 5 * 60 * 1000;
 
 /** Quiet enough, and small enough, to encourage with routine pushes. */
 export const GROW_MAX_PARTICIPANTS = 5;
 
 /** Large enough that routine fan-out would spam the lock screen. */
-export const BUSY_MIN_PARTICIPANTS = 10;
+export const BUSY_MIN_PARTICIPANTS = 15;
 
 /**
  * Grow stays grow only while 24h attempt volume stays below this factor times
@@ -16,14 +19,11 @@ export const GROW_VELOCITY_24H_FACTOR = 1.5;
 /** Cap competitive lock-screen fan-out in busy groups. */
 export const BUSY_MAX_RECIPIENTS = 3;
 
-/**
- * 60-minute attempt count that flips a group to busy: at least 10, or 40% of
- * accepted seats (whichever is larger). Keeps small groups from going busy
- * after a few test sets.
- */
-export function busyVelocityThreshold(acceptedCount: number): number {
-  return Math.max(10, Math.ceil(0.4 * acceptedCount));
-}
+/** Attempts in this window that flip a group to busy (flat floor). */
+export const BUSY_VELOCITY_ATTEMPTS = 10;
+
+/** Lookback for busy velocity (hot session). */
+export const BUSY_VELOCITY_WINDOW_MS = 30 * 60 * 1000;
 
 /**
  * Stable key for same-actor routine coalesce bookkeeping. Distinct from the
