@@ -13,6 +13,8 @@ import android.Manifest
 import android.content.Context
 import android.graphics.Color
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
@@ -20,6 +22,7 @@ import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
+import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -99,6 +102,15 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   private var isRequestingPermission = false
   private var isCameraRunning = false
   private var proofRecorder: ProofRecorder? = null
+  /**
+   * iOS taps camera buffers beside QuickPose; Android used to call
+   * [QuickPose.captureFrame] from every pose callback, which stalled inference
+   * while recording. Proof frames are sampled on this loop instead.
+   */
+  private val proofCaptureHandler = Handler(Looper.getMainLooper())
+  private var proofCaptureTick: Runnable? = null
+  @Volatile
+  private var lastPoseStatusSuccess = false
 
   init {
     setBackgroundColor(Color.BLACK)
@@ -169,10 +181,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   ) {
     if (quickPose == null) return
 
-    val recorder = proofRecorder
-    if (recorder != null && recorder.isRecording) {
-      activeCameraSurface()?.let { recorder.captureFrom(it) }
-    }
+    lastPoseStatusSuccess = status is Status.Success
 
     if (status !is Status.Success) return
 
@@ -273,9 +282,39 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     val recorder = proofRecorder ?: ProofRecorder(context).also { proofRecorder = it }
     try {
       recorder.start(overlay, maxDurationSeconds, encoding)
+      startProofCaptureLoop(encoding.frameRate)
     } catch (error: Exception) {
+      stopProofCaptureLoop()
       onProofRecordingError(mapOf("message" to START_FAILED))
     }
+  }
+
+  /** Samples the camera surface for proof clips without coupling to the pose callback rate. */
+  private fun startProofCaptureLoop(frameRate: Int) {
+    stopProofCaptureLoop()
+    val intervalMs = max(PROOF_CAPTURE_MIN_INTERVAL_MS, 1_000L / frameRate.coerceAtLeast(1))
+    val tick =
+      object : Runnable {
+        override fun run() {
+          val recorder = proofRecorder
+          if (recorder == null || !recorder.isRecording || !isCameraRunning) {
+            stopProofCaptureLoop()
+            return
+          }
+          if (lastPoseStatusSuccess) {
+            activeCameraSurface()?.let { recorder.captureFrom(it) }
+          }
+          proofCaptureHandler.postDelayed(this, intervalMs)
+        }
+      }
+    proofCaptureTick = tick
+    proofCaptureHandler.post(tick)
+  }
+
+  private fun stopProofCaptureLoop() {
+    proofCaptureTick?.let { proofCaptureHandler.removeCallbacks(it) }
+    proofCaptureTick = null
+    lastPoseStatusSuccess = false
   }
 
   private fun intValue(raw: Any?, fallback: Int): Int =
@@ -288,6 +327,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   private fun finishProofRecording() {
     val recorder = proofRecorder ?: return
     if (!recorder.isRecording) return
+    stopProofCaptureLoop()
     val endAtMs = finishProofEndAtMs.takeIf { it > 0 }?.toLong()
 
     recorder.finish(endAtMs) { result ->
@@ -313,6 +353,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   }
 
   private fun cancelProofRecording() {
+    stopProofCaptureLoop()
     proofRecorder?.cancel()
   }
 
@@ -336,6 +377,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   }
 
   private fun stop() {
+    stopProofCaptureLoop()
     proofRecorder?.shutdown()
     proofRecorder = null
     sessionScope?.cancel()
@@ -359,5 +401,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     const val DEFAULT_FRAME_RATE = 24
     const val DEFAULT_WIDTH = 720
     const val DEFAULT_HEIGHT = 1280
+    /** Cap proof capture at ~30 fps even when encoding asks for more. */
+    const val PROOF_CAPTURE_MIN_INTERVAL_MS = 33L
   }
 }
