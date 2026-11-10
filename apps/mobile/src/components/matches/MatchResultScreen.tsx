@@ -2,8 +2,16 @@ import type { MatchBoard } from '@product/client';
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Dimensions,
+  FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   DeckButton,
   DeckNoteCard,
@@ -13,19 +21,30 @@ import {
 } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { TextField } from '@/components/forms/TextField';
-import { useShareDay } from '@/components/home/useShareDay';
+import {
+  SHARE_POSTER_HEIGHT,
+  SHARE_POSTER_WIDTH,
+} from '@/components/challenges/SharePosterCard';
 import { ProfilePhotoPreviewModal } from '@/components/profile/ProfilePhotoPreviewModal';
 import { apiClient } from '@/lib/api';
 import { markMatchResultSeen } from '@/lib/seen-match-results';
 import { type Theme, useThemedStyles } from '@/theme';
 import { SheetDone } from './CreateRuleSheets';
+import { GroupHonorsBoardCard } from './GroupHonorsBoardCard';
 import { GroupPage } from './GroupPage';
 import { GroupPodium } from './GroupPodium';
 import { GROUP_RECAP_CARD_WIDTH, GroupRecapCard } from './GroupRecapCard';
 import { GroupStandings } from './GroupStandings';
-import { resultShareLine, resultSummary } from './group-history';
+import { HonorShareCard } from './HonorShareCard';
+import {
+  honorCarouselSlides,
+  honorSlideShareText,
+  type HonorCarouselSlide,
+} from './honor-carousel-slides';
+import { resultSummary } from './group-history';
 import { BOARD_COPY, GROUPS_COPY, RESULT_COPY } from './match-copy';
 import { RunItBackSheet } from './RunItBackSheet';
+import { useHonorShare } from './useHonorShare';
 import { useRunItBack } from './useRunItBack';
 
 const PODIUM_PLACES = 3;
@@ -72,13 +91,31 @@ export function MatchResultScreen({ matchId }: { matchId: string }) {
 function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => void }) {
   const styles = useThemedStyles(createStyles);
   const rerun = useRunItBack(board);
-  const recap = useShareDay(resultShareLine(board), RESULT_COPY.shareDialog);
+  const viewerId = board.standings.find((row) => row.isYou)?.userId ?? '';
+  const slides = useMemo(() => honorCarouselSlides(board, viewerId), [board, viewerId]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeSlide = slides[activeIndex] ?? slides[0] ?? { type: 'recap' as const };
+  const shareText = honorSlideShareText(board, activeSlide);
+  const shareLabel =
+    activeSlide.type === 'honor' && activeSlide.isYours
+      ? RESULT_COPY.shareHonor
+      : RESULT_COPY.share;
+  const honorShare = useHonorShare(shareText, RESULT_COPY.shareDialog);
   const [isRerunOpen, setIsRerunOpen] = useState(false);
   const [isNameCrewOpen, setIsNameCrewOpen] = useState(false);
   const [crewName, setCrewName] = useState('');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const summary = resultSummary(board);
   const hasPodium = board.winnerUserId !== null;
+  const listRef = useRef<FlatList<HonorCarouselSlide>>(null);
+  const pageWidth = Dimensions.get('window').width;
+
+  const onScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
+    if (next >= 0 && next < slides.length) {
+      setActiveIndex(next);
+    }
+  };
 
   return (
     <>
@@ -91,8 +128,9 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
             onNameAndSave={() => setIsNameCrewOpen(true)}
             onRunItBack={() => setIsRerunOpen(true)}
             onSaveCrew={() => rerun.saveCrew()}
-            isSharing={recap.isSharing}
-            onShare={() => void recap.share()}
+            isSharing={honorShare.isSharing}
+            onShare={() => void honorShare.share()}
+            shareLabel={shareLabel}
           />
         }
         nav={<DeckPageNav isClose onBack={onClose} />}
@@ -105,6 +143,41 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
           </Text>
           {summary.sentence ? <Text style={styles.sentence}>{summary.sentence}</Text> : null}
         </View>
+        {slides.length > 0 ? (
+          <View style={styles.carousel} testID="match-honors-carousel">
+            <FlatList
+              ref={listRef}
+              data={slides}
+              horizontal
+              keyExtractor={(item, index) =>
+                item.type === 'honor' ? `${item.honor.kind}-${item.honor.userId}` : `${item.type}-${index}`
+              }
+              onMomentumScrollEnd={onScrollEnd}
+              pagingEnabled
+              renderItem={({ item }) => (
+                <View style={[styles.slide, { width: pageWidth }]}>
+                  <View style={styles.slideCard}>
+                    <HonorSlidePreview board={board} slide={item} />
+                  </View>
+                </View>
+              )}
+              showsHorizontalScrollIndicator={false}
+            />
+            {slides.length > 1 ? (
+              <>
+                <View style={styles.dots}>
+                  {slides.map((slide, index) => (
+                    <View
+                      key={`dot-${index}`}
+                      style={[styles.dot, index === activeIndex ? styles.dotOn : null]}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.swipeHint}>{RESULT_COPY.swipeHonors}</Text>
+              </>
+            ) : null}
+          </View>
+        ) : null}
         {hasPodium ? <GroupPodium rules={board} standings={board.standings} /> : null}
         <GroupStandings
           hasTitle={false}
@@ -165,11 +238,34 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
         pointerEvents="none"
         style={styles.offscreenShot}
       >
-        <View collapsable={false} ref={recap.shotRef}>
-          <GroupRecapCard board={board} />
+        <View collapsable={false} ref={honorShare.shotRef}>
+          <HonorSlidePreview board={board} forCapture slide={activeSlide} />
         </View>
       </View>
     </>
+  );
+}
+
+function HonorSlidePreview({
+  board,
+  slide,
+  forCapture = false,
+}: {
+  board: MatchBoard;
+  slide: HonorCarouselSlide;
+  forCapture?: boolean;
+}) {
+  if (slide.type === 'honor') {
+    return <HonorShareCard board={board} honor={slide.honor} isHolder={slide.isYours} />;
+  }
+  if (slide.type === 'board') {
+    return <GroupHonorsBoardCard board={board} />;
+  }
+  return (
+    <GroupRecapCard
+      board={board}
+      testID={forCapture ? 'match-recap-card' : 'match-recap-card-preview'}
+    />
   );
 }
 
@@ -182,6 +278,7 @@ function ResultDock({
   onSaveCrew,
   onNameAndSave,
   onShare,
+  shareLabel,
 }: {
   canSaveCrew: boolean;
   isCrewSaved: boolean;
@@ -191,6 +288,7 @@ function ResultDock({
   onSaveCrew: () => void;
   onNameAndSave: () => void;
   onShare: () => void;
+  shareLabel: string;
 }) {
   const styles = useThemedStyles(createStyles);
 
@@ -218,7 +316,7 @@ function ResultDock({
         <DeckButton
           glyph="share"
           isFlexible
-          label={RESULT_COPY.share}
+          label={shareLabel}
           loading={isSharing}
           onPress={onShare}
           testID="match-result-share"
@@ -261,6 +359,39 @@ const createStyles = (theme: Theme) =>
       lineHeight: 21,
       marginTop: 6,
       textAlign: 'center',
+    },
+    carousel: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    slide: {
+      alignItems: 'center',
+    },
+    slideCard: {
+      width: SHARE_POSTER_WIDTH,
+      height: SHARE_POSTER_HEIGHT,
+      transform: [{ scale: 0.92 }],
+    },
+    dots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 12,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.border,
+    },
+    dotOn: {
+      backgroundColor: theme.colors.text,
+    },
+    swipeHint: {
+      color: theme.colors.muted,
+      fontSize: 12,
+      textAlign: 'center',
+      marginTop: 8,
     },
     quietRow: {
       flexDirection: 'row',

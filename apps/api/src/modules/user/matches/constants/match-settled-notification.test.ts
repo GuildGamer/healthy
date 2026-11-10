@@ -44,6 +44,20 @@ describe('matchSettledPushCopy', () => {
     });
   });
 
+  it('leads with the recipient honor title when they earned one', () => {
+    expect(
+      matchSettledPushCopy({
+        contestTitle: 'Push-up Sunday',
+        isWinner: false,
+        winnerDisplayName: 'Ada',
+        honorTitle: 'Comeback King!',
+      }),
+    ).toEqual({
+      title: 'Comeback King!',
+      body: 'Push-up Sunday ended. See your honor.',
+    });
+  });
+
   it('never uses an em dash', () => {
     const copy = matchSettledPushCopy({
       contestTitle: 'vs Bee',

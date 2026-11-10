@@ -11,6 +11,8 @@ import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { posterValueMetrics } from '@/components/challenges/share-poster';
 import { SharePosterText } from '@/components/challenges/SharePosterText';
 import { useTheme } from '@/theme';
+import { GroupFace } from './GroupFace';
+import { honorChallengeTitle } from './honor-copy';
 import { groupRecapContent } from './group-recap';
 import { groupToneFor } from './group-tone';
 
@@ -22,12 +24,20 @@ export const GROUP_RECAP_CARD_WIDTH = SHARE_POSTER_WIDTH;
  * hairline brand row. Same family as `SharePosterCard`, filled with the
  * group's activity (or streak) colour.
  */
-export function GroupRecapCard({ board }: { board: MatchBoard }) {
+export function GroupRecapCard({
+  board,
+  testID = 'match-recap-card',
+}: {
+  board: MatchBoard;
+  testID?: string;
+}) {
   const theme = useTheme();
   const content = groupRecapContent(board);
   const tone = groupToneFor(theme, board);
   const valueMetrics = posterValueMetrics(content.hero.value);
   const brandMeta = content.facts[0]?.value ?? content.length;
+  const you = board.standings.find((row) => row.isYou);
+  const challenge = honorChallengeTitle(board);
   const ink = {
     text: theme.deckCards.text,
     subtext: theme.deckCards.subtext,
@@ -35,17 +45,39 @@ export function GroupRecapCard({ board }: { board: MatchBoard }) {
   };
 
   return (
-    <View style={styles.shell} testID="match-recap-card">
+    <View style={styles.shell} testID={testID}>
       <View style={[styles.fill, { backgroundColor: tone.fill }]} />
       <View style={styles.type}>
-        <View style={styles.top}>
-          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
-            {content.kind}
-          </SharePosterText>
-          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
-            {content.length}
-          </SharePosterText>
-        </View>
+        {you ? (
+          <View style={styles.identity}>
+            <GroupFace
+              image={you.image}
+              look="lit"
+              name={you.displayName}
+              size={36}
+              userId={you.userId}
+            />
+            <View style={styles.identityText}>
+              <SharePosterText style={[styles.name, { color: ink.text }]}>
+                {you.displayName}
+              </SharePosterText>
+              {challenge ? (
+                <SharePosterText style={[styles.label, { color: ink.subtext }]}>
+                  {challenge}
+                </SharePosterText>
+              ) : null}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.top}>
+            <SharePosterText style={[styles.label, { color: ink.subtext }]}>
+              {content.kind}
+            </SharePosterText>
+            <SharePosterText style={[styles.label, { color: ink.subtext }]}>
+              {content.length}
+            </SharePosterText>
+          </View>
+        )}
         <SharePosterText
           adjustsFontSizeToFit
           numberOfLines={1}
@@ -87,6 +119,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  identityText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  name: {
+    fontSize: 15,
+    fontWeight: fontWeight.semibold,
   },
   label: {
     fontSize: fontSize.sm,

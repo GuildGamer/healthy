@@ -14,6 +14,8 @@ export type MatchSettledNotice = {
   winnerDisplayName: string | null;
   /** Accepted members only — pending seats never hear about settlement. */
   recipientUserIds: readonly string[];
+  /** Primary honor title per recipient, when they earned one. */
+  honorTitleByUserId?: ReadonlyMap<string, string>;
 };
 
 /**
@@ -47,6 +49,7 @@ export class MatchSettledNotifierService {
         contestTitle: notice.contestTitle,
         isWinner: userId === notice.winnerUserId,
         winnerDisplayName: notice.winnerDisplayName,
+        honorTitle: notice.honorTitleByUserId?.get(userId) ?? null,
       });
 
       return {

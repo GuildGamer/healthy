@@ -87,7 +87,11 @@ function PastGroupRow({ item, isFirst }: { item: MatchListItem; isFirst: boolean
       </View>
       <View style={styles.side}>
         <Text style={styles.place}>{finishLabel(item)}</Text>
-        <Text style={styles.meta}>{pastScoreLabel(item)}</Text>
+        {item.yourHonorTitle ? (
+          <Text style={styles.honor}>{item.yourHonorTitle}</Text>
+        ) : (
+          <Text style={styles.meta}>{pastScoreLabel(item)}</Text>
+        )}
       </View>
       <Glyph color={colors.muted} name="forward" size={16} strokeWidth={2} />
     </Pressable>
@@ -131,5 +135,11 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
       fontSize: fontSize.md,
       fontWeight: fontWeight.semibold,
+    },
+    honor: {
+      color: theme.colors.accent,
+      fontSize: 12,
+      fontWeight: fontWeight.medium,
+      marginTop: 2,
     },
   });

@@ -131,8 +131,8 @@ At thumbnail size:
 > iMessage bubble, at the size each app actually shows a square preview, not
 > only as a flat frame.
 >
-> Constraints: flexbox-buildable (Satori), Inter and Archivo Black only, no
-> button shapes, first names only.
+> Constraints: flexbox-buildable (Satori), Inter and Archivo Black for type,
+> Twemoji for emoji in host titles, no button shapes, first names only.
 
 ## Build
 
@@ -142,6 +142,9 @@ Built. The route `og.png.ts` stays thin; the pieces live in the website:
   title size, the activity-and-time line. Unit-tested.
 - `src/og/invite-card.ts` — the Satori layout and PNG render, with the
   initials fallback when a photo will not draw.
+- `src/og/emoji-asset.ts` — Twemoji SVGs via Satori `loadAdditionalAsset` so
+  host titles with emoji paint; if a fetch fails, the renderer strips emoji
+  and retries once.
 - `src/og/host-photo.ts` — the allow-listed photo loader.
 - `src/og/fonts/` — Inter 500/600/700 and Archivo Black, inlined at build.
 - `src/og/invite-card-palette.ts` — night deck colours vendored from

@@ -170,6 +170,35 @@ export const createMatchInputSchema = z
     });
   });
 
+/**
+ * Side awards on a finished group, beyond the official winner. Computed lazily
+ * on read with standings; optional so older clients ignore the field.
+ */
+export const matchHonorKindSchema = z.enum([
+  'champion',
+  'best_set',
+  'fastest_set',
+  'biggest_day',
+  'comeback',
+  'photo_finish',
+  'first_score',
+  'iron_week',
+]);
+
+export const matchHonorSchema = z.object({
+  kind: matchHonorKindSchema,
+  userId: z.string().min(1),
+  displayName: z.string().min(1),
+  /** Brag title for the poster, e.g. "Comeback King!". */
+  title: z.string().min(1),
+  /** Supporting proof line under the title, e.g. "4th → 2nd". */
+  proof: z.string().min(1),
+  /** First-person share-sheet line when this slide is active. */
+  shareText: z.string().min(1),
+  /** Fill token key for the honor poster palette. */
+  palette: z.string().min(1),
+});
+
 export const matchBoardSchema = z.object({
   id: z.string().min(1),
   token: z.string().min(1),
@@ -215,6 +244,11 @@ export const matchBoardSchema = z.object({
    * every other contest. Optional for older API builds.
    */
   dayStrip: matchDayStripSchema.nullable().optional(),
+  /**
+   * Finished-group honors for the share carousel. Present when the contest is
+   * completed; omitted or empty for live/cancelled boards and older APIs.
+   */
+  honors: z.array(matchHonorSchema).optional(),
 });
 
 export const matchInviteLinkSchema = z.object({
@@ -343,6 +377,11 @@ export const matchListItemSchema = z.object({
    * that light up once a member has done today. Optional for older API builds.
    */
   standings: z.array(matchStandingSchema).optional(),
+  /**
+   * The viewer's primary brag title from honors, for past-group rows.
+   * Null when they earned none. Optional for older API builds.
+   */
+  yourHonorTitle: z.string().min(1).nullable().optional(),
 });
 
 export const listMyMatchesOutputSchema = z.object({
@@ -434,6 +473,8 @@ export type MatchStatus = z.infer<typeof matchStatusSchema>;
 export type MatchWindow = z.infer<typeof matchWindowSchema>;
 export type MatchDurationDays = z.infer<typeof matchDurationDaysSchema>;
 export type MatchStanding = z.infer<typeof matchStandingSchema>;
+export type MatchHonorKind = z.infer<typeof matchHonorKindSchema>;
+export type MatchHonor = z.infer<typeof matchHonorSchema>;
 export type MatchBoard = z.infer<typeof matchBoardSchema>;
 export type MatchInviteLink = z.infer<typeof matchInviteLinkSchema>;
 export type CreateMatchInput = z.input<typeof createMatchInputSchema>;

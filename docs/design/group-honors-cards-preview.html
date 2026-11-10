@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Healthy · Group honors preview (v2)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #f4f2ee;
+        --sub: #b8b4ad;
+        --track: #3d3a45;
+        --bg: #0e0e12;
+        --surface: #141418;
+        --accent: #7ae582;
+        --w: 300px;
+        --h: 375px;
+        --r: 26px;
+        --pad: 22px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        padding: 32px 24px 80px;
+      }
+      h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+      .lead {
+        color: var(--sub);
+        font-size: 0.95rem;
+        max-width: 52rem;
+        line-height: 1.5;
+        margin-bottom: 40px;
+      }
+      .lead a {
+        color: var(--accent);
+      }
+      section {
+        margin-bottom: 56px;
+      }
+      section h2 {
+        font-size: 0.65rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b6b6b;
+        margin: 0 0 16px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 32px;
+      }
+      .poster {
+        width: var(--w);
+        height: var(--h);
+        border-radius: var(--r);
+        padding: var(--pad);
+        display: flex;
+        flex-direction: column;
+        color: var(--ink);
+      }
+      .identity {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #5c4ae8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .identity-text .name {
+        font-size: 0.94rem;
+        font-weight: 600;
+        margin: 0;
+      }
+      .identity-text .challenge {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--sub);
+        margin: 2px 0 0;
+        line-height: 1.3;
+      }
+      .spacer {
+        flex: 1;
+        min-height: 12px;
+      }
+      .title {
+        font-size: 1.85rem;
+        font-weight: 700;
+        line-height: 1.12;
+        margin: 0;
+      }
+      .title.numeral {
+        font-size: 3rem;
+      }
+      .proof {
+        font-size: 1rem;
+        color: var(--sub);
+        margin: 8px 0 0;
+        line-height: 1.4;
+        white-space: pre-line;
+      }
+      .meta {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--sub);
+        margin-top: 10px;
+      }
+      .footer {
+        border-top: 1px solid var(--track);
+        margin-top: auto;
+        padding-top: 14px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+      }
+      .footer .brand {
+        font-weight: 600;
+      }
+      .footer .foot-meta {
+        color: var(--sub);
+        font-weight: 500;
+      }
+      .phone {
+        width: 393px;
+        min-height: 720px;
+        background: #0a0a0c;
+        border-radius: 40px;
+        padding: 48px 20px 24px;
+        border: 1px solid #222;
+      }
+      .phone h3 {
+        font-size: 2rem;
+        font-weight: 600;
+        text-align: center;
+        margin: 8px 0 4px;
+      }
+      .phone .sub {
+        text-align: center;
+        color: var(--sub);
+        font-size: 0.875rem;
+        margin-bottom: 16px;
+      }
+      .dots {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin: 16px 0 8px;
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--track);
+      }
+      .dot.on {
+        background: var(--ink);
+      }
+      .hint {
+        text-align: center;
+        font-size: 0.75rem;
+        color: var(--sub);
+        margin-bottom: 24px;
+      }
+      .btn {
+        display: block;
+        width: 100%;
+        padding: 14px 20px;
+        border-radius: 14px;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        font-family: inherit;
+        margin-top: 10px;
+        text-align: center;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #0a0a0c;
+      }
+      .btn.tonal {
+        background: var(--surface);
+        color: var(--ink);
+      }
+      .row-btns {
+        display: flex;
+        gap: 12px;
+      }
+      .row-btns .btn {
+        flex: 1;
+      }
+      .screens {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+      }
+      .screen-label {
+        font-size: 0.7rem;
+        color: var(--sub);
+        margin-bottom: 8px;
+        max-width: 393px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Group honors · design preview v2</h1>
+    <p class="lead">
+      Local mirror while Figma MCP is rate-limited on Starter. Target file:
+      <a href="https://www.figma.com/design/dEjCigoq497UnaRCLDjYSr">Figma · Group honors preview</a>.
+      Changes: <strong>Fastest set!</strong> (not Speed demon), name + avatar + challenge title on every
+      card, auto-layout spacing.
+    </p>
+
+    <section>
+      <h2>Share cards · 300 × 375</h2>
+      <div class="grid" id="posters"></div>
+    </section>
+
+    <section>
+      <h2>App screens</h2>
+      <div class="screens" id="screens"></div>
+    </section>
+
+    <script>
+      const CH = 'Push-up Sunday';
+      const posters = [
+        { bg: '#c9a227', label: 'Champion', name: 'Nurul', initials: 'NU', title: 'You took the crown.', proof: '420 reps total', meta: 'Push-ups · 7 days ended', foot: 'You won' },
+        { bg: '#d4512a', label: 'Comeback King', name: 'Nurul', initials: 'NU', title: 'Comeback King!', proof: '4th → 2nd', meta: 'Push-ups · 7 days ended', foot: '2nd place' },
+        { bg: '#1a6b62', label: 'Fastest set', name: 'Tunde', initials: 'TU', title: 'Fastest set!', proof: '52 in 29s', meta: 'Push-ups · 7 days ended', foot: '1.8 reps/sec' },
+        { bg: '#5c4ae8', label: 'Set beast', name: 'Nurul', initials: 'NU', title: 'Set beast.', proof: '52 in one go', meta: 'Push-ups · 7 days ended', foot: 'Best set' },
+        { bg: '#c94a4a', label: 'Day crusher', name: 'Bee', initials: 'BE', title: 'Day crusher.', proof: '180 in one day', meta: 'Push-ups · 7 days ended', foot: 'Biggest day' },
+        { bg: '#2a2d3a', label: 'Photo finish', name: 'Cam', initials: 'CA', title: 'Photo finish.', proof: 'Same score · second by a moment', meta: 'Push-ups · 7 days ended', foot: 'Tied the win' },
+        { bg: '#8b2e2e', label: 'First blood', name: 'Ada', initials: 'AD', title: 'First blood.', proof: 'Opened the board', meta: 'Push-ups · 7 days ended', foot: 'Day 1' },
+        { bg: '#3d6b4a', label: 'Iron week', name: 'Nurul', initials: 'NU', title: 'Iron week.', proof: '7/7 days', meta: 'Streak · 7 days ended', foot: 'Most consistent' },
+        { bg: '#16161c', label: 'Honors board', name: 'Honors', initials: '·', title: 'Honors', proof: 'Ada · Crown\nNurul · Comeback King!\nTunde · Fastest set!\nBee · Day crusher.', meta: 'Push-ups · 7 days ended', foot: '6 people', titleClass: '' },
+        { bg: '#4a3d8f', label: 'Group recap', name: 'Nurul', initials: 'NU', title: '2nd', proof: 'of 6 in the group', meta: 'Push-ups · 7 days ended', foot: '185 reps', titleClass: 'numeral' },
+      ];
+
+      function posterHtml(p) {
+        const titleClass = p.titleClass ? `title ${p.titleClass}` : 'title';
+        return `
+          <article class="poster" style="background:${p.bg}">
+            <div class="identity">
+              <div class="avatar">${p.initials}</div>
+              <div class="identity-text">
+                <p class="name">${p.name}</p>
+                <p class="challenge">${CH}</p>
+              </div>
+            </div>
+            <div class="spacer"></div>
+            <h3 class="${titleClass}">${p.title}</h3>
+            <p class="proof">${p.proof}</p>
+            <p class="meta">${p.meta}</p>
+            <div class="footer">
+              <span class="brand">Healthy</span>
+              <span class="foot-meta">${p.foot}</span>
+            </div>
+          </article>`;
+      }
+
+      document.getElementById('posters').innerHTML = posters
+        .map((p) => `<div><h2 style="margin:0 0 8px;font-size:10px;color:#6b6b6b;letter-spacing:.08em">${p.label.toUpperCase()}</h2>${posterHtml(p)}</div>`)
+        .join('');
+
+      const posterInline = (bg, name, initials, title, proof) => `
+        <div style="display:flex;justify-content:center;margin:0 auto 8px">
+          ${posterHtml({ bg, name, initials, title, proof, meta: 'Push-ups · 7 days ended', foot: '', titleClass: title.length < 6 ? 'numeral' : '' }).replace('<article', '<article style="transform:scale(0.95);transform-origin:top center"')}
+        </div>`;
+
+      document.getElementById('screens').innerHTML = `
+        <div>
+          <p class="screen-label">Honors · your Comeback King (slide 1)</p>
+          <div class="phone">
+            <p class="sub" style="margin-top:0">Best set · 7 days</p>
+            <h3>Ada won.</h3>
+            <p class="sub">You came 2nd with 185 reps.</p>
+            ${posterInline('#d4512a', 'Nurul', 'NU', 'Comeback King!', '4th → 2nd')}
+            <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <p class="hint">Swipe for more highlights</p>
+            <button type="button" class="btn primary">Run it back</button>
+            <div class="row-btns">
+              <button type="button" class="btn tonal">Share your honor</button>
+              <button type="button" class="btn tonal">Save crew</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="screen-label">Honors board (last slide)</p>
+          <div class="phone">
+            <h3>Ada won.</h3>
+            ${posterInline('#16161c', 'Group', '·', 'Honors', 'Ada · Crown\nNurul · Comeback King!\nTunde · Fastest set!')}
+            <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot on"></span></div>
+            <button type="button" class="btn primary">Run it back</button>
+            <button type="button" class="btn tonal">Share</button>
+          </div>
+        </div>
+        <div>
+          <p class="screen-label">Past groups row</p>
+          <div class="phone" style="min-height:280px">
+            <p style="font-weight:600;margin-top:0">Past groups</p>
+            <p style="font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em">November</p>
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--track);margin-top:8px">
+              <div class="avatar">NU</div>
+              <div style="flex:1">
+                <p style="margin:0;font-weight:500">Push-up Sunday</p>
+                <p style="margin:2px 0 0;font-size:13px;color:var(--sub)">Total · ended 8 Nov</p>
+              </div>
+              <div style="text-align:right">
+                <p style="margin:0;font-weight:600">2nd</p>
+                <p style="margin:2px 0 0;font-size:12px;color:var(--accent);font-weight:500">Comeback King!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    </script>
+  </body>
+</html>

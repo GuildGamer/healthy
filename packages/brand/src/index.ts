@@ -300,3 +300,10 @@ export const radii = {
 
 export type BrandRadii = typeof radii;
 export type BrandSpacing = typeof spacing;
+
+export {
+  collectEmojiGraphemes,
+  splitShareTextRuns,
+  stripEmojiRuns,
+  type ShareTextRun,
+} from './share-text';

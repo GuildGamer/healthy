@@ -17,7 +17,16 @@ const day: DayShareContent = {
 };
 
 function fill(testID: string): unknown {
-  return StyleSheet.flatten(screen.getByTestId(testID).props.style).backgroundColor;
+  const root = screen.getByTestId(testID);
+  const own = StyleSheet.flatten(root.props.style)?.backgroundColor;
+  if (own != null) {
+    return own;
+  }
+  const fillChild = root.children.find(
+    (child): child is { props: { style?: unknown } } =>
+      typeof child !== 'string' && child != null && typeof child === 'object',
+  );
+  return StyleSheet.flatten(fillChild?.props.style)?.backgroundColor;
 }
 
 /** Day and group shares use the activity/streak deck fill, not a night slip. */

@@ -7145,6 +7145,60 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "honors": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "champion",
+                                  "best_set",
+                                  "fastest_set",
+                                  "biggest_day",
+                                  "comeback",
+                                  "photo_finish",
+                                  "first_score",
+                                  "iron_week"
+                                ],
+                                "type": "string"
+                              },
+                              "userId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "displayName": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "title": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "proof": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "shareText": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "palette": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "userId",
+                              "displayName",
+                              "title",
+                              "proof",
+                              "shareText",
+                              "palette"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -7509,6 +7563,17 @@
                                 "isPending"
                               ]
                             }
+                          },
+                          "yourHonorTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -7833,6 +7898,17 @@
                                 "isPending"
                               ]
                             }
+                          },
+                          "yourHonorTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -8425,6 +8501,60 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "honors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "champion",
+                              "best_set",
+                              "fastest_set",
+                              "biggest_day",
+                              "comeback",
+                              "photo_finish",
+                              "first_score",
+                              "iron_week"
+                            ],
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "proof": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "shareText": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "palette": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "userId",
+                          "displayName",
+                          "title",
+                          "proof",
+                          "shareText",
+                          "palette"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -8696,6 +8826,60 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "honors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "champion",
+                              "best_set",
+                              "fastest_set",
+                              "biggest_day",
+                              "comeback",
+                              "photo_finish",
+                              "first_score",
+                              "iron_week"
+                            ],
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "proof": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "shareText": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "palette": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "userId",
+                          "displayName",
+                          "title",
+                          "proof",
+                          "shareText",
+                          "palette"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -8999,6 +9183,60 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "honors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "champion",
+                              "best_set",
+                              "fastest_set",
+                              "biggest_day",
+                              "comeback",
+                              "photo_finish",
+                              "first_score",
+                              "iron_week"
+                            ],
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "proof": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "shareText": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "palette": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "userId",
+                          "displayName",
+                          "title",
+                          "proof",
+                          "shareText",
+                          "palette"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -9276,6 +9514,60 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "honors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "champion",
+                              "best_set",
+                              "fastest_set",
+                              "biggest_day",
+                              "comeback",
+                              "photo_finish",
+                              "first_score",
+                              "iron_week"
+                            ],
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "proof": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "shareText": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "palette": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "userId",
+                          "displayName",
+                          "title",
+                          "proof",
+                          "shareText",
+                          "palette"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -9566,6 +9858,60 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "honors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "champion",
+                              "best_set",
+                              "fastest_set",
+                              "biggest_day",
+                              "comeback",
+                              "photo_finish",
+                              "first_score",
+                              "iron_week"
+                            ],
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "proof": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "shareText": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "palette": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "userId",
+                          "displayName",
+                          "title",
+                          "proof",
+                          "shareText",
+                          "palette"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -9928,6 +10274,17 @@
                                 "isPending"
                               ]
                             }
+                          },
+                          "yourHonorTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -10252,6 +10609,17 @@
                                 "isPending"
                               ]
                             }
+                          },
+                          "yourHonorTitle": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [

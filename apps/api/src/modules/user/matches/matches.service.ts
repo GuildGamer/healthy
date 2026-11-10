@@ -61,6 +61,11 @@ import {
 import { lastMoveFor, rosterFor } from './match-list-item.js';
 import { MatchReactionNotifierService } from './match-reaction-notifier.service.js';
 import { MatchReactionsService } from './match-reactions.service.js';
+import {
+  computeMatchHonors,
+  primaryHonorTitleFor,
+  type HonorAttempt,
+} from './match-honors.js';
 import { computeStandings, type MatchScoringRules, type StandingEvent } from './match-standings.js';
 import { dayStripFor, movedDayKeysByUser } from './match-days.js';
 import { doneTodayUserIds } from './match-today.js';
@@ -608,6 +613,7 @@ export class MatchesService {
         now: new Date(),
       }),
       standings: board.standings,
+      yourHonorTitle: primaryHonorTitleFor(scored.honors, viewerId),
     };
   }
 
@@ -1031,6 +1037,14 @@ export class MatchesService {
     const opponentNames = accepted
       .filter((row) => row.userId !== match.hostUserId)
       .map((row) => groupNameFor(row.user));
+    const scored = await this.scoreMatch(match);
+    const honorTitleByUserId = new Map<string, string>();
+    for (const row of accepted) {
+      const title = primaryHonorTitleFor(scored.honors, row.userId);
+      if (title) {
+        honorTitleByUserId.set(row.userId, title);
+      }
+    }
 
     await this.matchSettledNotifier.notifyParticipants({
       matchId: match.id,
@@ -1038,6 +1052,7 @@ export class MatchesService {
       winnerUserId: match.winnerUserId,
       winnerDisplayName: winner ? groupNameFor(winner.user) : null,
       recipientUserIds: accepted.map((row) => row.userId),
+      honorTitleByUserId,
     });
   }
 
@@ -1433,13 +1448,51 @@ export class MatchesService {
       timeZone: this.contestTimeZone(match),
       now: new Date(),
     });
+    const participants = this.standingParticipants(match);
+    const rules = scoringRulesFor(match);
+    const result = computeStandings(participants, events, rules);
+    const honors =
+      match.status === 'completed'
+        ? computeMatchHonors({
+            participants,
+            events,
+            attempts: this.honorAttemptsFor(match),
+            rules,
+            startsAt: match.startsAt,
+            endsAt: match.endsAt,
+            acceptedAtByUser: this.acceptedAtByUser(match),
+          })
+        : [];
 
     return {
-      result: computeStandings(this.standingParticipants(match), events, scoringRulesFor(match)),
+      result,
       doneTodayUserIds: doneTodayUserIds(events, accepted, this.todayKeyFor(match)),
       dayStrip,
       movedDayKeysByUser: dayStrip ? movedDayKeysByUser(events, accepted, dayStrip) : new Map(),
+      honors,
     };
+  }
+
+  private acceptedAtByUser(match: LoadedMatch): Map<string, Date> {
+    const byUser = new Map<string, Date>();
+    for (const row of match.participants) {
+      if (row.acceptedAt) {
+        byUser.set(row.userId, row.acceptedAt);
+      }
+    }
+    return byUser;
+  }
+
+  /** Attempt rows with duration, for fastest-set (and best-set) honors. */
+  private honorAttemptsFor(match: LoadedMatch): HonorAttempt[] {
+    const timeZone = this.contestTimeZone(match);
+    return match.attempts.map((attempt) => ({
+      userId: attempt.userId,
+      count: attempt.count,
+      durationSeconds: attempt.durationSeconds,
+      dayKey: dayKeyFor(timeZone, attempt.recordedAt),
+      occurredAt: attempt.recordedAt,
+    }));
   }
 
   private async buildBoard(match: LoadedMatch, viewerId: string): Promise<MatchBoard> {
@@ -1488,6 +1541,7 @@ export class MatchesService {
       })),
       canSaveCrew: this.canSaveCrew(match),
       dayStrip,
+      ...(match.status === 'completed' ? { honors: scored.honors } : {}),
     };
   }
 

@@ -1,7 +1,7 @@
 import type { MatchBoard } from '@product/client';
 import { DeckButton } from '@/components/deck';
 import type { GlyphName } from '@/components/icons';
-import { BOARD_COPY } from './match-copy';
+import { BOARD_COPY, RESULT_COPY } from './match-copy';
 import { type MatchSessionRoute, matchBoardAction } from './match-metric';
 
 const SESSION_GLYPH: Record<MatchSessionRoute, GlyphName> = {
@@ -24,12 +24,20 @@ interface BoardDockProps {
 export function BoardDock({ match, isWaiting, onAct, onShare, onSeeResult }: BoardDockProps) {
   if (match.status === 'completed') {
     return (
-      <DeckButton
-        label={BOARD_COPY.seeResult}
-        onPress={onSeeResult}
-        testID="match-see-result"
-        variant="tonal"
-      />
+      <>
+        <DeckButton
+          glyph="share"
+          label={RESULT_COPY.share}
+          onPress={onSeeResult}
+          testID="match-completed-share"
+        />
+        <DeckButton
+          label={BOARD_COPY.honors}
+          onPress={onSeeResult}
+          testID="match-see-result"
+          variant="tonal"
+        />
+      </>
     );
   }
 

@@ -1,4 +1,8 @@
-import { splitShareTextRuns } from './share-poster-text';
+import {
+  collectEmojiGraphemes,
+  splitShareTextRuns,
+  stripEmojiRuns,
+} from './share-poster-text';
 
 describe('splitShareTextRuns', () => {
   it('returns an empty list for an empty string', () => {
@@ -32,5 +36,18 @@ describe('splitShareTextRuns', () => {
       { text: '👨‍👩‍👧', isEmoji: true },
       { text: ' day', isEmoji: false },
     ]);
+  });
+});
+
+describe('collectEmojiGraphemes', () => {
+  it('lists unique emoji in first-seen order', () => {
+    expect(collectEmojiGraphemes('🔥 Walk 🚶 🔥')).toEqual(['🔥', '🚶']);
+  });
+});
+
+describe('stripEmojiRuns', () => {
+  it('removes emoji and collapses leftover spaces', () => {
+    expect(stripEmojiRuns('Push-up Sunday 🔥')).toBe('Push-up Sunday');
+    expect(stripEmojiRuns('🔥')).toBe('');
   });
 });

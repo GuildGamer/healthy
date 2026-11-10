@@ -190,6 +190,8 @@ export type {
   MatchDailyScope,
   MatchDayStrip,
   MatchDurationDays,
+  MatchHonor,
+  MatchHonorKind,
   MatchInviteLink,
   MatchLength,
   MatchListItem,
