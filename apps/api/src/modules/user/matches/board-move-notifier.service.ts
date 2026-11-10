@@ -10,17 +10,14 @@ import {
   type BoardMoveUrgency,
 } from './constants/board-move-notification.js';
 import { GroupBoardPushContextService } from './group-board-push-context.service.js';
-import {
-  resolveGroupPushMode,
-  selectPushRecipients,
-} from './group-board-push-policy.js';
+import { selectPushRecipients } from './group-board-push-policy.js';
 import type { RecipientPushState } from './types/group-board-push-policy.js';
 
 export type BoardMoveRecipient = {
   userId: string;
   /** Their score on the board after this event (for close/tie/ahead copy). */
   score: number;
-  /** Rank after this event (1 = leader). Used for busy fan-out. */
+  /** Rank after this event (1 = leader). */
   rank: number;
   /**
    * When known: whether this recipient has already scored today. Unused for
@@ -38,7 +35,7 @@ export type BoardMoveNotice = {
   actorScoreBefore: number;
   /** Actor's score after this event. */
   actorScoreAfter: number;
-  /** Actor's rank after this event (for busy fan-out adjacency). */
+  /** Actor's rank after this event. */
   actorRank: number;
   /** ISO end of the contest, for the time left in the body. */
   endsAt: string;
@@ -57,9 +54,9 @@ type InboxRow = {
 
 /**
  * Tells accepted group mates that someone moved the board. Inbox rows are
- * written per attempt for every mate; lock-screen pushes are filtered by the
- * group-board push policy (announce by default; busy suppresses routine and
- * fans out competitive). Retries are idempotent on (match, attempt, recipient);
+ * written per attempt for every mate; lock-screen pushes announce every
+ * activity, with same-actor routine coalesced for 10 minutes (competitive
+ * always breaks through). Retries are idempotent on (match, attempt, recipient);
  * a failed push never undoes the score write.
  */
 @Injectable()
@@ -138,19 +135,13 @@ export class BoardMoveNotifierService {
       rows.map((row) => row.userId),
       now,
     );
-    const mode = resolveGroupPushMode(context);
-    const recipientById = new Map(pending.map((row) => [row.userId, row]));
-    const candidates: RecipientPushState[] = rows.map((row) => {
-      const recipient = recipientById.get(row.userId);
-      return {
-        userId: row.userId,
-        urgency: row.urgency,
-        rank: recipient?.rank ?? Number.MAX_SAFE_INTEGER,
-        actorRank: notice.actorRank,
-        movedToday: recipient?.movedToday,
-      };
-    });
-    const decision = selectPushRecipients(mode, candidates);
+    const candidates: RecipientPushState[] = rows.map((row) => ({
+      userId: row.userId,
+      urgency: row.urgency,
+      pushedInCoalesceWindow:
+        context.historyByRecipient.get(row.userId)?.pushedInCoalesceWindow ?? false,
+    }));
+    const decision = selectPushRecipients(candidates);
     const rowByUserId = new Map(rows.map((row) => [row.userId, row]));
     const pushes = decision.pushUserIds.flatMap((userId) => {
       const row = rowByUserId.get(userId);

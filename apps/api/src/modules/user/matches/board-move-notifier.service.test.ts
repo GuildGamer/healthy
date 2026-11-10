@@ -40,12 +40,12 @@ function createDelivery() {
   };
 }
 
-function growContext() {
+function clearCoalesceContext(userIds: readonly string[] = ['host', 'cam']) {
   return {
     loadForNotify: vi.fn().mockResolvedValue({
-      acceptedCount: 3,
-      attemptsLast30m: 1,
-      attemptsLast24h: 1,
+      historyByRecipient: new Map(
+        userIds.map((userId) => [userId, { pushedInCoalesceWindow: false }]),
+      ),
     }),
   };
 }
@@ -53,7 +53,7 @@ function growContext() {
 function createService(
   prisma: ReturnType<typeof createPrismaMock>,
   delivery = createDelivery(),
-  pushContext = growContext(),
+  pushContext = clearCoalesceContext(),
 ) {
   const service = new BoardMoveNotifierService(
     prisma as never,
@@ -127,7 +127,11 @@ describe('BoardMoveNotifierService', () => {
 
   it('uses closing-in copy when the actor is close behind', async () => {
     const prisma = createPrismaMock();
-    const { service } = createService(prisma, createDelivery(), growContext());
+    const { service } = createService(
+      prisma,
+      createDelivery(),
+      clearCoalesceContext(['host']),
+    );
 
     await service.notifyParticipants({
       ...notice,
@@ -151,7 +155,11 @@ describe('BoardMoveNotifierService', () => {
 
   it('uses caught-you copy when scores are tied', async () => {
     const prisma = createPrismaMock();
-    const { service } = createService(prisma, createDelivery(), growContext());
+    const { service } = createService(
+      prisma,
+      createDelivery(),
+      clearCoalesceContext(['host']),
+    );
 
     await service.notifyParticipants({
       ...notice,
@@ -208,7 +216,11 @@ describe('BoardMoveNotifierService', () => {
       usersWithDevice: [],
       usersWithoutDevice: ['host'],
     });
-    const { service } = createService(prisma, delivery, growContext());
+    const { service } = createService(
+      prisma,
+      delivery,
+      clearCoalesceContext(['host']),
+    );
 
     await service.notifyParticipants({
       ...notice,
@@ -219,15 +231,27 @@ describe('BoardMoveNotifierService', () => {
     expect(delivery.send).toHaveBeenCalled();
   });
 
-  it('writes three grow inbox rows and a routine push for every activity', async () => {
+  it('writes inbox for every routine set but coalesces lock-screen pushes', async () => {
     const prisma = createPrismaMock();
     const delivery = createDelivery();
     const pushContext = {
-      loadForNotify: vi.fn().mockResolvedValue({
-        acceptedCount: 3,
-        attemptsLast30m: 1,
-        attemptsLast24h: 1,
-      }),
+      loadForNotify: vi
+        .fn()
+        .mockResolvedValueOnce({
+          historyByRecipient: new Map([
+            ['host', { pushedInCoalesceWindow: false }],
+          ]),
+        })
+        .mockResolvedValueOnce({
+          historyByRecipient: new Map([
+            ['host', { pushedInCoalesceWindow: true }],
+          ]),
+        })
+        .mockResolvedValueOnce({
+          historyByRecipient: new Map([
+            ['host', { pushedInCoalesceWindow: true }],
+          ]),
+        }),
     };
     const { service } = createService(prisma, delivery, pushContext);
 
@@ -257,7 +281,7 @@ describe('BoardMoveNotifierService', () => {
     });
 
     expect(prisma.notification.createMany).toHaveBeenCalledTimes(3);
-    expect(delivery.send).toHaveBeenCalledTimes(3);
+    expect(delivery.send).toHaveBeenCalledTimes(1);
     expect(delivery.send).toHaveBeenCalledWith(
       expect.objectContaining({
         pushes: [
@@ -270,15 +294,22 @@ describe('BoardMoveNotifierService', () => {
     );
   });
 
-  it('still pushes a competitive escalation after a routine', async () => {
+  it('still pushes a competitive escalation inside the coalesce window', async () => {
     const prisma = createPrismaMock();
     const delivery = createDelivery();
     const pushContext = {
-      loadForNotify: vi.fn().mockResolvedValue({
-        acceptedCount: 3,
-        attemptsLast30m: 1,
-        attemptsLast24h: 1,
-      }),
+      loadForNotify: vi
+        .fn()
+        .mockResolvedValueOnce({
+          historyByRecipient: new Map([
+            ['host', { pushedInCoalesceWindow: false }],
+          ]),
+        })
+        .mockResolvedValueOnce({
+          historyByRecipient: new Map([
+            ['host', { pushedInCoalesceWindow: true }],
+          ]),
+        }),
     };
     const { service } = createService(prisma, delivery, pushContext);
 
@@ -309,17 +340,10 @@ describe('BoardMoveNotifierService', () => {
     ]);
   });
 
-  it('announces routine in standard mode', async () => {
+  it('announces routine when the coalesce window is clear', async () => {
     const prisma = createPrismaMock();
     const delivery = createDelivery();
-    const pushContext = {
-      loadForNotify: vi.fn().mockResolvedValue({
-        acceptedCount: 6,
-        attemptsLast30m: 1,
-        attemptsLast24h: 2,
-      }),
-    };
-    const { service } = createService(prisma, delivery, pushContext);
+    const { service } = createService(prisma, delivery);
 
     await service.notifyParticipants(notice);
 
@@ -340,54 +364,14 @@ describe('BoardMoveNotifierService', () => {
     });
   });
 
-  it('limits busy competitive fan-out to the top three rivals', async () => {
+  it('skips delivery entirely when every recipient is coalesced routine', async () => {
     const prisma = createPrismaMock();
     const delivery = createDelivery();
-    const recipients = Array.from({ length: 10 }, (_, index) => ({
-      userId: `u${index}`,
-      score: 50 - index,
-      rank: index + 1,
-    }));
     const pushContext = {
       loadForNotify: vi.fn().mockResolvedValue({
-        acceptedCount: 15,
-        attemptsLast30m: 1,
-        attemptsLast24h: 1,
-      }),
-    };
-    const { service } = createService(prisma, delivery, pushContext);
-
-    await service.notifyParticipants({
-      ...notice,
-      actorScoreBefore: 0,
-      actorScoreAfter: 55,
-      actorRank: 1,
-      recipients,
-    });
-
-    expect(prisma.notification.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.arrayContaining([
-          expect.objectContaining({ userId: 'u0' }),
-          expect.objectContaining({ userId: 'u9' }),
+        historyByRecipient: new Map([
+          ['host', { pushedInCoalesceWindow: true }],
         ]),
-      }),
-    );
-    const pushes = delivery.send.mock.calls[0]?.[0].pushes as Array<{ userId: string }>;
-    expect(pushes).toHaveLength(3);
-    // Actor is rank 1: adjacent runner-up (u1) outranks the displaced leader (u0).
-    expect(pushes.map((push) => push.userId)).toEqual(['u1', 'u0', 'u2']);
-  });
-
-  it('skips delivery entirely when every recipient is policy-suppressed', async () => {
-    const prisma = createPrismaMock();
-    const delivery = createDelivery();
-    const pushContext = {
-      loadForNotify: vi.fn().mockResolvedValue({
-        // Busy: routine never pushes.
-        acceptedCount: 15,
-        attemptsLast30m: 1,
-        attemptsLast24h: 2,
       }),
     };
     const { service } = createService(prisma, delivery, pushContext);

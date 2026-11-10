@@ -1,29 +1,8 @@
 /**
- * Documented same-actor burst window (5 minutes). Lock-screen eligibility no
- * longer coalesces on this — busy mode is the only push throttle.
+ * Same-actor routine lock-screen coalesce. Competitive urgencies ignore this.
+ * Inbox rows stay per attempt.
  */
-export const BOARD_PUSH_COALESCE_MS = 5 * 60 * 1000;
-
-/** Quiet enough, and small enough, to encourage with routine pushes. */
-export const GROW_MAX_PARTICIPANTS = 5;
-
-/** Large enough that routine fan-out would spam the lock screen. */
-export const BUSY_MIN_PARTICIPANTS = 15;
-
-/**
- * Grow stays grow only while 24h attempt volume stays below this factor times
- * accepted seats (e.g. 5 seats → under 7.5 attempts).
- */
-export const GROW_VELOCITY_24H_FACTOR = 1.5;
-
-/** Cap competitive lock-screen fan-out in busy groups. */
-export const BUSY_MAX_RECIPIENTS = 3;
-
-/** Attempts in this window that flip a group to busy (flat floor). */
-export const BUSY_VELOCITY_ATTEMPTS = 10;
-
-/** Lookback for busy velocity (hot session). */
-export const BUSY_VELOCITY_WINDOW_MS = 30 * 60 * 1000;
+export const BOARD_PUSH_COALESCE_MS = 10 * 60 * 1000;
 
 /**
  * Stable key for same-actor routine coalesce bookkeeping. Distinct from the

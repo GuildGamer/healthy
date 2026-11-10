@@ -2,12 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   boardPushEscalationIdempotencyKey,
   boardPushRoutineIdempotencyKey,
-  BUSY_VELOCITY_ATTEMPTS,
+  BOARD_PUSH_COALESCE_MS,
 } from './constants/group-board-push-policy.js';
 import {
-  rankRecipientsForBusyFanOut,
-  resolveGroupPushMode,
-  rivalryWeightForBusyFanOut,
   selectPushRecipients,
   shouldPushToRecipient,
 } from './group-board-push-policy.js';
@@ -18,177 +15,68 @@ function recipient(
 ): RecipientPushState {
   return {
     urgency: 'routine',
-    rank: 2,
-    actorRank: 1,
+    pushedInCoalesceWindow: false,
     ...overrides,
   };
 }
 
-describe('resolveGroupPushMode', () => {
-  it('is grow when the group is small and quiet', () => {
-    expect(
-      resolveGroupPushMode({
-        acceptedCount: 4,
-        attemptsLast30m: 1,
-        attemptsLast24h: 2,
-      }),
-    ).toBe('grow');
-  });
-
-  it('is busy when accepted seats hit the large-group floor', () => {
-    expect(
-      resolveGroupPushMode({
-        acceptedCount: 15,
-        attemptsLast30m: 0,
-        attemptsLast24h: 0,
-      }),
-    ).toBe('busy');
-  });
-
-  it('stays grow below the large-group floor when velocity is quiet', () => {
-    expect(
-      resolveGroupPushMode({
-        acceptedCount: 14,
-        attemptsLast30m: 3,
-        attemptsLast24h: 3,
-      }),
-    ).toBe('standard');
-
-    expect(
-      resolveGroupPushMode({
-        acceptedCount: 4,
-        attemptsLast30m: 3,
-        attemptsLast24h: 3,
-      }),
-    ).toBe('grow');
-  });
-
-  it('is busy when 30-minute velocity trips even for a small group', () => {
-    expect(
-      resolveGroupPushMode({
-        acceptedCount: 4,
-        attemptsLast30m: BUSY_VELOCITY_ATTEMPTS,
-        attemptsLast24h: BUSY_VELOCITY_ATTEMPTS,
-      }),
-    ).toBe('busy');
-  });
-
-  it('is standard when mid-size or grow velocity is spent', () => {
-    expect(
-      resolveGroupPushMode({
-        acceptedCount: 6,
-        attemptsLast30m: 1,
-        attemptsLast24h: 2,
-      }),
-    ).toBe('standard');
-
-    expect(
-      resolveGroupPushMode({
-        acceptedCount: 4,
-        attemptsLast30m: 1,
-        attemptsLast24h: 8,
-      }),
-    ).toBe('standard');
-  });
-
-  it('uses a flat busy velocity floor of ten attempts', () => {
-    expect(BUSY_VELOCITY_ATTEMPTS).toBe(10);
-  });
-});
-
 describe('shouldPushToRecipient', () => {
-  it('lets competitive urgency through in every mode', () => {
-    for (const mode of ['grow', 'standard', 'busy'] as const) {
+  it('lets competitive urgency through even inside the coalesce window', () => {
+    for (const urgency of ['ahead', 'tied', 'close'] as const) {
       expect(
         shouldPushToRecipient(
-          mode,
           recipient({
             userId: 'host',
-            urgency: 'ahead',
+            urgency,
+            pushedInCoalesceWindow: true,
           }),
         ),
       ).toBe(true);
     }
   });
 
-  it('suppresses routine pushes only in busy', () => {
-    expect(shouldPushToRecipient('busy', recipient({ userId: 'host' }))).toBe(
-      false,
-    );
+  it('suppresses routine when the same actor already pushed in the window', () => {
     expect(
-      shouldPushToRecipient('standard', recipient({ userId: 'host' })),
-    ).toBe(true);
+      shouldPushToRecipient(
+        recipient({ userId: 'host', pushedInCoalesceWindow: true }),
+      ),
+    ).toBe(false);
   });
 
-  it('announces every routine push in grow and standard', () => {
-    for (const mode of ['grow', 'standard'] as const) {
-      expect(shouldPushToRecipient(mode, recipient({ userId: 'host' }))).toBe(
-        true,
-      );
-    }
+  it('announces routine when the coalesce window is clear', () => {
+    expect(shouldPushToRecipient(recipient({ userId: 'host' }))).toBe(true);
   });
 });
 
-describe('busy fan-out', () => {
-  it('ranks ahead of the leader above a far routine trail', () => {
-    const ahead = recipient({
-      userId: 'leader',
-      urgency: 'ahead',
-      rank: 1,
-      actorRank: 2,
-    });
-    const routine = recipient({
-      userId: 'far',
-      urgency: 'routine',
-      rank: 8,
-      actorRank: 2,
-    });
-
-    expect(rivalryWeightForBusyFanOut(ahead)).toBeGreaterThan(
-      rivalryWeightForBusyFanOut(routine),
-    );
-    expect(rankRecipientsForBusyFanOut([routine, ahead])[0]?.userId).toBe(
-      'leader',
-    );
-  });
-
-  it('keeps only the top three push slots in busy mode', () => {
-    const candidates = [
-      recipient({ userId: 'a', urgency: 'ahead', rank: 1, actorRank: 2 }),
-      recipient({ userId: 'b', urgency: 'tied', rank: 2, actorRank: 2 }),
-      recipient({ userId: 'c', urgency: 'close', rank: 3, actorRank: 2 }),
-      recipient({ userId: 'd', urgency: 'close', rank: 4, actorRank: 2 }),
-      recipient({ userId: 'e', urgency: 'routine', rank: 5, actorRank: 2 }),
-    ];
-
-    const decision = selectPushRecipients('busy', candidates);
-
-    expect(decision.mode).toBe('busy');
-    expect(decision.pushUserIds).toHaveLength(3);
-    expect(decision.pushUserIds).toEqual(['a', 'b', 'c']);
-    expect(decision.pushUserIds).not.toContain('e');
-  });
-
-  it('pushes every grow-eligible recipient, including one routine', () => {
-    const decision = selectPushRecipients('grow', [
-      recipient({ userId: 'host', urgency: 'ahead', rank: 2, actorRank: 1 }),
-      recipient({ userId: 'cam', urgency: 'routine', rank: 3, actorRank: 1 }),
+describe('selectPushRecipients', () => {
+  it('pushes competitive and clear routine recipients', () => {
+    const decision = selectPushRecipients([
+      recipient({ userId: 'host', urgency: 'ahead' }),
+      recipient({ userId: 'cam', urgency: 'routine' }),
     ]);
 
     expect(decision.pushUserIds).toEqual(['host', 'cam']);
   });
 
-  it('pushes competitive and routine recipients in standard mode', () => {
-    const decision = selectPushRecipients('standard', [
-      recipient({ userId: 'host', urgency: 'ahead', rank: 2, actorRank: 1 }),
-      recipient({ userId: 'cam', urgency: 'routine', rank: 3, actorRank: 1 }),
+  it('keeps competitive and drops coalesced routine', () => {
+    const decision = selectPushRecipients([
+      recipient({ userId: 'host', urgency: 'ahead', pushedInCoalesceWindow: true }),
+      recipient({
+        userId: 'cam',
+        urgency: 'routine',
+        pushedInCoalesceWindow: true,
+      }),
     ]);
 
-    expect(decision.pushUserIds).toEqual(['host', 'cam']);
+    expect(decision.pushUserIds).toEqual(['host']);
   });
 });
 
 describe('push idempotency keys', () => {
+  it('uses a ten-minute coalesce window', () => {
+    expect(BOARD_PUSH_COALESCE_MS).toBe(10 * 60 * 1000);
+  });
+
   it('scopes routine coalesce by actor, recipient and day', () => {
     expect(boardPushRoutineIdempotencyKey('m1', 'bee', 'host', '2026-10-26')).toBe(
       'match_board_push:m1:bee:host:2026-10-26',

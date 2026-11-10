@@ -67,26 +67,16 @@ group list short without anyone having to prune it.
 ## Notifications
 
 Inbox always, lock-screen push by default. Every scored board move still writes
-an in-app notification row (one per attempt per mate). Push announces every
-activity unless the group is **busy** (large or hot).
+an in-app notification row (one per attempt per mate).
 
-### Modes
+### Board-move lock screen
 
-Computed from accepted seat count and recent attempt velocity on each notify.
-Announce by default; **busy** is the only brake.
-
-| Mode | When | Routine push | Competitive push (`ahead` / `tied` / `close`) |
-|------|------|--------------|-----------------------------------------------|
-| **grow** | ≤ 5 accepted and quiet 24h volume | Yes, every activity | All mates |
-| **standard** | Default mid-size / moderate activity | Yes, every activity | All mates |
-| **busy** | ≥ 15 accepted, or ≥ 10 attempts in the last 30 minutes | No | Top 3 rivals by rivalry weight |
-
-Competitive events still fire in busy mode (fan-out capped). The documented
-same-actor burst window is 5 minutes; it does not suppress lock-screen pushes
-outside busy.
+Announce every activity. Competitive urgencies (`ahead` / `tied` / `close`)
+always push. Routine (“X scored”) pushes at most once per **actor → recipient**
+per **10 minutes**; later routine sets in that window stay inbox-only.
 
 Any inbox row carrying `matchId` spends that group's daily rivalry-reminder
-slot — including inbox-only rows where the push was suppressed. Settlement and
+slot — including inbox-only rows where the push was coalesced. Settlement and
 cheers keep their own rules (cheers still bundle to one push per recipient per
 group per day).
 

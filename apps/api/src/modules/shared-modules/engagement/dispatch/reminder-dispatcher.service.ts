@@ -105,8 +105,7 @@ export class ReminderDispatcherService {
   /**
    * One CTA for the whole day at each waking slot, while a daily challenge is
    * still open. Safe to retry: the inbox idempotency key stops duplicates.
-   * Cadence is never daily-capped or quiet-hour gated — burst control lives
-   * only on group board_move pushes (group-board-push-policy).
+   * Quiet hours, skip-if-active, and the shared daily budget gate sends.
    */
   async dispatchHabitSlots(
     now: Date = new Date(),
@@ -142,7 +141,15 @@ export class ReminderDispatcherService {
         return true;
       }
 
-      return plan.habitMinutes.includes(item.minuteOfDay);
+      if (!plan.habitMinutes.includes(item.minuteOfDay)) {
+        return false;
+      }
+
+      if (plan.quietNow || plan.remainingBudget < 1 || plan.skipHabitForActivity) {
+        return false;
+      }
+
+      return true;
     });
 
     const budgeted: Array<{
@@ -150,6 +157,7 @@ export class ReminderDispatcherService {
       plan: CadencePlan | undefined;
       slotCopy: NonNullable<ReturnType<typeof habitSlotCopy>>;
     }> = [];
+    const spentThisTick = new Map<string, number>();
 
     for (const item of allowed) {
       const slotCopy = habitSlotCopy(item.minuteOfDay);
@@ -157,7 +165,16 @@ export class ReminderDispatcherService {
         continue;
       }
 
-      budgeted.push({ item, plan: plans.get(item.userId), slotCopy });
+      const plan = plans.get(item.userId);
+      const alreadySpent = spentThisTick.get(item.userId) ?? 0;
+      const remaining =
+        (plan?.remainingBudget ?? Number.POSITIVE_INFINITY) - alreadySpent;
+      if (remaining < 1) {
+        continue;
+      }
+
+      budgeted.push({ item, plan, slotCopy });
+      spentThisTick.set(item.userId, alreadySpent + 1);
     }
 
     const leadByUser = new Map<string, string | undefined>();
@@ -420,9 +437,8 @@ export class ReminderDispatcherService {
   }
 
   /**
-   * Loads cadence plans for timezone / day metadata. Never drops items —
-   * cadence daily caps and quiet hours were retired; board_move burst
-   * control is the only push throttle.
+   * Quiet hours and remaining daily budget for every member. Caps each user
+   * to their remaining cadence sends this local day.
    */
   private async applyCadenceBudget<T>(
     items: readonly T[],
@@ -441,10 +457,33 @@ export class ReminderDispatcherService {
       items.map(userIdOf),
       now,
     );
+    const spentThisTick = new Map<string, number>();
+    const allowed: T[] = [];
+
+    for (const item of items) {
+      const userId = userIdOf(item);
+      const plan = plans.get(userId);
+      if (!plan) {
+        allowed.push(item);
+        continue;
+      }
+
+      if (plan.quietNow) {
+        continue;
+      }
+
+      const alreadySpent = spentThisTick.get(userId) ?? 0;
+      if (plan.remainingBudget - alreadySpent < 1) {
+        continue;
+      }
+
+      allowed.push(item);
+      spentThisTick.set(userId, alreadySpent + 1);
+    }
 
     return {
-      allowed: [...items],
-      suppressed: 0,
+      allowed,
+      suppressed: items.length - allowed.length,
       plans,
     };
   }
