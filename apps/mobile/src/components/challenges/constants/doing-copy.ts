@@ -189,5 +189,6 @@ export const SHARE_COPY = {
   share: 'Share',
   close: 'Close',
   brand: 'Healthy',
+  colour: 'Colour',
   failed: 'That didn’t share. Try again.',
 } as const;

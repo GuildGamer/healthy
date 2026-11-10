@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckPushedPage, DeckSegmented } from '@/components/deck';
-import { SharePosterCard } from '@/components/challenges/SharePosterCard';
+import {
+  sharePosterParams,
+  shareRunLineParams,
+} from '@/components/challenges/share-poster';
 import { ScreenLoader } from '@/components/feedback';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
@@ -14,9 +17,7 @@ import {
   periodReportFacts,
   periodReportPoster,
   periodReportRunLine,
-  periodReportShareText,
 } from './period-posters';
-import { useSharePoster } from './useSharePoster';
 
 type ReportPeriod = 'week' | 'month' | 'year';
 
@@ -63,10 +64,19 @@ export function PeriodReportScreen() {
   const poster = report ? periodReportPoster(report) : null;
   const runLine = report ? periodReportRunLine(report) : null;
   const facts = report ? periodReportFacts(report) : [];
-  const share = useSharePoster(
-    report ? periodReportShareText(report) : PROGRESS_COPY.shareFallback,
-    'period_report',
-  );
+
+  function openShare() {
+    if (!poster) {
+      return;
+    }
+    router.push({
+      pathname: '/challenge/share',
+      params: {
+        ...sharePosterParams(poster),
+        ...shareRunLineParams(runLine),
+      },
+    });
+  }
 
   return (
     <DeckPushedPage
@@ -98,20 +108,9 @@ export function PeriodReportScreen() {
           <DeckButton
             glyph="share"
             label={PROGRESS_COPY.share}
-            loading={share.isSharing}
-            onPress={() => void share.share()}
+            onPress={openShare}
             testID="period-report-share"
           />
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            pointerEvents="none"
-            style={styles.offscreen}
-          >
-            <View collapsable={false} ref={share.shotRef}>
-              <SharePosterCard poster={poster} runLine={runLine} />
-            </View>
-          </View>
         </>
       ) : (
         <Text style={[styles.failed, { color: colors.muted }]}>{PROGRESS_COPY.reportFailed}</Text>
@@ -144,10 +143,5 @@ const createStyles = (_theme: Theme) =>
     failed: {
       marginTop: spacing.xl,
       fontSize: fontSize.sm,
-    },
-    offscreen: {
-      position: 'absolute',
-      left: -4000,
-      top: 0,
     },
   });

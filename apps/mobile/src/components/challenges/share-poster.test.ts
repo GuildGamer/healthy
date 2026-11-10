@@ -1,4 +1,9 @@
-import { parseSharePoster, posterRunLine, sharePosterParams } from './share-poster';
+import {
+  parseSharePoster,
+  posterRunLine,
+  sharePosterParams,
+  shareRunLineParams,
+} from './share-poster';
 
 describe('share poster', () => {
   it('survives the trip through route params', () => {
@@ -10,6 +15,40 @@ describe('share poster', () => {
     } as const;
 
     expect(parseSharePoster(sharePosterParams(poster))).toEqual(poster);
+  });
+
+  it('round-trips fact strips for progress posters', () => {
+    const poster = {
+      kind: 'strength' as const,
+      label: 'Push-ups',
+      value: '33',
+      unit: 'push-ups',
+      corner: 'Nov 9–11',
+      facts: [
+        { label: 'Best day', value: '23' },
+        { label: 'Days on', value: '2' },
+        { label: 'Avg / day', value: '11' },
+      ],
+    };
+
+    expect(parseSharePoster(sharePosterParams(poster))).toEqual(poster);
+  });
+
+  it('ignores a broken facts payload', () => {
+    const poster = {
+      kind: 'walk' as const,
+      label: 'Walk',
+      value: '10',
+      unit: 'minutes',
+    };
+    expect(
+      parseSharePoster({ ...sharePosterParams(poster), facts: 'not-json' })?.facts,
+    ).toBeUndefined();
+  });
+
+  it('exports an optional run line param', () => {
+    expect(shareRunLineParams(null)).toEqual({});
+    expect(shareRunLineParams('2 days on')).toEqual({ runLine: '2 days on' });
   });
 
   it('refuses a link without a poster or with an unknown kind', () => {

@@ -18,7 +18,7 @@ import { FinishedDeckCard } from './FinishedDeckCard';
 import { withFinishedCard } from './finished-deck';
 import { TODAY_COPY } from './constants/today-copy';
 import { DayDoneCard } from './DayDoneCard';
-import { DAY_SHARE_CARD_WIDTH, DayShareCard } from './DayShareCard';
+import { dayShareParams } from './day-share-route';
 import { DoneChips } from './DoneChips';
 import { FirstRunCard } from './FirstRunCard';
 import { GroupDeckCard } from './GroupDeckCard';
@@ -30,7 +30,6 @@ import {
   dayMonthLabel,
   lastUpdatedLabel,
   runLabel,
-  shareDayMessage,
   streakSentence,
   tallyLabel,
   weekdayLabel,
@@ -40,7 +39,6 @@ import type { DeckItem, TallySegment, TodayFocus } from './types/today-deck';
 import { useDayFinishedPage } from './useDayFinishedPage';
 import { useFinishedCard } from './useFinishedCard';
 import { useFirstRunSuggestions } from './useFirstRunSuggestions';
-import { useShareDay } from './useShareDay';
 import { useTodayQueries } from './useTodayQueries';
 
 const SKELETON_SEGMENTS: readonly TallySegment[] = ['a', 'b', 'c', 'd'].map((id) => ({
@@ -145,9 +143,8 @@ function DeckSection({
   const now = new Date();
   const streakDays = me?.currentStreakDays ?? 0;
   const isLapsed = me?.streakLapsedYesterday ?? false;
-  const dayShare = useShareDay(shareDayMessage(deck.completedCount, streakDays));
   const finished = useFinishedCard();
-  const renderItem = useDeckItemRenderer(today, weekday, dayShare, finished);
+  const renderItem = useDeckItemRenderer(today, weekday, finished);
   const opensDayPage = useDayFinishedPage(finished.finish, deck.items, finished.dismiss);
   const items =
     finished.finish && !opensDayPage ? withFinishedCard(deck.items, finished.finish) : deck.items;
@@ -182,27 +179,6 @@ function DeckSection({
       {deck.isDayDone ? null : <DoneChips items={deck.done} onOpen={openDoneChallenge} />}
       {deck.presence ? <PresenceLine now={now} presence={deck.presence} /> : null}
       {deck.showsMembershipLine ? <MembershipLine /> : null}
-      {deck.isDayDone ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          pointerEvents="none"
-          style={styles.offscreenShot}
-        >
-          <View collapsable={false} ref={dayShare.shotRef}>
-            <DayShareCard
-              content={{
-                weekday,
-                dateLabel: dayMonthLabel(now),
-                completedCount: deck.win.filled,
-                totalCount: deck.win.target,
-                pointsToday: deck.pointsToday,
-                streakDays,
-              }}
-            />
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -229,7 +205,6 @@ function useOpenDoneChallenge(liveGroups: Parameters<typeof anotherSetRoute>[2])
 function useDeckItemRenderer(
   today: TodayData,
   weekday: string,
-  dayShare: ReturnType<typeof useShareDay>,
   finished: Pick<ReturnType<typeof useFinishedCard>, 'dismiss' | 'hold'>,
 ) {
   const router = useRouter();
@@ -242,6 +217,20 @@ function useDeckItemRenderer(
     router.push(session ? `/matches/${matchId}/${session}` : `/matches/${matchId}`);
   }
 
+  function openDayShare() {
+    router.push({
+      pathname: '/share/day',
+      params: dayShareParams({
+        weekday,
+        dateLabel: dayMonthLabel(new Date()),
+        completedCount: deck.win.filled,
+        totalCount: deck.win.target,
+        pointsToday: deck.pointsToday,
+        streakDays,
+      }),
+    });
+  }
+
   return function renderDeckItem(item: DeckItem) {
     if (item.type === 'finished') {
       return <FinishedDeckCard item={item} onHold={finished.hold} onNext={finished.dismiss} />;
@@ -251,8 +240,8 @@ function useDeckItemRenderer(
       return (
         <DayDoneCard
           completedCount={deck.win.filled}
-          isSharing={dayShare.isSharing}
-          onShare={() => void dayShare.share()}
+          isSharing={false}
+          onShare={openDayShare}
           pointsToday={deck.pointsToday}
           streakLine={streakSentence(streakDays)}
           tomorrowTip={today.tomorrowTip}
@@ -356,12 +345,5 @@ const createStyles = (theme: Theme) =>
     membershipLink: {
       color: theme.colors.text,
       fontWeight: fontWeight.medium,
-    },
-    /** Laid out off the page so it can be captured; `opacity: 0` would capture blank. */
-    offscreenShot: {
-      position: 'absolute',
-      top: 0,
-      left: -DAY_SHARE_CARD_WIDTH * 4,
-      width: DAY_SHARE_CARD_WIDTH,
     },
   });

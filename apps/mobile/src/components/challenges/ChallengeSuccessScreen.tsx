@@ -28,7 +28,9 @@ import { nextGoalLadderOffer, type GoalLadderOffer } from './goal-ladder';
 import { poseShareCopy } from './pose-share-copy';
 import { ProofClipHero, ProofClipPrimaryRow } from './ProofClipActions';
 import { posterForSuccess, type SuccessFace } from './success-poster';
+import { defaultShareFillId, type ShareFillId } from './share-fill';
 import { posterRunLine } from './share-poster';
+import { ShareFillCarousel } from './ShareFillCarousel';
 import { SharePosterCard } from './SharePosterCard';
 import type { FriendChallengeSource } from './types/friend-challenge';
 import { useFriendChallenge } from './useFriendChallenge';
@@ -254,6 +256,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   const benefitTip = useSuccessBenefitTip({ challengeId, activityKey, practice, isMatch });
   const [photoUri] = useState(() => pendingSharePhotoFor(userChallengeId));
   const [ladderDismissed, setLadderDismissed] = useState(false);
+  const [fillId, setFillId] = useState<ShareFillId | null>(null);
 
   useEffect(() => {
     markSuccessWasPenalty(penaltyApplied);
@@ -327,6 +330,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   });
   const showMembershipLink =
     friend.isReady && !(me?.hasMembership ?? false) && !isMatch && !practice && !friend.isOffered;
+  const selectedFill = fillId ?? defaultShareFillId(poster.kind);
 
   return (
     <SafeAreaView style={styles.container} testID="challenge-success-screen">
@@ -334,6 +338,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
       <View style={styles.body}>
         <View collapsable={false} ref={shareImage.shotRef} style={styles.posterWrap}>
           <SharePosterCard
+            fillId={selectedFill}
             photoUri={photoUri}
             poster={poster}
             runLine={posterRunLine(streakDays)}
@@ -345,6 +350,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         {clipFailed ? <DeckSheetMessage message={POSE_COPY.proofFailed} /> : null}
         {shareImage.error ? <DeckSheetMessage message={shareImage.error} /> : null}
         {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
+        <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
         <SuccessActions friend={friend} shareImage={shareImage} />
         {ladderOffer && challengeId ? (
           <GoalLadderPrompt

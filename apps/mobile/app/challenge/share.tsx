@@ -14,6 +14,9 @@ export default function ChallengeShareRoute() {
     value?: string;
     unit?: string;
     when?: string;
+    corner?: string;
+    facts?: string;
+    runLine?: string;
     friend?: string;
     count?: string;
     userChallengeId?: string;
@@ -39,6 +42,7 @@ export default function ChallengeShareRoute() {
       photoUri={pendingSharePhotoFor(params.userChallengeId)}
       poster={poster}
       routePoints={pendingShareRouteFor(params.userChallengeId)}
+      runLine={params.runLine ?? null}
     />
   );
 }

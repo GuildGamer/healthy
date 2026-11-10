@@ -7,6 +7,7 @@ import {
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
+import { shareFillStyle, type ShareFillId } from '@/components/challenges/share-fill';
 import { posterValueMetrics } from '@/components/challenges/share-poster';
 import { SharePosterText } from '@/components/challenges/SharePosterText';
 import { useTheme } from '@/theme';
@@ -21,8 +22,20 @@ export const DAY_SHARE_CARD_WIDTH = SHARE_POSTER_WIDTH;
  * The day as a deck poster: streak (or today's tally) as one numeral, hairline
  * brand row. Same family as `SharePosterCard`, filled with the streak colour.
  */
-export function DayShareCard({ content }: { content: DayShareContent }) {
+export function DayShareCard({
+  content,
+  fillId,
+}: {
+  content: DayShareContent;
+  /** Optional colour override from the share fill carousel. */
+  fillId?: ShareFillId;
+}) {
   const { deckCards } = useTheme();
+  const chosen = fillId ? shareFillStyle(fillId) : null;
+  const fill = chosen?.backgroundColor ?? deckCards.streak;
+  const ink = chosen
+    ? { text: chosen.text, subtext: chosen.subtext, track: chosen.track }
+    : deckCards;
   const hero = dayShareHero(content);
   const valueMetrics = posterValueMetrics(hero.value);
   const brandMeta =
@@ -32,31 +45,31 @@ export function DayShareCard({ content }: { content: DayShareContent }) {
 
   return (
     <View style={styles.shell} testID="home-day-share-card">
-      <View style={[styles.fill, { backgroundColor: deckCards.streak }]} />
+      <View style={[styles.fill, { backgroundColor: fill }]} />
       <View style={styles.type}>
         <View style={styles.top}>
-          <SharePosterText style={[styles.label, { color: deckCards.subtext }]}>
+          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
             {TODAY_COPY.dayDoneTitle}
           </SharePosterText>
-          <SharePosterText style={[styles.label, { color: deckCards.subtext }]}>
+          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
             {content.weekday}
           </SharePosterText>
         </View>
         <SharePosterText
           adjustsFontSizeToFit
           numberOfLines={1}
-          style={[styles.value, { color: deckCards.text }, valueMetrics]}
+          style={[styles.value, { color: ink.text }, valueMetrics]}
         >
           {hero.value}
         </SharePosterText>
-        <SharePosterText style={[styles.unit, { color: deckCards.subtext }]}>
+        <SharePosterText style={[styles.unit, { color: ink.subtext }]}>
           {hero.unit}
         </SharePosterText>
-        <View style={[styles.brand, { borderTopColor: deckCards.track }]}>
-          <SharePosterText style={[styles.brandName, { color: deckCards.text }]}>
+        <View style={[styles.brand, { borderTopColor: ink.track }]}>
+          <SharePosterText style={[styles.brandName, { color: ink.text }]}>
             {SHARE_COPY.brand}
           </SharePosterText>
-          <SharePosterText style={[styles.label, { color: deckCards.subtext }]}>
+          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
             {brandMeta}
           </SharePosterText>
         </View>

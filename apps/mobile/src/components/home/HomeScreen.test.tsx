@@ -2,10 +2,7 @@ import type { MeOutput } from '@product/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
-import * as Sharing from 'expo-sharing';
-import { captureRef } from 'react-native-view-shot';
 import type { ReactElement } from 'react';
-import { Share } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -742,7 +739,7 @@ describe('HomeScreen', () => {
     await cleanup();
   });
 
-  it('shares the day as an image of counts only', async () => {
+  it('opens the day share preview with counts only', async () => {
     givenChallenges([
       todayChallenge({
         id: 'uc-bp',
@@ -754,38 +751,28 @@ describe('HomeScreen', () => {
     ]);
     const { cleanup } = renderHome();
 
-    const card = await screen.findByTestId('home-day-share-card', { includeHiddenElements: true });
-    expect(card).toHaveTextContent(/7days running/);
-    expect(card).not.toHaveTextContent(/blood pressure/i);
-
-    fireEvent.press(screen.getByTestId('home-share-day'));
-    await waitFor(() =>
-      expect(captureRef).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ format: 'png' }),
-      ),
-    );
-    await waitFor(() =>
-      expect(Sharing.shareAsync).toHaveBeenCalledWith(
-        'file://share-card.jpg',
-        expect.objectContaining({ mimeType: 'image/png' }),
-      ),
-    );
+    fireEvent.press(await screen.findByTestId('home-share-day'));
+    expect(useRouter().push).toHaveBeenCalledWith({
+      pathname: '/share/day',
+      params: expect.objectContaining({
+        completedCount: '1',
+        totalCount: '1',
+        streakDays: '7',
+        pointsToday: '150',
+      }),
+    });
 
     await cleanup();
   });
 
-  it('falls back to a sentence when the image cannot be made', async () => {
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
-    jest.mocked(captureRef).mockRejectedValueOnce(new Error('no window'));
+  it('still offers Share the day when the day is done', async () => {
     givenChallenges([todayChallenge({ id: 'uc1', status: 'completed' })]);
     const { cleanup } = renderHome();
 
     fireEvent.press(await screen.findByTestId('home-share-day'));
-    await waitFor(() => expect(share).toHaveBeenCalled());
-    expect(share.mock.calls[0]?.[0]).toEqual({
-      message: 'I finished 1 challenge on Healthy today. 7 days in a row.',
-    });
+    expect(useRouter().push).toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: '/share/day' }),
+    );
 
     await cleanup();
   });

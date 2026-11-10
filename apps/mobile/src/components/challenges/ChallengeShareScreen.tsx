@@ -16,7 +16,9 @@ import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { friendChallengeSpec } from './friend-challenge';
 import { useFriendChallenge } from './useFriendChallenge';
 import { SHARE_COPY } from './constants/doing-copy';
+import { defaultShareFillId, type ShareFillId } from './share-fill';
 import { posterRunLine, posterShareText } from './share-poster';
+import { ShareFillCarousel } from './ShareFillCarousel';
 import { SharePosterCard } from './SharePosterCard';
 import type { ShareFriend } from './types/friend-challenge';
 import type { SharePoster } from './types/share-poster';
@@ -27,6 +29,7 @@ export function ChallengeShareScreen({
   friend = null,
   photoUri,
   routePoints,
+  runLine = null,
 }: {
   poster: SharePoster;
   /** Set when history opened this screen. Absent for a share that just finished. */
@@ -35,12 +38,18 @@ export function ChallengeShareScreen({
   photoUri?: string;
   /** Walk path for this finish; history shares omit it. */
   routePoints?: ShareRoutePoint[];
+  /**
+   * Brand footer from progress shares (e.g. "2 days on"). When absent, the
+   * member's current streak run line is used.
+   */
+  runLine?: string | null;
 }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const posterRef = useRef<View>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fillId, setFillId] = useState<ShareFillId>(() => defaultShareFillId(poster.kind));
   // Hold the route for this screen; the session is cleared on leave so a later
   // history share for another finish never paints this path.
   const [heldRoutePoints] = useState(() => routePoints);
@@ -112,15 +121,17 @@ export function ChallengeShareScreen({
       </View>
       <View collapsable={false} ref={posterRef} style={styles.posterWrap}>
         <SharePosterCard
+          fillId={fillId}
           photoUri={photoUri}
           poster={poster}
           routePoints={heldRoutePoints}
-          runLine={posterRunLine(meQuery.data?.currentStreakDays ?? 0)}
+          runLine={runLine ?? posterRunLine(meQuery.data?.currentStreakDays ?? 0)}
         />
       </View>
       {error ? <DeckSheetMessage message={error} /> : null}
       {invite.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
       <View style={styles.actions}>
+        <ShareFillCarousel onSelect={setFillId} selected={fillId} />
         <DeckButton
           glyph="share"
           label={SHARE_COPY.share}

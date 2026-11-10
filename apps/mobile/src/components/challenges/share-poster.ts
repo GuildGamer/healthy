@@ -1,5 +1,5 @@
 import { DECK_KIND_GLYPH, type DeckCardKind } from '@/components/deck';
-import type { SharePoster, SharePosterKind } from './types/share-poster';
+import type { SharePoster, SharePosterFact, SharePosterKind } from './types/share-poster';
 
 const DECK_KINDS = Object.keys(DECK_KIND_GLYPH) as DeckCardKind[];
 
@@ -16,12 +16,23 @@ export function sharePosterParams(poster: SharePoster): Record<string, string> {
     unit: poster.unit,
     ...(poster.when ? { when: poster.when } : {}),
     ...(poster.corner ? { corner: poster.corner } : {}),
+    ...(poster.facts && poster.facts.length > 0
+      ? { facts: encodeShareFacts(poster.facts) }
+      : {}),
   };
+}
+
+/** Optional brand footer line for progress shares (e.g. "2 days on"). */
+export function shareRunLineParams(runLine: string | null | undefined): Record<string, string> {
+  if (!runLine) {
+    return {};
+  }
+  return { runLine };
 }
 
 /** Reads the poster back from the route, or null when a link arrives without one. */
 export function parseSharePoster(
-  params: Partial<Record<keyof SharePoster, string>>,
+  params: Partial<Record<keyof SharePoster | 'facts', string>>,
 ): SharePoster | null {
   const { kind, label, value, unit } = params;
   if (!isSharePosterKind(kind) || !label || !value || !unit) {
@@ -29,6 +40,9 @@ export function parseSharePoster(
   }
 
   const when = keptWhen(params.when);
+  const facts = parseShareFacts(
+    typeof params.facts === 'string' ? params.facts : undefined,
+  );
   return {
     kind,
     label,
@@ -36,7 +50,43 @@ export function parseSharePoster(
     unit,
     ...(when ? { when } : {}),
     ...(params.corner ? { corner: params.corner } : {}),
+    ...(facts ? { facts } : {}),
   };
+}
+
+function encodeShareFacts(facts: SharePosterFact[]): string {
+  return JSON.stringify(facts.map((fact) => ({ label: fact.label, value: fact.value })));
+}
+
+function parseShareFacts(raw: string | undefined): SharePosterFact[] | undefined {
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return undefined;
+    }
+    const facts: SharePosterFact[] = [];
+    for (const item of parsed) {
+      if (
+        !item ||
+        typeof item !== 'object' ||
+        typeof (item as SharePosterFact).label !== 'string' ||
+        typeof (item as SharePosterFact).value !== 'string'
+      ) {
+        return undefined;
+      }
+      facts.push({
+        label: (item as SharePosterFact).label,
+        value: (item as SharePosterFact).value,
+      });
+    }
+    return facts;
+  } catch {
+    return undefined;
+  }
 }
 
 function keptWhen(value: string | undefined): string | undefined {

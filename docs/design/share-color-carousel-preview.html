@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Healthy · Share colour carousel preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #f4f7fb;
+        --sub: rgba(244, 247, 251, 0.66);
+        --track: rgba(244, 247, 251, 0.16);
+        --page: #0b1220;
+        --surface: #121a2b;
+        --border: #243049;
+        --primary: #3ddc97;
+        --on-primary: #0b1220;
+        --muted: #9aa8bf;
+        --w: 300px;
+        --h: 375px;
+        --r: 26px;
+        --pad: 22px;
+        --phone-w: 390px;
+        --phone-h: 780px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: #070b14;
+        color: var(--ink);
+        padding: 32px 24px 80px;
+      }
+      h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 8px;
+        letter-spacing: -0.5px;
+      }
+      .lead {
+        color: var(--muted);
+        font-size: 0.95rem;
+        max-width: 40rem;
+        line-height: 1.5;
+        margin-bottom: 40px;
+      }
+      .lead code {
+        font-size: 0.85em;
+        color: var(--primary);
+      }
+      section {
+        margin-bottom: 56px;
+      }
+      section h2 {
+        font-size: 0.65rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b7a94;
+        margin: 0 0 16px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 40px;
+        align-items: flex-start;
+      }
+
+      /* Phone chrome — ChallengeShareScreen shape */
+      .phone {
+        width: var(--phone-w);
+        height: var(--phone-h);
+        background: var(--page);
+        border-radius: 36px;
+        border: 1px solid var(--border);
+        padding: 18px 20px 28px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .nav-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 20px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        display: grid;
+        place-items: center;
+        color: var(--ink);
+        font-size: 18px;
+        line-height: 1;
+      }
+      .nav-title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .nav-spacer {
+        width: 40px;
+      }
+      .poster-stage {
+        display: flex;
+        justify-content: center;
+        flex: 1;
+        align-items: flex-start;
+        padding-top: 8px;
+      }
+
+      /* Deck poster */
+      .poster {
+        width: var(--w);
+        height: var(--h);
+        border-radius: var(--r);
+        padding: var(--pad);
+        display: flex;
+        flex-direction: column;
+        color: var(--ink);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+        transition: background-color 180ms ease;
+      }
+      .poster.light {
+        color: #0b1220;
+        --sub: #626c7c;
+        --track: #e6e9ee;
+      }
+      .poster-top {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--sub);
+      }
+      .poster-value {
+        margin-top: auto;
+        font-size: 72px;
+        font-weight: 600;
+        letter-spacing: -2px;
+        line-height: 0.95;
+      }
+      .poster-unit {
+        margin-top: 8px;
+        font-size: 17px;
+        color: var(--sub);
+      }
+      .poster-facts {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .poster-fact {
+        flex: 1;
+      }
+      .poster-fact .v {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .poster-fact .l {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--sub);
+        margin-top: 2px;
+      }
+      .poster-brand {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+        padding-top: 14px;
+        border-top: 1px solid var(--track);
+        font-size: 13px;
+      }
+      .poster-brand .name {
+        font-weight: 600;
+      }
+      .poster-brand .run {
+        color: var(--sub);
+        font-weight: 500;
+      }
+
+      /* Colour carousel */
+      .dock {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .swatch-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .swatches {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        padding: 4px 2px 8px;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .swatches::-webkit-scrollbar {
+        display: none;
+      }
+      .swatch {
+        flex: 0 0 auto;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        cursor: pointer;
+        position: relative;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        transition: transform 120ms ease, border-color 120ms ease;
+      }
+      .swatch:hover {
+        transform: scale(1.06);
+      }
+      .swatch[aria-pressed='true'] {
+        border-color: #f4f7fb;
+        box-shadow:
+          0 0 0 2px var(--page),
+          0 0 0 4px var(--primary);
+      }
+      .swatch.clinic {
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px #d0d5de;
+      }
+      .swatch.clinic[aria-pressed='true'] {
+        border-color: #0b1220;
+      }
+      .share-btn {
+        height: 54px;
+        border-radius: 16px;
+        border: none;
+        background: var(--primary);
+        color: var(--on-primary);
+        font-size: 16px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: default;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      /* Static strip of all fills */
+      .strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .chip {
+        width: 132px;
+      }
+      .chip .swatch-lg {
+        width: 100%;
+        height: 72px;
+        border-radius: 16px;
+        margin-bottom: 8px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+      .chip .label {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .chip .hex {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .note {
+        max-width: 36rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin: 0;
+      }
+      .note strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Share colour carousel</h1>
+    <p class="lead">
+      Preview for the existing finish share screen (<code>ChallengeShareScreen</code>),
+      not group honors. Tap a swatch to recolour the deck poster before Share.
+      Fills are the night deck tokens from <code>@product/brand</code>.
+    </p>
+
+    <section>
+      <h2>Interactive — share screen</h2>
+      <div class="row">
+        <div class="phone" aria-label="Challenge share screen mock">
+          <div class="nav">
+            <div class="nav-btn" aria-hidden="true">×</div>
+            <div class="nav-title">Share</div>
+            <div class="nav-spacer"></div>
+          </div>
+
+          <div class="poster-stage">
+            <article class="poster" id="poster" style="background: #164a3d">
+              <div class="poster-top">
+                <span>Walk</span>
+                <span>Thursday</span>
+              </div>
+              <div class="poster-value">32</div>
+              <div class="poster-unit">minutes</div>
+              <div class="poster-facts">
+                <div class="poster-fact">
+                  <div class="v">4.1 km</div>
+                  <div class="l">Distance</div>
+                </div>
+                <div class="poster-fact">
+                  <div class="v">+120</div>
+                  <div class="l">Points</div>
+                </div>
+              </div>
+              <div class="poster-brand">
+                <span class="name">Healthy</span>
+                <span class="run">7-day run</span>
+              </div>
+            </article>
+          </div>
+
+          <div class="dock">
+            <div class="swatch-label">Colour</div>
+            <div class="swatches" id="swatches" role="listbox" aria-label="Poster colour"></div>
+            <button class="share-btn" type="button">Share</button>
+          </div>
+        </div>
+
+        <div>
+          <p class="note">
+            <strong>Default</strong> stays the activity’s own fill (walk green
+            here). Swiping the carousel offers every night deck colour so the
+            same finish can post in strength purple, streak amber, and so on.
+          </p>
+          <p class="note" style="margin-top: 16px">
+            <strong>Clinic white</strong> is included as one swatch for people
+            who want a light export even on a dark phone. Ink flips for that
+            choice only.
+          </p>
+          <p class="note" style="margin-top: 16px">
+            Photo posters keep the selfie; the fill only shows if there is no
+            photo (same as today). Not shown in this mock.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Palette — night deck fills</h2>
+      <div class="strip" id="strip"></div>
+    </section>
+
+    <script>
+      const FILLS = [
+        { id: 'walk', label: 'Walk', hex: '#164A3D', ink: 'dark' },
+        { id: 'water', label: 'Water', hex: '#1C3F73', ink: 'dark' },
+        { id: 'strength', label: 'Strength', hex: '#2E2856', ink: 'dark' },
+        { id: 'gym', label: 'Gym', hex: '#57213F', ink: 'dark' },
+        { id: 'mobility', label: 'Mobility', hex: '#14454B', ink: 'dark' },
+        { id: 'bloodPressure', label: 'BP', hex: '#6E2E28', ink: 'dark' },
+        { id: 'streak', label: 'Streak', hex: '#4F3416', ink: 'dark' },
+        { id: 'night', label: 'Night', hex: '#1A2540', ink: 'dark' },
+        { id: 'clinic', label: 'Clinic', hex: '#FFFFFF', ink: 'light' },
+      ];
+
+      const poster = document.getElementById('poster');
+      const swatches = document.getElementById('swatches');
+      const strip = document.getElementById('strip');
+      let selected = 'walk';
+
+      function applyFill(id) {
+        const fill = FILLS.find((f) => f.id === id);
+        if (!fill) return;
+        selected = id;
+        poster.style.background = fill.hex;
+        poster.classList.toggle('light', fill.ink === 'light');
+        swatches.querySelectorAll('.swatch').forEach((btn) => {
+          btn.setAttribute('aria-pressed', btn.dataset.id === id ? 'true' : 'false');
+        });
+      }
+
+      FILLS.forEach((fill) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'swatch' + (fill.id === 'clinic' ? ' clinic' : '');
+        btn.style.background = fill.hex;
+        btn.dataset.id = fill.id;
+        btn.title = fill.label;
+        btn.setAttribute('role', 'option');
+        btn.setAttribute('aria-label', fill.label);
+        btn.setAttribute('aria-pressed', fill.id === selected ? 'true' : 'false');
+        btn.addEventListener('click', () => applyFill(fill.id));
+        swatches.appendChild(btn);
+
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.innerHTML =
+          '<div class="swatch-lg" style="background:' +
+          fill.hex +
+          '"></div>' +
+          '<div class="label">' +
+          fill.label +
+          '</div>' +
+          '<div class="hex">' +
+          fill.hex +
+          '</div>';
+        strip.appendChild(chip);
+      });
+    </script>
+  </body>
+</html>

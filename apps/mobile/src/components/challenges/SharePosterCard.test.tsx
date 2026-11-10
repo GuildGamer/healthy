@@ -1,4 +1,6 @@
+import { darkDeckCards, lightDeckCards } from '@product/brand';
 import { render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { SharePosterCard } from './SharePosterCard';
 
 const walkPoster = {
@@ -8,6 +10,15 @@ const walkPoster = {
   unit: 'minutes walked',
   when: '2026-10-23T08:00:00.000Z',
 };
+
+function fillBackground(): unknown {
+  const root = screen.getByTestId('share-poster-image');
+  const fillChild = root.children.find(
+    (child): child is { props: { style?: unknown } } =>
+      typeof child !== 'string' && child != null && typeof child === 'object',
+  );
+  return StyleSheet.flatten(fillChild?.props.style)?.backgroundColor;
+}
 
 describe('SharePosterCard', () => {
   it('draws a route silhouette when points are present', () => {
@@ -56,5 +67,20 @@ describe('SharePosterCard', () => {
 
     expect(screen.getByTestId('share-poster-photo')).toBeTruthy();
     expect(screen.queryByTestId('share-poster-route')).toBeNull();
+  });
+
+  it('overrides the kind fill when fillId is set', () => {
+    render(<SharePosterCard fillId="strength" poster={walkPoster} runLine={null} />);
+
+    expect(fillBackground()).toBe(darkDeckCards.strength);
+  });
+
+  it('uses Clinic white with light ink when fillId is clinic', () => {
+    render(<SharePosterCard fillId="clinic" poster={walkPoster} runLine={null} />);
+
+    expect(fillBackground()).toBe('#FFFFFF');
+    expect(StyleSheet.flatten(screen.getByText('32').props.style).color).toBe(
+      lightDeckCards.text,
+    );
   });
 });

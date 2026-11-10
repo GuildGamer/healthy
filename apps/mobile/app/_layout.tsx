@@ -232,6 +232,10 @@ function RootStack() {
         name="challenge/share"
         options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
       />
+      <Stack.Screen
+        name="share/day"
+        options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
+      />
       <Stack.Screen name="challenge/success" options={{ headerShown: false, title: 'Well done' }} />
       <Stack.Screen name="matches/index" options={{ headerShown: false, title: 'Groups' }} />
       <Stack.Screen

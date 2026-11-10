@@ -6,6 +6,7 @@ import { useTheme } from '@/theme';
 import { SHARE_COPY } from './constants/doing-copy';
 import { PhotoFade } from './PhotoFade';
 import { weekdayName } from './reading-time';
+import { shareFillStyle, type ShareFillId } from './share-fill';
 import { posterValueMetrics, posterWhen } from './share-poster';
 import { SharePosterText } from './SharePosterText';
 import type { SharePoster } from './types/share-poster';
@@ -27,6 +28,7 @@ export function SharePosterCard({
   runLine,
   photoUri,
   routePoints,
+  fillId,
   testID = 'share-poster-image',
 }: {
   poster: SharePoster;
@@ -35,17 +37,26 @@ export function SharePosterCard({
   photoUri?: string;
   /** Walk GPS path for this finish; history shares omit it. */
   routePoints?: ShareRoutePoint[];
+  /** Optional colour override from the share fill carousel. */
+  fillId?: ShareFillId;
   testID?: string;
 }) {
   const { deckCards } = useTheme();
   const hasPhoto = Boolean(photoUri);
   const hasRoute = Boolean(routePoints && routePoints.length >= 2 && !hasPhoto);
-  const ink = hasPhoto ? darkDeckCards : deckCards;
+  const chosen = fillId ? shareFillStyle(fillId) : null;
+  const themeFill = poster.kind === 'streak' ? deckCards.streak : deckCards[poster.kind];
+  const fill = chosen?.backgroundColor ?? themeFill;
+  // Photo always uses night ink; clinic fill uses light ink; else follow theme.
+  const ink = hasPhoto
+    ? darkDeckCards
+    : chosen
+      ? { text: chosen.text, subtext: chosen.subtext, track: chosen.track }
+      : deckCards;
   const overPhoto = hasPhoto ? styles.overPhoto : null;
   const valueMetrics = hasPhoto ? PHOTO_VALUE_METRICS : posterValueMetrics(poster.value);
   const labelStyle = [styles.posterLabel, { color: ink.subtext }];
   const pathStroke = deckCards.tones.walk;
-  const fill = poster.kind === 'streak' ? deckCards.streak : deckCards[poster.kind];
   const corner = poster.corner ?? weekdayName(posterWhen(poster));
 
   return (

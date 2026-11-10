@@ -7,7 +7,10 @@ import { StyleSheet, Text, View } from 'react-native';
 import { DeckButton, DeckPushedPage, DeckSegmented } from '@/components/deck';
 import { DECK_KIND_BY_METRIC } from '@/components/deck';
 import { FRIEND_CHALLENGE_COPY } from '@/components/challenges/constants/friend-challenge';
-import { SharePosterCard } from '@/components/challenges/SharePosterCard';
+import {
+  sharePosterParams,
+  shareRunLineParams,
+} from '@/components/challenges/share-poster';
 import { ScreenLoader } from '@/components/feedback';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
@@ -19,9 +22,7 @@ import {
   metricPeriodFacts,
   metricPeriodPoster,
   metricPeriodRunLine,
-  metricPeriodShareText,
 } from './period-posters';
-import { useSharePoster } from './useSharePoster';
 
 type StatsPeriod = 'week' | 'month' | 'all';
 
@@ -95,10 +96,6 @@ export function MetricStatsScreen() {
   const poster = stats ? metricPeriodPoster(stats) : null;
   const runLine = stats ? metricPeriodRunLine(stats) : null;
   const facts = stats ? metricPeriodFacts(stats) : [];
-  const share = useSharePoster(
-    stats ? metricPeriodShareText(stats) : PROGRESS_COPY.shareFallback,
-    'metric_stats',
-  );
   const friendRoute = metric ? openFriendChallenge(metric) : null;
 
   if (!metric) {
@@ -114,6 +111,19 @@ export function MetricStatsScreen() {
   }
 
   const tone = deckCards.tones[DECK_KIND_BY_METRIC[metric] ?? 'walk'];
+
+  function openShare() {
+    if (!poster) {
+      return;
+    }
+    router.push({
+      pathname: '/challenge/share',
+      params: {
+        ...sharePosterParams(poster),
+        ...shareRunLineParams(runLine),
+      },
+    });
+  }
 
   return (
     <DeckPushedPage
@@ -141,8 +151,7 @@ export function MetricStatsScreen() {
           <DeckButton
             glyph="share"
             label={PROGRESS_COPY.share}
-            loading={share.isSharing}
-            onPress={() => void share.share()}
+            onPress={openShare}
             testID="metric-stats-share"
           />
           {friendRoute ? (
@@ -153,16 +162,6 @@ export function MetricStatsScreen() {
               variant="quiet"
             />
           ) : null}
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            pointerEvents="none"
-            style={styles.offscreen}
-          >
-            <View collapsable={false} ref={share.shotRef}>
-              <SharePosterCard poster={poster} runLine={runLine} />
-            </View>
-          </View>
         </>
       ) : (
         <Text style={[styles.failed, { color: colors.muted }]}>{PROGRESS_COPY.statsFailed}</Text>
@@ -195,10 +194,5 @@ const createStyles = (_theme: Theme) =>
     failed: {
       marginTop: spacing.xl,
       fontSize: fontSize.sm,
-    },
-    offscreen: {
-      position: 'absolute',
-      left: -4000,
-      top: 0,
     },
   });

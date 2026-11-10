@@ -40,7 +40,11 @@ export { frequencyBadge, frequencyLabel, frequencyOptions } from './constants/fr
 export { useAdvanceChallenge } from './useAdvanceChallenge';
 export { ChallengeShareScreen } from './ChallengeShareScreen';
 export { finishAndLeave, finishOnCard } from './finish-challenge';
-export { parseSharePoster, sharePosterParams } from './share-poster';
+export {
+  parseSharePoster,
+  sharePosterParams,
+  shareRunLineParams,
+} from './share-poster';
 export type { SharePoster } from './types/share-poster';
 export {
   deckCardVerb,

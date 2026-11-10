@@ -1,9 +1,11 @@
+import { darkDeckCards } from '@product/brand';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Share } from 'react-native';
+import { Share, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
+import { trackEvent } from '@/lib/track-event';
 import { ChallengeShareScreen } from './ChallengeShareScreen';
 import type { ShareFriend } from './types/friend-challenge';
 import type { SharePoster } from './types/share-poster';
@@ -17,6 +19,10 @@ jest.mock('@/lib/api', () => ({
     trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
   },
   apiQuery: {},
+}));
+
+jest.mock('@/lib/track-event', () => ({
+  trackEvent: jest.fn(),
 }));
 
 jest.mock('expo-router', () => {
@@ -124,6 +130,23 @@ describe('ChallengeShareScreen route poster', () => {
 
     expect(await screen.findByTestId('share-poster-route')).toBeOnTheScreen();
   });
+
+  it('lets you recolour the poster before share', async () => {
+    renderShare(pushups, { ...pushupFriend, isEligible: false });
+
+    expect(await screen.findByTestId('share-fill-carousel')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-fill-strength').props.accessibilityState).toEqual(
+      expect.objectContaining({ selected: true }),
+    );
+
+    fireEvent.press(screen.getByTestId('share-fill-walk'));
+    const root = screen.getByTestId('share-poster-image');
+    const fillChild = root.children.find(
+      (child: unknown): child is { props: { style?: unknown } } =>
+        typeof child !== 'string' && child != null && typeof child === 'object',
+    );
+    expect(StyleSheet.flatten(fillChild?.props.style)?.backgroundColor).toBe(darkDeckCards.walk);
+  });
 });
 
 describe('ChallengeShareScreen friend invite', () => {
@@ -155,8 +178,9 @@ describe('ChallengeShareScreen friend invite', () => {
       experimentKey: 'challenge_referral_v1',
     });
     await waitFor(() => {
-      expect(mockedApi.trackAnalyticsEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'challenge_cta_viewed' }),
+      expect(trackEvent).toHaveBeenCalledWith(
+        'challenge_cta_viewed',
+        expect.objectContaining({ experiment_variant: 'treatment' }),
       );
     });
     expect(share).toHaveBeenCalled();
