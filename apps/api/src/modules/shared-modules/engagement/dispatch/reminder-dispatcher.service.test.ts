@@ -601,36 +601,6 @@ describe('ReminderDispatcherService', () => {
     expect(delivery.send).not.toHaveBeenCalled();
   });
 
-  it('treatment skips the 11:00 habit slot', async () => {
-    const midMorning = new Date('2026-08-29T11:02:00.000Z');
-    const prisma = createPrismaMock({
-      profiles: [{ userId: 'u1', timeZone: 'UTC' }],
-      enrollments: [{ userId: 'u1', challengeId: 'c1' }],
-    });
-    const delivery = createDelivery();
-    const service = new ReminderDispatcherService(
-      prisma as never,
-      delivery as never,
-      createPolicy({
-        plans: new Map([
-          [
-            'u1',
-            treatmentPlan({ localMinute: 11 * 60 + 2, dayKey: '2026-08-29' }),
-          ],
-        ]),
-      }) as never,
-      createContexts() as never,
-    );
-
-    await expect(service.dispatchHabitSlots(midMorning)).resolves.toEqual({
-      dueCount: 1,
-      sentCount: 0,
-      suppressedCount: 1,
-      sentUserIds: [],
-    });
-    expect(delivery.send).not.toHaveBeenCalled();
-  });
-
   it('holdout still sends the 11:00 habit slot', async () => {
     const midMorning = new Date('2026-08-29T11:02:00.000Z');
     const prisma = createPrismaMock({
@@ -659,34 +629,42 @@ describe('ReminderDispatcherService', () => {
     expect(delivery.send).toHaveBeenCalled();
   });
 
-  it('treatment suppresses a habit slot when the daily budget is spent', async () => {
-    const morning = new Date('2026-08-29T08:02:00.000Z');
+  it('does not suppress habit slots when a stale treatment plan looks capped', async () => {
+    const midMorning = new Date('2026-08-29T11:02:00.000Z');
     const prisma = createPrismaMock({
       profiles: [{ userId: 'u1', timeZone: 'UTC' }],
       enrollments: [{ userId: 'u1', challengeId: 'c1' }],
     });
-    const delivery = createDelivery();
+    const delivery = createDelivery({ sentCount: 1, usersWithDevice: ['u1'] });
     const service = new ReminderDispatcherService(
       prisma as never,
       delivery as never,
       createPolicy({
         plans: new Map([
-          ['u1', treatmentPlan({ remainingBudget: 0 })],
+          [
+            'u1',
+            treatmentPlan({
+              habitMinutes: HABIT_SLOT_MINUTES,
+              remainingBudget: 0,
+              quietNow: true,
+              skipHabitForActivity: true,
+              localMinute: 11 * 60 + 2,
+              dayKey: '2026-08-29',
+            }),
+          ],
         ]),
       }) as never,
       createContexts() as never,
     );
 
-    await expect(service.dispatchHabitSlots(morning)).resolves.toEqual({
-      dueCount: 1,
-      sentCount: 0,
-      suppressedCount: 1,
-      sentUserIds: [],
+    await expect(service.dispatchHabitSlots(midMorning)).resolves.toMatchObject({
+      sentCount: 1,
+      sentUserIds: ['u1'],
     });
-    expect(delivery.send).not.toHaveBeenCalled();
+    expect(delivery.send).toHaveBeenCalled();
   });
 
-  it('treatment suppresses clock reminders during quiet hours', async () => {
+  it('does not suppress clock reminders for quiet hours or spent budget', async () => {
     const late = new Date('2026-08-29T22:05:00.000Z');
     const prisma = createPrismaMock({
       zones: ['UTC'],
@@ -700,7 +678,7 @@ describe('ReminderDispatcherService', () => {
         },
       ],
     });
-    const delivery = createDelivery();
+    const delivery = createDelivery({ sentCount: 1, usersWithDevice: ['u1'] });
     const service = new ReminderDispatcherService(
       prisma as never,
       delivery as never,
@@ -711,7 +689,7 @@ describe('ReminderDispatcherService', () => {
             treatmentPlan({
               quietNow: true,
               localMinute: 22 * 60 + 5,
-              remainingBudget: 3,
+              remainingBudget: 0,
             }),
           ],
         ]),
@@ -719,39 +697,12 @@ describe('ReminderDispatcherService', () => {
       createContexts() as never,
     );
 
-    await expect(service.dispatchDue(late)).resolves.toEqual({
+    await expect(service.dispatchDue(late)).resolves.toMatchObject({
       dueCount: 1,
-      sentCount: 0,
-      suppressedCount: 1,
+      sentCount: 1,
+      suppressedCount: 0,
     });
-    expect(delivery.send).not.toHaveBeenCalled();
-  });
-
-  it('treatment skips a habit slot after recent user_active', async () => {
-    const morning = new Date('2026-08-29T08:02:00.000Z');
-    const prisma = createPrismaMock({
-      profiles: [{ userId: 'u1', timeZone: 'UTC' }],
-      enrollments: [{ userId: 'u1', challengeId: 'c1' }],
-    });
-    const delivery = createDelivery();
-    const service = new ReminderDispatcherService(
-      prisma as never,
-      delivery as never,
-      createPolicy({
-        plans: new Map([
-          ['u1', treatmentPlan({ skipHabitForActivity: true })],
-        ]),
-      }) as never,
-      createContexts() as never,
-    );
-
-    await expect(service.dispatchHabitSlots(morning)).resolves.toEqual({
-      dueCount: 1,
-      sentCount: 0,
-      suppressedCount: 1,
-      sentUserIds: [],
-    });
-    expect(delivery.send).not.toHaveBeenCalled();
+    expect(delivery.send).toHaveBeenCalled();
   });
 
   it('treatment sets a lead challenge and +N more when several are open', async () => {
@@ -1007,7 +958,7 @@ describe('ReminderDispatcherService', () => {
     });
   });
 
-  it('treatment suppresses in-progress nudges when the budget is spent', async () => {
+  it('does not suppress in-progress nudges when a stale treatment plan looks spent', async () => {
     const now = new Date('2026-08-29T12:00:00.000Z');
     const prisma = createPrismaMock({
       inProgress: [
@@ -1020,21 +971,32 @@ describe('ReminderDispatcherService', () => {
         },
       ],
     });
-    const delivery = createDelivery();
+    const delivery = createDelivery({ sentCount: 1, usersWithDevice: ['u1'] });
     const service = new ReminderDispatcherService(
       prisma as never,
       delivery as never,
       createPolicy({
-        plans: new Map([['u1', treatmentPlan({ remainingBudget: 0 })]]),
+        plans: new Map([
+          [
+            'u1',
+            treatmentPlan({
+              remainingBudget: 0,
+              quietNow: true,
+              localMinute: 12 * 60,
+              dayKey: '2026-08-29',
+            }),
+          ],
+        ]),
       }) as never,
       createContexts() as never,
     );
 
-    await expect(service.dispatchInProgressNudges(now)).resolves.toEqual({
+    await expect(service.dispatchInProgressNudges(now)).resolves.toMatchObject({
       dueCount: 1,
-      sentCount: 0,
-      suppressedCount: 1,
+      sentCount: 1,
+      suppressedCount: 0,
     });
-    expect(delivery.send).not.toHaveBeenCalled();
+    expect(delivery.send).toHaveBeenCalled();
   });
 });
+

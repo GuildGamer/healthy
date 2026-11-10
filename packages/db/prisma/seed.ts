@@ -866,10 +866,11 @@ async function main(): Promise<void> {
       key: 'engagement_holdout_v1',
       name: 'Engagement holdout',
       description:
-        'Permanent baseline: holdout keeps current notification behaviour while treatment gets Phases 4–6 changes.',
-      status: 'running',
+        'Ended: cadence treatment caps retired; all members keep original six-slot schedule. Group board_move burst policy is unchanged.',
+      status: 'ended',
       primaryMetric: 'completion_rate',
       startAt: new Date(),
+      endAt: new Date(),
       variants: {
         create: [
           {
@@ -890,9 +891,10 @@ async function main(): Promise<void> {
     update: {
       name: 'Engagement holdout',
       description:
-        'Permanent baseline: holdout keeps current notification behaviour while treatment gets Phases 4–6 changes.',
-      status: 'running',
+        'Ended: cadence treatment caps retired; all members keep original six-slot schedule. Group board_move burst policy is unchanged.',
+      status: 'ended',
       primaryMetric: 'completion_rate',
+      endAt: new Date(),
     },
   });
 
