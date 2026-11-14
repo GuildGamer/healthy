@@ -51,14 +51,20 @@ export function partialWalkSession(
 /** A set that stopped short of the goal, as progress; null when no rep was counted. */
 export function partialSetSession(
   occurrence: Pick<TodayChallenge, 'id'>,
-  set: { count: number; durationSeconds: number; startedAt: string; endedAt: string },
+  set: {
+    count: number;
+    durationSeconds: number;
+    startedAt: string;
+    endedAt: string;
+    metric: RecordPracticeSessionInput['metric'];
+  },
 ): RecordPracticeSessionInput | null {
   if (set.count <= 0) {
     return null;
   }
 
   return {
-    metric: 'pushups',
+    metric: set.metric,
     source: 'in_app_pose',
     count: set.count,
     durationSeconds: set.durationSeconds,

@@ -1,4 +1,4 @@
-import type { MatchMetric, TodayChallenge } from '@product/client';
+import type { CompleteChallengeOutput, MatchMetric, TodayChallenge } from '@product/client';
 import { isPoseMetric, MATCH_METRIC_MEASURE } from '@product/contract/match-board';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -9,15 +9,11 @@ import { useOptionalToastHost } from '@/components/forms/ToastProvider';
 import { MATCH_DEFAULT_METRIC, MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
 import { apiClient } from '@/lib/api';
 import { announceChallengeFinish } from '@/lib/challenge-finish-session';
-import {
-  getPendingCompletion,
-  removePendingCompletion,
-  upsertPendingCompletion,
-} from '@/lib/completion-outbox';
+import { getPendingCompletion } from '@/lib/completion-outbox';
 import { QUICKPOSE_SDK_KEY } from '@/lib/config';
-import { executePendingCompletion } from '@/lib/execute-pending-completion';
 import { goBackOrHome } from '@/lib/go-back';
 import type { NativePoseCountUpdate } from 'quickpose-camera';
+import { submitQueuedCompletion } from '@/lib/submit-queued-completion';
 import { trackEvent } from '@/lib/track-event';
 import { SAVE_QUEUED_OFFLINE_MESSAGE } from './constants/doing-copy';
 import { finishAndLeave } from './finish-challenge';
@@ -111,6 +107,24 @@ function poseMetricFromCapture(metric: string | null | undefined): MatchMetric {
 
 type SubmitSet = { reps: number; durationSeconds: number; startedAt: string };
 
+type SubmittedSet =
+  | {
+      mode: 'match';
+      reps: number;
+      durationSeconds: number;
+      metric: MatchMetric;
+      matchId: string;
+      syncing: boolean;
+    }
+  | { mode: 'practice'; reps: number; durationSeconds: number; syncing: boolean }
+  | {
+      mode: 'challenge';
+      reps: number;
+      durationSeconds: number;
+      result: CompleteChallengeOutput;
+      syncing: boolean;
+    };
+
 function useSubmitSet(
   props: PoseSessionProps,
   occurrence: TodayChallenge | undefined,
@@ -124,11 +138,11 @@ function useSubmitSet(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ reps, durationSeconds, startedAt }: SubmitSet) => {
+    mutationFn: async ({ reps, durationSeconds, startedAt }: SubmitSet): Promise<SubmittedSet> => {
       const endedAt = new Date().toISOString();
 
       if (props.mode === 'match') {
-        const pending = await upsertPendingCompletion({
+        const queued = await submitQueuedCompletion({
           kind: 'submit_match_attempt',
           input: {
             matchId: props.matchId,
@@ -136,24 +150,26 @@ function useSubmitSet(
             durationSeconds,
             source: 'in_app_pose',
             clientAttemptId: matchAttemptClientId('pose', props.matchId, startedAt),
+            performedAt: endedAt,
           },
         });
-        lastOutboxIdRef.current = pending.id;
-        await executePendingCompletion(pending);
-        await removePendingCompletion(pending.id);
-        lastOutboxIdRef.current = null;
+        lastOutboxIdRef.current = queued.outcome === 'saved' ? null : queued.pending.id;
+        if (queued.outcome === 'failed') {
+          throw queued.error instanceof Error ? queued.error : new Error('That didn’t save.');
+        }
         return {
-          mode: 'match' as const,
+          mode: 'match',
           reps,
           durationSeconds,
           metric,
           matchId: props.matchId,
+          syncing: queued.outcome === 'syncing',
         };
       }
 
       if (props.mode === 'practice') {
         const practiceMetric = poseMetricFromCapture(occurrence?.capture.metric);
-        const pending = await upsertPendingCompletion({
+        const queued = await submitQueuedCompletion({
           kind: 'record_practice',
           input: {
             metric: practiceMetric,
@@ -166,24 +182,28 @@ function useSubmitSet(
             ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
           },
         });
-        lastOutboxIdRef.current = pending.id;
-        const executed = await executePendingCompletion(pending);
-        await removePendingCompletion(pending.id);
-        lastOutboxIdRef.current = null;
-        if (executed.kind !== 'record_practice') {
+        lastOutboxIdRef.current = queued.outcome === 'saved' ? null : queued.pending.id;
+        if (queued.outcome === 'failed') {
+          throw queued.error instanceof Error ? queued.error : new Error('That didn’t save.');
+        }
+        if (queued.outcome === 'syncing') {
+          return { mode: 'practice', reps, durationSeconds, syncing: true };
+        }
+        if (queued.executed.kind !== 'record_practice') {
           throw new Error('Unexpected practice result.');
         }
-        const creditedMatchId = executed.result.creditedMatchIds[0];
+        const creditedMatchId = queued.executed.result.creditedMatchIds[0];
         if (creditedMatchId) {
           return {
-            mode: 'match' as const,
+            mode: 'match',
             reps,
             durationSeconds,
             metric: practiceMetric,
             matchId: creditedMatchId,
+            syncing: false,
           };
         }
-        return { mode: 'practice' as const, reps, durationSeconds };
+        return { mode: 'practice', reps, durationSeconds, syncing: false };
       }
 
       if (!occurrence) {
@@ -191,7 +211,7 @@ function useSubmitSet(
       }
 
       const challengeMetric = poseMetricFromCapture(occurrence.capture.metric);
-      const pending = await upsertPendingCompletion({
+      const queued = await submitQueuedCompletion({
         kind: 'complete_challenge',
         userChallengeId: occurrence.id,
         occurrenceStatus: occurrence.status,
@@ -207,14 +227,36 @@ function useSubmitSet(
           },
         },
       });
-      lastOutboxIdRef.current = pending.id;
-      const executed = await executePendingCompletion(pending);
-      await removePendingCompletion(pending.id);
-      lastOutboxIdRef.current = null;
-      if (executed.kind !== 'complete_challenge') {
+      lastOutboxIdRef.current = queued.outcome === 'saved' ? null : queued.pending.id;
+      if (queued.outcome === 'failed') {
+        throw queued.error instanceof Error ? queued.error : new Error('That didn’t save.');
+      }
+      if (queued.outcome === 'syncing') {
+        return {
+          mode: 'challenge',
+          reps,
+          durationSeconds,
+          result: {
+            challenge: occurrence,
+            pointsAwarded: 0,
+            pointsBalance: 0,
+            currentStreakDays: 0,
+            evidenceRequest: null,
+            penaltyApplied: 0,
+          },
+          syncing: true,
+        };
+      }
+      if (queued.executed.kind !== 'complete_challenge') {
         throw new Error('Unexpected challenge result.');
       }
-      return { mode: 'challenge' as const, reps, durationSeconds, result: executed.result };
+      return {
+        mode: 'challenge',
+        reps,
+        durationSeconds,
+        result: queued.executed.result,
+        syncing: false,
+      };
     },
     onError: () => {
       trackEvent('client_error', { surface: 'pose_submit', code: 'submit_failed' });
@@ -237,13 +279,14 @@ function useSubmitSet(
         ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
         ...(proofFailedRef.current && !proofClipIdRef.current ? { proofFailed: '1' } : {}),
         ...(proofAudienceRef.current ? { proofAudience: proofAudienceRef.current } : {}),
+        ...(submitted.syncing ? { syncing: '1' } : {}),
       };
 
       if (submitted.mode === 'match') {
         trackEvent('activity_session_ended', {
           metric: submitted.metric,
           context: 'contest',
-          outcome: 'saved',
+          outcome: submitted.syncing ? 'queued' : 'saved',
           count: submitted.reps,
           durationSeconds: submitted.durationSeconds,
           matchId: submitted.matchId,
@@ -272,7 +315,7 @@ function useSubmitSet(
         trackEvent('activity_session_ended', {
           metric,
           context: 'practice',
-          outcome: 'saved',
+          outcome: submitted.syncing ? 'queued' : 'saved',
           count: submitted.reps,
           durationSeconds: submitted.durationSeconds,
         });
@@ -290,7 +333,7 @@ function useSubmitSet(
           });
         }
 
-        if (proofClipIdRef.current || proofFailedRef.current) {
+        if (proofClipIdRef.current || proofFailedRef.current || submitted.syncing) {
           router.replace({
             pathname: '/challenge/success',
             params: {
@@ -319,7 +362,7 @@ function useSubmitSet(
       trackEvent('activity_session_ended', {
         metric,
         context: 'challenge',
-        outcome: 'saved',
+        outcome: submitted.syncing ? 'queued' : 'saved',
         count: submitted.reps,
         durationSeconds: submitted.durationSeconds,
       });
@@ -329,7 +372,7 @@ function useSubmitSet(
         challenge_type: poseMetricFromCapture(occurrence?.capture.metric),
       });
 
-      if (proofClipIdRef.current || proofFailedRef.current) {
+      if (proofClipIdRef.current || proofFailedRef.current || submitted.syncing) {
         router.replace({
           pathname: '/challenge/success',
           params: {
@@ -531,6 +574,7 @@ export function usePoseSession(props: PoseSessionProps) {
       durationSeconds: result.elapsedSeconds,
       startedAt: startedAtRef.current ?? new Date().toISOString(),
       endedAt: new Date().toISOString(),
+      metric: poseMetricFromCapture(occurrence.capture.metric),
     });
     if (partial) {
       const proofClipId = proof.clipIdRef.current;

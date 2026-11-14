@@ -174,6 +174,7 @@ function LiveBoard({
         )}
         {isWaiting ? null : (
           <GroupStandings
+            matchId={match.id}
             onPreviewPhoto={setPreviewUri}
             rules={match}
             standings={match.standings}

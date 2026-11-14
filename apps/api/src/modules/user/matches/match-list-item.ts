@@ -19,7 +19,7 @@ export function rosterFor(standings: readonly MatchStanding[], size: number): Ma
 type LastMoveInput = {
   standings: readonly MatchStanding[];
   scoredAtByUser: ReadonlyMap<string, Date>;
-  /** The contest's zone, so "today" is the same day its daily cap uses. */
+  /** The contest's zone, so "today" is the same day for every member. */
   timeZone: string;
   now: Date;
 };

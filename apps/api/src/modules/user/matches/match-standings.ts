@@ -1,9 +1,4 @@
-import {
-  MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC,
-  type MatchMetric,
-  type MatchScoringMode,
-  type MatchStanding,
-} from '@product/contract';
+import type { MatchMetric, MatchScoringMode, MatchStanding } from '@product/contract';
 
 /**
  * One scoring event. A push-up set for the attempt-driven modes, a finished
@@ -15,7 +10,7 @@ export type StandingEvent = {
   count: number;
   /**
    * Local calendar day the event belongs to, `YYYY-MM-DD`. Attempts use the
-   * contest's zone so one daily cap applies to everyone equally; completions
+   * contest's zone so "done today" is the same day for everyone; completions
    * use the member's own `periodKey`, because that is the day their challenge
    * actually rolled over in.
    */
@@ -45,8 +40,7 @@ export type StandingsResult = {
 
 /**
  * The two facts that decide how a contest is scored. Kept together so the
- * mode and the metric cannot be passed in the wrong order, and so the daily
- * cap is always read in the unit the score is actually counted in.
+ * mode and the metric cannot be passed in the wrong order.
  */
 export type MatchScoringRules = {
   scoringMode: MatchScoringMode;
@@ -61,7 +55,6 @@ export type MatchScoringRules = {
 type MemberProgress = {
   score: number;
   arrivedAt: Date | null;
-  perDayCounted: Map<string, number>;
   distinctDays: Set<string>;
 };
 
@@ -82,17 +75,13 @@ function scoreAfter(
     return progress.distinctDays.has(event.dayKey) ? progress.score : progress.score + 1;
   }
 
-  const dailyCap = MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC[rules.metric];
-  const countedToday = progress.perDayCounted.get(event.dayKey) ?? 0;
-  const remainingToday = Math.max(0, dailyCap - countedToday);
-  return progress.score + Math.min(event.count, remainingToday);
+  return progress.score + event.count;
 }
 
 function emptyProgress(): MemberProgress {
   return {
     score: 0,
     arrivedAt: null,
-    perDayCounted: new Map(),
     distinctDays: new Set(),
   };
 }
@@ -166,10 +155,6 @@ function accumulate(
     }
 
     progress.distinctDays.add(event.dayKey);
-    progress.perDayCounted.set(
-      event.dayKey,
-      (progress.perDayCounted.get(event.dayKey) ?? 0) + event.count,
-    );
   }
 
   return participants.map((participant) => {

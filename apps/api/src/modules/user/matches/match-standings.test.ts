@@ -1,8 +1,6 @@
-import { MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC, type MatchScoringMode } from '@product/contract';
+import type { MatchScoringMode } from '@product/contract';
 import { describe, expect, it } from 'vitest';
 import { computeStandings, type MatchScoringRules, type StandingEvent } from './match-standings.js';
-
-const MATCH_CUMULATIVE_DAILY_CAP = MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.pushups;
 
 function pushupRules(scoringMode: MatchScoringMode): MatchScoringRules {
   return { scoringMode, metric: 'pushups' };
@@ -128,33 +126,20 @@ describe('computeStandings — cumulative_total', () => {
     expect(result.standings.map((row) => row.score)).toEqual([27, 20]);
   });
 
-  it('caps what one day can contribute so grinding one session cannot win', () => {
-    const overCap = MATCH_CUMULATIVE_DAILY_CAP + 250;
+  it('counts every set on a day, with no daily ceiling', () => {
     const result = computeStandings(
       [host, bee],
       [
-        set('host', overCap, '2026-09-04T10:00:00.000Z'),
+        set('host', 550, '2026-09-04T10:00:00.000Z'),
+        set('host', 50, '2026-09-04T18:00:00.000Z'),
         set('bee', 40, '2026-09-04T11:00:00.000Z'),
         set('bee', 40, '2026-09-05T11:00:00.000Z'),
       ],
       pushupRules('cumulative_total'),
     );
 
-    expect(result.standings[0]?.score).toBe(MATCH_CUMULATIVE_DAILY_CAP);
+    expect(result.standings[0]?.score).toBe(600);
     expect(result.standings[1]?.score).toBe(80);
-  });
-
-  it('spends the daily allowance across sets within the same day', () => {
-    const result = computeStandings(
-      [host],
-      [
-        set('host', MATCH_CUMULATIVE_DAILY_CAP - 10, '2026-09-04T10:00:00.000Z'),
-        set('host', 50, '2026-09-04T18:00:00.000Z'),
-      ],
-      pushupRules('cumulative_total'),
-    );
-
-    expect(result.standings[0]?.score).toBe(MATCH_CUMULATIVE_DAILY_CAP);
   });
 
   it('breaks a tied total with who completed it first', () => {
@@ -175,18 +160,17 @@ describe('computeStandings — cumulative_total', () => {
 });
 
 describe('computeStandings — cumulative_total on walks', () => {
-  // The cap is a health guardrail, so it has to be read in the unit the score
-  // is counted in. Spending a push-up allowance on minutes would let a walking
-  // contest reward five hours in a day.
-  it('caps a walking day in minutes rather than in reps', () => {
-    const walkCap = MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.walk;
+  it('adds every walking minute with no daily ceiling', () => {
     const result = computeStandings(
       [host],
-      [set('host', walkCap + 200, '2026-09-04T10:00:00.000Z')],
+      [
+        set('host', 90, '2026-09-04T10:00:00.000Z'),
+        set('host', 80, '2026-09-04T18:00:00.000Z'),
+      ],
       { scoringMode: 'cumulative_total', metric: 'walk' },
     );
 
-    expect(result.standings[0]?.score).toBe(walkCap);
+    expect(result.standings[0]?.score).toBe(170);
   });
 });
 

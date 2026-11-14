@@ -8,19 +8,23 @@ const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
 
 const TIME_ZONE = 'Asia/Singapore';
 
+function createMatchesSpy() {
+  return { creditPosePractice: vi.fn(async () => [] as string[]) };
+}
+
 function createService(
   prisma: unknown,
   evidenceValidator?: unknown,
   delivery?: { send: ReturnType<typeof vi.fn> },
-  matches?: { creditPosePractice: ReturnType<typeof vi.fn> },
+  matches: { creditPosePractice: ReturnType<typeof vi.fn> } = createMatchesSpy(),
 ): ChallengesService {
   return new ChallengesService(
     prisma as never,
     new StreakService(prisma as never),
+    matches as never,
     evidenceValidator as never,
     undefined,
     delivery as never,
-    matches as never,
   );
 }
 
@@ -46,6 +50,7 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
     completedAt: null,
     surpriseEvidenceRequest: null,
     enrollment: null,
+    deviceActivityLog: null as null | { externalId: string },
     challenge: {
       title: 'Walk 20 minutes',
       description: 'A brisk walk after lunch.',
@@ -477,6 +482,7 @@ describe('ChallengesService.creditMeasuredActivity', () => {
       undefined,
       undefined,
       expect.objectContaining({ metric: 'pushups', count: 30 }),
+      { creditContests: false },
     );
   });
 
@@ -658,7 +664,7 @@ describe('ChallengesService.complete', () => {
     );
   });
 
-  it('does not credit contests again when the completion is already ledgered', async () => {
+  it('re-credits contests when a ledgered completion is retried with the same set', async () => {
     const assignment = pushupHabitAssignment();
     const { prisma } = createCompletePrismaMock(assignment, { alreadyLedgered: true });
     const matches = {
@@ -676,7 +682,87 @@ describe('ChallengesService.complete', () => {
       }),
     ).resolves.toMatchObject({ pointsAwarded: 0 });
 
+    expect(matches.creditPosePractice).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips contest credit when Mine is finished from a contest or practice set', async () => {
+    const assignment = pushupHabitAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(
+        user,
+        'uc1',
+        undefined,
+        undefined,
+        undefined,
+        {
+          source: 'in_app_pose',
+          metric: 'pushups',
+          count: 40,
+          durationSeconds: 90,
+          externalId: 'match-attempt:a1',
+        },
+        { creditContests: false },
+      ),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
     expect(matches.creditPosePractice).not.toHaveBeenCalled();
+  });
+
+  it('banks a new pose set after the habit is already done and credits contests', async () => {
+    const assignment = {
+      ...pushupHabitAssignment(),
+      status: 'completed',
+      deviceActivityLog: { externalId: 'challenge:uc1:first' },
+    };
+    const base = createPrismaMock(assignment);
+    const prisma = {
+      ...base,
+      userProfile: {
+        ...base.userProfile,
+        upsert: vi.fn().mockResolvedValue({
+          userId: 'u1',
+          pointsBalance: 20,
+          currentStreakDays: 1,
+          timeZone: TIME_ZONE,
+          membershipActive: false,
+        }),
+      },
+      deviceActivityLog: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockResolvedValue({ id: 'log-extra' }),
+      },
+    };
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, undefined, {
+        source: 'in_app_pose',
+        metric: 'pushups',
+        count: 25,
+        durationSeconds: 50,
+        externalId: 'challenge:uc1:extra',
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 0 });
+
+    expect(prisma.deviceActivityLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          externalId: 'challenge:uc1:extra',
+          userChallengeId: null,
+          count: 25,
+        }),
+      }),
+    );
+    expect(matches.creditPosePractice).toHaveBeenCalledTimes(1);
   });
 
   it('does not credit contests for a completion with no pose activity', async () => {

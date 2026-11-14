@@ -1,11 +1,13 @@
 package expo.modules.quickposecamera
 
-import ai.quickpose.core.QuickPose
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
+import android.util.Log
+import android.view.PixelCopy
 import android.view.SurfaceView
 import java.io.File
 import java.security.MessageDigest
@@ -19,10 +21,11 @@ import kotlin.math.min
  * recorder: the skeleton stays on the live preview only, proof chrome is
  * burned in before encoding, and a poster JPEG comes from the first frame.
  *
- * Frames are copied from the camera surface (what the person sees), capped
- * to the configured frame rate, with at most one frame in flight so capture
- * never backs up the camera or QuickPose. Call from the main thread; encoding
- * runs on its own.
+ * Frames are PixelCopied from the camera surface (what the person sees) into
+ * the reused clip bitmap with a centre crop, capped to the configured frame
+ * rate, with at most one frame in flight so capture never backs up the camera
+ * or QuickPose. Call from the main thread; copy + encoding run on the
+ * recorder thread.
  */
 internal class ProofRecorder(private val context: Context) {
   data class FinishResult(
@@ -53,6 +56,8 @@ internal class ProofRecorder(private val context: Context) {
     var firstFrameWallMs: Long? = null
     var lastFrameSeconds: Double? = null
     var isPosterCaptured = false
+    var framesWritten = 0
+    var framesSkipped = 0
   }
 
   private val thread = HandlerThread("healthy.proof-recorder").apply { start() }
@@ -105,7 +110,10 @@ internal class ProofRecorder(private val context: Context) {
     )
   }
 
-  /** Requests a copy of the camera surface when the next frame is due. A failed copy is skipped, never written black. */
+  /**
+   * Requests a centre-cropped PixelCopy of the camera surface into the clip
+   * frame when the next sample is due. A failed copy is skipped, never written black.
+   */
   fun captureFrom(cameraSurface: SurfaceView) {
     if (!isRecording) return
     val requestedAtNanos = SystemClock.elapsedRealtimeNanos()
@@ -113,19 +121,38 @@ internal class ProofRecorder(private val context: Context) {
     if (!isFrameInFlight.compareAndSet(false, true)) return
     lastCaptureRequestNanos = requestedAtNanos
 
-    QuickPose.captureFrame(cameraSurface, null) { cameraImage ->
-      if (cameraImage == null) {
+    handler.post {
+      val active = clip
+      if (active == null || !isRecording) {
         isFrameInFlight.set(false)
-        return@captureFrame
+        return@post
       }
-      handler.post {
+      val surfaceWidth = cameraSurface.width
+      val surfaceHeight = cameraSurface.height
+      if (surfaceWidth <= 0 || surfaceHeight <= 0) {
+        active.framesSkipped += 1
+        isFrameInFlight.set(false)
+        return@post
+      }
+
+      val srcRect =
+        centreCropRect(
+          surfaceWidth = surfaceWidth,
+          surfaceHeight = surfaceHeight,
+          destWidth = active.frame.width,
+          destHeight = active.frame.height,
+        )
+      PixelCopy.request(cameraSurface, srcRect, active.frame, { copyResult ->
         try {
-          writeFrame(cameraImage, requestedAtNanos)
+          if (copyResult == PixelCopy.SUCCESS) {
+            writeFrame(active, requestedAtNanos)
+          } else {
+            active.framesSkipped += 1
+          }
         } finally {
-          cameraImage.recycle()
           isFrameInFlight.set(false)
         }
-      }
+      }, handler)
     }
   }
 
@@ -169,19 +196,28 @@ internal class ProofRecorder(private val context: Context) {
     thread.quitSafely()
   }
 
-  private fun writeFrame(cameraImage: Bitmap, capturedAtNanos: Long) {
-    val active = clip ?: return
-    if (!isRecording) return
+  private fun writeFrame(active: Clip, capturedAtNanos: Long) {
+    if (!isRecording) {
+      active.framesSkipped += 1
+      return
+    }
     val wallMs = System.currentTimeMillis()
     val endAt = endAtWallMs
-    if (endAt != null && wallMs > endAt) return
+    if (endAt != null && wallMs > endAt) {
+      active.framesSkipped += 1
+      return
+    }
     val elapsedSeconds = active.firstFrameAtNanos?.let { (capturedAtNanos - it) / NANOS_PER_SECOND } ?: 0.0
-    if (elapsedSeconds > active.maxDurationSeconds) return
+    if (elapsedSeconds > active.maxDurationSeconds) {
+      active.framesSkipped += 1
+      return
+    }
 
-    ProofChrome.compose(active.frame, cameraImage, overlay)
+    ProofChrome.drawChrome(active.frame, overlay)
     try {
       active.encoder.drawFrame(active.frame)
     } catch (error: Exception) {
+      active.framesSkipped += 1
       return
     }
 
@@ -190,6 +226,7 @@ internal class ProofRecorder(private val context: Context) {
       active.firstFrameWallMs = wallMs
     }
     active.lastFrameSeconds = elapsedSeconds
+    active.framesWritten += 1
     capturePosterOnce(active)
   }
 
@@ -203,6 +240,10 @@ internal class ProofRecorder(private val context: Context) {
   }
 
   private fun finishClip(finished: Clip): FinishResult {
+    Log.i(
+      LOG_TAG,
+      "proof clip finished written=${finished.framesWritten} skipped=${finished.framesSkipped}",
+    )
     val hasFrames = finished.encoder.finish()
     finished.frame.recycle()
     if (!hasFrames) {
@@ -251,6 +292,7 @@ internal class ProofRecorder(private val context: Context) {
   }
 
   companion object {
+    private const val LOG_TAG = "HealthyPose"
     private const val PROOF_CLIPS_FOLDER = "proof-clips"
     private const val DEFAULT_WIDTH = 1080
     private const val DEFAULT_HEIGHT = 1920
@@ -269,6 +311,28 @@ internal class ProofRecorder(private val context: Context) {
     private const val NANOS_PER_SECOND_LONG = 1_000_000_000L
     private const val MILLIS_PER_SECOND = 1_000.0
     private const val HASH_BUFFER_BYTES = 64 * 1024
+
+    /**
+     * Largest centre crop of the surface that matches the destination aspect
+     * ratio, so PixelCopy GPU-scales the same way aspect-fill used to on the CPU.
+     */
+    fun centreCropRect(
+      surfaceWidth: Int,
+      surfaceHeight: Int,
+      destWidth: Int,
+      destHeight: Int,
+    ): Rect {
+      val destAspect = destWidth.toFloat() / destHeight.toFloat()
+      val surfaceAspect = surfaceWidth.toFloat() / surfaceHeight.toFloat()
+      if (surfaceAspect > destAspect) {
+        val cropWidth = (surfaceHeight * destAspect).toInt().coerceAtLeast(1)
+        val left = ((surfaceWidth - cropWidth) / 2).coerceAtLeast(0)
+        return Rect(left, 0, left + cropWidth, surfaceHeight)
+      }
+      val cropHeight = (surfaceWidth / destAspect).toInt().coerceAtLeast(1)
+      val top = ((surfaceHeight - cropHeight) / 2).coerceAtLeast(0)
+      return Rect(0, top, surfaceWidth, top + cropHeight)
+    }
 
     /**
      * Where finished clips live. `noBackupFilesDir` survives app updates and is

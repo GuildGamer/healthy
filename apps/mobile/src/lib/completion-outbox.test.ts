@@ -3,7 +3,7 @@ import {
   completionDedupeKey,
   getPendingCompletion,
   listPendingCompletions,
-  prunePendingCompletions,
+  loadPendingCompletionsIndex,
   removePendingCompletion,
   upsertPendingCompletion,
   type PendingCompletionInput,
@@ -147,29 +147,79 @@ describe('completion-outbox', () => {
     expect(written[entry.id]).toBeUndefined();
   });
 
-  it('prunes entries older than 7 days', async () => {
+  it('keeps old parked entries instead of dropping them', async () => {
     const oldId = 'record_practice:old';
-    const freshId = 'record_practice:fresh';
     getItemAsync.mockResolvedValue(
       JSON.stringify({
         [oldId]: {
           ...practiceInput(),
           id: oldId,
           createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        [freshId]: {
-          ...practiceInput(),
-          id: freshId,
-          createdAt: new Date().toISOString(),
+          status: 'parked',
+          attempts: 2,
+          nextAttemptAt: null,
+          lastErrorKind: 'permanent',
+          appVersion: '1.0.0',
         },
       }),
     );
 
-    const pruned = await prunePendingCompletions();
-    expect(Object.keys(pruned)).toEqual([freshId]);
+    const index = await loadPendingCompletionsIndex(Date.now(), '1.0.0');
+    expect(Object.keys(index)).toEqual([oldId]);
+    expect(index[oldId]?.status).toBe('parked');
   });
 
-  it('loads a single entry after prune', async () => {
+  it('re-queues parked entries after an app version change', async () => {
+    const parkedId = 'record_practice:parked';
+    getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        [parkedId]: {
+          ...practiceInput(),
+          id: parkedId,
+          createdAt: '2026-11-08T10:00:00.000Z',
+          status: 'parked',
+          attempts: 3,
+          nextAttemptAt: null,
+          lastErrorKind: 'permanent',
+          appVersion: '1.0.0',
+        },
+      }),
+    );
+
+    const index = await loadPendingCompletionsIndex(Date.now(), '1.1.0');
+    expect(index[parkedId]?.status).toBe('pending');
+    expect(index[parkedId]?.appVersion).toBe('1.1.0');
+  });
+
+  it('serialises concurrent upserts so neither write is lost', async () => {
+    let stored: string | null = null;
+    getItemAsync.mockImplementation(async () => stored);
+    setItemAsync.mockImplementation(async (_key, value) => {
+      stored = String(value);
+    });
+
+    await Promise.all([
+      upsertPendingCompletion(practiceInput()),
+      upsertPendingCompletion({
+        kind: 'submit_match_attempt',
+        input: {
+          matchId: 'm1',
+          count: 8,
+          durationSeconds: 30,
+          source: 'in_app_pose',
+          clientAttemptId: 'match-attempt:m1:a',
+        },
+      }),
+    ]);
+
+    const written = JSON.parse(String(stored)) as Record<string, { id: string }>;
+    expect(Object.keys(written).sort()).toEqual([
+      'record_practice:in-app-pose:uc-1:2026-11-08T12:00:00.000Z',
+      'submit_match_attempt:match-attempt:m1:a',
+    ]);
+  });
+
+  it('loads a single entry', async () => {
     const entry = await upsertPendingCompletion(practiceInput());
     getItemAsync.mockResolvedValue(JSON.stringify({ [entry.id]: entry }));
 

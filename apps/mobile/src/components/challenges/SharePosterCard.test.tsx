@@ -14,7 +14,7 @@ const walkPoster = {
 function fillBackground(): unknown {
   const root = screen.getByTestId('share-poster-image');
   const fillChild = root.children.find(
-    (child): child is { props: { style?: unknown } } =>
+    (child: unknown): child is { props: { style?: unknown } } =>
       typeof child !== 'string' && child != null && typeof child === 'object',
   );
   return StyleSheet.flatten(fillChild?.props.style)?.backgroundColor;

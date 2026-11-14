@@ -1091,6 +1091,9 @@ model MatchAttempt {
   /// Client-stable id for this set. Retries with the same key must not create
   /// a second row (unique per match + member).
   clientAttemptId String
+  /// When the set finished on the phone. Null for older rows; scoring falls
+  /// back to recordedAt.
+  performedAt     DateTime?
   recordedAt      DateTime           @default(now())
   proofClips      ProofClip[]
 

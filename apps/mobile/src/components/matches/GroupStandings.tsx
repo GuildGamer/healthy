@@ -2,6 +2,8 @@ import type { MatchStanding } from '@product/client';
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeckSectionTitle } from '@/components/deck';
+import { SyncStatusLine } from '@/components/feedback/SyncStatusLine';
+import { usePendingSync } from '@/lib/pending-sync-store';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { GroupFace } from './GroupFace';
 import { type GroupRules } from './group-rule-copy';
@@ -16,6 +18,8 @@ const LANE_FACE_SIZE = 36;
 interface GroupStandingsProps {
   standings: readonly MatchStanding[];
   rules: GroupRules;
+  /** Contest id — used to add waiting reps to your own row. */
+  matchId?: string;
   /** Opens a member's photo, the one thing a face in the standings does. */
   onPreviewPhoto: (imageUri: string) => void;
   /** Leave the podium's three out of a finished board's list. */
@@ -27,11 +31,17 @@ interface GroupStandingsProps {
 export function GroupStandings({
   standings,
   rules,
+  matchId,
   onPreviewPhoto,
   skipTop = 0,
   hasTitle = true,
 }: GroupStandingsProps) {
-  const leadScore = Math.max(0, ...standings.map((row) => row.score));
+  const sync = usePendingSync();
+  const pendingBonus = matchId ? (sync.pendingCountByMatchId.get(matchId) ?? 0) : 0;
+  const leadScore = Math.max(
+    0,
+    ...standings.map((row) => row.score + (row.isYou ? pendingBonus : 0)),
+  );
   const rows = standings.slice(skipTop);
 
   return (
@@ -43,6 +53,7 @@ export function GroupStandings({
           key={row.userId}
           leadScore={leadScore}
           onPreviewPhoto={onPreviewPhoto}
+          pendingBonus={row.isYou ? pendingBonus : 0}
           row={row}
           rules={rules}
         />
@@ -52,16 +63,16 @@ export function GroupStandings({
 }
 
 /** A pending seat shows no score at all; an empty one shows a dash, not a zero. */
-function laneScoreText(row: MatchStanding, rules: GroupRules): string {
+function laneScoreText(row: MatchStanding, rules: GroupRules, displayScore: number): string {
   if (row.isPending) {
     return '';
   }
 
-  if (row.score === 0) {
+  if (displayScore === 0) {
     return GROUPS_COPY.noPlace;
   }
 
-  const formatted = formatBoardScore(rules.scoringMode, rules.metric, row.score);
+  const formatted = formatBoardScore(rules.scoringMode, rules.metric, displayScore);
   if (!formatted.unit) {
     return formatted.value;
   }
@@ -75,17 +86,20 @@ function StandingLane({
   leadScore,
   isFirst,
   onPreviewPhoto,
+  pendingBonus,
 }: {
   row: MatchStanding;
   rules: GroupRules;
   leadScore: number;
   isFirst: boolean;
   onPreviewPhoto: (imageUri: string) => void;
+  pendingBonus: number;
 }) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { fraction } = standingProgress({ score: row.score, leadScore });
-  const hasScore = row.score > 0 && !row.isPending;
+  const displayScore = row.score + pendingBonus;
+  const { fraction } = standingProgress({ score: displayScore, leadScore });
+  const hasScore = displayScore > 0 && !row.isPending;
   const photo = row.image ?? null;
 
   return (
@@ -115,7 +129,17 @@ function StandingLane({
             {displayNameFor(row)}
             {row.isPending ? <Text style={styles.note}> {BOARD_COPY.invited}</Text> : null}
           </Text>
-          <Text style={styles.score}>{laneScoreText(row, rules)}</Text>
+          <View style={styles.scoreBlock}>
+            <Text style={styles.score}>{laneScoreText(row, rules, displayScore)}</Text>
+            {pendingBonus > 0 ? (
+              <SyncStatusLine
+                compact
+                label="syncing"
+                testID={`match-standing-sync-${row.userId}`}
+                tone="syncing"
+              />
+            ) : null}
+          </View>
         </View>
         <View style={styles.track}>
           <View
@@ -178,6 +202,10 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.muted,
       fontSize: 12.5,
       fontWeight: fontWeight.regular,
+    },
+    scoreBlock: {
+      alignItems: 'flex-end',
+      gap: 2,
     },
     score: {
       color: theme.colors.text,

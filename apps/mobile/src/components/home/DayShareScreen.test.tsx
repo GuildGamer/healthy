@@ -45,7 +45,7 @@ describe('DayShareScreen', () => {
     fireEvent.press(screen.getByTestId('share-fill-water'));
     const root = screen.getByTestId('home-day-share-card');
     const fillChild = root.children.find(
-      (child): child is { props: { style?: unknown } } =>
+      (child: unknown): child is { props: { style?: unknown } } =>
         typeof child !== 'string' && child != null && typeof child === 'object',
     );
     expect(StyleSheet.flatten(fillChild?.props.style)?.backgroundColor).toBe(darkDeckCards.water);

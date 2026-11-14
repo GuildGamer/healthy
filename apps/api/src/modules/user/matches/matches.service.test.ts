@@ -9,11 +9,13 @@ import {
   MATCH_HOST_CANNOT_LEAVE,
   MATCH_NOT_HOST,
   MATCH_NOT_OPEN,
+  MATCH_PERFORMED_AT_INVALID,
   MATCH_REACTION_NOT_ALLOWED,
+  MATCH_SET_AFTER_END,
   MATCH_WRONG_ACTIVITY,
 } from './errors/match.errors.js';
 import { MatchReactionsService } from './match-reactions.service.js';
-import { MatchesService } from './matches.service.js';
+import { MatchesService, resolvePerformedAt } from './matches.service.js';
 
 const host = { id: 'host', email: 'host@a.co', name: 'Ada' };
 const guest = { id: 'guest', email: 'guest@a.co', name: 'Bee' };
@@ -43,6 +45,7 @@ type MockAttempt = {
   durationSeconds: number;
   source: string;
   clientAttemptId: string;
+  performedAt: Date | null;
   recordedAt: Date;
 };
 
@@ -248,6 +251,7 @@ function createPrismaMock(match = loadedMatch()) {
             durationSeconds: number;
             source: string;
             clientAttemptId: string;
+            performedAt?: Date | null;
           };
         }) => {
           const duplicate = current.match.attempts.find(
@@ -271,6 +275,7 @@ function createPrismaMock(match = loadedMatch()) {
                 durationSeconds: data.durationSeconds,
                 source: data.source,
                 clientAttemptId: data.clientAttemptId,
+                performedAt: data.performedAt ?? null,
                 recordedAt: new Date(),
               },
             ],
@@ -443,6 +448,7 @@ describe('MatchesService', () => {
           durationSeconds: 40,
           source: 'in_app_pose',
           clientAttemptId: 'fixture-a1',
+          performedAt: null,
           recordedAt: new Date(),
         },
         {
@@ -453,6 +459,7 @@ describe('MatchesService', () => {
           durationSeconds: 35,
           source: 'in_app_pose',
           clientAttemptId: 'fixture-a2',
+          performedAt: null,
           recordedAt: new Date(),
         },
       ],
@@ -698,7 +705,7 @@ describe('MatchesService', () => {
       }),
     ).rejects.toMatchObject({
       code: 'BAD_REQUEST',
-      message: MATCH_NOT_OPEN,
+      message: MATCH_SET_AFTER_END,
     });
   });
 
@@ -741,6 +748,7 @@ describe('MatchesService', () => {
           durationSeconds: 40,
           source: 'in_app_pose',
           clientAttemptId: 'fixture-a1',
+          performedAt: null,
           recordedAt: new Date('2019-12-31T12:00:00.000Z'),
         },
       ],
@@ -768,6 +776,7 @@ describe('MatchesService', () => {
       winnerUserId: host.id,
       winnerDisplayName: 'Ada',
       recipientUserIds: [host.id, guest.id],
+      honorTitleByUserId: expect.any(Map),
     });
   });
 
@@ -822,6 +831,154 @@ describe('MatchesService', () => {
       actorRank: 1,
       endsAt: board.endsAt,
       recipients: [{ userId: host.id, score: 0, rank: 2 }],
+    });
+  });
+
+  it('accepts a submit from an older client that omits clientAttemptId', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    const service = createService(prisma);
+
+    const board = await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 22,
+      durationSeconds: 40,
+      source: 'in_app_pose',
+    });
+
+    expect(board.yourBestCount).toBe(22);
+    expect(prisma.matchAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          clientAttemptId: expect.stringMatching(/^legacy:/),
+        }),
+      }),
+    );
+  });
+
+  it('still credits Mine when a retry finds the attempt already saved', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    const challenges = createChallengesSpy();
+    const service = createService(
+      prisma,
+      createNotifierSpy(),
+      createAnalyticsSpy(),
+      createInviteAcceptedSpy(),
+      createBoardMoveSpy(),
+      createReactionNotifierSpy(),
+      createStreakSpy(),
+      createMatchSettledSpy(),
+      challenges,
+    );
+    const payload = {
+      matchId: 'm1',
+      count: 30,
+      durationSeconds: 55,
+      source: 'in_app_pose' as const,
+      clientAttemptId: 'retry-set-1',
+    };
+
+    await service.submitAttempt(guest, payload);
+    challenges.creditMeasuredActivity.mockClear();
+    await service.submitAttempt(guest, payload);
+
+    expect(prisma.matchAttempt.create).toHaveBeenCalledTimes(1);
+    expect(challenges.creditMeasuredActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores performedAt and rejects one that is too old', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    const service = createService(prisma);
+    const performedAt = new Date(Date.now() - 60_000).toISOString();
+
+    await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 18,
+      durationSeconds: 40,
+      source: 'in_app_pose',
+      clientAttemptId: 'with-performed-at',
+      performedAt,
+    });
+
+    expect(prisma.matchAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          performedAt: new Date(performedAt),
+        }),
+      }),
+    );
+
+    await expect(
+      service.submitAttempt(guest, {
+        matchId: 'm1',
+        count: 18,
+        durationSeconds: 40,
+        source: 'in_app_pose',
+        clientAttemptId: 'too-old',
+        performedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+      }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: MATCH_PERFORMED_AT_INVALID,
     });
   });
 
@@ -959,7 +1116,7 @@ describe('MatchesService', () => {
       clientAttemptId: 'attempt-test-1',
     });
 
-    expect(streak.recordActiveDay).toHaveBeenCalledWith(guest.id, prisma);
+    expect(streak.recordActiveDay).toHaveBeenCalledWith(guest.id, prisma, expect.any(Date));
     expect(streak.announceMilestone).toHaveBeenCalledWith(guest.id, {
       currentStreakDays: 3,
       advanced: true,
@@ -1246,6 +1403,7 @@ describe('MatchesService', () => {
             durationSeconds: 60,
             source: 'in_app_pose',
             clientAttemptId: 'fixture-a-guest',
+            performedAt: null,
             recordedAt: movedAt,
           },
         ],
@@ -1278,6 +1436,7 @@ describe('MatchesService', () => {
             durationSeconds: 40,
             source: 'in_app_pose',
             clientAttemptId: 'fixture-a-guest',
+            performedAt: null,
             recordedAt: new Date(),
           },
         ],
@@ -1929,6 +2088,7 @@ describe('MatchesService', () => {
             durationSeconds: 60,
             source: 'in_app_pose',
             clientAttemptId: 'fixture-a1',
+            performedAt: null,
             recordedAt: new Date('2026-09-04T10:00:00.000Z'),
           },
         ],
@@ -1954,6 +2114,7 @@ describe('MatchesService', () => {
             durationSeconds: 60,
             source: 'in_app_pose',
             clientAttemptId: 'fixture-a1',
+            performedAt: null,
             recordedAt: new Date('2026-09-04T10:00:00.000Z'),
           },
           {
@@ -1964,6 +2125,7 @@ describe('MatchesService', () => {
             durationSeconds: 60,
             source: 'in_app_pose',
             clientAttemptId: 'fixture-a2',
+            performedAt: null,
             recordedAt: new Date('2026-09-05T10:00:00.000Z'),
           },
         ],
@@ -2044,5 +2206,22 @@ describe('MatchesService', () => {
     await service.get(host, 'm1');
 
     expect(prisma.deviceActivityLog.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolvePerformedAt', () => {
+  it('returns null when the client omitted the time', () => {
+    expect(resolvePerformedAt(undefined)).toBeNull();
+  });
+
+  it('rejects a time older than seven days', () => {
+    expect(() =>
+      resolvePerformedAt(new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()),
+    ).toThrow(ORPCError);
+  });
+
+  it('accepts a recent time', () => {
+    const iso = new Date(Date.now() - 60_000).toISOString();
+    expect(resolvePerformedAt(iso)?.toISOString()).toBe(iso);
   });
 });

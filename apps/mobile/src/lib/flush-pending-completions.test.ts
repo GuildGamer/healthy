@@ -10,7 +10,7 @@ import { getAppQueryClient } from '@/lib/query-client-holder';
 import {
   flushPendingCompletions,
   resetFlushPendingCompletionsLock,
-} from './flush-pending-completions';
+} from './completion-sync';
 
 jest.mock('@/components/challenges/useCompleteChallenge', () => ({
   refreshAfterCompletion: jest.fn(),
@@ -38,24 +38,30 @@ const getQueryClient = jest.mocked(getAppQueryClient);
 const refresh = jest.mocked(refreshAfterCompletion);
 
 function practiceEntry(
-  overrides: Pick<Partial<PendingCompletion>, 'lastAttemptAt' | 'lastError'> = {},
+  overrides: Partial<PendingCompletion> = {},
 ): PendingCompletion {
   return {
     kind: 'record_practice',
     id: 'record_practice:session-1',
     createdAt: '2026-11-08T10:00:00.000Z',
-    lastAttemptAt: overrides.lastAttemptAt,
-    lastError: overrides.lastError ?? null,
+    status: 'pending',
+    attempts: 0,
+    nextAttemptAt: null,
+    lastErrorKind: null,
+    appVersion: '1.0.0',
+    lastAttemptAt: undefined,
+    lastError: null,
     input: {
-      metric: 'pushups',
-      source: 'in_app_pose',
+      metric: 'pushups' as const,
+      source: 'in_app_pose' as const,
       count: 10,
       durationSeconds: 40,
       startedAt: '2026-11-08T10:00:00.000Z',
       endedAt: '2026-11-08T10:00:40.000Z',
       externalId: 'session-1',
     },
-  };
+    ...overrides,
+  } as PendingCompletion;
 }
 
 describe('flushPendingCompletions', () => {
@@ -87,7 +93,7 @@ describe('flushPendingCompletions', () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it('keeps a failed entry and records the error', async () => {
+  it('keeps a retryable failure pending with backoff', async () => {
     const entry = practiceEntry();
     listPending.mockResolvedValue([entry]);
     execute.mockRejectedValue(new TypeError('Network request failed'));
@@ -95,14 +101,40 @@ describe('flushPendingCompletions', () => {
     await flushPendingCompletions();
 
     expect(removePending).not.toHaveBeenCalled();
-    expect(markAttempt).toHaveBeenCalledWith(entry.id, 'Network request failed');
+    expect(markAttempt).toHaveBeenCalledWith(
+      entry.id,
+      'Network request failed',
+      expect.objectContaining({
+        kind: 'retryable',
+        status: 'pending',
+      }),
+    );
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('skips a recent failed attempt so reconnect cannot tight-loop', async () => {
+  it('parks a permanent 4xx failure', async () => {
+    const entry = practiceEntry();
+    listPending.mockResolvedValue([entry]);
+    execute.mockRejectedValue(Object.assign(new Error('bad request'), { status: 400 }));
+
+    await flushPendingCompletions();
+
+    expect(markAttempt).toHaveBeenCalledWith(
+      entry.id,
+      'bad request',
+      expect.objectContaining({
+        kind: 'permanent',
+        status: 'parked',
+      }),
+    );
+  });
+
+  it('skips until nextAttemptAt so reconnect cannot tight-loop', async () => {
     const entry = practiceEntry({
-      lastAttemptAt: new Date().toISOString(),
+      nextAttemptAt: new Date(Date.now() + 60_000).toISOString(),
       lastError: 'Network request failed',
+      lastErrorKind: 'retryable',
+      attempts: 1,
     });
     listPending.mockResolvedValue([entry]);
 
@@ -110,5 +142,18 @@ describe('flushPendingCompletions', () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(removePending).not.toHaveBeenCalled();
+  });
+
+  it('skips parked entries until they are re-queued', async () => {
+    const entry = practiceEntry({
+      status: 'parked',
+      lastErrorKind: 'permanent',
+      attempts: 2,
+    });
+    listPending.mockResolvedValue([entry]);
+
+    await flushPendingCompletions();
+
+    expect(execute).not.toHaveBeenCalled();
   });
 });

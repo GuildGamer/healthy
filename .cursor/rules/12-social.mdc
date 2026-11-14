@@ -70,9 +70,9 @@ standings: a score anybody can type is not one the rest of the group can trust.
 score first, then who reached that score first. Add a mode by adding a fold
 step, never a parallel ranking function.
 
-`cumulative_total` caps what one day contributes, per metric
-(`MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC`). Volume modes must not reward grinding
-a single session.
+`cumulative_total` adds every counted set or walk minute. Bound a single
+submission with `MATCH_ATTEMPT_MAX_BY_METRIC` at the write boundary — do not
+reintroduce a daily volume cap.
 
 Which modes a metric can run lives in `MATCH_MODES_BY_METRIC`; the client
 filters to it and the contract rejects the rest. A new metric is entries in the

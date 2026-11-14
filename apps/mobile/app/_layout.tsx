@@ -11,7 +11,8 @@ import {
   DECK_SHEET_SCREEN_OPTIONS,
   FULL_PHONE_SCREEN_OPTIONS,
 } from '@/components/navigation/screen-options';
-import { flushPendingCompletions } from '@/lib/flush-pending-completions';
+import { registerCompletionBackgroundSync } from '@/lib/completion-background-sync';
+import { flushPendingCompletions } from '@/lib/completion-sync';
 import { flushPendingProofUploads } from '@/lib/flush-pending-proof-uploads';
 import { setAppQueryClient } from '@/lib/query-client-holder';
 import { useDisplayFont } from '@/lib/fonts';
@@ -89,6 +90,11 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
   useNetworkReconnected(flushPendingOfflineWork);
+
+  // Store / dev-client binary only — OTA cannot add the native module.
+  useEffect(() => {
+    void registerCompletionBackgroundSync();
+  }, []);
 
   // Keep counting a same-day walk offer after a cold start, before Today mounts.
   // Also drop any walk Live Activity / GPS task left behind by a force-quit.

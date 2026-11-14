@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, forwardRef } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
   activityMeetsTarget,
@@ -83,12 +83,14 @@ type AssignmentRecord = UserChallenge & {
   challenge: Challenge;
   surpriseEvidenceRequest: SurpriseEvidenceRequest | null;
   enrollment: EnrollmentGoal | null;
+  deviceActivityLog: { externalId: string | null } | null;
 };
 
 const ASSIGNMENT_INCLUDE = {
   challenge: true,
   surpriseEvidenceRequest: true,
   enrollment: { select: { targetCount: true, targetDurationMinutes: true } },
+  deviceActivityLog: { select: { externalId: true } },
 } as const;
 
 function challengeDisplayTitle(assignment: {
@@ -200,6 +202,8 @@ export class ChallengesService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly streak: StreakService,
+    @Inject(forwardRef(() => MATCHES_SERVICE))
+    private readonly matches: PoseContestCreditor,
     @Inject(EVIDENCE_VALIDATOR)
     private readonly evidenceValidator: EvidenceValidator = createAcceptEvidenceValidator(),
     @Optional()
@@ -207,9 +211,6 @@ export class ChallengesService {
     surpriseRoll?: () => number,
     @Optional()
     private readonly delivery?: EngagementDeliveryService,
-    @Optional()
-    @Inject(MATCHES_SERVICE)
-    private readonly matches?: PoseContestCreditor,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }
@@ -255,7 +256,11 @@ export class ChallengesService {
       }
 
       try {
-        await this.complete(user, assignment.id, undefined, undefined, undefined, activity);
+        // Contests are credited by the caller (practice or contest submit), so
+        // finishing Mine here must not create a second MatchAttempt.
+        await this.complete(user, assignment.id, undefined, undefined, undefined, activity, {
+          creditContests: false,
+        });
         credited.push(assignment.id);
       } catch (error) {
         this.logger.warn(
@@ -348,12 +353,19 @@ export class ChallengesService {
       sleep?: Parameters<typeof requireSleepLogFor>[1];
     },
     deviceActivity?: DeviceActivity,
+    options: { creditContests?: boolean } = {},
   ): Promise<CompleteChallengeDto> {
+    const creditContests = options.creditContests !== false;
     const user = requireUser(currentUser);
     await this.settleExpiredEvidence(user.id);
     const assignment = await this.findOwnedAssignment(user.id, userChallengeId);
 
     if (assignment.status === 'completed') {
+      if (deviceActivity) {
+        await this.saveExtraPoseSetAfterCompletion(user, assignment, deviceActivity, {
+          creditContests,
+        });
+      }
       return this.completionSnapshot(user.id, assignment, {
         pointsAwarded: 0,
         penaltyApplied: 0,
@@ -390,7 +402,7 @@ export class ChallengesService {
       return this.openSurpriseRequest(user, assignment, reading);
     }
 
-    return this.rewardCompletion(user, assignment, reading, log, activity);
+    return this.rewardCompletion(user, assignment, reading, log, activity, { creditContests });
   }
 
   /**
@@ -566,7 +578,9 @@ export class ChallengesService {
     reading: ChallengeVitalsInput | null,
     log: ChallengeLogPayload | null = null,
     activity: DeviceActivity | null = null,
+    options: { creditContests?: boolean } = {},
   ): Promise<CompleteChallengeDto> {
+    const creditContests = options.creditContests !== false;
     const idempotencyKey = `challenge_complete:${assignment.id}`;
     const rewardPoints = assignment.challenge.rewardPoints;
     const displayTitle = challengeDisplayTitle(assignment);
@@ -653,7 +667,12 @@ export class ChallengesService {
         },
       });
 
-      const streak = await this.streak.recordActiveDay(user.id, tx);
+      const activeAt = activity?.endedAt ? new Date(activity.endedAt) : new Date();
+      const streak = await this.streak.recordActiveDay(
+        user.id,
+        tx,
+        Number.isNaN(activeAt.getTime()) ? new Date() : activeAt,
+      );
 
       const profile = await tx.userProfile.update({
         where: { userId: user.id },
@@ -703,10 +722,85 @@ export class ChallengesService {
         },
       );
       void this.streak.announceMilestone(user.id, result.streak);
+    }
+
+    // Fresh and retry both re-run contest credit when this path owns it.
+    // creditPosePractice is idempotent on the set's externalId per match.
+    if (creditContests) {
       await this.creditOpenPoseContests(user, activity);
     }
 
     return result.dto;
+  }
+
+  /**
+   * A set that arrives after today's Mine goal is already done still banks as
+   * practice progress and lands on open contests. A retry of the finishing set
+   * (same externalId) only re-runs contest credit.
+   */
+  private async saveExtraPoseSetAfterCompletion(
+    user: AuthenticatedUser,
+    assignment: AssignmentRecord,
+    activity: DeviceActivity,
+    options: { creditContests: boolean },
+  ): Promise<void> {
+    if (
+      activity.source !== 'in_app_pose' ||
+      !isPoseMetric(activity.metric) ||
+      (activity.count ?? 0) <= 0
+    ) {
+      return;
+    }
+
+    const finishingExternalId = assignment.deviceActivityLog?.externalId ?? null;
+    const isFinishingSetRetry =
+      Boolean(activity.externalId) && activity.externalId === finishingExternalId;
+
+    if (!isFinishingSetRetry && activity.externalId) {
+      await this.persistExtraPracticeActivity(user.id, activity);
+    }
+
+    if (options.creditContests) {
+      await this.creditOpenPoseContests(user, activity);
+    }
+  }
+
+  /** Banks a post-completion set as a practice row (no occurrence attached). */
+  private async persistExtraPracticeActivity(
+    userId: string,
+    activity: DeviceActivity,
+  ): Promise<void> {
+    if (!activity.externalId) {
+      return;
+    }
+
+    const key = { userId_externalId: { userId, externalId: activity.externalId } };
+    const existing = await this.prisma.deviceActivityLog.findUnique({ where: key });
+    if (existing?.userChallengeId) {
+      return;
+    }
+
+    await this.prisma.deviceActivityLog.upsert({
+      where: key,
+      create: {
+        userId,
+        userChallengeId: null,
+        source: activity.source,
+        metric: activity.metric,
+        count: activity.count ?? null,
+        durationSeconds: activity.durationSeconds ?? null,
+        distanceMeters: activity.distanceMeters ?? null,
+        startedAt: activity.startedAt ? new Date(activity.startedAt) : null,
+        endedAt: activity.endedAt ? new Date(activity.endedAt) : null,
+        externalId: activity.externalId,
+      },
+      update: {
+        count: activity.count ?? null,
+        durationSeconds: activity.durationSeconds ?? null,
+        distanceMeters: activity.distanceMeters ?? null,
+        endedAt: activity.endedAt ? new Date(activity.endedAt) : null,
+      },
+    });
   }
 
   /**
@@ -717,7 +811,7 @@ export class ChallengesService {
     user: AuthenticatedUser,
     activity: DeviceActivity | null,
   ): Promise<void> {
-    if (!this.matches || !activity) {
+    if (!activity) {
       return;
     }
 

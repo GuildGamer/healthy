@@ -24,8 +24,6 @@ import {
 export {
   MATCH_ATTEMPT_MAX_BY_METRIC,
   MATCH_ATTEMPT_SOURCE_BY_METRIC,
-  MATCH_CUMULATIVE_DAILY_CAP,
-  MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC,
   MATCH_DAY_STRIP_MAX_DAYS,
   MATCH_LENGTH_MAX_DAYS,
   MATCH_LENGTH_MIN_DAYS,
@@ -402,8 +400,14 @@ export const submitMatchAttemptInputSchema = z.object({
   /**
    * Stable id for this set on the device. Retries with the same id must not
    * create a second MatchAttempt (flaky network must not double the board).
+   * Optional for older clients; the server mints one when it is missing.
    */
-  clientAttemptId: z.string().min(1).max(128),
+  clientAttemptId: z.string().min(1).max(128).optional(),
+  /**
+   * When the set finished on the phone. Used for the contest day and streak
+   * when a set syncs later. Optional for older clients.
+   */
+  performedAt: z.string().datetime().optional(),
 });
 
 export const createMatchContract = oc

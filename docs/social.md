@@ -127,9 +127,8 @@ options rather than offering all of them and rejecting the bad ones.
 | `days_completed` | Any finished daily occurrence, or `pushups` / `walk` when the host narrows it | Two days |
 
 `MATCH_MODES_BY_METRIC` in the contract is the single source for the metric
-column. `walk` deliberately has no `best_single`: "longest single walk" is the
-one pairing that rewards pushing a single session past what the walker should
-do, which is exactly what the cumulative cap below exists to prevent.
+column. `walk` deliberately has no `best_single`: a longest-single-walk contest
+rewards pushing one session past what most walkers should do.
 
 `MATCH_MIN_DAYS_BY_SCORING_MODE` in the contract is the single source: a
 one-day consistency contest is not a contest, so `days_completed` needs two.
@@ -149,18 +148,13 @@ there is no precedence rule: the contract rejects a request carrying each.
 A year is the ceiling because settlement stays lazy-on-read, and a contest
 nobody finishes is a club with extra steps.
 
-### Fair play cap on cumulative
+### Cumulative totals
 
-`cumulative_total` is the one mode that rewards volume. Cumulative groups cap
-how much a single day can contribute to the total, so the winning strategy is
-returning daily rather than grinding one session. The cap is a constant, not a
-host setting — it is a fair-play floor, not a preference.
-
-The cap is per metric (`MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC`), because a day's
-reasonable effort is 300 push-ups or 120 minutes of walking and one number
-cannot mean both. A walk is scored in **minutes**, not distance: distance
-rewards pace, and minutes still count on a treadmill where there is no route to
-measure.
+`cumulative_total` adds every counted set or walk minute across the window. A
+walk is scored in **minutes**, not distance: distance rewards pace, and minutes
+still count on a treadmill where there is no route to measure. One absurd
+submission is still bounded by `MATCH_ATTEMPT_MAX_BY_METRIC` at the write
+boundary.
 
 `team_total`, where members pool toward one shared target rather than compete,
 remains deferred. It is a different relationship to the score (co-operative, not

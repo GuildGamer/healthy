@@ -48,15 +48,20 @@ describe('partial sessions', () => {
     expect(partialWalkSession(occurrence('run'), walk)).toBeNull();
   });
 
-  it('keeps a short set with its reps, and skips a set with none', () => {
-    const set = { durationSeconds: 41, startedAt: walk.startedAt, endedAt: walk.endedAt };
+  it('keeps a short set with its real exercise, and skips a set with none', () => {
+    const set = {
+      durationSeconds: 41,
+      startedAt: walk.startedAt,
+      endedAt: walk.endedAt,
+      metric: 'squats' as const,
+    };
 
-    expect(partialSetSession({ id: 'uc-push' }, { ...set, count: 14 })).toMatchObject({
-      metric: 'pushups',
+    expect(partialSetSession({ id: 'uc-squat' }, { ...set, count: 14 })).toMatchObject({
+      metric: 'squats',
       source: 'in_app_pose',
       count: 14,
-      externalId: 'in-app-pose:uc-push:2026-10-22T08:00:00.000Z',
+      externalId: 'in-app-pose:uc-squat:2026-10-22T08:00:00.000Z',
     });
-    expect(partialSetSession({ id: 'uc-push' }, { ...set, count: 0 })).toBeNull();
+    expect(partialSetSession({ id: 'uc-squat' }, { ...set, count: 0 })).toBeNull();
   });
 });

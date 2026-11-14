@@ -8,10 +8,10 @@ import { FormButton, FormErrorBanner } from '@/components/forms';
 import { WalkRouteMap } from '@/components/challenges/WalkRouteMap';
 import { useWalkRecorder, type WalkRecording } from '@/components/challenges/useWalkRecorder';
 import { refreshAfterCompletion } from '@/components/challenges/useCompleteChallenge';
-import { apiClient } from '@/lib/api';
 import { displayFontFamily } from '@/lib/fonts';
 import { goBackOrHome } from '@/lib/go-back';
 import { formatDistance, formatDuration, pathDistanceMeters } from '@/lib/geo-session';
+import { submitQueuedCompletion } from '@/lib/submit-queued-completion';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { matchAttemptClientId } from '@/components/challenges/partial-session';
 import {
@@ -41,14 +41,23 @@ export function MatchWalkScreen({ matchId }: { matchId: string }) {
   const [walk, setWalk] = useState<WalkRecording | null>(null);
 
   const submit = useMutation({
-    mutationFn: (recording: WalkRecording) =>
-      apiClient.submitMatchAttempt({
-        matchId,
-        count: Math.floor(recording.durationSeconds / 60),
-        durationSeconds: recording.durationSeconds,
-        source: 'in_app_walk',
-        clientAttemptId: matchAttemptClientId('walk', matchId, recording.startedAt),
-      }),
+    mutationFn: async (recording: WalkRecording) => {
+      const queued = await submitQueuedCompletion({
+        kind: 'submit_match_attempt',
+        input: {
+          matchId,
+          count: Math.floor(recording.durationSeconds / 60),
+          durationSeconds: recording.durationSeconds,
+          source: 'in_app_walk',
+          clientAttemptId: matchAttemptClientId('walk', matchId, recording.startedAt),
+          performedAt: recording.endedAt,
+        },
+      });
+      if (queued.outcome === 'failed') {
+        throw queued.error instanceof Error ? queued.error : new Error(MATCH_WALK_FAILED);
+      }
+      return queued.outcome;
+    },
     onSuccess: async () => {
       refreshAfterCompletion(queryClient);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });

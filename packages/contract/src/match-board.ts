@@ -68,7 +68,7 @@ export const matchReactionSentSchema = z.object({
   sentAt: z.string().datetime(),
 });
 
-/** A contest's local calendar day, `YYYY-MM-DD`, in the zone its daily cap uses. */
+/** A contest's local calendar day, `YYYY-MM-DD`, in the host's zone. */
 export const matchDayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /**
@@ -248,34 +248,6 @@ export function isScoringModeAllowedForMetric(
   const allowed: readonly MatchScoringMode[] = MATCH_MODES_BY_METRIC[metric];
   return allowed.includes(scoringMode);
 }
-
-/**
- * Ceiling on what one local day can add to a `cumulative_total` score. Volume
- * modes otherwise reward grinding a single session, which is the wrong pull for
- * an app used to manage chronic conditions. Constants, not host settings — a
- * safety floor is not a preference.
- *
- * Push-ups are capped in reps, walks in minutes: two hours of walking in a day
- * is already a lot, and a contest should not ask for the third.
- */
-export const MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC = {
-  pushups: 300,
-  walk: 120,
-  squats: 400,
-  plank: 1_200,
-  jumping_jacks: 1_000,
-  burpees: 200,
-  sit_ups: 300,
-  mountain_climbers: 1_000,
-  lunges: 300,
-} as const satisfies Record<MatchMetric, number>;
-
-/**
- * @deprecated Named before walks existed, when one cap covered every contest.
- * Mirrors the push-up cap; read
- * `MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC[metric]` instead.
- */
-export const MATCH_CUMULATIVE_DAILY_CAP = MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.pushups;
 
 /**
  * The largest single attempt each metric will accept. Bounds a competitive

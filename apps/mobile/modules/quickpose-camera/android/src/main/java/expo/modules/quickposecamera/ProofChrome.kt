@@ -18,6 +18,9 @@ internal data class ProofOverlay(val code: String, val label: String, val count:
  * Metrics are tuned at 720×1280 and baseline-scaled to frame height so server
  * encoding size does not shrink chips relative to the picture.
  * Used only from the recorder thread.
+ *
+ * The camera image is already in `frame` (PixelCopy centre-crop); this only
+ * draws the chips on top.
  */
 internal object ProofChrome {
   /** Overlay layout was tuned at 720×1280. */
@@ -38,36 +41,40 @@ internal object ProofChrome {
 
   private val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(140, 0, 0, 0) }
   private val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(255, 59, 48) }
-  private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
   private val dateFormat = DateFormat.getDateInstance(DateFormat.MEDIUM)
   private val monospaceBold = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
 
-  /** Draws the camera image aspect-filled onto `frame`, then the proof chrome on top. */
-  fun compose(frame: Bitmap, camera: Bitmap, overlay: ProofOverlay) {
+  private var cachedScale = Float.NaN
+  private lateinit var brandPaint: Paint
+  private lateinit var codePaint: Paint
+  private lateinit var urlPaint: Paint
+  private lateinit var countPaint: Paint
+  private lateinit var datePaint: Paint
+
+  /** Draws proof chrome over the camera image already present in `frame`. */
+  fun drawChrome(frame: Bitmap, overlay: ProofOverlay) {
     val canvas = Canvas(frame)
     val width = frame.width.toFloat()
     val height = frame.height.toFloat()
     val scale = height / CHROME_BASELINE_HEIGHT
-    canvas.drawColor(Color.BLACK)
-    drawAspectFill(canvas, camera, width, height)
+    ensurePaints(scale)
     drawBrandChip(canvas, scale)
     drawCodeChip(canvas, overlay.code, width, scale)
     drawCountChip(canvas, overlay, width, height, scale)
   }
 
-  private fun drawAspectFill(canvas: Canvas, image: Bitmap, width: Float, height: Float) {
-    if (image.width <= 0 || image.height <= 0) return
-    val scale = max(width / image.width, height / image.height)
-    val drawWidth = image.width * scale
-    val drawHeight = image.height * scale
-    val left = (width - drawWidth) / 2
-    val top = (height - drawHeight) / 2
-    canvas.drawBitmap(image, null, RectF(left, top, left + drawWidth, top + drawHeight), bitmapPaint)
+  private fun ensurePaints(scale: Float) {
+    if (cachedScale == scale && ::brandPaint.isInitialized) return
+    cachedScale = scale
+    brandPaint = scaledPaint(20f, Typeface.DEFAULT_BOLD, scale = scale)
+    codePaint = scaledPaint(20f, monospaceBold, scale = scale)
+    urlPaint = scaledPaint(14f, Typeface.DEFAULT, SECONDARY_ALPHA, scale)
+    countPaint = scaledPaint(28f, Typeface.DEFAULT_BOLD, scale = scale)
+    datePaint = scaledPaint(16f, Typeface.DEFAULT, SECONDARY_ALPHA, scale)
   }
 
   /** Top-left: recording pip and wordmark. */
   private fun drawBrandChip(canvas: Canvas, scale: Float) {
-    val brandPaint = scaledPaint(20f, Typeface.DEFAULT_BOLD, scale = scale)
     val edgeInset = EDGE_INSET * scale
     val topInset = TOP_INSET * scale
     val paddingH = PADDING_HORIZONTAL * scale
@@ -94,8 +101,6 @@ internal object ProofChrome {
 
   /** Top-right: code and verify URL so anyone watching knows where to check it. */
   private fun drawCodeChip(canvas: Canvas, code: String, width: Float, scale: Float) {
-    val codePaint = scaledPaint(20f, monospaceBold, scale = scale)
-    val urlPaint = scaledPaint(14f, Typeface.DEFAULT, SECONDARY_ALPHA, scale)
     val edgeInset = EDGE_INSET * scale
     val topInset = TOP_INSET * scale
     val paddingH = PADDING_HORIZONTAL * scale
@@ -131,8 +136,6 @@ internal object ProofChrome {
     height: Float,
     scale: Float,
   ) {
-    val countPaint = scaledPaint(28f, Typeface.DEFAULT_BOLD, scale = scale)
-    val datePaint = scaledPaint(16f, Typeface.DEFAULT, SECONDARY_ALPHA, scale)
     val paddingH = PADDING_HORIZONTAL * scale
     val paddingV = PADDING_VERTICAL * scale
     val lineGap = LINE_GAP * scale

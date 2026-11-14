@@ -96,7 +96,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // Required by ActivityKit. Without this key, startActivity fails and the
       // lock-screen walk card never appears.
       NSSupportsLiveActivities: true,
-      UIBackgroundModes: ['location'],
+      // `processing` is required by `expo-background-task` (set sync while closed).
+      UIBackgroundModes: ['location', 'processing'],
+      BGTaskSchedulerPermittedIdentifiers: ['com.expo.modules.backgroundtask.processing'],
     },
     entitlements: {
       'com.apple.developer.healthkit': true,
@@ -179,6 +181,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-font',
     'expo-iap',
     'expo-video',
+    // Background set sync while the app is closed (needs a new binary).
+    'expo-background-task',
     [
       'expo-media-library',
       {
@@ -294,6 +298,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isAndroidForegroundServiceEnabled: true,
       },
     ],
+    // Clears TaskManager prefs before RN loads so a restored Android walk
+    // location task cannot crash launch (needs a new binary; OTA cannot).
+    './plugins/with-stale-location-task-reset.js',
     // Widget extension for the lock-screen walk card. Only list this once —
     // applying it twice duplicates the Xcode target and breaks pod install.
     'expo-live-activity',

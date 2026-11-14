@@ -9,6 +9,10 @@ export const SUCCESS_COPY = {
   prepareFailed: 'Could not prepare that image. Try again.',
   sharingUnavailable: 'Sharing is not available on this device.',
   shareFailed: 'Could not share that image. Try again.',
+  /** Saved on the phone; waiting for the server. */
+  savedSyncing: 'Saved on your phone · syncing',
+  /** Confirmed on the server (or never needed a sync). */
+  saved: 'Saved',
   notNow: 'Not now',
   backToGroup: 'Back to group',
   seeNext: 'See what’s next',

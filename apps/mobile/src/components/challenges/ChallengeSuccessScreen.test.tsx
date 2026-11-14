@@ -6,6 +6,7 @@ import { Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
+import { usePendingSync } from '@/lib/pending-sync-store';
 import { clearPendingSharePhoto, setPendingSharePhoto } from '@/lib/share-card-session';
 import { ChallengeSuccessScreen } from './ChallengeSuccessScreen';
 
@@ -60,6 +61,17 @@ jest.mock('expo-router', () => {
 
 jest.mock('@/lib/go-back', () => ({
   goBackOrHome: jest.fn(),
+}));
+
+jest.mock('@/lib/pending-sync-store', () => ({
+  usePendingSync: jest.fn(() => ({
+    pending: [],
+    parked: [],
+    pendingCount: 0,
+    parkedCount: 0,
+    pendingCountByMatchId: new Map(),
+    pendingCountByMetric: new Map(),
+  })),
 }));
 
 const mockGetLocalProofClip = jest.fn();
@@ -497,6 +509,57 @@ describe('ChallengeSuccessScreen goal ladder', () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId('goal-ladder-offer')).toBeNull();
+    });
+  });
+});
+
+describe('ChallengeSuccessScreen sync status', () => {
+  beforeEach(() => {
+    mockGetLocalProofClip.mockResolvedValue(null);
+  });
+
+  it('shows saved-on-phone while a set is still syncing', async () => {
+    jest.mocked(usePendingSync).mockReturnValue({
+      pending: [{} as never],
+      parked: [],
+      pendingCount: 1,
+      parkedCount: 0,
+      pendingCountByMatchId: new Map(),
+      pendingCountByMetric: new Map(),
+    });
+
+    renderSuccess({
+      completedCount: 12,
+      face: 'reps',
+      syncing: true,
+      title: 'Do 10 push-ups',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('challenge-success-sync')).toBeOnTheScreen();
+    });
+    expect(screen.getByText('Saved on your phone · syncing')).toBeOnTheScreen();
+  });
+
+  it('shows Saved once the outbox has cleared', async () => {
+    jest.mocked(usePendingSync).mockReturnValue({
+      pending: [],
+      parked: [],
+      pendingCount: 0,
+      parkedCount: 0,
+      pendingCountByMatchId: new Map(),
+      pendingCountByMetric: new Map(),
+    });
+
+    renderSuccess({
+      completedCount: 12,
+      face: 'reps',
+      syncing: true,
+      title: 'Do 10 push-ups',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Saved')).toBeOnTheScreen();
     });
   });
 });

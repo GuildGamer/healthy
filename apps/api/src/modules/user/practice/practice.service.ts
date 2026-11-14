@@ -79,7 +79,12 @@ export class PracticeService {
       await this.linkProofClip(user.id, input.proofClipId, session.id);
     }
 
-    const streak = await this.streak.recordActiveDay(user.id);
+    const activeAt = new Date(input.endedAt);
+    const streak = await this.streak.recordActiveDay(
+      user.id,
+      this.prisma,
+      Number.isNaN(activeAt.getTime()) ? new Date() : activeAt,
+    );
     void this.streak.announceMilestone(user.id, streak);
     // Finish Mine first so a set that also lands on a contest board does not
     // leave the daily goal open after the work is already done.

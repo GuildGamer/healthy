@@ -141,6 +141,14 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock('expo-background-task', () => ({
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
+  registerTaskAsync: jest.fn(async () => undefined),
+  unregisterTaskAsync: jest.fn(async () => undefined),
+  getStatusAsync: jest.fn(async () => 2),
+}));
+
 jest.mock('expo-network', () => ({
   getNetworkStateAsync: jest.fn(async () => ({
     type: 'WIFI',

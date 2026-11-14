@@ -109,6 +109,7 @@ export default function ChallengeSuccessRoute() {
     glasses?: string | string[];
     proofClipId?: string | string[];
     proofFailed?: string | string[];
+    syncing?: string | string[];
   }>();
 
   if (isPending) {
@@ -148,6 +149,7 @@ export default function ChallengeSuccessRoute() {
       glasses={firstParam(params.glasses) ? parseCount(params.glasses) : undefined}
       proofClipId={parseId(params.proofClipId)}
       proofFailed={firstParam(params.proofFailed) === '1'}
+      syncing={firstParam(params.syncing) === '1'}
     />
   );
 }

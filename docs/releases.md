@@ -45,6 +45,10 @@ Native modules such as `expo-iap`, `expo-store-review`, `expo-splash-screen`, `e
 
 **Android walk map tiles** need a separate Maps SDK for Android key: set EAS secret `GOOGLE_MAPS_API_KEY` on the `production` environment (used by `production-apk`), enable **Maps SDK for Android** in Google Cloud, and restrict the key to package `com.healthyapp.app` plus the production keystore SHA-1 from Expo Credentials. This is not `GOOGLE_SERVICES_JSON`. Without the key, Start walk shows a solid navy strip instead of tiles. Ship a new binary after adding or changing the key — OTA cannot inject it.
 
+**Android stale location tasks** are a binary concern. Current JS never registers TaskManager location tasks on Android (walks use a foreground watch). Older builds did register them; Auto Backup can restore that registry after reinstall while clearing location permission, and Android 14+ then kills the process at launch before JS runs. The `with-stale-location-task-reset` config plugin deletes `TaskManagerModule` prefs in `MainApplication.onCreate` before React Native loads. Ship a new APK/AAB after changing that plugin — OTA cannot apply it. Remove the plugin if Android ever registers TaskManager tasks again.
+
+**Background set sync** (`expo-background-task`) needs a new store / dev-client binary. The JS outbox + foreground / reconnect flush can ship over the air; the OS background flush that runs while the app is closed cannot. Stale binaries skip registration and keep relying on launch, foreground, and reconnect. After the binary ships, publish a matching EAS Update for the new fingerprint.
+
 The native splash (background, icon, corner radius) is generated at prebuild from the `expo-splash-screen` plugin config in `app.config.ts`. Changing it needs a new binary, not an update; on a stale install the native splash simply auto-hides early and the animated `SplashScreen` replays.
 
 ### Store / internal testing

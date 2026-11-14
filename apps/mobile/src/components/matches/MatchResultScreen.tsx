@@ -181,6 +181,7 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
         {hasPodium ? <GroupPodium rules={board} standings={board.standings} /> : null}
         <GroupStandings
           hasTitle={false}
+          matchId={board.id}
           onPreviewPhoto={setPreviewUri}
           rules={board}
           skipTop={hasPodium ? PODIUM_PLACES : 0}

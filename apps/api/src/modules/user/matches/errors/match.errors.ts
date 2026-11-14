@@ -14,3 +14,9 @@ export const MATCH_WRONG_ACTIVITY = 'That does not count towards this group’s 
 export const MATCH_COUNT_TOO_LARGE = 'That score is out of range.';
 export const MATCH_INVALID_SOURCE_CHALLENGE = 'That completed set cannot start a challenge.';
 export const MATCH_INVALID_PARENT = 'You can only continue from a group you are in.';
+/** A set that syncs after the contest settled cannot move the board. */
+export const MATCH_SET_AFTER_END = 'This contest ended before your set synced.';
+/** performedAt is in the future or older than the sync window. */
+export const MATCH_PERFORMED_AT_INVALID = 'That set’s time is out of range.';
+/** performedAt is before the contest started. */
+export const MATCH_PERFORMED_BEFORE_START = 'That set happened before this contest started.';

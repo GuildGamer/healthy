@@ -8,6 +8,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck';
+import { SyncStatusLine } from '@/components/feedback/SyncStatusLine';
 import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
 import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
@@ -15,6 +16,7 @@ import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
 import { markMembershipCtaShownThisSession, markSuccessWasPenalty } from '@/lib/app-review-session';
 import { getSessionData, isEmailVerified } from '@/lib/auth-client';
 import { goBackOrHome } from '@/lib/go-back';
+import { usePendingSync } from '@/lib/pending-sync-store';
 import { hasDeferredOnboarding } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 import { clearPendingSharePhoto, pendingSharePhotoFor } from '@/lib/share-card-session';
@@ -69,6 +71,11 @@ type ChallengeSuccessScreenProps = {
   proofFailed?: boolean;
   /** Who may watch this set’s clip by its code. */
   proofAudience?: 'anyone' | 'only_me';
+  /**
+   * Opened after a save-first queue: the set is on the phone and still
+   * syncing. Clears to “Saved” once the outbox empties for this session.
+   */
+  syncing?: boolean;
 };
 
 /**
@@ -225,9 +232,13 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     proofClipId,
     proofFailed = false,
     proofAudience = 'anyone',
+    syncing: startedSyncing = false,
   } = props;
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
+  const sync = usePendingSync();
+  const isStillSyncing = startedSyncing && sync.pendingCount > 0;
+  const showSyncLine = startedSyncing;
   const isMatch = Boolean(matchId);
   const wasPenalized = penaltyApplied > 0;
   const friend = useFriendChallenge({
@@ -290,6 +301,15 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     return (
       <SafeAreaView style={styles.container} testID="challenge-success-screen">
         {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
+        {showSyncLine ? (
+          <View style={styles.syncLine}>
+            <SyncStatusLine
+              label={isStillSyncing ? SUCCESS_COPY.savedSyncing : SUCCESS_COPY.saved}
+              testID="challenge-success-sync"
+              tone={isStillSyncing ? 'syncing' : 'saved'}
+            />
+          </View>
+        ) : null}
         <View style={styles.body}>
           {proof.isLoading ? (
             <ActivityIndicator />
@@ -335,6 +355,15 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   return (
     <SafeAreaView style={styles.container} testID="challenge-success-screen">
       {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
+      {showSyncLine ? (
+        <View style={styles.syncLine}>
+          <SyncStatusLine
+            label={isStillSyncing ? SUCCESS_COPY.savedSyncing : SUCCESS_COPY.saved}
+            testID="challenge-success-sync"
+            tone={isStillSyncing ? 'syncing' : 'saved'}
+          />
+        </View>
+      ) : null}
       <View style={styles.body}>
         <View collapsable={false} ref={shareImage.shotRef} style={styles.posterWrap}>
           <SharePosterCard
@@ -662,6 +691,10 @@ const createStyles = (theme: Theme) =>
       letterSpacing: -0.8,
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
+    },
+    syncLine: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
     },
     body: {
       flex: 1,

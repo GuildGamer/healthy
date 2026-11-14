@@ -8942,14 +8942,17 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 128
+                  },
+                  "performedAt": {
+                    "type": "string",
+                    "format": "date-time"
                   }
                 },
                 "required": [
                   "matchId",
                   "count",
                   "durationSeconds",
-                  "source",
-                  "clientAttemptId"
+                  "source"
                 ]
               }
             }

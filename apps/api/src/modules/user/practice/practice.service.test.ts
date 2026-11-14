@@ -308,7 +308,11 @@ describe('PracticeService.record', () => {
     const streak = createStreakSpy();
     await createService(createPrismaMock(), streak).record(user, input);
 
-    expect(streak.recordActiveDay).toHaveBeenCalledWith('u1');
+    expect(streak.recordActiveDay).toHaveBeenCalledWith(
+      'u1',
+      expect.anything(),
+      new Date(input.endedAt),
+    );
     expect(streak.announceMilestone).toHaveBeenCalledWith('u1', {
       currentStreakDays: 1,
       advanced: true,

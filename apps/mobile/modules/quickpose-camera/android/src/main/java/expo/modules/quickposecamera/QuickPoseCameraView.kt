@@ -15,6 +15,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
@@ -130,9 +132,9 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   private val countEngine = PoseCountEngine()
   private val countLock = Any()
   /**
-   * iOS taps camera buffers beside QuickPose; Android used to call
-   * [QuickPose.captureFrame] from every pose callback, which stalled inference
-   * while recording. Proof frames are sampled on this loop instead.
+   * iOS taps camera buffers beside QuickPose; Android samples the camera
+   * surface on this loop with a cheap PixelCopy so pose inference keeps its
+   * full frame rate while a proof clip is recording.
    */
   private val proofCaptureHandler = Handler(Looper.getMainLooper())
   private var proofCaptureTick: Runnable? = null
@@ -148,6 +150,8 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   /** Live burn-in until JS finishes the clip (frozen proofCount wins after). */
   @Volatile
   private var overlayFromNative = true
+  private var poseSuccessFrames = 0
+  private var poseFpsWindowStartMs = 0L
 
   init {
     setBackgroundColor(Color.BLACK)
@@ -223,6 +227,8 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
 
     if (status !is Status.Success) return
 
+    notePoseSuccessFrame()
+
     val results = mutableMapOf<String, Double>()
     val feedbacks = mutableMapOf<String, String>()
     for ((key, feature) in currentFeatures) {
@@ -244,7 +250,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       }
 
     val liveCount = snapshot.count
-    if (overlayFromNative && proofRecorder?.isRecording == true) {
+    if (overlayFromNative && snapshot.countChanged && proofRecorder?.isRecording == true) {
       post { proofRecorder?.updateOverlay(count = liveCount) }
     }
 
@@ -401,6 +407,22 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     }
   }
 
+  /** Counts successful pose frames and logs fps every few seconds for proof-on vs proof-off checks. */
+  private fun notePoseSuccessFrame() {
+    val nowMs = SystemClock.elapsedRealtime()
+    if (poseFpsWindowStartMs == 0L) {
+      poseFpsWindowStartMs = nowMs
+    }
+    poseSuccessFrames += 1
+    val elapsedMs = nowMs - poseFpsWindowStartMs
+    if (elapsedMs < POSE_FPS_LOG_INTERVAL_MS) return
+    val fps = poseSuccessFrames * 1000.0 / elapsedMs
+    val recording = proofRecorder?.isRecording == true
+    Log.i(LOG_TAG, "pose fps=%.1f recording=%s".format(fps, recording))
+    poseSuccessFrames = 0
+    poseFpsWindowStartMs = nowMs
+  }
+
   /** Samples the camera surface for proof clips without coupling to the pose callback rate. */
   private fun startProofCaptureLoop(frameRate: Int) {
     stopProofCaptureLoop()
@@ -493,6 +515,8 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     emitHandler.removeCallbacksAndMessages(null)
     pendingEmit = null
     emitScheduled = false
+    poseSuccessFrames = 0
+    poseFpsWindowStartMs = 0L
     proofRecorder?.shutdown()
     proofRecorder = null
     sessionScope?.cancel()
@@ -509,6 +533,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   }
 
   private companion object {
+    const val LOG_TAG = "HealthyPose"
     const val LANDMARK_MIN_VISIBILITY = 0.2f
     const val START_FAILED = "Could not start proof recording."
     const val FINISH_FAILED = "Could not finish proof recording."
@@ -520,5 +545,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     const val PROOF_CAPTURE_MIN_INTERVAL_MS = 33L
     /** Coalesce JS onUpdate to ~30 Hz unless count changes. */
     const val EMIT_MIN_INTERVAL_MS = 33L
+    const val POSE_FPS_LOG_INTERVAL_MS = 5_000L
   }
 }
+

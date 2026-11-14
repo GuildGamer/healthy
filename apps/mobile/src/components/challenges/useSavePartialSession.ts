@@ -1,28 +1,24 @@
 import type { RecordPracticeSessionInput } from '@product/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  removePendingCompletion,
-  upsertPendingCompletion,
-} from '@/lib/completion-outbox';
-import { executePendingCompletion } from '@/lib/execute-pending-completion';
+import { submitQueuedCompletion } from '@/lib/submit-queued-completion';
 
 /**
  * Keeps a measured session that fell short of the goal as progress on Today's
- * card. It is stored like a practice session: no points, and the challenge
- * stays open. The session's own externalId makes every save of it one row.
- * Queued first so a flaky network still lands the progress when back online.
+ * card. Queued first so a flaky network still lands the progress when back
+ * online; a retryable failure is not surfaced as a hard error.
  */
 export function useSavePartialSession() {
   const queryClient = useQueryClient();
 
   const save = useMutation({
     mutationFn: async (session: RecordPracticeSessionInput) => {
-      const pending = await upsertPendingCompletion({
+      const queued = await submitQueuedCompletion({
         kind: 'record_practice',
         input: session,
       });
-      await executePendingCompletion(pending);
-      await removePendingCompletion(pending.id);
+      if (queued.outcome === 'failed') {
+        throw queued.error instanceof Error ? queued.error : new Error('That didn’t save.');
+      }
     },
     onSuccess: () =>
       Promise.all([

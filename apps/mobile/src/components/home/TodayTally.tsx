@@ -1,6 +1,10 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { Fragment } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import {
+  SyncStatusLine,
+  type SyncStatusTone,
+} from '@/components/feedback/SyncStatusLine';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import type { TallyLabel, TallySegment } from './types/today-deck';
 
@@ -12,6 +16,8 @@ interface TodayTallyProps {
   label: TallyLabel | null;
   runLabel: string | null;
   updatedLabel?: string | null;
+  /** Quiet sync / attention line under the tally. */
+  syncStatus?: { tone: SyncStatusTone; label: string; onPress?: () => void } | null;
 }
 
 /**
@@ -24,6 +30,7 @@ export function TodayTally({
   label,
   runLabel,
   updatedLabel = null,
+  syncStatus = null,
 }: TodayTallyProps) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -61,7 +68,14 @@ export function TodayTally({
         )}
         {runLabel ? <Text style={styles.label}>{runLabel}</Text> : null}
       </View>
-      {updatedLabel ? (
+      {syncStatus ? (
+        <SyncStatusLine
+          label={syncStatus.label}
+          onPress={syncStatus.onPress}
+          testID="home-sync-status"
+          tone={syncStatus.tone}
+        />
+      ) : updatedLabel ? (
         <Text style={styles.updated} testID="home-last-updated">
           {updatedLabel}
         </Text>

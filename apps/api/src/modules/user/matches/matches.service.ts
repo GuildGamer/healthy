@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
@@ -50,7 +51,10 @@ import {
   MATCH_NOT_HOST,
   MATCH_NOT_OPEN,
   MATCH_NOT_PARTICIPANT,
+  MATCH_PERFORMED_AT_INVALID,
+  MATCH_PERFORMED_BEFORE_START,
   MATCH_REACTION_NOT_ALLOWED,
+  MATCH_SET_AFTER_END,
   MATCH_WRONG_ACTIVITY,
 } from './errors/match.errors.js';
 import {
@@ -80,6 +84,10 @@ function scoringRulesFor(match: LoadedMatch): MatchScoringRules {
 }
 
 const CLIENT_ATTEMPT_ID_MAX = 128;
+/** Sets that sync later than this after they finished are rejected. */
+const PERFORMED_AT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+/** Clock skew allowance for performedAt in the near future. */
+const PERFORMED_AT_FUTURE_SKEW_MS = 2 * 60 * 1000;
 
 /** One habit set → many contests: keep the base id, scope it per match, fit the column. */
 export function matchScopedClientAttemptId(base: string, matchId: string): string {
@@ -94,6 +102,36 @@ function isUniqueConstraintError(error: unknown): boolean {
     'code' in error &&
     (error as { code: unknown }).code === 'P2002'
   );
+}
+
+/**
+ * When the set finished on the phone, for day and streak. Null when the client
+ * did not send one (older apps). Rejects times that are too far ahead or back.
+ */
+export function resolvePerformedAt(
+  performedAt: string | undefined,
+  now: Date = new Date(),
+): Date | null {
+  if (!performedAt) {
+    return null;
+  }
+
+  const at = new Date(performedAt);
+  if (Number.isNaN(at.getTime())) {
+    throw new ORPCError('BAD_REQUEST', { message: MATCH_PERFORMED_AT_INVALID });
+  }
+
+  const ageMs = now.getTime() - at.getTime();
+  if (ageMs < -PERFORMED_AT_FUTURE_SKEW_MS || ageMs > PERFORMED_AT_MAX_AGE_MS) {
+    throw new ORPCError('BAD_REQUEST', { message: MATCH_PERFORMED_AT_INVALID });
+  }
+
+  return at;
+}
+
+/** Scoring and "done today" use when the set was done, falling back to when it landed. */
+function attemptOccurredAt(attempt: { performedAt: Date | null; recordedAt: Date }): Date {
+  return attempt.performedAt ?? attempt.recordedAt;
 }
 
 /**
@@ -690,21 +728,35 @@ export class MatchesService {
     const match = await this.acceptSeat(loaded, user.id);
 
     if (match.status !== 'open') {
-      throw new ORPCError('BAD_REQUEST', { message: MATCH_NOT_OPEN });
+      throw new ORPCError('BAD_REQUEST', { message: MATCH_SET_AFTER_END });
     }
 
     this.assertAttemptFitsMetric(match.metric, input);
+
+    const performedAt = resolvePerformedAt(input.performedAt);
+    if (performedAt && performedAt.getTime() < match.startsAt.getTime()) {
+      throw new ORPCError('BAD_REQUEST', { message: MATCH_PERFORMED_BEFORE_START });
+    }
+
+    // Older clients omit clientAttemptId; mint one so the unique key still holds.
+    const clientAttemptId = input.clientAttemptId ?? `legacy:${randomUUID()}`;
+    const attemptInput: SubmitMatchAttemptInput = { ...input, clientAttemptId };
 
     const existing = await this.prisma.matchAttempt.findUnique({
       where: {
         matchId_userId_clientAttemptId: {
           matchId: match.id,
           userId: user.id,
-          clientAttemptId: input.clientAttemptId,
+          clientAttemptId,
         },
       },
     });
     if (existing) {
+      // A half-finished earlier try still needs Mine credit; the attempt row
+      // already exists so contests are not double-counted.
+      if (applyTowardPersonalGoals) {
+        await this.applyAttemptTowardPersonalGoals(user, match.metric, existing.id, attemptInput);
+      }
       return this.buildBoard(await this.loadById(match.id), user.id);
     }
 
@@ -714,6 +766,7 @@ export class MatchesService {
     ).length;
 
     const scoreBefore = await this.viewerScore(match, user.id);
+    const activeAt = performedAt ?? new Date();
 
     let attempt: { id: string };
     let streak: Awaited<ReturnType<StreakService['recordActiveDay']>>;
@@ -726,14 +779,27 @@ export class MatchesService {
             count: input.count,
             durationSeconds: input.durationSeconds,
             source: input.source,
-            clientAttemptId: input.clientAttemptId,
+            clientAttemptId,
+            performedAt,
           },
         }),
-        streak: await this.streak.recordActiveDay(user.id, tx),
+        streak: await this.streak.recordActiveDay(user.id, tx, activeAt),
       })));
     } catch (error) {
       if (!isUniqueConstraintError(error)) {
         throw error;
+      }
+      const raced = await this.prisma.matchAttempt.findUnique({
+        where: {
+          matchId_userId_clientAttemptId: {
+            matchId: match.id,
+            userId: user.id,
+            clientAttemptId,
+          },
+        },
+      });
+      if (raced && applyTowardPersonalGoals) {
+        await this.applyAttemptTowardPersonalGoals(user, match.metric, raced.id, attemptInput);
       }
       return this.buildBoard(await this.loadById(match.id), user.id);
     }
@@ -744,7 +810,7 @@ export class MatchesService {
     }
 
     if (applyTowardPersonalGoals) {
-      await this.applyAttemptTowardPersonalGoals(user, match.metric, attempt.id, input);
+      await this.applyAttemptTowardPersonalGoals(user, match.metric, attempt.id, attemptInput);
     }
 
     const fresh = await this.loadById(match.id);
@@ -780,7 +846,11 @@ export class MatchesService {
     attemptId: string,
     input: SubmitMatchAttemptInput,
   ): DeviceActivity {
-    const endedAt = new Date().toISOString();
+    const endedAt = input.performedAt ?? new Date().toISOString();
+    const endedMs = Date.parse(endedAt);
+    const startedAt = Number.isFinite(endedMs)
+      ? new Date(endedMs - input.durationSeconds * 1000).toISOString()
+      : new Date(Date.now() - input.durationSeconds * 1000).toISOString();
     return {
       // Contest walks use MatchAttemptSource `in_app_walk`; the habit log
       // enum only has `in_app_gps` for the same on-device GPS path.
@@ -788,7 +858,7 @@ export class MatchesService {
       metric: DEVICE_METRIC_BY_MATCH_METRIC[metric],
       count: input.count,
       durationSeconds: input.durationSeconds,
-      startedAt: new Date(Date.now() - input.durationSeconds * 1000).toISOString(),
+      startedAt,
       endedAt,
       externalId: matchAttemptActivityExternalId(attemptId),
     };
@@ -1305,12 +1375,15 @@ export class MatchesService {
     }
 
     const timeZone = this.contestTimeZone(match);
-    const attempts = match.attempts.map((attempt) => ({
-      userId: attempt.userId,
-      count: attempt.count,
-      dayKey: dayKeyFor(timeZone, attempt.recordedAt),
-      occurredAt: attempt.recordedAt,
-    }));
+    const attempts = match.attempts.map((attempt) => {
+      const occurredAt = attemptOccurredAt(attempt);
+      return {
+        userId: attempt.userId,
+        count: attempt.count,
+        dayKey: dayKeyFor(timeZone, occurredAt),
+        occurredAt,
+      };
+    });
 
     return [...attempts, ...(await this.loadTrackedWalkEvents(match, timeZone))];
   }
@@ -1428,12 +1501,12 @@ export class MatchesService {
     };
   }
 
-  /** One zone for the whole contest, so a shared daily cap treats everyone alike. */
+  /** One zone for the whole contest, so "done today" is the same day for everyone. */
   private contestTimeZone(match: LoadedMatch): string {
     return match.hostUser.profile?.timeZone ?? DEFAULT_TIME_ZONE;
   }
 
-  /** The contest's current day, in the zone its daily cap already uses. */
+  /** The contest's current day, in the host's zone. */
   private todayKeyFor(match: LoadedMatch): string {
     return dayKeyFor(this.contestTimeZone(match), new Date());
   }
@@ -1486,13 +1559,16 @@ export class MatchesService {
   /** Attempt rows with duration, for fastest-set (and best-set) honors. */
   private honorAttemptsFor(match: LoadedMatch): HonorAttempt[] {
     const timeZone = this.contestTimeZone(match);
-    return match.attempts.map((attempt) => ({
-      userId: attempt.userId,
-      count: attempt.count,
-      durationSeconds: attempt.durationSeconds,
-      dayKey: dayKeyFor(timeZone, attempt.recordedAt),
-      occurredAt: attempt.recordedAt,
-    }));
+    return match.attempts.map((attempt) => {
+      const occurredAt = attemptOccurredAt(attempt);
+      return {
+        userId: attempt.userId,
+        count: attempt.count,
+        durationSeconds: attempt.durationSeconds,
+        dayKey: dayKeyFor(timeZone, occurredAt),
+        occurredAt,
+      };
+    });
   }
 
   private async buildBoard(match: LoadedMatch, viewerId: string): Promise<MatchBoard> {

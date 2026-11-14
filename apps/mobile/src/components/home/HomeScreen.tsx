@@ -1,15 +1,22 @@
 import type { TodayChallenge } from '@product/client';
 import { fontWeight, spacing } from '@product/brand';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isCountedOnCard } from '@/components/challenges/challenge-act';
 import { anotherSetRoute } from '@/components/challenges/open-pose-contest';
 import { canPracticeAgain } from '@/components/challenges/practice-entry';
-import { RefreshableScroll } from '@/components/feedback';
+import {
+  attentionSetsLabel,
+  ParkedSetsSheet,
+  RefreshableScroll,
+  syncingSetsLabel,
+} from '@/components/feedback';
 import { Glyph } from '@/components/icons';
 import type { MatchSessionRoute } from '@/components/matches/match-metric';
 import { waterGlassCount } from '@/components/challenges/water-glasses';
+import { usePendingSync } from '@/lib/pending-sync-store';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { CardActsProvider, useCardActs } from './CardActsProvider';
 import { CardToastBar } from './CardToastBar';
@@ -150,6 +157,18 @@ function DeckSection({
     finished.finish && !opensDayPage ? withFinishedCard(deck.items, finished.finish) : deck.items;
   const openDoneChallenge = useOpenDoneChallenge(today.liveGroups);
   const isShowingStaleCopy = challengesQuery.isError && challengesQuery.data !== undefined;
+  const sync = usePendingSync();
+  const [showParked, setShowParked] = useState(false);
+  const syncStatus =
+    sync.parkedCount > 0
+      ? {
+          tone: 'attention' as const,
+          label: attentionSetsLabel(sync.parkedCount),
+          onPress: () => setShowParked(true),
+        }
+      : sync.pendingCount > 0
+        ? { tone: 'syncing' as const, label: syncingSetsLabel(sync.pendingCount) }
+        : null;
 
   return (
     <View style={styles.section}>
@@ -166,6 +185,7 @@ function DeckSection({
           bestStreakDays: me?.bestStreakDays ?? 0,
         })}
         segments={deck.segments}
+        syncStatus={syncStatus}
         updatedLabel={isShowingStaleCopy ? lastUpdatedLabel(challengesQuery.dataUpdatedAt) : null}
         winLineAfter={deck.winLineAfter}
       />
@@ -179,6 +199,11 @@ function DeckSection({
       {deck.isDayDone ? null : <DoneChips items={deck.done} onOpen={openDoneChallenge} />}
       {deck.presence ? <PresenceLine now={now} presence={deck.presence} /> : null}
       {deck.showsMembershipLine ? <MembershipLine /> : null}
+      <ParkedSetsSheet
+        entries={sync.parked}
+        onDismiss={() => setShowParked(false)}
+        visible={showParked}
+      />
     </View>
   );
 }

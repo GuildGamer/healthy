@@ -1,5 +1,5 @@
 import type { MatchDailyScope, MatchMetric, MatchScoringMode } from '@product/client';
-import { MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC, MATCH_METRIC_MEASURE } from '@product/contract/match-board';
+import { MATCH_METRIC_MEASURE } from '@product/contract/match-board';
 import { MATCH_MODE_LABEL } from './match-copy';
 import { MATCH_METRIC_UNIT } from './match-metric';
 
@@ -83,18 +83,6 @@ export function groupRuleTitle(rules: GroupRules): string {
   return `Most days of ${MATCH_METRIC_UNIT[rules.metric]} wins.`;
 }
 
-const DAILY_CAP_PHRASE: Record<MatchMetric, string> = {
-  pushups: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.pushups} a day`,
-  walk: 'up to two hours a day',
-  squats: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.squats} a day`,
-  plank: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.plank} seconds a day`,
-  jumping_jacks: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.jumping_jacks} a day`,
-  burpees: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.burpees} a day`,
-  sit_ups: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.sit_ups} a day`,
-  mountain_climbers: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.mountain_climbers} a day`,
-  lunges: `up to ${MATCH_CUMULATIVE_DAILY_CAP_BY_METRIC.lunges} a day`,
-};
-
 /** What counts, in the words of what the member already does. Nothing extra to log. */
 export function groupRuleBody(rules: GroupRules): string {
   if (rules.scoringMode === 'best_single') {
@@ -104,13 +92,13 @@ export function groupRuleBody(rules: GroupRules): string {
   }
 
   if (rules.scoringMode === 'cumulative_total') {
-    const counted =
-      rules.metric === 'walk'
-        ? 'Every walk you already track'
-        : MATCH_METRIC_MEASURE[rules.metric] === 'seconds'
-          ? 'Every hold you do'
-          : 'Every set you do';
-    return `${counted} counts, ${DAILY_CAP_PHRASE[rules.metric]}.`;
+    if (rules.metric === 'walk') {
+      return 'Every walk you already track counts.';
+    }
+    if (MATCH_METRIC_MEASURE[rules.metric] === 'seconds') {
+      return 'Every hold you do counts.';
+    }
+    return 'Every set you do counts.';
   }
 
   if (isOpenStreak(rules)) {
@@ -130,13 +118,13 @@ export function scoringModeHint(scoringMode: MatchScoringMode, rules: GroupRules
   }
 
   if (scoringMode === 'cumulative_total') {
-    const unit =
-      rules.metric === 'walk'
-        ? 'Every minute'
-        : MATCH_METRIC_MEASURE[rules.metric] === 'seconds'
-          ? 'Every second'
-          : 'Every set';
-    return `${unit} adds up, capped ${DAILY_CAP_PHRASE[rules.metric]} so nobody overdoes it.`;
+    if (rules.metric === 'walk') {
+      return 'Every minute adds up.';
+    }
+    if (MATCH_METRIC_MEASURE[rules.metric] === 'seconds') {
+      return 'Every second adds up.';
+    }
+    return 'Every set adds up.';
   }
 
   if (isOpenStreak(rules)) {
