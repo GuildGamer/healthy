@@ -40,11 +40,13 @@ final class PoseCountEngine {
 
   private var counter = ThresholdCounter.forMetric("pushups")
   private var hold = HoldTimer()
+  private var subjectLock = SubjectLock()
   private var lastOkStance = false
   private var lastTickMs: Int64 = 0
 
   func reset() {
     rebuildCounters()
+    subjectLock.reset()
     lastOkStance = false
     lastTickMs = 0
   }
@@ -102,7 +104,12 @@ final class PoseCountEngine {
 
     let finishingRep = counter.isEntered
     let previousCount = counter.count
+    let lock = subjectLock.tick(frame: frame, finishingRep: finishingRep, nowMs: nowMs)
+    let lockFeedback: String? =
+      (landmarksAvailable && frame != nil && stanceOk && !lock.isLocked)
+      ? SubjectLock.coachPrompt : nil
     if let measure,
+      lock.mayFeedCounter,
       Self.shouldCountPoseRep(
         measure: measure,
         insideMeasure: insideMeasure,
@@ -117,7 +124,7 @@ final class PoseCountEngine {
     let coach =
       formFeedback
       ?? framingFeedback
-      ?? stanceFeedback
+      ?? (stanceFeedback ?? lockFeedback)
       ?? (counter.isEntered ? Self.comeAllTheWayUp : nil)
 
     return Snapshot(
@@ -134,6 +141,7 @@ final class PoseCountEngine {
   private func rebuildCounters() {
     counter = ThresholdCounter.forMetric(metric)
     hold = HoldTimer()
+    subjectLock.reset()
   }
 
   private func exerciseMeasure(_ results: [String: Double]) -> Double? {

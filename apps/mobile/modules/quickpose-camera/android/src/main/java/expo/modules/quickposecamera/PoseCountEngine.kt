@@ -16,6 +16,7 @@ internal class PoseCountEngine {
 
   private var counter = ThresholdCounter.forMetric(metric)
   private var hold = HoldTimer()
+  private var subjectLock = SubjectLock()
   private var lastOkStance = false
   private var lastTickMs = 0L
 
@@ -31,6 +32,7 @@ internal class PoseCountEngine {
 
   fun reset() {
     rebuildCounters()
+    subjectLock.reset()
     lastOkStance = false
     lastTickMs = 0L
   }
@@ -81,8 +83,16 @@ internal class PoseCountEngine {
 
     val finishingRep = counter.isEntered
     val previousCount = counter.count
+    val lock = subjectLock.tick(frame = frame, finishingRep = finishingRep, nowMs = nowMs)
+    val lockFeedback =
+      if (landmarksAvailable && frame != null && stanceOk && !lock.isLocked) {
+        SubjectLock.COACH_PROMPT
+      } else {
+        null
+      }
     if (
       measure != null &&
+        lock.mayFeedCounter &&
         shouldCountPoseRep(
           measure = measure,
           insideMeasure = insideMeasure,
@@ -97,7 +107,7 @@ internal class PoseCountEngine {
     val coach =
       formFeedback
         ?: framingFeedback
-        ?: stanceFeedback
+        ?: (stanceFeedback ?: lockFeedback)
         ?: if (counter.isEntered) COME_ALL_THE_WAY_UP else null
 
     return Snapshot(
@@ -117,6 +127,7 @@ internal class PoseCountEngine {
   private fun rebuildCounters() {
     counter = ThresholdCounter.forMetric(metric)
     hold = HoldTimer()
+    subjectLock.reset()
   }
 
   private fun exerciseMeasure(results: Map<String, Double>): Double? {
