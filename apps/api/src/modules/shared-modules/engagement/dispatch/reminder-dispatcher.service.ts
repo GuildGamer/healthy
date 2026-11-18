@@ -346,7 +346,11 @@ export class ReminderDispatcherService {
       timeZones.map((timeZone) => this.findDueInZone(timeZone, now)),
     );
 
-    const due = dueByZone.flat().filter((item) => !skipped.has(item.userId));
+    const dueReminders = dueByZone.flat();
+    await this.markCoveredByHabitSlot(
+      dueReminders.filter((item) => skipped.has(item.userId)),
+    );
+    const due = dueReminders.filter((item) => !skipped.has(item.userId));
 
     if (due.length === 0) {
       return { dueCount: 0, sentCount: 0, suppressedCount: 0 };
@@ -378,6 +382,27 @@ export class ReminderDispatcherService {
     );
 
     return { dueCount: due.length, sentCount, suppressedCount };
+  }
+
+  /**
+   * A habit slot already nudged these people this minute. Recording their
+   * reminders as delivered keeps the catch-up window from sending them on
+   * the next tick, when the skip list no longer names them.
+   */
+  private async markCoveredByHabitSlot(
+    covered: readonly DueReminder[],
+  ): Promise<void> {
+    if (covered.length === 0) {
+      return;
+    }
+
+    await this.prisma.reminderDelivery.createMany({
+      data: covered.map((item) => ({
+        reminderId: item.reminderId,
+        periodKey: item.periodKey,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   /** Buckets due reminders by person so each person gets at most one push. */
@@ -880,7 +905,26 @@ export class ReminderDispatcherService {
   }
 
   /**
-   * One finish nudge per started occurrence, after the member's delay.
+   * An occurrence left unfinished in an earlier period is over; nudging it
+   * would ask for work the member may already have done in today's
+   * occurrence. Recording it as delivered keeps it out of every later sweep.
+   */
+  private async retireStaleInProgressNudges(
+    stale: ReadonlyArray<{ id: string }>,
+  ): Promise<void> {
+    if (stale.length === 0) {
+      return;
+    }
+
+    await this.prisma.inProgressNudgeDelivery.createMany({
+      data: stale.map((item) => ({ userChallengeId: item.id })),
+      skipDuplicates: true,
+    });
+  }
+
+  /**
+   * One finish nudge per started occurrence of the current period, after the
+   * member's delay.
    * Reuses the same Expo pipeline as clock reminders.
    */
   async dispatchInProgressNudges(now: Date = new Date()): Promise<DispatchSummaryDto> {
@@ -900,18 +944,28 @@ export class ReminderDispatcherService {
         id: true,
         userId: true,
         challengeId: true,
+        frequency: true,
         periodKey: true,
         startedAt: true,
         challenge: { select: { title: true } },
         user: {
           select: {
-            profile: { select: { inProgressNudgeDelayMinutes: true } },
+            profile: {
+              select: { inProgressNudgeDelayMinutes: true, timeZone: true },
+            },
           },
         },
       },
     });
 
-    const due = candidates.filter((item) => {
+    const isCurrentPeriod = (item: (typeof candidates)[number]): boolean =>
+      item.periodKey ===
+      periodKeyFor(item.frequency, item.user.profile?.timeZone ?? 'UTC', now);
+    await this.retireStaleInProgressNudges(
+      candidates.filter((item) => !isCurrentPeriod(item)),
+    );
+
+    const due = candidates.filter(isCurrentPeriod).filter((item) => {
       if (!item.startedAt) {
         return false;
       }

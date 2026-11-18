@@ -83,12 +83,14 @@ function createPrismaMock(options: {
             id: item.id,
             userId: item.userId,
             challengeId: item.challengeId,
+            frequency: 'daily',
             periodKey: item.periodKey,
             startedAt: item.startedAt,
             challenge: { title: 'Walk' },
             user: {
               profile: {
                 inProgressNudgeDelayMinutes: item.delayMinutes ?? 30,
+                timeZone: 'UTC',
               },
             },
           }));
@@ -541,6 +543,53 @@ describe('ReminderDispatcherService', () => {
       suppressedCount: 0,
     });
     expect(delivery.send).not.toHaveBeenCalled();
+    expect(prisma.reminderDelivery.createMany).toHaveBeenCalledWith({
+      data: [{ reminderId: 'r1', periodKey: '2026-08-29' }],
+      skipDuplicates: true,
+    });
+  });
+
+  it('does not send the skipped challenge reminder on the next tick', async () => {
+    const slotMinute = new Date('2026-08-29T19:00:00.000Z');
+    const nextMinute = new Date('2026-08-29T19:01:00.000Z');
+    const prisma = createPrismaMock({
+      profiles: [{ userId: 'u1', timeZone: 'UTC' }],
+      enrollments: [{ userId: 'u1', challengeId: 'c1' }],
+      reminders: [
+        {
+          id: 'r1',
+          userId: 'u1',
+          challengeId: 'c1',
+          title: 'Walk',
+          frequency: 'daily',
+        },
+      ],
+    });
+    const recordedDeliveries: Array<{ reminderId: string; periodKey: string }> = [];
+    prisma.reminderDelivery.createMany.mockImplementation(
+      async (args: { data: Array<{ reminderId: string; periodKey: string }> }) => {
+        recordedDeliveries.push(...args.data);
+        return { count: args.data.length };
+      },
+    );
+    prisma.reminderDelivery.findMany.mockImplementation(async () => recordedDeliveries);
+    const delivery = createDelivery({ sentCount: 1, usersWithDevice: ['u1'] });
+    const service = new ReminderDispatcherService(
+      prisma as never,
+      delivery as never,
+      createPolicy() as never,
+      createContexts() as never,
+    );
+
+    const habit = await service.dispatchHabitSlots(slotMinute);
+    await service.dispatchDue(slotMinute, habit.sentUserIds);
+    await service.dispatchDue(nextMinute, []);
+
+    expect(habit.sentUserIds).toEqual(['u1']);
+    expect(delivery.send).toHaveBeenCalledTimes(1);
+    expect(delivery.send).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'habit_slot' }),
+    );
   });
 
   it('does not send a habit slot after the day is finished', async () => {
@@ -996,6 +1045,39 @@ describe('ReminderDispatcherService', () => {
       suppressedCount: 1,
     });
     expect(delivery.send).not.toHaveBeenCalled();
+  });
+
+  it('retires an occurrence left unfinished on an earlier day instead of nudging it', async () => {
+    const now = new Date('2026-08-29T08:00:00.000Z');
+    const prisma = createPrismaMock({
+      inProgress: [
+        {
+          id: 'uc-yesterday',
+          userId: 'u1',
+          challengeId: 'pushups',
+          periodKey: '2026-08-28',
+          startedAt: new Date('2026-08-28T20:45:00.000Z'),
+        },
+      ],
+    });
+    const delivery = createDelivery();
+    const service = new ReminderDispatcherService(
+      prisma as never,
+      delivery as never,
+      createPolicy() as never,
+      createContexts() as never,
+    );
+
+    await expect(service.dispatchInProgressNudges(now)).resolves.toEqual({
+      dueCount: 0,
+      sentCount: 0,
+      suppressedCount: 0,
+    });
+    expect(delivery.send).not.toHaveBeenCalled();
+    expect(prisma.inProgressNudgeDelivery.createMany).toHaveBeenCalledWith({
+      data: [{ userChallengeId: 'uc-yesterday' }],
+      skipDuplicates: true,
+    });
   });
 });
 
