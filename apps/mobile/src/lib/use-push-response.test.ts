@@ -41,7 +41,7 @@ function captureTapListener(): () => ResponseListener {
 }
 
 const challengeReminder = { destination: 'challenge', challengeId: 'challenge-1' };
-const todayFocusHref = { pathname: '/(tabs)', params: { focus: 'challenge-1' } };
+const challengeScreenHref = '/challenge/challenge-1';
 
 describe('usePushResponse', () => {
   beforeEach(() => {
@@ -65,7 +65,7 @@ describe('usePushResponse', () => {
     rerender({ canNavigate: true });
 
     expect(mockedNavigate).toHaveBeenCalledTimes(1);
-    expect(mockedNavigate).toHaveBeenCalledWith(todayFocusHref);
+    expect(mockedNavigate).toHaveBeenCalledWith(challengeScreenHref);
   });
 
   it('opens a warm tap straight away', () => {
@@ -76,7 +76,7 @@ describe('usePushResponse', () => {
       tapListener()(pushResponse('warm-1', challengeReminder));
     });
 
-    expect(mockedNavigate).toHaveBeenCalledWith(todayFocusHref);
+    expect(mockedNavigate).toHaveBeenCalledWith(challengeScreenHref);
   });
 
   it('opens a response once when both the launch read and the listener deliver it', async () => {

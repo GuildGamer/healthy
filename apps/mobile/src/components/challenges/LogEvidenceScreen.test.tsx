@@ -76,6 +76,11 @@ const gym: TodayChallenge = {
   },
 };
 
+/** The server refuses a photo with a 4xx, which the save queue treats as final. */
+function photoRejected(message: string): Error {
+  return Object.assign(new Error(message), { status: 422 });
+}
+
 function renderScreen() {
   const client = new QueryClient({
     defaultOptions: {
@@ -134,7 +139,7 @@ describe('LogEvidenceScreen', () => {
   });
 
   it('says plainly when the photo did not pass, and lets you retake it', async () => {
-    mockedApi.completeChallenge.mockRejectedValue(new Error('No gym equipment visible'));
+    mockedApi.completeChallenge.mockRejectedValue(photoRejected('No gym equipment visible'));
     renderScreen();
 
     await takeAndUsePhoto();
@@ -151,7 +156,7 @@ describe('LogEvidenceScreen', () => {
 
   it('checks the retaken photo again instead of repeating the last rejection', async () => {
     mockedApi.completeChallenge
-      .mockRejectedValueOnce(new Error('No gym equipment visible'))
+      .mockRejectedValueOnce(photoRejected('No gym equipment visible'))
       .mockResolvedValueOnce({
         challenge: { ...gym, status: 'completed' },
         pointsBalance: 200,

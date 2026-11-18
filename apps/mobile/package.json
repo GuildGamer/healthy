@@ -73,6 +73,7 @@
     "whatwg-fetch": "^3.6.20"
   },
   "devDependencies": {
+    "@babel/plugin-transform-class-static-block": "~7.29.7",
     "@product/tsconfig": "workspace:*",
     "@testing-library/react-native": "^13.2.0",
     "@types/jest": "^29.5.14",

@@ -76,13 +76,14 @@ describe('proof-clip-store', () => {
   });
 
   it('lists newest first after prune', async () => {
+    const dayMs = 24 * 60 * 60 * 1000;
     const older = clip({
       clipId: 'a',
-      recordedAt: '2026-10-01T00:00:00.000Z',
+      recordedAt: new Date(Date.now() - 10 * dayMs).toISOString(),
     });
     const newer = clip({
       clipId: 'b',
-      recordedAt: '2026-10-20T00:00:00.000Z',
+      recordedAt: new Date(Date.now() - 2 * dayMs).toISOString(),
     });
     getItemAsync.mockResolvedValue(JSON.stringify({ a: older, b: newer }));
 

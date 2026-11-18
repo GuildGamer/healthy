@@ -7,7 +7,16 @@ module.exports = {
   testTimeout: 15_000,
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testPathIgnorePatterns: ['/node_modules/', '/.maestro/'],
+  // `@orpc/*` ships ESM-only `.mjs`, which the jest-expo preset does not transform.
+  transform: {
+    '^.+\\.mjs$': [
+      'babel-jest',
+      { plugins: ['@babel/plugin-transform-class-static-block'] },
+    ],
+  },
   moduleNameMapper: {
+    // Contract sources use NodeNext `./x.js` specifiers for `.ts` files.
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@product/brand$': '<rootDir>/../../packages/brand/src/index.ts',
     '^@product/client$': '<rootDir>/../../packages/client/src/index.ts',

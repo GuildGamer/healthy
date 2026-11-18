@@ -147,7 +147,9 @@ describe('EvidenceRequestScreen', () => {
   });
 
   it('says what was missing when the photo does not pass, and lets you take another', async () => {
-    mockedApi.completeChallenge.mockRejectedValue(new Error('Monitor not visible'));
+    mockedApi.completeChallenge.mockRejectedValue(
+      Object.assign(new Error('Monitor not visible'), { status: 422 }),
+    );
     renderSheet(bloodPressureCheck(60_000));
 
     fireEvent.press(await screen.findByTestId('evidence-request-camera'));

@@ -26,6 +26,7 @@ jest.mock('./usePoseSession', () => ({
 }));
 
 jest.mock('@/lib/config', () => ({
+  ...jest.requireActual<typeof import('@/lib/config')>('@/lib/config'),
   QUICKPOSE_SDK_KEY: 'test-key',
 }));
 

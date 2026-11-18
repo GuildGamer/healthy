@@ -175,7 +175,7 @@ describe('ChallengeLogScreen', () => {
     expect(screen.queryByTestId('log-vitals-screen')).toBeNull();
   });
 
-  it('keeps the numbers and offers to try again when the connection drops', async () => {
+  it('keeps the reading on the phone and leaves when the connection drops', async () => {
     mockedApi.completeChallenge.mockRejectedValue(new TypeError('Network request failed'));
     renderSheet(reading({}));
 
@@ -183,13 +183,16 @@ describe('ChallengeLogScreen', () => {
     typeKeys(['1', '2', '8', '8', '2']);
     fireEvent.press(screen.getByTestId('reading-save'));
 
+    await waitFor(() => expect(router.dismiss).toHaveBeenCalled());
+    expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
+      userChallengeId: 'uc-log',
+      vitals: { systolic: 128, diastolic: 82 },
+    });
     expect(
-      await screen.findByText(
+      screen.queryByText(
         'That didn’t save. Your numbers are still here, so try again when you’re back online.',
       ),
-    ).toBeOnTheScreen();
-    expect(screen.getByTestId('reading-save')).toHaveTextContent('Try again');
-    expect(screen.getByTestId('vitals-systolic')).toHaveTextContent('128');
+    ).toBeNull();
   });
 
   it('will not save glucose until you say when it was taken', async () => {

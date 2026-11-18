@@ -26,11 +26,16 @@ const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => callback(),
-  useRouter: () => ({ push: (href: unknown) => mockPush(href) }),
+  useRouter: () => ({
+    navigate: (href: unknown) => mockPush(href),
+    push: (href: unknown) => mockPush(href),
+  }),
   router: {
     canDismiss: () => true,
     back: jest.fn(),
     dismiss: () => mockDismiss(),
+    navigate: (href: unknown) => mockPush(href),
+    push: (href: unknown) => mockPush(href),
     replace: jest.fn(),
   },
 }));

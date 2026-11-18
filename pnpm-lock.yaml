@@ -345,6 +345,9 @@ importers:
         specifier: ^3.6.20
         version: 3.6.20
     devDependencies:
+      '@babel/plugin-transform-class-static-block':
+        specifier: ~7.29.7
+        version: 7.29.7(@babel/core@7.29.7)
       '@product/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
