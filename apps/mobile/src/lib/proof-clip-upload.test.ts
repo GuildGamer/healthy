@@ -1,3 +1,4 @@
+import { uploadAsync } from 'expo-file-system/legacy';
 import { apiClient } from '@/lib/api';
 import {
   getLocalProofClip,
@@ -13,6 +14,12 @@ jest.mock('@/lib/api', () => ({
     completeProofClipUpload: jest.fn(),
     removeProofClip: jest.fn(),
   },
+}));
+
+jest.mock('expo-file-system/legacy', () => ({
+  uploadAsync: jest.fn(),
+  FileSystemUploadType: { BINARY_CONTENT: 0, MULTIPART: 1 },
+  FileSystemSessionType: { BACKGROUND: 0, FOREGROUND: 1 },
 }));
 
 jest.mock('@/lib/proof-clip-store', () => ({
@@ -35,6 +42,21 @@ const mockedMark = markLocalProofClipServerRecorded as jest.MockedFunction<
 const mockedPending = markLocalProofClipPendingUpload as jest.MockedFunction<
   typeof markLocalProofClipPendingUpload
 >;
+const mockedUploadAsync = uploadAsync as jest.MockedFunction<typeof uploadAsync>;
+
+function stubNetwork(videoStatus = 200) {
+  mockedUploadAsync.mockResolvedValue({ status: videoStatus, headers: {}, mimeType: null, body: '' });
+  global.fetch = jest.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.startsWith('file://')) {
+      return {
+        ok: true,
+        blob: async () => new Blob(['video']),
+      } as Response;
+    }
+    return { ok: true } as Response;
+  }) as typeof fetch;
+}
 
 function localClip(overrides: { serverRecorded?: boolean } = {}) {
   return {
@@ -57,16 +79,52 @@ function localClip(overrides: { serverRecorded?: boolean } = {}) {
 describe('uploadProofClip', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch = jest.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith('file://')) {
-        return {
-          ok: true,
-          blob: async () => new Blob(['video']),
-        } as Response;
-      }
-      return { ok: true } as Response;
-    }) as typeof fetch;
+    stubNetwork();
+  });
+
+  it('streams the clip from disk instead of reading it into memory', async () => {
+    mockedGetLocal.mockResolvedValue(localClip());
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: {
+        url: 'https://upload.example/video',
+        headers: { 'Content-Type': 'video/mp4' },
+        key: 'v',
+      },
+      poster: null,
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await uploadProofClip({ clipId: 'clip-1', audience: 'anyone' });
+
+    expect(mockedUploadAsync).toHaveBeenCalledWith(
+      'https://upload.example/video',
+      'file:///tmp/clip.mp4',
+      expect.objectContaining({
+        httpMethod: 'PUT',
+        headers: { 'Content-Type': 'video/mp4' },
+        uploadType: 0,
+        sessionType: 1,
+      }),
+    );
+    expect(global.fetch).not.toHaveBeenCalledWith('file:///tmp/clip.mp4');
+  });
+
+  it('does not complete the upload when storage rejects the clip', async () => {
+    stubNetwork(403);
+    mockedGetLocal.mockResolvedValue(localClip());
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: null,
+    });
+
+    await expect(uploadProofClip({ clipId: 'clip-1', audience: 'anyone' })).rejects.toThrow(
+      'Could not upload the clip. Try again.',
+    );
+    expect(mockedApi.completeProofClipUpload).not.toHaveBeenCalled();
   });
 
   it('calls recordProofClip when serverRecorded is false', async () => {
@@ -189,16 +247,7 @@ describe('uploadProofClip', () => {
 describe('queueAnyoneProofClipUpload', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch = jest.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith('file://')) {
-        return {
-          ok: true,
-          blob: async () => new Blob(['video']),
-        } as Response;
-      }
-      return { ok: true } as Response;
-    }) as typeof fetch;
+    stubNetwork();
   });
 
   it('clears the pending flag when upload succeeds', async () => {

@@ -84,6 +84,7 @@ final class HealthyQuickPoseView: ExpoView {
   private var proofRecorder: ProofRecorder?
   private let countEngine = PoseCountEngine()
   private let countQueue = DispatchQueue(label: "healthy.quickpose.count")
+  private static let sessionTeardownQueue = DispatchQueue(label: "healthy.quickpose.session-teardown")
   private var pendingEmit: [String: Any]?
   private var emitWorkItem: DispatchWorkItem?
   private var lastEmitMs: Int64 = 0
@@ -443,15 +444,41 @@ final class HealthyQuickPoseView: ExpoView {
     }
     quickPose?.stop()
     quickPose = nil
-    camera?.stop()
+    if let camera {
+      Self.releaseCamera(camera, preview: previewLayer)
+    }
     camera = nil
     frameTap?.setKeepingFrames(false)
     frameTap = nil
-    previewLayer?.removeFromSuperlayer()
     previewLayer = nil
     overlayView.image = nil
     hasStarted = false
     currentFeatures = []
+  }
+
+  /// A preview layer that deallocates commits configuration on its session, and
+  /// `stopRunning` throws if it lands inside that window. QuickPose's own `stop()`
+  /// stops the session on a private queue while the layer is released on main, so
+  /// the view owns the session: stop it on one serial queue, then release the layer.
+  private static func releaseCamera(_ camera: QuickPoseCamera, preview: AVCaptureVideoPreviewLayer?) {
+    preview?.removeFromSuperlayer()
+
+    guard let session = camera.session else {
+      // QuickPose has not published the session yet, so no layer is attached to it.
+      camera.stop()
+      return
+    }
+    camera.session = nil
+    camera.stop()
+
+    sessionTeardownQueue.async {
+      session.stopRunning()
+      session.inputs.forEach(session.removeInput)
+      session.outputs.forEach(session.removeOutput)
+      DispatchQueue.main.async {
+        preview?.session = nil
+      }
+    }
   }
 
   private func mapFeatures() -> [(String, QuickPose.Feature)] {

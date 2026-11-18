@@ -1,5 +1,10 @@
 import type { ProofClipAudience } from '@product/client';
 import type { MeOutput } from '@product/contract';
+import {
+  FileSystemSessionType,
+  FileSystemUploadType,
+  uploadAsync,
+} from 'expo-file-system/legacy';
 import { apiClient } from '@/lib/api';
 import { defaultProofClipLimits } from '@/lib/proof-clip-limits-cache';
 import {
@@ -56,16 +61,7 @@ export async function uploadProofClip(input: UploadProofClipInput): Promise<void
     postToGroup: input.postToGroup === true,
   });
 
-  const videoResponse = await fetch(local.fileUri);
-  const videoBlob = await videoResponse.blob();
-  const putVideo = await fetch(urls.video.url, {
-    method: 'PUT',
-    headers: urls.video.headers,
-    body: videoBlob,
-  });
-  if (!putVideo.ok) {
-    throw new Error('Could not upload the clip. Try again.');
-  }
+  await putVideoFromDisk(local.fileUri, urls.video.url, urls.video.headers);
 
   if (urls.poster && poster) {
     const putPoster = await fetch(urls.poster.url, {
@@ -108,6 +104,27 @@ export async function queueAnyoneProofClipUpload(
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Streams the clip from disk. Reading it into a Blob for `fetch` copies the
+ * whole file into memory twice, which aborts the app on low-RAM iPhones.
+ * Foreground session so a dead connection rejects and the pending retry runs.
+ */
+async function putVideoFromDisk(
+  fileUri: string,
+  uploadUrl: string,
+  headers: Record<string, string>,
+): Promise<void> {
+  const result = await uploadAsync(uploadUrl, fileUri, {
+    httpMethod: 'PUT',
+    headers,
+    uploadType: FileSystemUploadType.BINARY_CONTENT,
+    sessionType: FileSystemSessionType.FOREGROUND,
+  });
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error('Could not upload the clip. Try again.');
   }
 }
 
