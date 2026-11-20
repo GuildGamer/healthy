@@ -24,12 +24,48 @@ jest.mock('expo-notifications', () => ({
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
-jest.mock('expo-image-manipulator', () => ({
-  SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
-  ImageManipulator: {
-    manipulate: jest.fn(),
-  },
-}));
+jest.mock('expo-image-manipulator', () => {
+  const FlipType = { Horizontal: 'horizontal', Vertical: 'vertical' };
+  const SaveFormat = { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' };
+
+  function createContext(uri: string) {
+    const context: {
+      uri: string;
+      rotate: jest.Mock;
+      flip: jest.Mock;
+      resize: jest.Mock;
+      renderAsync: jest.Mock;
+      release: jest.Mock;
+    } = {
+      uri,
+      rotate: jest.fn(),
+      flip: jest.fn(),
+      resize: jest.fn(),
+      renderAsync: jest.fn(async () => ({
+        saveAsync: jest.fn(async () => ({
+          uri: `${uri}?normalized`,
+          base64: 'normalized-bytes',
+          width: 100,
+          height: 100,
+        })),
+        release: jest.fn(),
+      })),
+      release: jest.fn(),
+    };
+    context.rotate.mockReturnValue(context);
+    context.flip.mockReturnValue(context);
+    context.resize.mockReturnValue(context);
+    return context;
+  }
+
+  return {
+    FlipType,
+    SaveFormat,
+    ImageManipulator: {
+      manipulate: jest.fn((uri: string) => createContext(uri)),
+    },
+  };
+});
 
 jest.mock('expo-image-picker', () => ({
   CameraType: { front: 'front', back: 'back' },

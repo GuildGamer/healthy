@@ -132,10 +132,10 @@ describe('LogEvidenceScreen', () => {
     await waitFor(() => expect(router.dismiss).toHaveBeenCalled());
     expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
       userChallengeId: 'uc-gym',
-      evidence: { mimeType: 'image/jpeg', imageBase64: 'gggg' },
+      evidence: { mimeType: 'image/jpeg', imageBase64: 'normalized-bytes' },
     });
     expect(takeChallengeFinish()).toMatchObject({ outcome: { kind: 'photo' }, pointsAwarded: 200 });
-    expect(pendingSharePhotoFor('uc-gym')).toBe('file://gym.jpg');
+    expect(pendingSharePhotoFor('uc-gym')).toBe('file://gym.jpg?normalized');
   });
 
   it('says plainly when the photo did not pass, and lets you retake it', async () => {

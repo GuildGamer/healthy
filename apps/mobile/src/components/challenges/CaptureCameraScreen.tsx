@@ -98,7 +98,8 @@ function LiveCamera({
   const [message, setMessage] = useState<string | null>(null);
 
   async function shoot() {
-    const captured = await takePhoto();
+    // Mirror / EXIF bake happens after shutter — keep the live preview like iPhone Camera.
+    const captured = await takePhoto({ facing });
     if (captured.status === 'captured') {
       onTaken(captured.photo);
       return;
@@ -110,16 +111,10 @@ function LiveCamera({
   return (
     <View style={styles.screen} testID="capture-camera-screen">
       {/*
-        Front preview is mirrored by the system; capture is not. Flip the live
-        feed back so what you frame matches the natural (unmirrored) photo —
-        mirrored faces look wrong once the shutter fires.
+        Front preview stays mirrored (iPhone Camera). Capture is normalized
+        after takePictureAsync so review + upload match that preview.
       */}
-      <CameraView
-        facing={facing}
-        mirror={false}
-        ref={cameraRef}
-        style={[StyleSheet.absoluteFill, facing === 'front' ? styles.naturalFrontPreview : null]}
-      />
+      <CameraView facing={facing} ref={cameraRef} style={StyleSheet.absoluteFill} />
       <FrameCorners />
       <View style={[styles.topBar, { top: insets.top + spacing.sm }]}>
         <DeckNavButton
@@ -252,9 +247,6 @@ const createStyles = (theme: Theme) =>
     screen: {
       flex: 1,
       backgroundColor: '#000000',
-    },
-    naturalFrontPreview: {
-      transform: [{ scaleX: -1 }],
     },
     blocked: {
       justifyContent: 'center',

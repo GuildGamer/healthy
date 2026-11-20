@@ -61,11 +61,12 @@ function renderCamera(overrides: Partial<Parameters<typeof CaptureCameraScreen>[
 }
 
 describe('CaptureCameraScreen', () => {
-  it('keeps the front preview natural so the take is not mirrored', () => {
+  it('keeps the front live preview mirrored like iPhone Camera (no capture-time flip)', () => {
     renderCamera();
 
-    expect(screen.getByTestId('camera-live')).toHaveProp('mirror', false);
-    expect(screen.getByTestId('camera-live')).toHaveStyle({ transform: [{ scaleX: -1 }] });
+    const live = screen.getByTestId('camera-live');
+    expect(live).not.toHaveProp('mirror', false);
+    expect(live).not.toHaveStyle({ transform: [{ scaleX: -1 }] });
   });
 
   it('says what has to be in the frame, then shows the take full size', async () => {
@@ -77,10 +78,11 @@ describe('CaptureCameraScreen', () => {
     expect(await screen.findByTestId('camera-preview-image')).toBeOnTheScreen();
     fireEvent.press(screen.getByTestId('camera-use-photo'));
 
+    // Front takes are mirrored after shutter via ImageManipulator (see jest.setup).
     expect(onUse).toHaveBeenCalledWith({
       mimeType: 'image/jpeg',
-      imageBase64: 'bbbb',
-      previewUri: 'file://shot.jpg',
+      imageBase64: 'normalized-bytes',
+      previewUri: 'file://shot.jpg?normalized',
       width: 3024,
       height: 4032,
     });
