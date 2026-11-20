@@ -1,0 +1,209 @@
+import { render, screen } from '@testing-library/react-native';
+import { View } from 'react-native';
+import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
+import { PoseSessionScreen } from './PoseSessionScreen';
+
+/** Mirrors `POSE_CAMERA_NEEDS_UPDATE` in usePoseSession (mocked below). */
+const POSE_CAMERA_NEEDS_UPDATE = 'Update Beatset to count reps on this phone.';
+
+const testSafeAreaMetrics: Metrics = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
+
+const mockSession = jest.fn();
+
+function renderScreen() {
+  return render(
+    <SafeAreaProvider initialMetrics={testSafeAreaMetrics}>
+      <PoseSessionScreen challengeId="ch-1" mode="challenge" />
+    </SafeAreaProvider>,
+  );
+}
+
+jest.mock('./usePoseSession', () => ({
+  usePoseSession: () => mockSession(),
+}));
+
+jest.mock('@/lib/config', () => ({
+  ...jest.requireActual<typeof import('@/lib/config')>('@/lib/config'),
+  QUICKPOSE_SDK_KEY: 'test-key',
+}));
+
+jest.mock('./ProofClipActions', () => {
+  const React = require('react');
+  const { View: MockView } = require('react-native');
+  return {
+    ProofClipActions: ({
+      clipId,
+      failed,
+    }: {
+      clipId: string | null;
+      failed?: boolean;
+    }) =>
+      React.createElement(
+        MockView,
+        { testID: failed ? 'proof-clip-failed' : 'proof-clip-actions' },
+        failed ? 'failed' : clipId,
+      ),
+  };
+});
+
+function MockCamera() {
+  return <View testID="qp-camera" />;
+}
+
+function baseSession(overrides: Record<string, unknown> = {}) {
+  return {
+    occurrence: undefined,
+    metric: 'pushups',
+    isLoading: false,
+    camera: {
+      QuickPoseCamera: MockCamera,
+      isReady: true,
+      detail: 'Camera ready',
+    },
+    cameraSessionKey: 0,
+    handleQuickPoseUpdate: jest.fn(),
+    snapshot: {
+      count: 5,
+      phase: 'up',
+      bodyInFrame: true,
+    },
+    count: 5,
+    phase: 'review',
+    target: 20,
+    meetsTarget: false,
+    sessionError: null,
+    isStarting: false,
+    isSaving: false,
+    saveFailed: false,
+    saveError: null,
+    canRecordProof: true,
+    recordProof: true,
+    showProofExplainer: false,
+    proofRecording: {
+      code: 'ABCD-EFG',
+      label: 'Push-ups',
+      maxDurationSeconds: 180,
+      bitRate: 1_500_000,
+      frameRate: 24,
+      width: 720,
+      height: 1280,
+    },
+    proofClipId: null,
+    proofStatus: 'finalizing',
+    proofFailed: false,
+    proofAudience: 'anyone',
+    showAudienceSheet: false,
+    openAudienceSheet: jest.fn(),
+    closeAudienceSheet: jest.fn(),
+    setProofAudience: jest.fn(),
+    confirmAudienceSheet: jest.fn(),
+    proofCount: 5,
+    resetCountToken: 0,
+    finishProofToken: 1,
+    finishProofEndAtMs: 0,
+    finishCountdown: null,
+    toggleRecordProof: jest.fn(),
+    handleProofRecorded: jest.fn(),
+    handleProofRecordingError: jest.fn(),
+    startNow: jest.fn(),
+    retry: jest.fn(),
+    stopCounting: jest.fn(),
+    keepGoing: jest.fn(),
+    save: jest.fn(),
+    leave: jest.fn(),
+    ...overrides,
+  };
+}
+
+describe('PoseSessionScreen proof surfaces', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('keeps the camera mounted while the proof clip is finalizing', () => {
+    mockSession.mockReturnValue(baseSession({ phase: 'review', proofStatus: 'finalizing' }));
+
+    renderScreen();
+
+    expect(screen.getByTestId('pose-camera')).toBeOnTheScreen();
+    expect(screen.getByTestId('qp-camera')).toBeOnTheScreen();
+    expect(screen.getByText('Saving your proof clip…')).toBeOnTheScreen();
+  });
+
+  it('shows proof clip actions on a short-set review when a clip saved', () => {
+    mockSession.mockReturnValue(
+      baseSession({
+        phase: 'review',
+        proofStatus: 'saved',
+        proofClipId: 'clip-1',
+        proofRecording: null,
+        meetsTarget: false,
+      }),
+    );
+
+    renderScreen();
+
+    expect(screen.getByTestId('proof-clip-actions')).toBeOnTheScreen();
+  });
+
+  it('shows failure copy on short-set review when the clip failed', () => {
+    mockSession.mockReturnValue(
+      baseSession({
+        phase: 'review',
+        proofStatus: 'failed',
+        proofFailed: true,
+        proofClipId: null,
+        proofRecording: null,
+        meetsTarget: false,
+      }),
+    );
+
+    renderScreen();
+
+    expect(screen.getByTestId('proof-clip-failed')).toBeOnTheScreen();
+  });
+
+  it('offers the proof clip switch during setup where clips can be recorded', () => {
+    mockSession.mockReturnValue(baseSession({ phase: 'setup', proofStatus: 'armed' }));
+
+    renderScreen();
+
+    expect(screen.getByTestId('proof-record-chip')).toBeOnTheScreen();
+  });
+
+  it('leaves the proof clip switch out where the camera cannot record clips', () => {
+    mockSession.mockReturnValue(
+      baseSession({ phase: 'setup', proofStatus: 'off', canRecordProof: false, recordProof: false }),
+    );
+
+    renderScreen();
+
+    expect(screen.queryByTestId('proof-record-chip')).toBeNull();
+    expect(screen.getByTestId('start-pose')).toBeOnTheScreen();
+  });
+
+  it('shows an update prompt and never mounts the camera on a stale binary', () => {
+    mockSession.mockReturnValue(
+      baseSession({
+        phase: 'setup',
+        camera: {
+          QuickPoseCamera: null,
+          isReady: false,
+          detail: POSE_CAMERA_NEEDS_UPDATE,
+        },
+        canRecordProof: false,
+        recordProof: false,
+        proofStatus: 'off',
+        proofRecording: null,
+      }),
+    );
+
+    renderScreen();
+
+    expect(screen.queryByTestId('qp-camera')).toBeNull();
+    expect(screen.getAllByText(POSE_CAMERA_NEEDS_UPDATE).length).toBeGreaterThan(0);
+  });
+});

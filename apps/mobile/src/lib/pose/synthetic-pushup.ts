@@ -67,10 +67,7 @@ export function syntheticPushupFrame(
 }
 
 /** Plays a smooth UP→DOWN→UP cycle over `cycleMs`. */
-export function syntheticPushupDepth(
-  timestampMs: number,
-  cycleMs = 1_200,
-): number {
+export function syntheticPushupDepth(timestampMs: number, cycleMs = 1_200): number {
   const phase = (timestampMs % cycleMs) / cycleMs;
   if (phase < 0.5) {
     return phase * 2;

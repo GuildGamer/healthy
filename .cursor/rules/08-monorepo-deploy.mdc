@@ -15,7 +15,8 @@ alwaysApply: true
 | `packages/brand` | nothing app-specific |
 | `apps/api` | `contract`, `db`, Nest |
 | `apps/mobile` | `client`, `contract`, `brand` |
-| `apps/web` | `client`/`contract` as needed, `brand` |
+| `apps/website` | standalone deploy (Formspree waitlist); brand tokens vendored |
+| `apps/web` | (future product web app) |
 | `apps/admin` | `client`, `contract`, `brand`, Next.js |
 
 Apps must not import each other’s `src`. Shared code goes in `packages/*`.

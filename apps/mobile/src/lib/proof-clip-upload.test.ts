@@ -1,0 +1,286 @@
+import { uploadAsync } from 'expo-file-system/legacy';
+import { apiClient } from '@/lib/api';
+import {
+  getLocalProofClip,
+  markLocalProofClipPendingUpload,
+  markLocalProofClipServerRecorded,
+} from '@/lib/proof-clip-store';
+import { queueAnyoneProofClipUpload, uploadProofClip } from './proof-clip-upload';
+
+jest.mock('@/lib/api', () => ({
+  apiClient: {
+    recordProofClip: jest.fn(),
+    requestProofClipUpload: jest.fn(),
+    completeProofClipUpload: jest.fn(),
+    removeProofClip: jest.fn(),
+  },
+}));
+
+jest.mock('expo-file-system/legacy', () => ({
+  uploadAsync: jest.fn(),
+  FileSystemUploadType: { BINARY_CONTENT: 0, MULTIPART: 1 },
+  FileSystemSessionType: { BACKGROUND: 0, FOREGROUND: 1 },
+}));
+
+jest.mock('@/lib/proof-clip-store', () => ({
+  getLocalProofClip: jest.fn(),
+  markLocalProofClipServerRecorded: jest.fn(),
+  markLocalProofClipPendingUpload: jest.fn(),
+  removeLocalProofClip: jest.fn(),
+}));
+
+const mockedApi = apiClient as unknown as {
+  recordProofClip: jest.Mock;
+  requestProofClipUpload: jest.Mock;
+  completeProofClipUpload: jest.Mock;
+};
+
+const mockedGetLocal = getLocalProofClip as jest.MockedFunction<typeof getLocalProofClip>;
+const mockedMark = markLocalProofClipServerRecorded as jest.MockedFunction<
+  typeof markLocalProofClipServerRecorded
+>;
+const mockedPending = markLocalProofClipPendingUpload as jest.MockedFunction<
+  typeof markLocalProofClipPendingUpload
+>;
+const mockedUploadAsync = uploadAsync as jest.MockedFunction<typeof uploadAsync>;
+
+function stubNetwork(videoStatus = 200) {
+  mockedUploadAsync.mockResolvedValue({ status: videoStatus, headers: {}, mimeType: null, body: '' });
+  global.fetch = jest.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.startsWith('file://')) {
+      return {
+        ok: true,
+        blob: async () => new Blob(['video']),
+      } as Response;
+    }
+    return { ok: true } as Response;
+  }) as typeof fetch;
+}
+
+function localClip(overrides: { serverRecorded?: boolean } = {}) {
+  return {
+    clipId: 'clip-1',
+    fileUri: 'file:///tmp/clip.mp4',
+    posterUri: null,
+    sha256: 'a'.repeat(64),
+    byteSize: 1024,
+    durationSeconds: 12,
+    count: 10,
+    code: 'ABCDEFG',
+    displayCode: 'ABCD-EFG',
+    recordedAt: new Date().toISOString(),
+    userChallengeId: null,
+    matchId: null,
+    serverRecorded: overrides.serverRecorded ?? true,
+  };
+}
+
+describe('uploadProofClip', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    stubNetwork();
+  });
+
+  it('streams the clip from disk instead of reading it into memory', async () => {
+    mockedGetLocal.mockResolvedValue(localClip());
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: {
+        url: 'https://upload.example/video',
+        headers: { 'Content-Type': 'video/mp4' },
+        key: 'v',
+      },
+      poster: null,
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await uploadProofClip({ clipId: 'clip-1', audience: 'anyone' });
+
+    expect(mockedUploadAsync).toHaveBeenCalledWith(
+      'https://upload.example/video',
+      'file:///tmp/clip.mp4',
+      expect.objectContaining({
+        httpMethod: 'PUT',
+        headers: { 'Content-Type': 'video/mp4' },
+        uploadType: 0,
+        sessionType: 1,
+      }),
+    );
+    expect(global.fetch).not.toHaveBeenCalledWith('file:///tmp/clip.mp4');
+  });
+
+  it('does not complete the upload when storage rejects the clip', async () => {
+    stubNetwork(403);
+    mockedGetLocal.mockResolvedValue(localClip());
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: null,
+    });
+
+    await expect(uploadProofClip({ clipId: 'clip-1', audience: 'anyone' })).rejects.toThrow(
+      'Could not upload the clip. Try again.',
+    );
+    expect(mockedApi.completeProofClipUpload).not.toHaveBeenCalled();
+  });
+
+  it('calls recordProofClip when serverRecorded is false', async () => {
+    mockedGetLocal.mockResolvedValue({
+      clipId: 'clip-1',
+      fileUri: 'file:///tmp/clip.mp4',
+      posterUri: null,
+      sha256: 'a'.repeat(64),
+      byteSize: 1024,
+      durationSeconds: 12,
+      count: 10,
+      code: 'ABCDEFG',
+      displayCode: 'ABCD-EFG',
+      recordedAt: new Date().toISOString(),
+      userChallengeId: null,
+      matchId: null,
+      serverRecorded: false,
+    });
+    mockedApi.recordProofClip.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'recorded',
+      attested: false,
+    });
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: null,
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await uploadProofClip({ clipId: 'clip-1', audience: 'anyone' });
+
+    expect(mockedApi.recordProofClip).toHaveBeenCalledWith(
+      expect.objectContaining({ clipId: 'clip-1', count: 10 }),
+    );
+    expect(mockedMark).toHaveBeenCalledWith('clip-1');
+    expect(mockedApi.completeProofClipUpload).toHaveBeenCalledWith({
+      clipId: 'clip-1',
+      audience: 'anyone',
+      postToGroup: false,
+    });
+  });
+
+  it('skips recordProofClip when already server-recorded', async () => {
+    mockedGetLocal.mockResolvedValue({
+      clipId: 'clip-1',
+      fileUri: 'file:///tmp/clip.mp4',
+      posterUri: null,
+      sha256: 'a'.repeat(64),
+      byteSize: 1024,
+      durationSeconds: 12,
+      count: 10,
+      code: 'ABCDEFG',
+      displayCode: 'ABCD-EFG',
+      recordedAt: new Date().toISOString(),
+      userChallengeId: null,
+      matchId: null,
+      serverRecorded: true,
+    });
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: null,
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await uploadProofClip({ clipId: 'clip-1', audience: 'only_me', postToGroup: true });
+
+    expect(mockedApi.recordProofClip).not.toHaveBeenCalled();
+  });
+
+  it('uploads the poster and sends audience so the server can refuse a board post early', async () => {
+    mockedGetLocal.mockResolvedValue({
+      clipId: 'clip-1',
+      fileUri: 'file:///tmp/clip.mp4',
+      posterUri: 'file:///tmp/poster.jpg',
+      sha256: 'a'.repeat(64),
+      byteSize: 1024,
+      durationSeconds: 12,
+      count: 10,
+      code: 'ABCDEFG',
+      displayCode: 'ABCD-EFG',
+      recordedAt: new Date().toISOString(),
+      userChallengeId: null,
+      matchId: 'match-1',
+      serverRecorded: true,
+    });
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: { url: 'https://upload.example/poster', headers: {}, key: 'p' },
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await uploadProofClip({ clipId: 'clip-1', audience: 'only_me', postToGroup: true });
+
+    expect(mockedApi.requestProofClipUpload).toHaveBeenCalledWith({
+      clipId: 'clip-1',
+      videoByteSize: 1024,
+      posterByteSize: 5,
+      audience: 'only_me',
+      postToGroup: true,
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://upload.example/poster',
+      expect.objectContaining({ method: 'PUT' }),
+    );
+  });
+});
+
+describe('queueAnyoneProofClipUpload', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    stubNetwork();
+  });
+
+  it('clears the pending flag when upload succeeds', async () => {
+    mockedGetLocal.mockResolvedValue(localClip());
+    mockedApi.requestProofClipUpload.mockResolvedValue({
+      video: { url: 'https://upload.example/video', headers: {}, key: 'v' },
+      poster: null,
+    });
+    mockedApi.completeProofClipUpload.mockResolvedValue({
+      clipId: 'clip-1',
+      status: 'ready',
+      expiresAt: new Date().toISOString(),
+    });
+
+    await expect(queueAnyoneProofClipUpload('clip-1')).resolves.toBe(true);
+
+    expect(mockedPending).toHaveBeenCalledWith('clip-1', {
+      audience: 'anyone',
+      postToGroup: false,
+    });
+    expect(mockedPending).toHaveBeenLastCalledWith('clip-1', null);
+  });
+
+  it('leaves the pending flag when upload fails', async () => {
+    mockedGetLocal.mockResolvedValue(localClip({ serverRecorded: false }));
+    mockedApi.recordProofClip.mockRejectedValue(new Error('expired'));
+
+    await expect(queueAnyoneProofClipUpload('clip-1')).resolves.toBe(false);
+
+    expect(mockedPending).toHaveBeenCalledWith('clip-1', {
+      audience: 'anyone',
+      postToGroup: false,
+    });
+    expect(mockedPending).not.toHaveBeenCalledWith('clip-1', null);
+  });
+});

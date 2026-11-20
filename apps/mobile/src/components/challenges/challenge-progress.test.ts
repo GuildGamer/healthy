@@ -14,12 +14,10 @@ describe('challengeProgress', () => {
   });
 
   it('shows filled required fields on an in-progress log', () => {
-    expect(challengeProgress('in_progress', { filled: 1, required: 2 })).toEqual(
-      {
-        kind: 'step',
-        step: 1,
-        total: 2,
-      },
-    );
+    expect(challengeProgress('in_progress', { filled: 1, required: 2 })).toEqual({
+      kind: 'step',
+      step: 1,
+      total: 2,
+    });
   });
 });

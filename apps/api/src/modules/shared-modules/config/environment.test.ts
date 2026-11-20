@@ -11,9 +11,57 @@ describe('readEnvironment', () => {
     expect(environment.reminderDispatchSecret).toBeNull();
     expect(environment.mail).toEqual({ mode: 'log' });
     expect(environment.evidenceVision).toEqual({ mode: 'accept' });
+    expect(environment.appleIap).toEqual({ mode: 'disabled' });
+    expect(environment.storage).toEqual({ mode: 'disabled' });
     expect(environment.adminAppUrl).toBe('http://localhost:3001');
+    expect(environment.websiteUrl).toBe('https://beatset.tech');
     expect(environment.adminBootstrapEmail).toBeNull();
+    expect(environment.testingMembership).toBe(true);
+    expect(environment.proofClipEncoding).toEqual({
+      bitRate: 8_000_000,
+      frameRate: 30,
+      width: 1080,
+      height: 1920,
+    });
+    expect(environment.proofClipMaxDurationSeconds).toBe(3_600);
+    expect(environment.proofClipMaxBytes).toBe(512 * 1024 * 1024);
+    expect(environment.proofClipPosterMaxBytes).toBe(5 * 1024 * 1024);
   });
+
+  it('keeps a valid proof-clip encoding override', () => {
+    const environment = readEnvironment({
+      PROOF_CLIP_BIT_RATE: '800000',
+      PROOF_CLIP_FRAME_RATE: '20',
+      PROOF_CLIP_WIDTH: '640',
+      PROOF_CLIP_HEIGHT: '1136',
+    });
+
+    expect(environment.proofClipEncoding).toEqual({
+      bitRate: 800_000,
+      frameRate: 20,
+      width: 640,
+      height: 1136,
+    });
+  });
+
+  it('refuses an absurd proof-clip bitrate', () => {
+    expect(() => readEnvironment({ PROOF_CLIP_BIT_RATE: '250000000' })).toThrow(
+      /PROOF_CLIP_BIT_RATE/,
+    );
+  });
+
+  it('refuses an odd proof-clip width', () => {
+    expect(() => readEnvironment({ PROOF_CLIP_WIDTH: '721' })).toThrow(/PROOF_CLIP_WIDTH/);
+  });
+
+  const deployedStorage = {
+    STORAGE_PROVIDER: 'r2',
+    STORAGE_ENDPOINT: 'https://account.r2.cloudflarestorage.com',
+    STORAGE_REGION: 'auto',
+    STORAGE_BUCKET: 'healthy-clips',
+    STORAGE_ACCESS_KEY_ID: 'key',
+    STORAGE_SECRET_ACCESS_KEY: 'secret',
+  } as const;
 
   it('treats only production as production', () => {
     const production = readEnvironment({
@@ -24,11 +72,43 @@ describe('readEnvironment', () => {
       SMTP_PASS: 'secret',
       SMTP_FROM: 'noreply@example.com',
       EVIDENCE_VISION_API_KEY: 'sk-test',
+      ...deployedStorage,
     });
 
     expect(production.isProd).toBe(true);
-    expect(readEnvironment({ NODE_ENV: 'staging' }).isProd).toBe(false);
+    expect(production.isLocal).toBe(false);
+    expect(production.storage.mode).toBe('s3');
+    expect(readEnvironment({ NODE_ENV: 'development' }).isLocal).toBe(true);
     expect(readEnvironment({ NODE_ENV: 'test' }).isLocal).toBe(true);
+  });
+
+  it('requires a real mailbox on staging and does not pin it as local', () => {
+    expect(() => readEnvironment({ NODE_ENV: 'staging' })).toThrow(/outside local development/);
+
+    const staging = readEnvironment({
+      NODE_ENV: 'staging',
+      EMAIL_PROVIDER: 'sendbyte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      ...deployedStorage,
+    });
+
+    expect(staging.isProd).toBe(false);
+    expect(staging.isLocal).toBe(false);
+    expect(staging.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'Beatset <hello@gethealthyapp.com>',
+    });
+  });
+
+  it('requires object storage outside local development', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'staging',
+        EMAIL_PROVIDER: 'sendbyte',
+        SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      }),
+    ).toThrow(/STORAGE_PROVIDER/);
   });
 
   it('accepts external scheduling when a dispatch secret is present', () => {
@@ -42,15 +122,15 @@ describe('readEnvironment', () => {
   });
 
   it('refuses external scheduling without a dispatch secret', () => {
-    expect(() =>
-      readEnvironment({ REMINDER_SCHEDULER_MODE: 'external' }),
-    ).toThrow(/REMINDER_DISPATCH_SECRET is required/);
+    expect(() => readEnvironment({ REMINDER_SCHEDULER_MODE: 'external' })).toThrow(
+      /REMINDER_DISPATCH_SECRET is required/,
+    );
   });
 
   it('rejects an unrecognised scheduler mode', () => {
-    expect(() =>
-      readEnvironment({ REMINDER_SCHEDULER_MODE: 'cron-ish' }),
-    ).toThrow(/must be 'in_process' or 'external'/);
+    expect(() => readEnvironment({ REMINDER_SCHEDULER_MODE: 'cron-ish' })).toThrow(
+      /must be 'in_process' or 'external'/,
+    );
   });
 
   it('treats blank values as absent', () => {
@@ -81,7 +161,7 @@ describe('readEnvironment', () => {
       SMTP_PORT: '587',
       SMTP_USER: 'mailer',
       SMTP_PASS: 'secret',
-      SMTP_FROM: 'Healthy <noreply@example.com>',
+      SMTP_FROM: 'Beatset <noreply@example.com>',
     });
 
     expect(environment.mail).toEqual({
@@ -90,14 +170,14 @@ describe('readEnvironment', () => {
       port: 587,
       user: 'mailer',
       pass: 'secret',
-      from: 'Healthy <noreply@example.com>',
+      from: 'Beatset <noreply@example.com>',
     });
   });
 
   it('refuses a partial SMTP config in any environment', () => {
-    expect(() =>
-      readEnvironment({ SMTP_HOST: 'smtp.example.com', SMTP_PORT: '0' }),
-    ).toThrow(/all be real values/);
+    expect(() => readEnvironment({ SMTP_HOST: 'smtp.example.com', SMTP_PORT: '0' })).toThrow(
+      /all be real values/,
+    );
   });
 
   it('refuses production without a complete SMTP transport', () => {
@@ -105,6 +185,7 @@ describe('readEnvironment', () => {
       readEnvironment({
         NODE_ENV: 'production',
         EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
       }),
     ).toThrow(/required in production/);
   });
@@ -128,6 +209,88 @@ describe('readEnvironment', () => {
     });
   });
 
+  it('defaults a bare OpenAI key to gpt-4o-mini', () => {
+    const environment = readEnvironment({ EVIDENCE_VISION_API_KEY: 'sk-live' });
+
+    expect(environment.evidenceVision).toEqual({
+      mode: 'openai',
+      apiKey: 'sk-live',
+      model: 'gpt-4o-mini',
+    });
+  });
+
+  it('reads a Gemini vision provider', () => {
+    const environment = readEnvironment({
+      EVIDENCE_VISION_PROVIDER: 'gemini',
+      EVIDENCE_VISION_API_KEY: 'gemini-live',
+    });
+
+    expect(environment.evidenceVision).toEqual({
+      mode: 'gemini',
+      apiKey: 'gemini-live',
+      model: 'gemini-3.8-flash',
+    });
+  });
+
+  it('reads an OpenAI-compatible vision host', () => {
+    const environment = readEnvironment({
+      EVIDENCE_VISION_PROVIDER: 'openai-compatible',
+      EVIDENCE_VISION_API_KEY: 'gsk-live',
+      EVIDENCE_VISION_MODEL: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      EVIDENCE_VISION_BASE_URL: 'https://api.groq.com/openai/v1',
+    });
+
+    expect(environment.evidenceVision).toEqual({
+      mode: 'openai-compatible',
+      apiKey: 'gsk-live',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      baseUrl: 'https://api.groq.com/openai/v1',
+    });
+  });
+
+  it('refuses an explicit vision provider without its key', () => {
+    expect(() =>
+      readEnvironment({ EVIDENCE_VISION_PROVIDER: 'gemini', EVIDENCE_VISION_API_KEY: '0' }),
+    ).toThrow(/EVIDENCE_VISION_API_KEY is required when EVIDENCE_VISION_PROVIDER is gemini/);
+  });
+
+  it('refuses an OpenAI-compatible host without a base URL or model', () => {
+    expect(() =>
+      readEnvironment({
+        EVIDENCE_VISION_PROVIDER: 'openai-compatible',
+        EVIDENCE_VISION_API_KEY: 'gsk-live',
+        EVIDENCE_VISION_MODEL: 'some-model',
+      }),
+    ).toThrow(/EVIDENCE_VISION_BASE_URL is required/);
+
+    expect(() =>
+      readEnvironment({
+        EVIDENCE_VISION_PROVIDER: 'openai-compatible',
+        EVIDENCE_VISION_API_KEY: 'gsk-live',
+        EVIDENCE_VISION_BASE_URL: 'https://api.groq.com/openai/v1',
+      }),
+    ).toThrow(/EVIDENCE_VISION_MODEL is required/);
+  });
+
+  it('refuses an unknown vision provider', () => {
+    expect(() => readEnvironment({ EVIDENCE_VISION_PROVIDER: 'rekognition' })).toThrow(
+      /EVIDENCE_VISION_PROVIDER must be 'accept', 'openai', 'gemini', 'openai-compatible'/,
+    );
+  });
+
+  it('refuses the accept stub in production', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'sendbyte',
+        SEND_BYTE_LIVE_KEY: 'sk_live_test',
+        EVIDENCE_VISION_PROVIDER: 'accept',
+        EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
+      }),
+    ).toThrow(/EVIDENCE_VISION_PROVIDER=accept is not allowed/);
+  });
+
   it('refuses production without a vision key', () => {
     expect(() =>
       readEnvironment({
@@ -137,7 +300,170 @@ describe('readEnvironment', () => {
         SMTP_USER: 'mailer',
         SMTP_PASS: 'secret',
         SMTP_FROM: 'noreply@example.com',
+        ...deployedStorage,
       }),
     ).toThrow(/EVIDENCE_VISION_API_KEY is required/);
+  });
+
+  it('enables Apple IAP in sandbox without an App Apple ID', () => {
+    const environment = readEnvironment({
+      APPLE_ENVIRONMENT: 'sandbox',
+      APPLE_BUNDLE_ID: 'com.healthyapp.app',
+    });
+
+    expect(environment.appleIap).toEqual({
+      mode: 'enabled',
+      bundleId: 'com.healthyapp.app',
+      environment: 'Sandbox',
+      appAppleId: null,
+    });
+  });
+
+  it('requires APPLE_APP_APPLE_ID in the production Apple environment', () => {
+    expect(() => readEnvironment({ APPLE_ENVIRONMENT: 'production' })).toThrow(
+      /APPLE_APP_APPLE_ID is required/,
+    );
+  });
+
+  it('enables production Apple IAP when an App Apple ID is set', () => {
+    const environment = readEnvironment({
+      APPLE_ENVIRONMENT: 'production',
+      APPLE_APP_APPLE_ID: '1234567890',
+    });
+
+    expect(environment.appleIap).toEqual({
+      mode: 'enabled',
+      bundleId: 'com.healthyapp.app',
+      environment: 'Production',
+      appAppleId: 1_234_567_890,
+    });
+  });
+
+  it('rejects an unknown APPLE_ENVIRONMENT', () => {
+    expect(() => readEnvironment({ APPLE_ENVIRONMENT: 'staging' })).toThrow(
+      /APPLE_ENVIRONMENT must be 'sandbox' or 'production'/,
+    );
+  });
+
+  it('uses SendByte when the live key is set and no provider is chosen', () => {
+    const environment = readEnvironment({
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+    });
+
+    expect(environment.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'Beatset <hello@gethealthyapp.com>',
+    });
+  });
+
+  it('reads an explicit SendByte mailbox and always names Beatset', () => {
+    const bare = readEnvironment({
+      EMAIL_PROVIDER: 'SendByte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      MAIL_FROM: 'hello@gethealthyapp.com',
+    });
+    const alreadyNamed = readEnvironment({
+      EMAIL_PROVIDER: 'SendByte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      MAIL_FROM: 'Ops <ops@gethealthyapp.com>',
+    });
+
+    expect(bare.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'Beatset <hello@gethealthyapp.com>',
+    });
+    expect(alreadyNamed.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'Beatset <ops@gethealthyapp.com>',
+    });
+  });
+
+  it('keeps SMTP when that provider is selected beside a SendByte key', () => {
+    const environment = readEnvironment({
+      EMAIL_PROVIDER: 'smtp',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_PORT: '587',
+      SMTP_USER: 'mailer',
+      SMTP_PASS: 'secret',
+      SMTP_FROM: 'noreply@example.com',
+    });
+
+    expect(environment.mail).toEqual({
+      mode: 'smtp',
+      host: 'smtp.example.com',
+      port: 587,
+      user: 'mailer',
+      pass: 'secret',
+      from: 'Beatset <noreply@example.com>',
+    });
+  });
+
+  it('treats a blank SendByte key as the local log mailer', () => {
+    const environment = readEnvironment({
+      EMAIL_PROVIDER: 'sendbyte',
+      SEND_BYTE_LIVE_KEY: '0',
+    });
+
+    expect(environment.mail).toEqual({ mode: 'log' });
+  });
+
+  it('boots production on SendByte without SMTP', () => {
+    const environment = readEnvironment({
+      NODE_ENV: 'production',
+      EMAIL_PROVIDER: 'sendbyte',
+      SEND_BYTE_LIVE_KEY: 'sk_live_test',
+      EVIDENCE_VISION_API_KEY: 'sk-test',
+      ...deployedStorage,
+    });
+
+    expect(environment.mail).toEqual({
+      mode: 'sendbyte',
+      apiKey: 'sk_live_test',
+      from: 'Beatset <hello@gethealthyapp.com>',
+    });
+  });
+
+  it('refuses production SendByte without a key', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'sendbyte',
+        EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
+      }),
+    ).toThrow(/SEND_BYTE_LIVE_KEY is required/);
+  });
+
+  it('refuses the log mailer in production', () => {
+    expect(() =>
+      readEnvironment({
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'log',
+        EVIDENCE_VISION_API_KEY: 'sk-test',
+        ...deployedStorage,
+      }),
+    ).toThrow(/EMAIL_PROVIDER=log is not allowed/);
+  });
+
+  it('turns the testing membership grant off only when asked', () => {
+    expect(readEnvironment({ MEMBERSHIP_BYPASS: '0' }).testingMembership).toBe(false);
+    expect(readEnvironment({ MEMBERSHIP_BYPASS: 'off' }).testingMembership).toBe(false);
+    expect(readEnvironment({ MEMBERSHIP_BYPASS: '1' }).testingMembership).toBe(true);
+  });
+
+  it('rejects an unknown membership bypass flag', () => {
+    expect(() => readEnvironment({ MEMBERSHIP_BYPASS: 'later' })).toThrow(
+      /MEMBERSHIP_BYPASS must be 0 or 1/,
+    );
+  });
+
+  it('rejects an unknown email provider', () => {
+    expect(() => readEnvironment({ EMAIL_PROVIDER: 'zeptomail' })).toThrow(
+      /EMAIL_PROVIDER must be 'log', 'smtp', 'sendbyte'/,
+    );
   });
 });

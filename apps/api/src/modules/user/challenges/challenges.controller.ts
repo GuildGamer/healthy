@@ -40,6 +40,7 @@ export class ChallengesController {
           peakFlow: input.peakFlow,
           water: input.water,
           carbs: input.carbs,
+          sleep: input.sleep,
         },
         input.deviceActivity,
       );

@@ -1,0 +1,75 @@
+import type { DeckCardKind } from '@/components/deck';
+import { formatClockTime } from '@/lib/clock-time';
+import { poseShareCopy } from './pose-share-copy';
+import type { SharePoster } from './types/share-poster';
+
+/** How a just-finished challenge should read on the share card. */
+export type SuccessFace = 'reps' | 'minutes' | 'glasses' | 'gym' | 'logged' | 'done';
+
+const FACE_KIND: Record<SuccessFace, DeckCardKind> = {
+  reps: 'strength',
+  minutes: 'walk',
+  glasses: 'water',
+  gym: 'gym',
+  logged: 'mobility',
+  done: 'mobility',
+};
+
+/**
+ * The Well done card, in the same words as the history Share screen.
+ * Points never become the hero. A reading stays "Logged", with no value.
+ */
+export function posterForSuccess(input: {
+  title: string;
+  face: SuccessFace;
+  count?: number;
+  minutes?: number;
+  glasses?: number;
+  /** Camera exercise metric; names the unit under a reps hero. */
+  metric?: string | null;
+  when?: Date;
+}): SharePoster {
+  const when = input.when ?? new Date();
+  const whenIso = when.toISOString();
+
+  if (input.face === 'minutes' && (input.minutes ?? 0) > 0) {
+    return card(input.title, 'minutes', String(input.minutes), 'minutes walked', whenIso);
+  }
+
+  if (input.face === 'glasses' && (input.glasses ?? 0) > 0) {
+    return card(input.title, 'glasses', String(input.glasses), 'glasses', whenIso);
+  }
+
+  if (input.face === 'gym') {
+    return card(input.title, 'gym', formatClockTime(when), 'at the gym', whenIso);
+  }
+
+  if (input.face === 'logged') {
+    return card(input.title, 'logged', 'Logged', dayLabel(when), whenIso);
+  }
+
+  /**
+   * A counted camera set always heroes the number — same as push-ups.
+   * Never fall through to “Done” when a count is present, even if an older
+   * route forgot `face=reps`.
+   */
+  if ((input.count ?? 0) > 0) {
+    return card(input.title, 'reps', String(input.count), poseShareCopy(input.metric).unit, whenIso);
+  }
+
+  return card(input.title, 'done', 'Done', dayLabel(when), whenIso);
+}
+
+function card(
+  title: string,
+  face: SuccessFace,
+  value: string,
+  unit: string,
+  when: string,
+): SharePoster {
+  return { kind: FACE_KIND[face], label: title, value, unit, when };
+}
+
+function dayLabel(at: Date): string {
+  return at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}

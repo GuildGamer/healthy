@@ -13,6 +13,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Testing grant. Set to 0 before launch.
+      - key: MEMBERSHIP_BYPASS
+        value: "1"
       - key: PORT
         value: "10000"
       - key: DATABASE_URL
@@ -22,6 +25,12 @@ services:
       - key: BETTER_AUTH_SECRET
         generateValue: true
       - key: BETTER_AUTH_URL
+        sync: false
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: SEND_BYTE_LIVE_KEY
+        sync: false
+      - key: MAIL_FROM
         sync: false
       - key: SMTP_HOST
         sync: false
@@ -37,12 +46,24 @@ services:
         sync: false
       - key: EVIDENCE_VISION_MODEL
         sync: false
+      - key: STORAGE_PROVIDER
+        sync: false
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
 
   - type: web
     name: product-web
     runtime: static
-    rootDir: apps/web
-    buildCommand: pnpm --filter @product/web build
+    rootDir: apps/website
+    buildCommand: pnpm --filter @product/website build
     staticPublishPath: dist
     envVars:
       - key: PUBLIC_API_URL

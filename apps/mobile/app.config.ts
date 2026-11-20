@@ -1,38 +1,177 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+/**
+ * Host for universal / app links. New invites use `beatset.tech` with no
+ * redirect: iOS and Android will not open the app from a link that redirects.
+ * `www.gethealthyapp.com` stays claimed so links already sent still open the
+ * app. `/match/<token>` mirrors `app/match/[token]`. `/progress/report` is the
+ * recap email. `/app/progress/report` is the path older mail used; `path` is
+ * exact so it does not also claim `/progress/reports`.
+ *
+ * `associatedDomains` and `intentFilters` are native. They apply only after
+ * a new dev-client build (`make ios` / `make android`), not an EAS Update.
+ */
+const LINK_HOST = 'beatset.tech';
+const LEGACY_LINK_HOST = 'www.gethealthyapp.com';
+const LINK_HOSTS = [LINK_HOST, LEGACY_LINK_HOST] as const;
+/** Trailing slash matters: without it Android would also claim `/matches/...`. */
+const MATCH_INVITE_PATH_PREFIX = '/match/';
+const PROOF_VERIFY_PATH_PREFIX = '/v/';
+const REPORT_PATH = '/progress/report';
+const LEGACY_REPORT_PATH = '/app/progress/report';
+
+/**
+ * Store application ids. Override either one for a disposable friend-account
+ * build. Apple App IDs stick to the team that creates them, and a Play package
+ * name sticks to the developer account that creates the app.
+ *
+ * Example throwaway: IOS_BUNDLE_IDENTIFIER=com.healthyapp.tfpreview
+ */
+const IOS_BUNDLE_IDENTIFIER = process.env.IOS_BUNDLE_IDENTIFIER?.trim() || 'com.healthyapp.app';
+const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE?.trim() || 'com.beatset.app';
+/** CFBundleVersion. Codemagic sets this before prebuild; local builds stay on 1. */
+const IOS_BUILD_NUMBER = process.env.IOS_BUILD_NUMBER?.trim() || '1';
+/**
+ * Path to the Firebase `google-services.json` that Android needs for push
+ * tokens (FCM). On EAS it comes from a `file` environment variable, so the
+ * file stays out of git; locally, point it at a downloaded copy. Without it
+ * the build still succeeds, but Android installs get no reminders.
+ */
+const GOOGLE_SERVICES_FILE = process.env.GOOGLE_SERVICES_JSON?.trim() || undefined;
+/**
+ * Maps SDK for Android API key for `react-native-maps` tiles in release APKs.
+ * Not Firebase — that is `GOOGLE_SERVICES_JSON`. On EAS, set this as a secret
+ * on the `production` environment so `production-apk` can bake it in at
+ * prebuild. Without it the walk map strip paints solid navy and shows no tiles.
+ */
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY?.trim() || undefined;
+/** EAS project that hosts updates for this app. */
+const EAS_PROJECT_ID = 'be6f70ce-9076-4d48-8d07-b841eb0dce17';
+
+if (process.env.EAS_BUILD && !GOOGLE_MAPS_API_KEY) {
+  console.warn(
+    '[app.config] GOOGLE_MAPS_API_KEY is unset; Android walk maps will show blank tiles in this build.',
+  );
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Healthy',
+  name: 'Beatset',
   slug: 'healthy',
   scheme: 'healthy',
   version: '1.0.0',
+  // Fingerprint changes when native deps, plugins, or modules change, so an
+  // OTA cannot land on a binary that lacks the native code the JS expects.
+  // Stale installs already on store still report appVersion "1.0.0" — publish
+  // their safety-net update with `--runtime-version 1.0.0` before relying on
+  // fingerprint-only channels.
+  runtimeVersion: {
+    policy: 'fingerprint',
+  },
+  updates: {
+    url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+  },
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   icon: './assets/icon.png',
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.healthyapp.app',
+    bundleIdentifier: IOS_BUNDLE_IDENTIFIER,
+    buildNumber: IOS_BUILD_NUMBER,
+    associatedDomains: LINK_HOSTS.map((host) => `applinks:${host}`),
+    // Set once the App Store listing exists (numeric id from App Store Connect).
+    // appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
     infoPlist: {
       NSCameraUsageDescription:
-        'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
+        'Beatset uses the camera to count reps on this phone and optionally record a proof clip of your set.',
+      NSPhotoLibraryAddUsageDescription:
+        'Beatset saves proof clips you choose to keep in your Photos library.',
       NSLocationWhenInUseUsageDescription:
-        'Healthy uses your location to record walking and running routes.',
-      NSMotionUsageDescription:
-        'Healthy uses motion data to count steps from this phone.',
+        'Beatset uses your location to record walking and running routes.',
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
+      NSLocationAlwaysUsageDescription:
+        'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
+      NSMotionUsageDescription: 'Beatset uses motion data to count steps from this phone.',
+      // Required by ActivityKit. Without this key, startActivity fails and the
+      // lock-screen walk card never appears.
+      NSSupportsLiveActivities: true,
+      // `processing` is required by `expo-background-task` (set sync while closed).
+      UIBackgroundModes: ['location', 'processing'],
+      BGTaskSchedulerPermittedIdentifiers: ['com.expo.modules.backgroundtask.processing'],
+    },
+    entitlements: {
+      'com.apple.developer.healthkit': true,
     },
   },
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/icon.png',
-      backgroundColor: '#3DDC97',
+      backgroundColor: '#0FA36B',
     },
-    package: 'com.healthyapp.app',
+    // Resize the window when the soft keyboard opens so focused fields stay visible.
+    // Requires a new native build; EAS Update alone does not apply this.
+    softwareKeyboardLayoutMode: 'resize',
+    package: ANDROID_PACKAGE,
+    googleServicesFile: GOOGLE_SERVICES_FILE,
+    config: {
+      googleMaps: {
+        apiKey: GOOGLE_MAPS_API_KEY,
+      },
+    },
+    intentFilters: [
+      {
+        action: 'VIEW',
+        // Verified against /.well-known/assetlinks.json, so an invite opens
+        // the app directly instead of showing a chooser.
+        autoVerify: true,
+        category: ['BROWSABLE', 'DEFAULT'],
+        data: LINK_HOSTS.flatMap((host) => [
+          {
+            scheme: 'https',
+            host,
+            pathPrefix: MATCH_INVITE_PATH_PREFIX,
+          },
+          {
+            scheme: 'https',
+            host,
+            pathPrefix: PROOF_VERIFY_PATH_PREFIX,
+          },
+          {
+            scheme: 'https',
+            host,
+            path: REPORT_PATH,
+          },
+          {
+            scheme: 'https',
+            host,
+            path: LEGACY_REPORT_PATH,
+          },
+        ]),
+      },
+    ],
+    playStoreUrl: `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`,
     permissions: [
       'CAMERA',
       'ACCESS_COARSE_LOCATION',
       'ACCESS_FINE_LOCATION',
       'ACTIVITY_RECOGNITION',
+      // Health Connect reads (declared; runtime grant via the library).
+      'android.permission.health.READ_SLEEP',
+      'android.permission.health.READ_EXERCISE',
+    ],
+    // Plugins add these by default, but Beatset records no audio, and saving
+    // clips or picking a profile photo needs no media read access on Android
+    // 13+ (system photo picker, add-only saves). Play reviews broad photo and
+    // video access, so keep them out. Android 12 and older still use
+    // READ/WRITE_EXTERNAL_STORAGE for the same two flows.
+    blockedPermissions: [
+      'android.permission.RECORD_AUDIO',
+      'android.permission.READ_MEDIA_AUDIO',
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.READ_MEDIA_VIDEO',
+      'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
     ],
   },
   plugins: [
@@ -41,11 +180,72 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-notifications',
     'expo-font',
+    'expo-iap',
+    'expo-video',
+    // Background set sync while the app is closed (needs a new binary).
+    'expo-background-task',
+    [
+      'expo-media-library',
+      {
+        photosPermission: false,
+        savePhotosPermission:
+          'Beatset saves proof clips you choose to keep in your Photos library.',
+        isAccessMediaLocationEnabled: false,
+      },
+    ],
+    [
+      // Hands off to the animated `SplashScreen` component. The native splash
+      // can follow the phone (Clinic white / Beatset night) but not a stored
+      // Light or Dark choice — that arrives only after JS reads SecureStore.
+      // Colours mirror `@product/brand`, which cannot be imported here because
+      // the package resolves to a build output Expo CLI may not have yet.
+      'expo-splash-screen',
+      {
+        backgroundColor: '#F5F6F8',
+        image: './assets/splash-icon.png',
+        imageWidth: 104,
+        resizeMode: 'contain',
+        dark: {
+          backgroundColor: '#0B1220',
+          image: './assets/splash-icon.png',
+        },
+      },
+    ],
     [
       'expo-build-properties',
       {
         android: {
           minSdkVersion: 26,
+          // QuickPose's MediaPipe AAR bundles its own C++ runtime beside
+          // React Native's; without this the APK fails to package.
+          packagingOptions: {
+            pickFirst: ['**/libc++_shared.so'],
+          },
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+          // Same rules as modules/quickpose-camera/android/proguard-rules.pro —
+          // EAS prebuild injects these into android/app/proguard-rules.pro.
+          // Verify push-ups on a fresh production-apk; OTA cannot apply them.
+          extraProguardRules: [
+            '-keep public interface com.google.mediapipe.framework.* {',
+            '  public *;',
+            '}',
+            '-keep public class com.google.mediapipe.framework.Packet {',
+            '  public static *** create(***);',
+            '  public long getNativeHandle();',
+            '  public void release();',
+            '}',
+            '-keep public class com.google.mediapipe.framework.PacketCreator {',
+            '  *** releaseWithSyncToken(...);',
+            '}',
+            '-keep public class com.google.mediapipe.framework.MediaPipeException {',
+            '  <init>(int, byte[]);',
+            '}',
+            '-keep class com.google.mediapipe.framework.ProtoUtil$SerializedMessage { *; }',
+            '-keep public class * extends com.google.protobuf.GeneratedMessageLite { *; }',
+            '-keepclassmembers class com.google.common.flogger.** { *; }',
+            '-keep class ai.quickpose.core.Status$* { *; }',
+          ].join('\n'),
         },
         ios: {
           deploymentTarget: '15.1',
@@ -70,51 +270,68 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
-      'react-native-vision-camera',
-      {
-        cameraPermissionText:
-          'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
-        enableMicrophonePermission: false,
-      },
-    ],
-    [
-      'react-native-fast-tflite',
-      {
-        enableCoreMLDelegate: true,
-        enableAndroidGpuLibraries: true,
-      },
-    ],
-    [
       'expo-camera',
       {
         cameraPermission:
-          'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
+          'Beatset uses the camera to prove gym sessions and count push-ups on this phone.',
         recordAudioAndroid: false,
       },
     ],
     [
       'expo-image-picker',
       {
-        cameraPermission:
-          'Healthy uses the camera for gym proof and your profile photo.',
-        photosPermission:
-          'Healthy uses your photos so you can set a profile picture.',
+        cameraPermission: 'Beatset uses the camera for gym proof and your profile photo.',
+        photosPermission: 'Beatset uses your photos so you can set a profile picture.',
+        microphonePermission: false,
       },
     ],
     [
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Healthy uses your location to record walking and running routes.',
+          'Beatset uses your location to record walking and running routes.',
+        locationAlwaysAndWhenInUsePermission:
+          'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
+        locationAlwaysPermission:
+          'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
       },
     ],
+    // Clears TaskManager prefs before RN loads so a restored Android walk
+    // location task cannot crash launch (needs a new binary; OTA cannot).
+    './plugins/with-stale-location-task-reset.js',
+    // Widget extension for the lock-screen walk card. Only list this once —
+    // applying it twice duplicates the Xcode target and breaks pod install.
+    'expo-live-activity',
+    // Overwrites the generated SwiftUI with Beatset’s deck-style Pause/Resume card.
+    './modules/walk-live-activity/app.plugin.js',
+    [
+      '@kingstinct/react-native-healthkit',
+      {
+        NSHealthShareUsageDescription:
+          'Beatset reads walks and last night’s sleep from Apple Health so you can confirm them in one tap.',
+        // Apple still requires this string when the HealthKit entitlement is present,
+        // even though Beatset only reads health data and never writes to the store.
+        NSHealthUpdateUsageDescription:
+          'Beatset does not write sleep, workouts, or other health data to Apple Health.',
+        background: false,
+      },
+    ],
+    'react-native-health-connect',
   ],
   experiments: {
     typedRoutes: true,
   },
   extra: {
     eas: {
-      projectId: 'be6f70ce-9076-4d48-8d07-b841eb0dce17',
+      projectId: EAS_PROJECT_ID,
     },
+    /**
+     * Numeric App Store id (not the bundle id). Required for the Profile
+     * “Rate the app” write-review deep link on iOS. Leave unset until listed.
+     * Do not set null — plist serialization turns null into {}, which is not a string.
+     */
   },
 });

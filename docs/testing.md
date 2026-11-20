@@ -48,13 +48,13 @@ Then:
 make typecheck
 make test
 make openapi-check   # when contract or oRPC handlers changed
-make web             # optional marketing site
-make e2e-web         # Playwright homepage smoke
+make website         # optional marketing site
+make e2e-website     # Playwright homepage smoke
 ```
 
 Manual checks when those paths changed:
 
-- Waitlist: site `/waitlist` → API `POST /waitlist`
+- Waitlist: site `/waitlist` → Formspree (`PUBLIC_WAITLIST_FORM_URL`)
 - `/me` only with a session (no mobile auth UI yet)
 
 ## Lane B — API + mobile + admin
@@ -70,7 +70,9 @@ make ios        # expo run:ios → iOS Simulator
 
 `make mobile` only starts Metro. It does **not** install a binary.
 
-Push-up counting uses Vision Camera + on-device MoveNet. After pulling those native deps, rebuild with `make ios` / `make android`. Live pose needs a **physical device** (simulators fall back to guided motion).
+Push-up counting uses QuickPose on a **physical device**. After pulling native deps, rebuild with `make ios` / `make android`.
+
+In-app App Store / Play review (`expo-store-review`) also needs that native rebuild. The system review sheet does not appear on TestFlight; use a development or production build on a real device to smoke-test it.
 
 ### Daily loop
 
@@ -104,6 +106,8 @@ On the home screen, tap **Check API health**. Expect `ok · api`, not `unreachab
 
 Live push-up counting uses QuickPose (`EXPO_PUBLIC_QUICKPOSE_SDK_KEY`). After adding that native module or changing `app.config.ts`, rebuild the development client (`make ios` / `make android` or EAS). The SDK is not loaded until someone opens the in-app push-up session.
 
+A walk’s lock-screen card (Live Activity on iOS, foreground-service notification on Android) and background GPS also need that native rebuild after `app.config.ts` or `walk-live-activity` changes. On a physical phone: start a GPS walk, lock the phone, move far enough for distance to change, stand still until the card says Paused, tap Pause / Resume on the card, unlock, and stop — the saved duration and distance must match the card. After Island Pause the Dynamic Island must not show the location arrow; Resume restores tracking; force-quit then reopen must not leave a Beatset Live Activity. For a steps challenge, open the session, confirm the count ticks up on screen, lock the phone, and check the STEPS Live Activity shows the latest total.
+
 ### EAS vs local Simulator
 
 - **Local Simulator/emulator:** `make ios` / `make android` (this runbook).
@@ -118,6 +122,8 @@ After a binary is installed:
 maestro test apps/mobile/.maestro/home.yml
 ```
 
+The flow launches the Android package `com.beatset.app` (see `.maestro/home.yml`). An iOS install is `com.healthyapp.app` and needs its own flow.
+
 ## As you go (per change)
 
 | Change | What to run |
@@ -125,7 +131,7 @@ maestro test apps/mobile/.maestro/home.yml
 | Contract / API | Edit `packages/contract` first → implement in `apps/api` → `make typecheck` → `make test` → `make openapi-check` → curl touched routes |
 | Persistence | `make migrate` (and `make seed` if seed data matters) |
 | Mobile JS only | `make mobile` + Simulator smoke; rebuild native only after plugins / `app.config` / SDK changes |
-| Web | `make web` + `make e2e-web`; waitlist form against a running API |
+| Website | `make website` + `make e2e-website`; waitlist form via Formspree (`PUBLIC_WAITLIST_FORM_URL`) |
 
 ## Automated layers
 

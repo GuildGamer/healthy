@@ -6,6 +6,10 @@ export interface HealthTip {
   /** Short enough to sit on one line as the home screen preview. */
   title: string;
   body: string;
+  challengeSlug?: string | null;
+  activityKey?: string | null;
+  source?: string | null;
+  sourceUrl?: string | null;
 }
 
 export const healthTips: readonly HealthTip[] = [
@@ -68,12 +72,16 @@ export const healthTips: readonly HealthTip[] = [
     category: 'general',
     title: 'Drink a glass of water before each meal',
     body: 'It is the easiest hydration habit to remember, because the reminder is already built into your day.',
+    activityKey: 'water',
   },
   {
     id: 'hourly-movement',
     category: 'general',
     title: 'Stand up and move for two minutes every hour',
     body: 'Breaking up long stretches of sitting does more for circulation and stiffness than any single workout.',
+    activityKey: 'hourly-move',
+    source: 'WHO physical activity',
+    sourceUrl: 'https://www.who.int/news-room/fact-sheets/detail/physical-activity',
   },
   {
     id: 'sleep-schedule',

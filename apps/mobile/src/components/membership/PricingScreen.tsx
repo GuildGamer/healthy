@@ -1,360 +1,180 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import type { MembershipPaymentMethodId } from '@product/contract';
+import type { MembershipOffer, MembershipPaymentMethodId } from '@product/contract';
 import { formatMembershipAmount } from '@product/contract';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FormButton, FormErrorBanner } from '@/components/forms';
+import { useEffect, useState } from 'react';
+import { Linking, Platform } from 'react-native';
+import { DeckButton } from '@/components/deck';
 import { Loader } from '@/components/feedback';
+import { InlineNotice } from '@/components/forms';
+import { SettingsGroup, SettingsLinkRow, SettingsNote } from '@/components/settings';
+import { trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
-import { displayFontFamily } from '@/lib/fonts';
+import { resolveAppleProductId } from '@/lib/apple-membership';
+import { AppleCheckoutFooter, PendingCheckoutFooter } from './CheckoutFooter';
+import {
+  MEMBERSHIP_INTERVAL_UNIT,
+  manageSubscriptionLink,
+  memberEyebrow,
+  punctuateMembershipCopy,
+} from './membership-copy';
+import { MembershipHero } from './MembershipHero';
+import { PaymentMethodChips } from './PaymentMethodChips';
+import { PlanChoice } from './PlanChoice';
+import { PricingShell } from './PricingShell';
 
-/** Prefer sentence punctuation over dash separators in plan copy. */
-function punctuateMembershipCopy(value: string): string {
-  return value
-    .replace(/\s*[—–]\s*/g, '. ')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/\.\s*\./g, '.')
-    .trim();
-}
-
-const METHOD_ICON: Record<MembershipPaymentMethodId, string> = {
-  apple_pay: 'apple',
-  google_pay: 'google',
-  card: 'credit-card-outline',
-  bank_transfer: 'bank-outline',
-  ussd: 'cellphone',
-};
+type PricingSource = 'success' | 'profile' | 'other';
 
 type PricingScreenProps = {
   onClose: () => void;
   /** Soft entry after a win — slightly warmer copy. */
-  source?: 'success' | 'profile' | 'other';
+  source?: PricingSource;
 };
 
-export function PricingScreen({
-  onClose,
-  source = 'other',
-}: PricingScreenProps) {
+const DEFAULT_HEADLINE = 'Every challenge, and a nudge to finish.';
+const WIN_HEADLINE = 'Keep that win going.';
+
+export function PricingScreen({ onClose, source = 'other' }: PricingScreenProps) {
   const offerQuery = useQuery({
     queryKey: ['membership-offer'],
     queryFn: () => apiClient.getMembershipOffer(),
   });
-  const [selectedMethod, setSelectedMethod] =
-    useState<MembershipPaymentMethodId | null>(null);
-  const [payMessage, setPayMessage] = useState<string | null>(null);
-
   const offer = offerQuery.data;
 
   if (offerQuery.isPending) {
     return (
-      <SafeAreaView style={styles.container}>
+      <PricingShell closeLabel="Close" onClose={onClose}>
         <Loader />
-      </SafeAreaView>
+      </PricingShell>
     );
   }
 
-  if (offerQuery.isError || !offer) {
+  if (offerQuery.isError || !offer || offer.plans.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.body}>
-          <FormErrorBanner message="Membership is not available yet. Try again soon." />
-          <FormButton label="Close" onPress={onClose} variant="secondary" />
-        </View>
-      </SafeAreaView>
+      <PricingShell
+        closeLabel="Close"
+        dock={<DeckButton label="Close" onPress={onClose} testID="pricing-done" variant="quiet" />}
+        onClose={onClose}
+      >
+        <InlineNotice
+          icon="offline"
+          message="Membership is not available yet. Try again soon."
+          tone="error"
+        />
+      </PricingShell>
     );
   }
-
-  const amountLabel = formatMembershipAmount(offer.currency, offer.amountMinor);
-  const activeMethod = selectedMethod ?? offer.paymentMethods[0]?.id ?? null;
-  const intervalLabel =
-    offer.interval === 'month' ? 'per month' : 'per year';
-  const cta =
-    offer.ctaLabel?.trim() || `Pay ${amountLabel} ${intervalLabel}`;
-  const marketHint =
-    offer.countryCode === 'NG' ? 'Nigeria' : 'USD';
-  const headline = punctuateMembershipCopy(
-    offer.headline?.trim() ||
-      (source === 'success' ? 'Keep that win going' : offer.name),
-  );
-  const tagline = offer.tagline
-    ? punctuateMembershipCopy(offer.tagline)
-    : null;
 
   if (offer.hasMembership) {
-    return (
-      <SafeAreaView style={styles.container} testID="pricing-screen-active">
-        <View style={styles.body}>
-          <View style={styles.top}>
-            <Pressable
-              accessibilityLabel="Close"
-              accessibilityRole="button"
-              hitSlop={12}
-              onPress={onClose}
-              style={styles.close}
-              testID="pricing-close"
-            >
-              <Text style={styles.closeLabel}>Close</Text>
-            </Pressable>
-
-            <Text style={styles.eyebrow}>Membership</Text>
-            <Text style={styles.headline} numberOfLines={2}>
-              You are a member
-            </Text>
-            <Text style={styles.tagline}>
-              Full catalog, extra reminders, and finish-what-you-started nudges
-              are unlocked.
-            </Text>
-
-            {offer.features.length > 0 ? (
-              <View style={styles.perks}>
-                {offer.features.map((feature) => (
-                  <View key={feature} style={styles.perkRow}>
-                    <Text style={styles.perkMark}>✓</Text>
-                    <Text numberOfLines={2} style={styles.perkText}>
-                      {punctuateMembershipCopy(feature)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-
-          <View style={styles.footer}>
-            <FormButton label="Close" onPress={onClose} testID="pricing-done" />
-          </View>
-        </View>
-      </SafeAreaView>
-    );
+    return <MemberView offer={offer} onClose={onClose} />;
   }
 
+  return <OfferView offer={offer} onClose={onClose} source={source} />;
+}
+
+/** No selling: when it renews, what is included, and where to manage it. */
+function MemberView({ offer, onClose }: { offer: MembershipOffer; onClose: () => void }) {
+  const manageLink = manageSubscriptionLink(offer.currentSubscription);
+
   return (
-    <SafeAreaView style={styles.container} testID="pricing-screen">
-      <View style={styles.body}>
-        <View style={styles.top}>
-          <Pressable
-            accessibilityLabel="Close"
-            accessibilityRole="button"
-            hitSlop={12}
-            onPress={onClose}
-            style={styles.close}
-            testID="pricing-close"
-          >
-            <Text style={styles.closeLabel}>Not now</Text>
-          </Pressable>
-
-          <Text style={styles.eyebrow}>Membership</Text>
-          <Text style={styles.headline} numberOfLines={2}>
-            {headline}
-          </Text>
-          <Text style={styles.priceLine}>
-            <Text style={styles.price}>{amountLabel}</Text>
-            <Text style={styles.priceHint}>
-              {' '}
-              {intervalLabel}. {marketHint}.
-            </Text>
-          </Text>
-          {tagline ? (
-            <Text style={styles.tagline} numberOfLines={2}>
-              {tagline}
-            </Text>
-          ) : null}
-
-          {offer.features.length > 0 ? (
-            <View style={styles.perks}>
-              {offer.features.map((feature) => (
-                <View key={feature} style={styles.perkRow}>
-                  <Text style={styles.perkMark}>✦</Text>
-                  <Text numberOfLines={1} style={styles.perkText}>
-                    {punctuateMembershipCopy(feature)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.methodsSection}>
-          <Text style={styles.methodsLabel}>Pay the way that fits you</Text>
-          <View style={styles.methods}>
-            {offer.paymentMethods.map((method) => {
-              const selected = method.id === activeMethod;
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  key={method.id}
-                  onPress={() => setSelectedMethod(method.id)}
-                  style={[
-                    styles.methodChip,
-                    selected ? styles.methodChipSelected : null,
-                  ]}
-                  testID={`pricing-method-${method.id}`}
-                >
-                  <MaterialCommunityIcons
-                    color={selected ? colors.accent : colors.muted}
-                    name={METHOD_ICON[method.id] as 'credit-card-outline'}
-                    size={22}
-                  />
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.methodLabel,
-                      selected ? styles.methodLabelSelected : null,
-                    ]}
-                  >
-                    {method.label}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.methodHint}>
-                    {method.hint}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.footer}>
-          {payMessage ? <FormErrorBanner message={payMessage} /> : null}
-          <FormButton
-            label={cta}
-            onPress={() =>
-              setPayMessage(
-                'Payments are almost ready. Your plan and methods are saved. Checkout lands next.',
-              )
-            }
-            testID="pricing-pay"
+    <PricingShell closeLabel="Close" onClose={onClose} testID="pricing-screen-active">
+      <MembershipHero
+        eyebrow={memberEyebrow(offer.currentSubscription)}
+        perks={offer.features.map(punctuateMembershipCopy)}
+        title="You’re a member."
+      />
+      {manageLink ? (
+        <SettingsGroup>
+          <SettingsLinkRow
+            isExternal
+            label={manageLink.label}
+            onPress={() => void Linking.openURL(manageLink.url).catch(() => undefined)}
+            testID="pricing-manage"
           />
-        </View>
-      </View>
-    </SafeAreaView>
+        </SettingsGroup>
+      ) : null}
+    </PricingShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  body: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    gap: spacing.md,
-  },
-  top: {
-    gap: spacing.xs,
-  },
-  close: {
-    alignSelf: 'flex-end',
-    minHeight: 40,
-    justifyContent: 'center',
-  },
-  closeLabel: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  headline: {
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xl,
-    lineHeight: 28,
-  },
-  priceLine: {
-    marginTop: 2,
-  },
-  price: {
-    color: colors.accent,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xxl,
-  },
-  priceHint: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  tagline: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-  },
-  perks: {
-    marginTop: spacing.xs,
-    gap: 6,
-  },
-  perkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  perkMark: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-  },
-  perkText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.sm,
-    lineHeight: 18,
-  },
-  methodsSection: {
-    flex: 1,
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 0,
-  },
-  methodsLabel: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  methods: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  methodChip: {
-    flexGrow: 1,
-    flexBasis: '46%',
-    maxWidth: '48%',
-    alignItems: 'flex-start',
-    gap: 2,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  methodChipSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSurface,
-  },
-  methodLabel: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  methodLabelSelected: {
-    color: colors.accent,
-  },
-  methodHint: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-  },
-  footer: {
-    gap: spacing.sm,
-  },
-});
+function OfferView({
+  offer,
+  onClose,
+  source,
+}: {
+  offer: MembershipOffer;
+  onClose: () => void;
+  source: PricingSource;
+}) {
+  const [selectedPlanId, setSelectedPlanId] = useState(offer.planId);
+  const [selectedMethod, setSelectedMethod] = useState<MembershipPaymentMethodId | null>(null);
+  const isAppleCheckout = Platform.OS === 'ios';
+  const plan =
+    offer.plans.find((candidate) => candidate.planId === selectedPlanId) ?? offer.plans[0];
+
+  useEffect(() => {
+    trackEvent('paywall_viewed', { source });
+  }, [source]);
+
+  if (!plan) {
+    return null;
+  }
+
+  const amountLabel = formatMembershipAmount(plan.currency, plan.amountMinor);
+  const intervalUnit = MEMBERSHIP_INTERVAL_UNIT[plan.interval];
+  const verb = isAppleCheckout ? 'Subscribe for' : 'Pay';
+  const ctaLabel = plan.ctaLabel?.trim() || `${verb} ${amountLabel} ${intervalUnit}`;
+  const fallbackHeadline = source === 'success' ? WIN_HEADLINE : DEFAULT_HEADLINE;
+
+  return (
+    <PricingShell
+      closeLabel="Not now"
+      dock={
+        isAppleCheckout ? (
+          <AppleCheckoutFooter
+            ctaLabel={ctaLabel}
+            productId={resolveAppleProductId({
+              planAppleProductId: plan.appleProductId,
+              offerAppleProductId: offer.appleProductId,
+              interval: plan.interval,
+            })}
+          />
+        ) : (
+          <PendingCheckoutFooter ctaLabel={ctaLabel} />
+        )
+      }
+      onClose={onClose}
+      testID="pricing-screen"
+    >
+      <MembershipHero
+        eyebrow="Membership"
+        perks={plan.features.map(punctuateMembershipCopy)}
+        title={punctuateMembershipCopy(plan.headline?.trim() || fallbackHeadline)}
+      />
+      {offer.plans.length > 1 ? (
+        <PlanChoice
+          onSelect={(planId) => {
+            setSelectedPlanId(planId);
+            const selected = offer.plans.find((candidate) => candidate.planId === planId);
+            if (selected) {
+              trackEvent('plan_selected', { planSlug: selected.slug });
+            }
+          }}
+          plans={offer.plans}
+          selectedPlanId={plan.planId}
+        />
+      ) : null}
+      {isAppleCheckout ? null : (
+        <PaymentMethodChips
+          activeMethod={selectedMethod ?? offer.paymentMethods[0]?.id ?? null}
+          methods={offer.paymentMethods}
+          onSelect={setSelectedMethod}
+        />
+      )}
+      <SettingsNote centered>
+        {isAppleCheckout
+          ? 'Cancel any time in the App Store. Groups and the leaderboard stay free.'
+          : 'Groups and the leaderboard stay free.'}
+      </SettingsNote>
+    </PricingShell>
+  );
+}

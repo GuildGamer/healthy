@@ -1,12 +1,6 @@
 import { PushupCounter } from './pushup-counter';
-import {
-  syntheticFrontPushupDepth,
-  syntheticFrontPushupFrame,
-} from './synthetic-front-pushup';
-import {
-  syntheticPushupDepth,
-  syntheticPushupFrame,
-} from './synthetic-pushup';
+import { syntheticFrontPushupDepth, syntheticFrontPushupFrame } from './synthetic-front-pushup';
+import { syntheticPushupDepth, syntheticPushupFrame } from './synthetic-pushup';
 import { elbowDownness, jointAngleDegrees } from './elbow-angle';
 
 describe('jointAngleDegrees', () => {
@@ -102,11 +96,7 @@ function standingFromPlankFrame(timestampMs: number, amount: number) {
   return frame;
 }
 
-function extraDeepFrontPushupFrame(
-  timestampMs: number,
-  depth: number,
-  extraDrop: number,
-) {
+function extraDeepFrontPushupFrame(timestampMs: number, depth: number, extraDrop: number) {
   const frame = syntheticFrontPushupFrame(timestampMs, depth);
   const extra = depth * extraDrop;
 

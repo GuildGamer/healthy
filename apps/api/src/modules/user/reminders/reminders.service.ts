@@ -12,6 +12,7 @@ import {
   MINUTES_PER_DAY,
 } from '../../../shared/constants/reminder-defaults.js';
 import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
+import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
 import type {
   ChallengeReminderDto,
   ChallengeRemindersDto,
@@ -132,7 +133,7 @@ export class RemindersService {
       select: { membershipActive: true },
     });
 
-    return profile?.membershipActive ?? false;
+    return effectiveMembershipActive(profile?.membershipActive);
   }
 
   private async findEnrollment(

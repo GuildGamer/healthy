@@ -14,6 +14,7 @@ export type CatalogChallengeDto = {
   description: string;
   category: HealthCategory;
   rewardPoints: number;
+  sortOrder: number;
   /** The cadence that would apply, whether enrolled or not. */
   frequency: ChallengeFrequency;
   completionKind: ChallengeCompletionKind;

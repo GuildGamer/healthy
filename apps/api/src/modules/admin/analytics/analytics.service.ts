@@ -6,8 +6,14 @@ import type {
   AdminGrowthAnalytics,
   AdminMarketsAnalytics,
   AdminOverviewAnalytics,
+  AdminPushDeliveriesAnalytics,
   AdminRemindersAnalytics,
 } from '@product/contract';
+import {
+  ENGAGEMENT_HOLDOUT_EXPERIMENT_KEY,
+  ENGAGEMENT_HOLDOUT_VARIANT_HOLDOUT,
+  ENGAGEMENT_HOLDOUT_VARIANT_TREATMENT,
+} from '../../shared-modules/engagement/index.js';
 import type { PrismaClient } from '@product/db';
 import {
   type AuthenticatedAdmin,
@@ -17,6 +23,8 @@ import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
   bucketByDay,
   countryShares,
+  isDailyCountSpike,
+  parseGroupNotificationToggle,
   rate,
   resolveRange,
   streakBucketKey,
@@ -45,6 +53,7 @@ export class AdminAnalyticsService {
       profiles,
       signupRows,
       completionRows,
+      dayOneActivation,
     ] = await Promise.all([
       this.prisma.userProfile.count(),
       this.prisma.userProfile.count({ where: { deactivatedAt: null } }),
@@ -62,7 +71,7 @@ export class AdminAnalyticsService {
       }),
       this.prisma.userProfile.findMany({
         where: { deactivatedAt: null },
-        select: { countryCode: true, healthCategories: true },
+        select: { countryCode: true, userId: true },
       }),
       this.prisma.user.findMany({
         where: { createdAt: { gte: rangeStart } },
@@ -72,12 +81,10 @@ export class AdminAnalyticsService {
         where: { completedAt: { gte: rangeStart } },
         select: { completedAt: true },
       }),
+      this.dayOneActivationRate(),
     ]);
 
     const withCountry = profiles.filter((row) => row.countryCode != null).length;
-    const activated = profiles.filter(
-      (row) => row.healthCategories.length > 0,
-    ).length;
 
     return {
       generatedAt: now.toISOString(),
@@ -92,7 +99,7 @@ export class AdminAnalyticsService {
       completionRateInRange: rate(completionsInRange, occurrencesInRange),
       waitlistInRange,
       countryCaptureRate: rate(withCountry, profiles.length),
-      activationRate: rate(activated, profiles.length),
+      activationRate: dayOneActivation,
       topCountries: countryShares(
         profiles.map((row) => row.countryCode),
       ).slice(0, 5),
@@ -176,6 +183,7 @@ export class AdminAnalyticsService {
       verifiedInRange,
       profiles,
       activatedUsers,
+      dayOneActivation,
     ] = await Promise.all([
       this.prisma.waitlistEntry.count(),
       this.prisma.waitlistEntry.count({
@@ -194,7 +202,7 @@ export class AdminAnalyticsService {
       }),
       this.prisma.userProfile.findMany({
         where: { deactivatedAt: null },
-        select: { countryCode: true, healthCategories: true },
+        select: { countryCode: true },
       }),
       this.prisma.userChallenge.findMany({
         where: {
@@ -203,6 +211,7 @@ export class AdminAnalyticsService {
         select: { userId: true },
         distinct: ['userId'],
       }),
+      this.dayOneActivationRate(),
     ]);
 
     const sourceCounts = new Map<string, number>();
@@ -212,9 +221,6 @@ export class AdminAnalyticsService {
     }
 
     const withCountry = profiles.filter((row) => row.countryCode != null).length;
-    const activated = profiles.filter(
-      (row) => row.healthCategories.length > 0,
-    ).length;
 
     return {
       generatedAt: now.toISOString(),
@@ -231,7 +237,7 @@ export class AdminAnalyticsService {
         days,
       ),
       verifiedInRange,
-      activationRate: rate(activated, profiles.length),
+      activationRate: dayOneActivation,
       countryCaptureRate: rate(withCountry, profiles.length),
       activatedInRange: activatedUsers.length,
     };
@@ -444,6 +450,8 @@ export class AdminAnalyticsService {
     requireAdmin(currentAdmin);
     const { days, rangeStart, now } = resolveRange(input.days);
 
+    const activeProfileWhere = { deactivatedAt: null, deletedAt: null } as const;
+
     const [
       activeEnrollments,
       enrollmentsWithReminder,
@@ -451,6 +459,9 @@ export class AdminAnalyticsService {
       pushDevices,
       notifications,
       surpriseRows,
+      activeProfiles,
+      optedOutProfiles,
+      settingChangedEvents,
     ] = await Promise.all([
       this.prisma.challengeEnrollment.count({ where: { isActive: true } }),
       this.prisma.challengeEnrollment.count({
@@ -472,6 +483,17 @@ export class AdminAnalyticsService {
         where: { createdAt: { gte: rangeStart } },
         _count: { _all: true },
       }),
+      this.prisma.userProfile.count({ where: activeProfileWhere }),
+      this.prisma.userProfile.count({
+        where: { ...activeProfileWhere, groupNotificationsEnabled: false },
+      }),
+      this.prisma.analyticsEvent.findMany({
+        where: {
+          name: 'setting_changed',
+          occurredAt: { gte: rangeStart },
+        },
+        select: { occurredAt: true, properties: true },
+      }),
     ]);
 
     const platformMap = new Map<string, number>();
@@ -481,6 +503,27 @@ export class AdminAnalyticsService {
     }
 
     const readCount = notifications.filter((row) => row.readAt != null).length;
+
+    let groupNotificationsDisabledInRange = 0;
+    let groupNotificationsEnabledInRange = 0;
+    const disableDates: Date[] = [];
+    for (const event of settingChangedEvents) {
+      const toggle = parseGroupNotificationToggle(event.properties);
+      if (!toggle) {
+        continue;
+      }
+      if (toggle.disabled) {
+        groupNotificationsDisabledInRange += 1;
+        disableDates.push(event.occurredAt);
+      } else {
+        groupNotificationsEnabledInRange += 1;
+      }
+    }
+
+    const disablesByDay = bucketByDay(disableDates, rangeStart, days);
+    const groupNotificationsDisableSpike = isDailyCountSpike(
+      disablesByDay.map((row) => row.count),
+    );
 
     return {
       generatedAt: now.toISOString(),
@@ -501,6 +544,152 @@ export class AdminAnalyticsService {
         label: row.status,
         count: row._count._all,
       })),
+      groupNotificationsOptedOutShare: rate(optedOutProfiles, activeProfiles),
+      groupNotificationsDisabledInRange,
+      groupNotificationsEnabledInRange,
+      groupNotificationsDisableSpike,
+    };
+  }
+
+  async pushDeliveries(
+    currentAdmin: AuthenticatedAdmin | null | undefined,
+    input: AdminAnalyticsRangeInput,
+  ): Promise<AdminPushDeliveriesAnalytics> {
+    requireAdmin(currentAdmin);
+    const { days, rangeStart, now } = resolveRange(input.days);
+    const twoHoursMs = 2 * 60 * 60 * 1000;
+
+    const [
+      deliveriesSent,
+      uniqueUsers,
+      opens,
+      bySourceRows,
+      holdoutSends,
+      treatmentSends,
+      userActiveDistinct,
+      leadDeliveries,
+    ] = await Promise.all([
+      this.prisma.engagementDelivery.count({
+        where: { sentAt: { gte: rangeStart } },
+      }),
+      this.prisma.engagementDelivery.findMany({
+        where: { sentAt: { gte: rangeStart } },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      this.prisma.engagementDelivery.count({
+        where: { sentAt: { gte: rangeStart }, openedAt: { not: null } },
+      }),
+      this.prisma.engagementDelivery.groupBy({
+        by: ['source'],
+        where: { sentAt: { gte: rangeStart } },
+        _count: { _all: true },
+      }),
+      this.prisma.engagementDelivery.count({
+        where: {
+          sentAt: { gte: rangeStart },
+          experimentKey: ENGAGEMENT_HOLDOUT_EXPERIMENT_KEY,
+          variantKey: ENGAGEMENT_HOLDOUT_VARIANT_HOLDOUT,
+        },
+      }),
+      this.prisma.engagementDelivery.count({
+        where: {
+          sentAt: { gte: rangeStart },
+          experimentKey: ENGAGEMENT_HOLDOUT_EXPERIMENT_KEY,
+          variantKey: ENGAGEMENT_HOLDOUT_VARIANT_TREATMENT,
+        },
+      }),
+      this.prisma.analyticsEvent.findMany({
+        where: {
+          name: { in: ['app_opened', 'user_active'] },
+          occurredAt: { gte: rangeStart },
+          userId: { not: null },
+        },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      this.prisma.engagementDelivery.findMany({
+        where: {
+          sentAt: { gte: rangeStart },
+          leadChallengeId: { not: null },
+        },
+        select: {
+          userId: true,
+          leadChallengeId: true,
+          sentAt: true,
+        },
+      }),
+    ]);
+
+    let startedWithin2h = 0;
+    let completedWithin2h = 0;
+
+    if (leadDeliveries.length > 0) {
+      const outcomes = await this.prisma.userChallenge.findMany({
+        where: {
+          OR: leadDeliveries.map((delivery) => ({
+            userId: delivery.userId,
+            challengeId: delivery.leadChallengeId!,
+          })),
+        },
+        select: {
+          userId: true,
+          challengeId: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      });
+
+      const byKey = new Map(
+        outcomes.map((row) => [`${row.userId}:${row.challengeId}`, row]),
+      );
+
+      for (const delivery of leadDeliveries) {
+        const row = byKey.get(
+          `${delivery.userId}:${delivery.leadChallengeId}`,
+        );
+        if (!row) {
+          continue;
+        }
+
+        const windowEnd = delivery.sentAt.getTime() + twoHoursMs;
+        if (
+          row.startedAt &&
+          row.startedAt.getTime() >= delivery.sentAt.getTime() &&
+          row.startedAt.getTime() <= windowEnd
+        ) {
+          startedWithin2h += 1;
+        }
+        if (
+          row.completedAt &&
+          row.completedAt.getTime() >= delivery.sentAt.getTime() &&
+          row.completedAt.getTime() <= windowEnd
+        ) {
+          completedWithin2h += 1;
+        }
+      }
+    }
+
+    return {
+      generatedAt: now.toISOString(),
+      rangeDays: days,
+      deliveriesSent,
+      uniqueUsersSent: uniqueUsers.length,
+      opens,
+      openRate: rate(opens, deliveriesSent),
+      bySource: bySourceRows
+        .map((row) => ({
+          key: row.source,
+          label: row.source,
+          count: row._count._all,
+        }))
+        .sort((left, right) => right.count - left.count),
+      holdoutSends,
+      treatmentSends,
+      userActiveDistinct: userActiveDistinct.length,
+      startedWithin2h,
+      completedWithin2h,
+      leadChallengeDeliveries: leadDeliveries.length,
     };
   }
 
@@ -511,5 +700,81 @@ export class AdminAnalyticsService {
       distinct: ['userId'],
     });
     return rows.length;
+  }
+
+  /**
+   * Share of active members who did a set or joined a contest within 24 hours
+   * of sign-up. Replaces the old “picked a health category” definition.
+   */
+  private async dayOneActivationRate(): Promise<number> {
+    const members = await this.prisma.user.findMany({
+      where: { profile: { deactivatedAt: null, deletedAt: null } },
+      select: { id: true, createdAt: true },
+    });
+    if (members.length === 0) {
+      return 0;
+    }
+
+    const userIds = members.map((member) => member.id);
+    const [completions, attempts, joins] = await Promise.all([
+      this.prisma.userChallenge.findMany({
+        where: {
+          userId: { in: userIds },
+          completedAt: { not: null },
+        },
+        select: { userId: true, completedAt: true },
+      }),
+      this.prisma.matchAttempt.findMany({
+        where: { userId: { in: userIds } },
+        select: { userId: true, recordedAt: true },
+      }),
+      this.prisma.matchParticipant.findMany({
+        where: {
+          userId: { in: userIds },
+          acceptedAt: { not: null },
+        },
+        select: {
+          userId: true,
+          acceptedAt: true,
+          match: { select: { hostUserId: true } },
+        },
+      }),
+    ]);
+
+    const firstActivity = new Map<string, number>();
+    const consider = (userId: string, at: Date | null | undefined) => {
+      if (!at) {
+        return;
+      }
+      const stamp = at.getTime();
+      const previous = firstActivity.get(userId);
+      if (previous == null || stamp < previous) {
+        firstActivity.set(userId, stamp);
+      }
+    };
+
+    for (const row of completions) {
+      consider(row.userId, row.completedAt);
+    }
+    for (const row of attempts) {
+      consider(row.userId, row.recordedAt);
+    }
+    for (const row of joins) {
+      if (row.userId === row.match.hostUserId) {
+        continue;
+      }
+      consider(row.userId, row.acceptedAt);
+    }
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    let activated = 0;
+    for (const member of members) {
+      const first = firstActivity.get(member.id);
+      if (first != null && first - member.createdAt.getTime() < dayMs) {
+        activated += 1;
+      }
+    }
+
+    return rate(activated, members.length);
   }
 }

@@ -1,20 +1,25 @@
-import type { HealthCategory } from '@product/client';
-import { useRouter } from 'expo-router';
-import { CategorySelectionScreen } from '@/components/auth';
-import { apiClient } from '@/lib/api';
-import { readEmailVerified } from '@/lib/auth-client';
-import { routeAfterCategories } from '@/lib/post-auth-route';
+import { Redirect } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ScreenLoader } from '@/components/feedback';
+import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
+import type { PostAuthHref } from '@/lib/post-auth-route';
 
+/**
+ * Condition picker is retired for the fitness pivot. Anyone who still lands
+ * here (deep link, deferred onboarding) is sent to the next real step.
+ */
 export default function CategorySelection() {
-  const router = useRouter();
+  const [href, setHref] = useState<PostAuthHref | null>(null);
 
-  async function handleContinue(categories: readonly HealthCategory[]) {
-    await apiClient.updateCategories({
-      categories: [...categories],
+  useEffect(() => {
+    void resolvePostAuthHref().then((next) => {
+      setHref(next ?? '/(tabs)');
     });
-    const emailVerified = await readEmailVerified();
-    router.replace(routeAfterCategories(emailVerified));
+  }, []);
+
+  if (!href) {
+    return <ScreenLoader />;
   }
 
-  return <CategorySelectionScreen onContinue={handleContinue} />;
+  return <Redirect href={href} />;
 }

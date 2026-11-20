@@ -17,6 +17,9 @@ RUN pnpm install --frozen-lockfile || pnpm install
 
 FROM deps AS build
 COPY . .
+# prisma.config requires DATABASE_URL at generate time; Render only injects
+# real env at runtime. A placeholder is enough for `prisma generate` (no DB).
+ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
 RUN pnpm --filter @product/contract build \
  && pnpm --filter @product/db generate \
  && pnpm --filter @product/db build \

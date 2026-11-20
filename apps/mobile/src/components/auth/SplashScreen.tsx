@@ -1,88 +1,158 @@
-import { colors, radii, spacing } from '@product/brand';
-import { useEffect } from 'react';
-import { Image, StyleSheet } from 'react-native';
-import Animated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { Glyph } from '@/components/icons';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import appIcon from '../../../assets/icon.png';
-import { displayFontFamily } from '@/lib/fonts';
+import {
+  SPLASH_CARD_SIZE,
+  SPLASH_FAN_PIVOT,
+  SPLASH_ICON_SIZE,
+  SPLASH_SWAY_DEG,
+  type SplashFanCard,
+} from './constants/splash-intro';
+import { deckCardTone } from './deck-card-tone';
+import { useSplashIntro } from './use-splash-intro';
 
-const ICON_SIZE = 112;
-const WORDMARK_SIZE = 32;
-const INTRO_MS = 700;
+const FAN_RAIL_HEIGHT = 4;
 
 interface SplashScreenProps {
-  /** Launch only. Session loading gates stay still so the mark does not replay. */
-  animate?: boolean;
+  /** True once the native splash has been told to hide; the intro clock starts here. */
+  hasNativeSplashHidden: boolean;
+  /** True once the screen underneath can take over: the overlay leaves at once. */
+  isReady: boolean;
+  /** After the exit fade, so the overlay can be unmounted. */
+  onExited: () => void;
 }
 
-export function SplashScreen({ animate = false }: SplashScreenProps) {
-  const intro = useSharedValue(animate ? 0 : 1);
-
-  useEffect(() => {
-    if (!animate) {
-      return;
-    }
-
-    intro.value = withTiming(1, {
-      duration: INTRO_MS,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [animate, intro]);
-
-  const iconStyle = useAnimatedStyle(() => ({
-    opacity: intro.value,
-    transform: [{ scale: interpolate(intro.value, [0, 1], [0.78, 1]) }],
-  }));
-
-  const wordmarkStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(intro.value, [0.4, 1], [0, 1]),
-  }));
+/**
+ * One overlay above the whole app for launch. The icon sits at dead centre,
+ * where the native splash leaves it, and four activity cards fan out from
+ * behind it like a hand while launch work runs.
+ */
+export function SplashScreen({ hasNativeSplashHidden, isReady, onExited }: SplashScreenProps) {
+  const styles = useThemedStyles(createStyles);
+  const { motion, isExiting } = useSplashIntro({ hasNativeSplashHidden, isReady, onExited });
+  const swayRotate = motion.sway.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', `-${SPLASH_SWAY_DEG}deg`],
+  });
 
   return (
-    <Animated.View style={styles.container} testID="splash-screen">
-      <Animated.View style={iconStyle}>
+    <Animated.View
+      pointerEvents={isExiting ? 'none' : 'auto'}
+      style={[styles.overlay, { opacity: motion.layerOpacity }]}
+      testID="splash-screen"
+    >
+      <View style={styles.stage}>
+        <Animated.View
+          style={[
+            styles.fan,
+            { opacity: motion.cardsOpacity, transform: [{ rotate: swayRotate }] },
+          ]}
+        >
+          {motion.fan.map(({ card, progress }) => (
+            <FanCard card={card} key={card.kind} progress={progress} />
+          ))}
+        </Animated.View>
         <Image
-          accessibilityLabel="Healthy"
+          accessibilityLabel="Beatset"
           source={appIcon}
           style={styles.icon}
           testID="splash-icon"
         />
-      </Animated.View>
-      <Animated.Text
-        allowFontScaling={false}
-        style={[styles.wordmark, wordmarkStyle]}
-      >
-        Healthy
-      </Animated.Text>
+      </View>
+      <View style={styles.caption}>
+        <Text allowFontScaling={false} style={styles.wordmark}>
+          Beatset
+        </Text>
+      </View>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignSelf: 'stretch',
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
-  icon: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: radii.xl,
-  },
-  wordmark: {
-    alignSelf: 'stretch',
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: WORDMARK_SIZE,
-    textAlign: 'center',
-  },
-});
+function FanCard({ card, progress }: { card: SplashFanCard; progress: Animated.Value }) {
+  const theme = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const { deckCards } = theme;
+
+  const transform = [
+    { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, card.liftY] }) },
+    {
+      rotate: progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', `${card.rotateDeg}deg`],
+      }),
+    },
+  ];
+  const opacity = progress.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 1, 1] });
+
+  return (
+    <Animated.View
+      style={[styles.fanCard, { backgroundColor: deckCards[card.kind], opacity, transform }]}
+      testID={`splash-fan-${card.kind}`}
+    >
+      {deckCards.hasToneRail ? (
+        <View style={[styles.fanRail, { backgroundColor: deckCardTone(theme, card.kind) }]} />
+      ) : null}
+      <Glyph color={deckCards.subtext} name={card.glyph} size={14} />
+    </Animated.View>
+  );
+}
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.background,
+    },
+    stage: {
+      width: SPLASH_ICON_SIZE,
+      height: SPLASH_ICON_SIZE,
+    },
+    fan: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    /** Starts tucked wholly behind the icon and turns about the hand's grip. */
+    fanCard: {
+      position: 'absolute',
+      width: SPLASH_CARD_SIZE,
+      height: SPLASH_CARD_SIZE,
+      borderRadius: radii.xl,
+      padding: spacing.sm,
+      overflow: 'hidden',
+      transformOrigin: [...SPLASH_FAN_PIVOT],
+      borderWidth: theme.deckCards.hasToneRail ? StyleSheet.hairlineWidth : 0,
+      borderColor: theme.colors.border,
+    },
+    fanRail: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: FAN_RAIL_HEIGHT,
+    },
+    icon: {
+      width: SPLASH_ICON_SIZE,
+      height: SPLASH_ICON_SIZE,
+      borderRadius: radii.xl,
+    },
+    /** Hung off the midpoint so the icon itself never moves. */
+    caption: {
+      position: 'absolute',
+      top: '50%',
+      left: 0,
+      right: 0,
+      marginTop: SPLASH_ICON_SIZE / 2 + spacing.md,
+      alignItems: 'center',
+    },
+    wordmark: {
+      color: theme.colors.text,
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: -0.4,
+    },
+  });

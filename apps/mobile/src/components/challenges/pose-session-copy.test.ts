@@ -1,8 +1,29 @@
 import {
   POSE_MOVE_INTO_FRAME,
+  POSE_PLANK_SIDE_ON,
+  POSE_TARGET_BADGE,
   POSE_TOO_CLOSE,
   poseCoachBanner,
+  poseReviewTitle,
+  poseShortLine,
+  poseTargetBadge,
+  rewritePoseCoachPrompt,
 } from './pose-session-copy';
+
+describe('rewritePoseCoachPrompt', () => {
+  it('rewrites QuickPose’s plank side-on coach into Beatset wording', () => {
+    expect(rewritePoseCoachPrompt('Get on your front, side on')).toBe(POSE_PLANK_SIDE_ON);
+  });
+
+  it('still rewrites slight case and spacing variants via keywords', () => {
+    expect(rewritePoseCoachPrompt('  GET ON YOUR FRONT, SIDE ON  ')).toBe(POSE_PLANK_SIDE_ON);
+    expect(rewritePoseCoachPrompt('Get on your front — side view')).toBe(POSE_PLANK_SIDE_ON);
+  });
+
+  it('leaves unrelated form feedback alone', () => {
+    expect(rewritePoseCoachPrompt('Lower your hips')).toBe('Lower your hips');
+  });
+});
 
 describe('poseCoachBanner', () => {
   it('tells the user to step back when they overflow the frame', () => {
@@ -15,7 +36,17 @@ describe('poseCoachBanner', () => {
     ).toBe(POSE_TOO_CLOSE);
   });
 
-  it('shows QuickPose form feedback when framing is fine', () => {
+  it('shows rewritten plank coaching when framing is fine', () => {
+    expect(
+      poseCoachBanner({
+        tooClose: false,
+        coachPrompt: 'Get on your front, side on',
+        bodyInFrame: true,
+      }),
+    ).toBe(POSE_PLANK_SIDE_ON);
+  });
+
+  it('shows other QuickPose form feedback unchanged', () => {
     expect(
       poseCoachBanner({
         tooClose: false,
@@ -43,5 +74,58 @@ describe('poseCoachBanner', () => {
         bodyInFrame: true,
       }),
     ).toBeNull();
+  });
+});
+
+describe('poseTargetBadge', () => {
+  it('stays hidden while the user is short of the target', () => {
+    expect(poseTargetBadge({ count: 9, target: 10 })).toBeNull();
+  });
+
+  it('calls out the exact rep that meets the target', () => {
+    expect(poseTargetBadge({ count: 10, target: 10 })).toBe(POSE_TARGET_BADGE);
+  });
+
+  it('keeps crediting the target once the user pushes past it', () => {
+    expect(poseTargetBadge({ count: 13, target: 10 })).toBe(`${POSE_TARGET_BADGE} · +3`);
+  });
+
+  it('stays hidden for untargeted sessions such as match play', () => {
+    expect(poseTargetBadge({ count: 12, target: 0 })).toBeNull();
+  });
+});
+
+describe('poseReviewTitle', () => {
+  it('judges a daily set against its target', () => {
+    expect(poseReviewTitle({ mode: 'challenge', count: 10, meetsTarget: true })).toBe(
+      'Target reached',
+    );
+    expect(poseReviewTitle({ mode: 'challenge', count: 6, meetsTarget: false })).toBe(
+      'Short of the target',
+    );
+  });
+
+  it('never judges an unscored set, it just banks it', () => {
+    expect(poseReviewTitle({ mode: 'practice', count: 12, meetsTarget: false })).toBe(
+      'Set recorded',
+    );
+    expect(poseReviewTitle({ mode: 'match', count: 12, meetsTarget: false })).toBe('Set ready');
+  });
+
+  it('says nothing was counted when the camera saw no reps', () => {
+    for (const mode of ['challenge', 'match', 'practice'] as const) {
+      expect(poseReviewTitle({ mode, count: 0, meetsTarget: false })).toBe('No reps yet');
+    }
+  });
+});
+
+describe('poseShortLine', () => {
+  it('says how many were left, as the next attempt rather than a failure', () => {
+    expect(poseShortLine({ count: 18, target: 20 })).toBe(
+      'Two short. Take a breather, then go again.',
+    );
+    expect(poseShortLine({ count: 3, target: 20 })).toBe(
+      '17 short. Take a breather, then go again.',
+    );
   });
 });

@@ -1,13 +1,18 @@
 import { useRouter } from 'expo-router';
-import { OnboardingScreen } from '@/components/auth';
+import { CreateAccountScreen } from '@/components/auth';
+import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 
 export default function Onboarding() {
   const router = useRouter();
 
   return (
-    <OnboardingScreen
-      onGetStarted={() => router.push('/sign-up')}
+    <CreateAccountScreen
+      onEmailPress={() => router.push('/sign-up-email')}
       onLoginPress={() => router.push('/login')}
+      onSignedIn={async () => {
+        const href = await resolvePostAuthHref();
+        router.replace(href ?? '/complete-country');
+      }}
     />
   );
 }

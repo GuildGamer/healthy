@@ -2,11 +2,7 @@ import { fireEvent, render, screen, act } from '@testing-library/react-native';
 import { Pressable, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
-import {
-  ToastProvider,
-  TOAST_AUTO_HIDE_MS,
-  useToast,
-} from './ToastProvider';
+import { ToastProvider, TOAST_AUTO_HIDE_MS, useToast } from './ToastProvider';
 import type { ToastTone } from './types';
 
 const testSafeAreaMetrics: Metrics = {
@@ -14,20 +10,11 @@ const testSafeAreaMetrics: Metrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-function Trigger({
-  message,
-  tone,
-}: {
-  message: string;
-  tone?: ToastTone;
-}) {
+function Trigger({ message, tone }: { message: string; tone?: ToastTone }) {
   const toast = useToast();
 
   return (
-    <Pressable
-      onPress={() => toast.show({ message, tone })}
-      testID="show-toast"
-    >
+    <Pressable onPress={() => toast.show({ message, tone })} testID="show-toast">
       <Text>Show</Text>
     </Pressable>
   );

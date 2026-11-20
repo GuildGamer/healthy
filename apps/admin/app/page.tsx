@@ -74,7 +74,7 @@ export default function OverviewPage() {
           <StatCard
             label="Activation rate"
             value={data ? formatPercent(data.activationRate) : '—'}
-            hint="Active members with ≥1 health category"
+            hint="Did a set or joined a contest within 24h of sign-up"
           />
           <StatCard
             label="Country capture"

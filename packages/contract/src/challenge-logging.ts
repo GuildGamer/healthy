@@ -31,6 +31,46 @@ export const challengeCarbsSchema = z
     message: 'Log grams or a short note to finish',
   });
 
+const SLEEP_MIN_DURATION_MS = 60 * 60 * 1000;
+const SLEEP_MAX_DURATION_MS = 16 * 60 * 60 * 1000;
+
+/** Bedtime and wake time for last night's sleep; rested is optional. */
+export const challengeSleepSchema = z
+  .object({
+    wentToBedAt: z.string().datetime({ offset: true }),
+    wokeUpAt: z.string().datetime({ offset: true }),
+    rested: z.number().int().min(1).max(5).optional(),
+  })
+  .superRefine((value, context) => {
+    const wentToBedAt = Date.parse(value.wentToBedAt);
+    const wokeUpAt = Date.parse(value.wokeUpAt);
+    if (Number.isNaN(wentToBedAt) || Number.isNaN(wokeUpAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Enter a bedtime and a wake time',
+      });
+      return;
+    }
+
+    if (wokeUpAt <= wentToBedAt) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Wake time must be after bedtime',
+        path: ['wokeUpAt'],
+      });
+      return;
+    }
+
+    const durationMs = wokeUpAt - wentToBedAt;
+    if (durationMs < SLEEP_MIN_DURATION_MS || durationMs > SLEEP_MAX_DURATION_MS) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Sleep should be between 1 and 16 hours',
+        path: ['wokeUpAt'],
+      });
+    }
+  });
+
 export const challengeVitalsDraftSchema = z.object({
   systolic: z.number().int().optional(),
   diastolic: z.number().int().optional(),
@@ -78,6 +118,7 @@ export type ChallengeGlucose = z.infer<typeof challengeGlucoseSchema>;
 export type ChallengePeakFlow = z.infer<typeof challengePeakFlowSchema>;
 export type ChallengeWater = z.infer<typeof challengeWaterSchema>;
 export type ChallengeCarbs = z.infer<typeof challengeCarbsSchema>;
+export type ChallengeSleep = z.infer<typeof challengeSleepSchema>;
 export type GlucoseContext = z.infer<typeof glucoseContextSchema>;
 export type WaterUnit = z.infer<typeof waterUnitSchema>;
 

@@ -6,9 +6,7 @@ import {
   torsoDropDownness,
   wristSpreadDownness,
 } from './pushup-signals';
-import {
-  syntheticFrontPushupFrame,
-} from './synthetic-front-pushup';
+import { syntheticFrontPushupFrame } from './synthetic-front-pushup';
 
 describe('pushup-signals', () => {
   it('merges calibration toward the highest shoulder position', () => {
@@ -34,44 +32,22 @@ describe('pushup-signals', () => {
   });
 
   it('detects torso drop on front-facing landmarks', () => {
-    const calibration = sampleCalibration(
-      syntheticFrontPushupFrame(0, 0),
-      0.3,
-    );
+    const calibration = sampleCalibration(syntheticFrontPushupFrame(0, 0), 0.3);
     expect(calibration).not.toBeNull();
 
-    const top = torsoDropDownness(
-      syntheticFrontPushupFrame(100, 0),
-      calibration,
-      0.3,
-    );
-    const bottom = torsoDropDownness(
-      syntheticFrontPushupFrame(200, 1),
-      calibration,
-      0.3,
-    );
+    const top = torsoDropDownness(syntheticFrontPushupFrame(100, 0), calibration, 0.3);
+    const bottom = torsoDropDownness(syntheticFrontPushupFrame(200, 1), calibration, 0.3);
 
     expect(top).toBeCloseTo(0, 1);
     expect(bottom).toBeGreaterThan(0.7);
   });
 
   it('detects wrist compression on front-facing landmarks', () => {
-    const calibration = sampleCalibration(
-      syntheticFrontPushupFrame(0, 0),
-      0.3,
-    );
+    const calibration = sampleCalibration(syntheticFrontPushupFrame(0, 0), 0.3);
     expect(calibration).not.toBeNull();
 
-    const top = wristSpreadDownness(
-      syntheticFrontPushupFrame(100, 0),
-      calibration,
-      0.3,
-    );
-    const bottom = wristSpreadDownness(
-      syntheticFrontPushupFrame(200, 1),
-      calibration,
-      0.3,
-    );
+    const top = wristSpreadDownness(syntheticFrontPushupFrame(100, 0), calibration, 0.3);
+    const bottom = wristSpreadDownness(syntheticFrontPushupFrame(200, 1), calibration, 0.3);
 
     expect(top).toBeCloseTo(0, 1);
     expect(bottom).toBeGreaterThan(0.5);
@@ -82,10 +58,7 @@ describe('pushup-signals', () => {
   });
 
   it('reads elbow flexion from the clearer arm', () => {
-    const downness = elbowArmDownness(
-      syntheticFrontPushupFrame(0, 0.8),
-      0.3,
-    );
+    const downness = elbowArmDownness(syntheticFrontPushupFrame(0, 0.8), 0.3);
 
     expect(downness).not.toBeNull();
     expect(downness).toBeGreaterThan(0);

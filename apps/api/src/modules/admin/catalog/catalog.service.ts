@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import {
+  DEFAULT_WATER_GLASS_GOAL,
   challengeSpecIssue,
   type AdminChallenge,
   type UpdateAdminChallengeInput,
@@ -23,7 +24,7 @@ export class AdminCatalogService {
     requireAdminPermission(currentAdmin, 'content');
 
     const rows = await this.prisma.challenge.findMany({
-      orderBy: [{ category: 'asc' }, { title: 'asc' }],
+      orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
       include: { _count: { select: { enrollments: true } } },
     });
 
@@ -96,6 +97,15 @@ export class AdminCatalogService {
     }
   }
 
+  /** A water challenge always has a glass goal; left blank, it takes the default. */
+  private targetCountFor(input: UpsertAdminChallengeInput): number | null {
+    if (input.completionKind !== 'water') {
+      return input.targetCount;
+    }
+
+    return input.targetCount ?? DEFAULT_WATER_GLASS_GOAL;
+  }
+
   private toData(input: UpsertAdminChallengeInput) {
     return {
       slug: input.slug,
@@ -114,16 +124,15 @@ export class AdminCatalogService {
       deviceMetric: input.deviceMetric,
       targetDurationMinutes: input.targetDurationMinutes,
       targetDistanceMeters: input.targetDistanceMeters,
-      targetCount: input.targetCount,
+      targetCount: this.targetCountFor(input),
       surpriseEvidenceChancePercent: input.surpriseEvidenceChancePercent,
       surpriseEvidenceWindowSeconds: input.surpriseEvidenceWindowSeconds,
       surpriseEvidencePenaltyPoints: input.surpriseEvidencePenaltyPoints,
+      sortOrder: input.sortOrder,
     };
   }
 
-  private toDto(
-    row: Challenge & { _count: { enrollments: number } },
-  ): AdminChallenge {
+  private toDto(row: Challenge & { _count: { enrollments: number } }): AdminChallenge {
     return {
       id: row.id,
       slug: row.slug,
@@ -146,6 +155,7 @@ export class AdminCatalogService {
       surpriseEvidenceChancePercent: row.surpriseEvidenceChancePercent,
       surpriseEvidenceWindowSeconds: row.surpriseEvidenceWindowSeconds,
       surpriseEvidencePenaltyPoints: row.surpriseEvidencePenaltyPoints,
+      sortOrder: row.sortOrder,
       enrollmentCount: row._count.enrollments,
       updatedAt: row.updatedAt.toISOString(),
     };

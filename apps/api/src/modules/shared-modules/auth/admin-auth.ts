@@ -1,11 +1,12 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { prisma } from '@product/db';
+import { getPrisma } from '@product/db';
 import { readEnvironment } from '../config/environment.js';
 
+const prisma = getPrisma();
+
 const baseURL = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
-const secret =
-  process.env.BETTER_AUTH_SECRET ?? 'dev-only-change-me-before-production';
+const secret = process.env.BETTER_AUTH_SECRET ?? 'dev-only-change-me-before-production';
 const environment = readEnvironment();
 const adminAppUrl = environment.adminAppUrl;
 
@@ -51,11 +52,7 @@ export const adminAuth = betterAuth({
   advanced: {
     cookiePrefix: 'admin',
   },
-  trustedOrigins: [
-    adminAppUrl,
-    'http://localhost:3000',
-    'http://localhost:3001',
-  ],
+  trustedOrigins: [adminAppUrl, 'http://localhost:3000', 'http://localhost:3001'],
 });
 
 export type AdminAuth = typeof adminAuth;

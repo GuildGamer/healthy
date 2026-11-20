@@ -1,11 +1,15 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
+import { challengesTabHref } from '@/lib/challenges-tab';
 import { ScreenLoader } from '@/components/feedback';
 import { ChallengeSessionScreen } from '@/components/challenges/ChallengeSessionScreen';
 import { useSession } from '@/lib/auth-client';
 
 export default function ChallengeSessionRoute() {
   const { data: session, isPending } = useSession();
-  const { challengeId } = useLocalSearchParams<{ challengeId: string }>();
+  const { challengeId, autoStart } = useLocalSearchParams<{
+    challengeId: string;
+    autoStart?: string;
+  }>();
 
   if (isPending) {
     return <ScreenLoader />;
@@ -16,8 +20,13 @@ export default function ChallengeSessionRoute() {
   }
 
   if (!challengeId) {
-    return <Redirect href="/(tabs)/challenges" />;
+    return <Redirect href={challengesTabHref('mine')} />;
   }
 
-  return <ChallengeSessionScreen challengeId={challengeId} />;
+  return (
+    <ChallengeSessionScreen
+      autoStart={autoStart === '1'}
+      challengeId={challengeId}
+    />
+  );
 }

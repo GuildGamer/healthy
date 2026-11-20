@@ -45,16 +45,19 @@ export const MAX_SHOULDER_WIDTH = 0.44;
  */
 export const STANDING_TORSO_SPAN = 0.5;
 
+/** Torso longer than a plank — kneeling or upright, not a press-up. */
+export const KNEELING_TORSO_MIN = 0.28;
+
+/** Both knees sit near the hips when someone is on their knees. */
+export const KNEE_NEAR_HIP_MAX = 0.14;
+
 export type ArmElbowReading = {
   side: 'left' | 'right';
   angleDegrees: number;
   meanScore: number;
 };
 
-function pointUsable(
-  point: PosePoint | undefined,
-  minScore: number,
-): point is PosePoint {
+function pointUsable(point: PosePoint | undefined, minScore: number): point is PosePoint {
   return point != null && point.score >= minScore;
 }
 
@@ -83,10 +86,7 @@ function armElbowReading(
 }
 
 /** Prefer the arm chain with the stronger landmark confidence. */
-export function bestElbowReading(
-  frame: PoseFrame,
-  minScore: number,
-): ArmElbowReading | null {
+export function bestElbowReading(frame: PoseFrame, minScore: number): ArmElbowReading | null {
   const strict = Math.max(0.15, minScore);
   const relaxed = Math.max(0.12, minScore * 0.65);
 
@@ -108,10 +108,7 @@ export function bestElbowReading(
   return null;
 }
 
-export function shoulderMidpoint(
-  frame: PoseFrame,
-  minScore: number,
-): PosePoint | null {
+export function shoulderMidpoint(frame: PoseFrame, minScore: number): PosePoint | null {
   const left = frame.points.leftShoulder;
   const right = frame.points.rightShoulder;
   return averagePoint(
@@ -231,26 +228,16 @@ const FRAMING_LANDMARKS = [
  * Full-body plank framing — rejects a face-only lock when the phone is held
  * up close. Side-on planks are short in y, so we use overall body extent.
  */
-export function hasPushupFraming(
-  frame: PoseFrame,
-  minScore: number,
-): boolean {
+export function hasPushupFraming(frame: PoseFrame, minScore: number): boolean {
   const leftShoulder = frame.points.leftShoulder;
   const rightShoulder = frame.points.rightShoulder;
-  if (
-    !pointUsable(leftShoulder, minScore) ||
-    !pointUsable(rightShoulder, minScore)
-  ) {
+  if (!pointUsable(leftShoulder, minScore) || !pointUsable(rightShoulder, minScore)) {
     return false;
   }
 
   const hip = averagePoint(
-    pointUsable(frame.points.leftHip, minScore)
-      ? frame.points.leftHip
-      : undefined,
-    pointUsable(frame.points.rightHip, minScore)
-      ? frame.points.rightHip
-      : undefined,
+    pointUsable(frame.points.leftHip, minScore) ? frame.points.leftHip : undefined,
+    pointUsable(frame.points.rightHip, minScore) ? frame.points.rightHip : undefined,
   );
   const hasArm =
     pointUsable(frame.points.leftElbow, minScore) ||
@@ -272,44 +259,34 @@ export function hasPushupFraming(
   return bodyExtent(frame, minScore) >= MIN_BODY_EXTENT;
 }
 
-function hipMidpoint(
-  frame: PoseFrame,
-  minScore: number,
-): PosePoint | null {
+function hipMidpoint(frame: PoseFrame, minScore: number): PosePoint | null {
   return averagePoint(
-    pointUsable(frame.points.leftHip, minScore)
-      ? frame.points.leftHip
-      : undefined,
-    pointUsable(frame.points.rightHip, minScore)
-      ? frame.points.rightHip
-      : undefined,
+    pointUsable(frame.points.leftHip, minScore) ? frame.points.leftHip : undefined,
+    pointUsable(frame.points.rightHip, minScore) ? frame.points.rightHip : undefined,
   );
 }
 
-function meanWristY(frame: PoseFrame, minScore: number): number | null {
-  const ys: number[] = [];
-  for (const name of ['leftWrist', 'rightWrist'] as const) {
-    const point = frame.points[name];
-    if (pointUsable(point, minScore)) {
-      ys.push(point.y);
-    }
+/**
+ * Plank → stand: torso goes clearly vertical in the frame.
+ * Do not use “wrists near shoulders” — that is normal on a front-camera plank
+ * and blocked TestFlight counting the same way kneeling’s wristsHigh did.
+ */
+export function looksLikeStandingUp(frame: PoseFrame, minScore: number): boolean {
+  const shoulder = shoulderMidpoint(frame, minScore);
+  const hip = hipMidpoint(frame, minScore);
+  if (!shoulder || !hip) {
+    return false;
   }
 
-  if (ys.length === 0) {
-    return null;
-  }
-
-  return ys.reduce((sum, value) => sum + value, 0) / ys.length;
+  return hip.y - shoulder.y >= STANDING_TORSO_SPAN;
 }
 
 /**
- * Plank → knees → stand: torso goes vertical and hands leave the floor.
- * A real press-up keeps a short hip–shoulder gap and wrists below the chest.
+ * Kneeling upright — the false “push-up” from bouncing on knees.
+ * Requires knees near the hips. High wrists alone are normal on a
+ * front-camera plank and must not block counting (TestFlight landmarks).
  */
-export function looksLikeStandingUp(
-  frame: PoseFrame,
-  minScore: number,
-): boolean {
+export function looksLikeKneelingUpright(frame: PoseFrame, minScore: number): boolean {
   const shoulder = shoulderMidpoint(frame, minScore);
   const hip = hipMidpoint(frame, minScore);
   if (!shoulder || !hip) {
@@ -317,18 +294,18 @@ export function looksLikeStandingUp(
   }
 
   const torsoSpan = hip.y - shoulder.y;
-  if (torsoSpan >= STANDING_TORSO_SPAN) {
-    return true;
-  }
-
-  const wristY = meanWristY(frame, minScore);
-  if (wristY == null) {
+  if (torsoSpan < KNEELING_TORSO_MIN) {
     return false;
   }
 
-  // Hands off the floor while the torso is already long — standing up.
-  // A front-camera plank is also tall in 2D; wrists stay below the chest.
-  return torsoSpan >= 0.3 && wristY <= shoulder.y + 0.03;
+  const leftKnee = frame.points.leftKnee;
+  const rightKnee = frame.points.rightKnee;
+  return (
+    pointUsable(leftKnee, minScore) &&
+    pointUsable(rightKnee, minScore) &&
+    Math.abs(leftKnee.y - hip.y) <= KNEE_NEAR_HIP_MAX &&
+    Math.abs(rightKnee.y - hip.y) <= KNEE_NEAR_HIP_MAX
+  );
 }
 
 export function bodyExtent(frame: PoseFrame, minScore: number): number {
@@ -386,20 +363,16 @@ export function looksLikeRigidSceneShift(
     return false;
   }
 
-  const meanDx =
-    deltas.reduce((sum, item) => sum + item.dx, 0) / deltas.length;
-  const meanDy =
-    deltas.reduce((sum, item) => sum + item.dy, 0) / deltas.length;
+  const meanDx = deltas.reduce((sum, item) => sum + item.dx, 0) / deltas.length;
+  const meanDy = deltas.reduce((sum, item) => sum + item.dy, 0) / deltas.length;
   const travel = Math.hypot(meanDx, meanDy);
   if (travel < 0.028) {
     return false;
   }
 
   const residual =
-    deltas.reduce(
-      (sum, item) => sum + Math.hypot(item.dx - meanDx, item.dy - meanDy),
-      0,
-    ) / deltas.length;
+    deltas.reduce((sum, item) => sum + Math.hypot(item.dx - meanDx, item.dy - meanDy), 0) /
+    deltas.length;
 
   return residual <= travel * 0.38;
 }
@@ -435,10 +408,7 @@ function channelDepth(value: number, span: number): number {
 
 function weightedMean(parts: readonly { value: number; weight: number }[]): number {
   const weightSum = parts.reduce((sum, part) => sum + part.weight, 0);
-  const valueSum = parts.reduce(
-    (sum, part) => sum + part.value * part.weight,
-    0,
-  );
+  const valueSum = parts.reduce((sum, part) => sum + part.value * part.weight, 0);
   return clamp01(valueSum / weightSum);
 }
 
@@ -460,16 +430,8 @@ export function computePushupDepth(
   elbow: ArmElbowReading | null,
 ): number | null {
   const parts: { value: number; weight: number }[] = [];
-  const torsoSpan = boundedSpan(
-    sessionMax.torso,
-    FRONT_TORSO_DEPTH_FLOOR,
-    FRONT_TORSO_DEPTH_SPAN,
-  );
-  const wristSpan = boundedSpan(
-    sessionMax.wrist,
-    FRONT_WRIST_DEPTH_FLOOR,
-    FRONT_WRIST_DEPTH_SPAN,
-  );
+  const torsoSpan = boundedSpan(sessionMax.torso, FRONT_TORSO_DEPTH_FLOOR, FRONT_TORSO_DEPTH_SPAN);
+  const wristSpan = boundedSpan(sessionMax.wrist, FRONT_WRIST_DEPTH_FLOOR, FRONT_WRIST_DEPTH_SPAN);
 
   if (calibration) {
     const torso = rawTorsoDrop(frame, calibration, minScore);

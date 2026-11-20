@@ -1,0 +1,211 @@
+# Copied to repo root as codemagic.yaml on `make sync-deploy-mobile`.
+# Setup steps: docs/codemagic-ios.md
+
+workflows:
+  ios-testflight:
+    name: iOS TestFlight (friend account)
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    integrations:
+      # Must match the name you give the key in Codemagic →
+      # Teams → Integrations → Developer Portal (copy exact reference name).
+      app_store_connect: HealthyFriend
+    environment:
+      node: v22.14.0
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        # Must match the App ID / provisioning profile on the friend's team.
+        bundle_identifier: com.healthyapp.tfpreview
+      vars:
+        XCODE_WORKSPACE: Beatset.xcworkspace
+        XCODE_SCHEME: Beatset
+        # Numeric App Store Connect app id comes from the Codemagic env group
+        # "testflight" (APP_STORE_APPLE_ID). Do not set it here — a self-reference
+        # blanks the group value before the lookup runs.
+        IOS_BUNDLE_IDENTIFIER: com.healthyapp.tfpreview
+        ANDROID_PACKAGE: com.healthyapp.tfpreview
+      groups:
+        - testflight
+    scripts:
+      - name: Enable pnpm
+        script: |
+          corepack enable
+          corepack prepare pnpm@9.15.4 --activate
+      - name: Install workspace
+        script: |
+          pnpm install --frozen-lockfile
+      - name: Build shared packages
+        script: |
+          pnpm --filter @product/contract build
+          pnpm --filter @product/brand build
+          pnpm --filter @product/client build
+      - name: Choose iOS build number
+        script: |
+          set -euo pipefail
+          lookup_status=0
+          latest_output=$(app-store-connect get-latest-testflight-build-number "${APP_STORE_APPLE_ID:-}") || lookup_status=$?
+          latest_build_number=$(printf '%s' "$latest_output" | tr -d '[:space:]')
+          IOS_BUILD_NUMBER=""
+          if [ "$lookup_status" -eq 0 ] && [[ "$latest_build_number" =~ ^[0-9]+$ ]] && [ "$((10#$latest_build_number))" -ge 1 ]; then
+            IOS_BUILD_NUMBER=$((10#$latest_build_number + 1))
+            echo "Latest TestFlight build is ${latest_build_number}; next is ${IOS_BUILD_NUMBER}."
+          fi
+          if [ -z "$IOS_BUILD_NUMBER" ]; then
+            echo "TestFlight build lookup was unusable (exit ${lookup_status}, value '${latest_build_number}'). Refusing to publish CFBundleVersion 1 again."
+            codemagic_build_number="${BUILD_NUMBER:-}"
+            if [[ "$codemagic_build_number" =~ ^[0-9]+$ ]] && [ "$((10#$codemagic_build_number))" -gt 1 ]; then
+              IOS_BUILD_NUMBER=$((10#$codemagic_build_number))
+              echo "Using Codemagic BUILD_NUMBER=${IOS_BUILD_NUMBER}."
+            else
+              IOS_BUILD_NUMBER=$(date -u +%Y%m%d%H%M)
+              echo "Using UTC timestamp build number ${IOS_BUILD_NUMBER}."
+            fi
+          fi
+          echo "Chosen IOS_BUILD_NUMBER=${IOS_BUILD_NUMBER}"
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> "$CM_ENV"
+      - name: Expo prebuild (ios)
+        script: |
+          cd apps/mobile
+          export IOS_BUNDLE_IDENTIFIER
+          export ANDROID_PACKAGE
+          export IOS_BUILD_NUMBER
+          npx expo prebuild --platform ios --clean
+      - name: Install CocoaPods
+        script: |
+          cd apps/mobile/ios && pod install
+      - name: Set up code signing
+        script: |
+          set -euo pipefail
+          # The lock-screen card is a second target, <bundle id>.LiveActivity.
+          # ios_signing only fetches profiles that already exist. Register the
+          # widget App ID and an App Store profile on the existing distribution
+          # certificate, then apply both profiles. Do not mint a new certificate.
+          # --save writes to ~/Library/Developer/Xcode/UserData/Provisioning Profiles,
+          # which xcode-project use-profiles reads by default.
+          extension_bundle_id="${IOS_BUNDLE_IDENTIFIER}.LiveActivity"
+          python3 - "$extension_bundle_id" <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import subprocess
+          import sys
+
+          extension_bundle_id = sys.argv[1]
+
+          def run(args: list[str]) -> str:
+              completed = subprocess.run(args, capture_output=True, text=True)
+              if completed.returncode != 0:
+                  sys.stderr.write(completed.stderr)
+                  sys.stderr.write(completed.stdout)
+                  raise SystemExit(completed.returncode)
+              return completed.stdout
+
+          def resources(raw: str) -> list[dict]:
+              parsed = json.loads(raw or "[]")
+              if isinstance(parsed, list):
+                  return parsed
+              if isinstance(parsed, dict):
+                  data = parsed.get("data")
+                  if isinstance(data, list):
+                      return data
+                  if "id" in parsed:
+                      return [parsed]
+              return []
+
+          def asc(group: str, action: str, *args: str) -> str:
+              # Shared flags such as --json belong to the action subcommand.
+              return run(["app-store-connect", group, action, "--json", *args])
+
+          def keychain_certificate_id(certificates: list[dict]) -> str | None:
+              identities = run(["security", "find-identity", "-v", "-p", "codesigning"]).upper()
+              for certificate in certificates:
+                  content = (certificate.get("attributes") or {}).get("certificateContent")
+                  if not content:
+                      continue
+                  fingerprint = hashlib.sha1(base64.b64decode(content)).hexdigest().upper()
+                  if fingerprint in identities:
+                      return certificate["id"]
+              return None
+
+          listed = resources(asc(
+              "bundle-ids", "list",
+              "--bundle-id-identifier", extension_bundle_id,
+              "--strict-match-identifier",
+          ))
+          if listed:
+              bundle_resource_id = listed[0]["id"]
+          else:
+              created = resources(asc(
+                  "bundle-ids", "create", extension_bundle_id,
+                  "--name", "Beatset Live Activity",
+                  "--platform", "IOS",
+              ))
+              if not created:
+                  sys.exit(f"Apple did not return a Bundle ID for {extension_bundle_id}.")
+              bundle_resource_id = created[0]["id"]
+
+          existing = resources(asc(
+              "bundle-ids", "profiles",
+              "--bundle-ids", bundle_resource_id,
+              "--type", "IOS_APP_STORE",
+              "--state", "ACTIVE",
+          ))
+          if existing:
+              asc(
+                  "bundle-ids", "profiles",
+                  "--bundle-ids", bundle_resource_id,
+                  "--type", "IOS_APP_STORE",
+                  "--state", "ACTIVE",
+                  "--save",
+              )
+          else:
+              certificates = resources(asc(
+                  "certificates", "list",
+                  "--type", "IOS_DISTRIBUTION", "DISTRIBUTION",
+              ))
+              certificate_id = keychain_certificate_id(certificates)
+              if not certificate_id:
+                  sys.exit(
+                      "No Apple Distribution certificate in the keychain matches the team. "
+                      "The Live Activity profile was not created."
+                  )
+              asc(
+                  "profiles", "create", bundle_resource_id,
+                  "--type", "IOS_APP_STORE",
+                  "--name", "Beatset Live Activity App Store",
+                  "--certificate-ids", certificate_id,
+                  "--save",
+              )
+          PY
+          # Fail here if cert/profile do not match — do not soft-warn into a vague archive 65.
+          xcode-project use-profiles \
+            --project "$CM_BUILD_DIR/apps/mobile/ios/Beatset.xcodeproj"
+      - name: Build IPA
+        script: |
+          set -o pipefail
+          if ! xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --export-options-plist=/Users/builder/export_options.plist \
+            -v \
+            --log-stream=stdout; then
+            # Tail alone hides Swift errors that appear earlier in the log.
+            echo "===== compile / link errors ====="
+            grep -nE 'error:|fatal error:|Undefined symbols|ARCHIVE FAILED|The following build commands failed' \
+              /tmp/xcodebuild_logs/*.log 2>/dev/null | head -n 120 || true
+            echo "===== xcodebuild log (last 80 lines) ====="
+            tail -n 80 /tmp/xcodebuild_logs/*.log 2>/dev/null || true
+            exit 1
+          fi
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

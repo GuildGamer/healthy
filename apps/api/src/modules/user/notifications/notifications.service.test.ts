@@ -11,6 +11,7 @@ function createPrismaMock(rows: Array<{
   body: string;
   readAt: Date | null;
   createdAt: Date;
+  payload?: unknown;
 }> = []) {
   return {
     notification: {
@@ -41,6 +42,7 @@ describe('NotificationsService', () => {
           body: 'You earned 20 points.',
           readAt: null,
           createdAt,
+          payload: { matchId: 'm1' },
         },
         {
           id: 'n2',
@@ -49,6 +51,7 @@ describe('NotificationsService', () => {
           body: 'Your daily challenge is waiting.',
           readAt: new Date('2026-08-29T09:00:00.000Z'),
           createdAt,
+          payload: null,
         },
       ]) as never,
     );
@@ -62,6 +65,7 @@ describe('NotificationsService', () => {
           body: 'You earned 20 points.',
           isRead: false,
           createdAt: createdAt.toISOString(),
+          payload: { matchId: 'm1' },
         },
         {
           id: 'n2',
@@ -70,6 +74,7 @@ describe('NotificationsService', () => {
           body: 'Your daily challenge is waiting.',
           isRead: true,
           createdAt: createdAt.toISOString(),
+          payload: null,
         },
       ],
       unreadCount: 1,

@@ -1,4 +1,5 @@
 import type {
+  ActivityProofClip,
   ChallengeCapture,
   ChallengeDraft,
   ChallengeFieldProgress,
@@ -26,6 +27,7 @@ export type TodayChallengeDto = {
   description: string;
   category: HealthCategory;
   rewardPoints: number;
+  sortOrder: number;
   status: UserChallengeStatus;
   frequency: ChallengeFrequency;
   completionKind: ChallengeCompletionKind;
@@ -63,6 +65,8 @@ export type ActivityItemDto = {
   delta: number;
   reason: string;
   createdAt: string;
+  kind: 'points' | 'practice';
+  count: number | null;
 };
 
 export type ListActivityDto = {
@@ -77,6 +81,7 @@ export type ChallengeHistoryEntryDto = {
   pointsDelta: number;
   log: ChallengeHistoryLog | null;
   evidence: ChallengeHistoryEvidence | null;
+  proofClip: ActivityProofClip | null;
 };
 
 export type ListChallengeHistoryDto = {

@@ -1,12 +1,13 @@
 import type { ChallengeVitals } from '@product/client';
+import { BLOOD_PRESSURE_RULES, PULSE_RANGE, VITALS_NOTES_MAX } from './constants/reading-rules';
 
-const SYSTOLIC_MIN = 50;
-const SYSTOLIC_MAX = 250;
-const DIASTOLIC_MIN = 30;
-const DIASTOLIC_MAX = 180;
-const PULSE_MIN = 30;
-const PULSE_MAX = 220;
-const NOTES_MAX = 500;
+const SYSTOLIC_MIN = BLOOD_PRESSURE_RULES.top.min;
+const SYSTOLIC_MAX = BLOOD_PRESSURE_RULES.top.max;
+const DIASTOLIC_MIN = BLOOD_PRESSURE_RULES.bottom.min;
+const DIASTOLIC_MAX = BLOOD_PRESSURE_RULES.bottom.max;
+const PULSE_MIN = PULSE_RANGE.min;
+const PULSE_MAX = PULSE_RANGE.max;
+const NOTES_MAX = VITALS_NOTES_MAX;
 
 export type VitalsField = 'systolic' | 'diastolic' | 'pulse' | 'notes';
 
@@ -20,8 +21,7 @@ export type ParseVitalsInput = {
 };
 
 export type ParseVitalsResult =
-  | { success: true; data: ChallengeVitals }
-  | { success: false; errors: VitalsFieldErrors };
+  { success: true; data: ChallengeVitals } | { success: false; errors: VitalsFieldErrors };
 
 function parseRequiredInt(value: string): number | null {
   const trimmed = value.trim();
@@ -52,18 +52,11 @@ export function parseVitalsForm(input: ParseVitalsInput): ParseVitalsResult {
     errors.systolic = `Enter a systolic reading between ${SYSTOLIC_MIN} and ${SYSTOLIC_MAX}`;
   }
 
-  if (
-    diastolic === null ||
-    diastolic < DIASTOLIC_MIN ||
-    diastolic > DIASTOLIC_MAX
-  ) {
+  if (diastolic === null || diastolic < DIASTOLIC_MIN || diastolic > DIASTOLIC_MAX) {
     errors.diastolic = `Enter a diastolic reading between ${DIASTOLIC_MIN} and ${DIASTOLIC_MAX}`;
   }
 
-  if (
-    pulse === null ||
-    (pulse !== undefined && (pulse < PULSE_MIN || pulse > PULSE_MAX))
-  ) {
+  if (pulse === null || (pulse !== undefined && (pulse < PULSE_MIN || pulse > PULSE_MAX))) {
     errors.pulse = `Pulse must be between ${PULSE_MIN} and ${PULSE_MAX}`;
   }
 
@@ -71,11 +64,7 @@ export function parseVitalsForm(input: ParseVitalsInput): ParseVitalsResult {
     errors.notes = `Keep notes under ${NOTES_MAX} characters`;
   }
 
-  if (
-    systolic === null ||
-    diastolic === null ||
-    Object.keys(errors).length > 0
-  ) {
+  if (systolic === null || diastolic === null || Object.keys(errors).length > 0) {
     return { success: false, errors };
   }
 

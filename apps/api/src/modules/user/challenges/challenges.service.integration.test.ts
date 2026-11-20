@@ -1,25 +1,25 @@
-import type {
-  ChallengeCompletionKind,
-  ChallengeFrequency,
-  PrismaClient,
-} from '@product/db';
+import type { ChallengeCompletionKind, ChallengeFrequency, PrismaClient } from '@product/db';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import '../../../load-env.js';
-import {
-  createTestPrismaClient,
-  resetDatabase,
-} from '../../../../test/integration-db.js';
+import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
+import { previousDayKey } from '../../../shared/utils/day-key.js';
+import { readEnvironment } from '../../shared-modules/config/environment.js';
+import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
 import { RemindersService } from '../reminders/reminders.service.js';
+import { StreakService } from '../streak/index.js';
+import { TodayService } from '../today/today.service.js';
 import { ChallengesService } from './challenges.service.js';
 
 const user = { id: 'u-integration', email: 'ada@example.com', name: 'Ada' };
 
 let prisma: PrismaClient;
 let challenges: ChallengesService;
+let streak: StreakService;
 let enrollments: EnrollmentsService;
 let me: MeService;
+let todayDetails: TodayService;
 
 type CatalogSpec = {
   slug: string;
@@ -56,10 +56,7 @@ async function seedCatalog(specs: CatalogSpec[]): Promise<void> {
       defaultFrequency: spec.defaultFrequency ?? 'daily',
       isDefault: spec.isDefault ?? true,
       completionKind: spec.completionKind ?? 'check_in',
-      instruction:
-        spec.completionKind === 'vitals_bp'
-          ? 'Sit still and log your reading.'
-          : '',
+      instruction: spec.completionKind === 'vitals_bp' ? 'Sit still and log your reading.' : '',
       surpriseEvidenceChancePercent: spec.surpriseEvidenceChancePercent ?? 0,
       surpriseEvidencePenaltyPoints: spec.surpriseEvidencePenaltyPoints ?? 25,
     })),
@@ -81,9 +78,13 @@ function dailySpecs(count: number): CatalogSpec[] {
 
 beforeAll(() => {
   prisma = createTestPrismaClient();
-  challenges = new ChallengesService(prisma);
+  streak = new StreakService(prisma);
+  challenges = new ChallengesService(prisma, streak, {
+    creditPosePractice: async () => [],
+  });
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
-  me = new MeService(prisma, enrollments);
+  me = new MeService(prisma, readEnvironment(process.env as NodeJS.ProcessEnv), enrollments);
+  todayDetails = new TodayService(prisma);
 });
 
 afterAll(async () => {
@@ -155,6 +156,34 @@ describe('ChallengesService against Postgres', () => {
     });
     expect(stored).toBe(1);
     await expect(me.getMe(user)).resolves.toMatchObject({ pointsBalance: 20 });
+    expect((await challenges.listToday(user)).totalCount).toBe(1);
+  });
+
+  it('drops an unfinished card from today once the challenge is removed', async () => {
+    await seedEnrolledUser(dailySpecs(2));
+    const [removed, kept] = (await challenges.listToday(user)).challenges;
+
+    await enrollments.setEnrollment(user, removed!.challengeId, false);
+
+    const today = await challenges.listToday(user);
+    expect(today.challenges.map((challenge) => challenge.id)).toEqual([kept!.id]);
+    const details = await todayDetails.details(user);
+    expect(details.occurrences.map((occurrence) => occurrence.userChallengeId)).toEqual([
+      kept!.id,
+    ]);
+  });
+
+  it('brings back the same card when a removed challenge is added again that day', async () => {
+    await seedEnrolledUser(dailySpecs(1));
+    const [original] = (await challenges.listToday(user)).challenges;
+    const challengeId = original!.challengeId;
+
+    await enrollments.setEnrollment(user, challengeId, false);
+    expect((await challenges.listToday(user)).totalCount).toBe(0);
+
+    await enrollments.setEnrollment(user, challengeId, true);
+    const [restored] = (await challenges.listToday(user)).challenges;
+    expect(restored?.id).toBe(original!.id);
   });
 
   it('awards points exactly once when a completion is retried', async () => {
@@ -173,10 +202,19 @@ describe('ChallengesService against Postgres', () => {
     });
     expect(ledgerEntries).toBe(1);
 
-    const inboxRows = await prisma.notification.count({
+    const inboxRows = await prisma.notification.findMany({
       where: { userId: user.id },
     });
-    expect(inboxRows).toBe(1);
+    expect(inboxRows).toHaveLength(1);
+    expect(inboxRows[0]).toMatchObject({
+      kind: 'success',
+      payload: {
+        userChallengeId: first!.id,
+        points: '20',
+        streak: '1',
+        metric: 'other',
+      },
+    });
 
     const profile = await prisma.userProfile.findUniqueOrThrow({
       where: { userId: user.id },
@@ -219,10 +257,10 @@ describe('ChallengesService against Postgres', () => {
     const [first] = (await challenges.listToday(user)).challenges;
     await challenges.complete(user, first!.id);
 
-    // Backdate the completion so today is well past the streak's grace day.
-    await prisma.userChallenge.update({
-      where: { id: first!.id },
-      data: { periodKey: '2020-01-01' },
+    // Backdate the active day so today is well past the streak's grace day.
+    await prisma.userProfile.update({
+      where: { userId: user.id },
+      data: { lastActiveDayKey: '2020-01-01' },
     });
 
     await expect(me.getMe(user)).resolves.toMatchObject({
@@ -232,9 +270,7 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('anchors a weekly occurrence to the Monday of the current week', async () => {
-    await seedEnrolledUser([
-      { slug: 'weekly-review', defaultFrequency: 'weekly' },
-    ]);
+    await seedEnrolledUser([{ slug: 'weekly-review', defaultFrequency: 'weekly' }]);
 
     const [weekly] = (await challenges.listToday(user)).challenges;
 
@@ -242,19 +278,61 @@ describe('ChallengesService against Postgres', () => {
     expect(new Date(`${weekly!.periodKey}T00:00:00.000Z`).getUTCDay()).toBe(1);
   });
 
-  it('leaves the streak alone when a weekly challenge is completed', async () => {
-    await seedEnrolledUser([
-      { slug: 'weekly-review', defaultFrequency: 'weekly' },
-    ]);
+  it('moves Today onto the new cadence after a frequency change', async () => {
+    await seedEnrolledUser([{ slug: 'pushups', defaultFrequency: 'monthly' }]);
+    const [monthly] = (await challenges.listToday(user)).challenges;
+    expect(monthly!.frequency).toBe('monthly');
+
+    await enrollments.setEnrollment(user, monthly!.challengeId, true, 'daily');
+
+    const after = await challenges.listToday(user);
+    expect(after.challenges).toHaveLength(1);
+    expect(after.challenges[0]).toMatchObject({
+      challengeId: monthly!.challengeId,
+      frequency: 'daily',
+      id: monthly!.id,
+      periodKey: periodKeyFor('daily', 'UTC'),
+    });
+  });
+
+  it('counts the day when a weekly challenge is completed', async () => {
+    await seedEnrolledUser([{ slug: 'weekly-review', defaultFrequency: 'weekly' }]);
     const [weekly] = (await challenges.listToday(user)).challenges;
 
     const result = await challenges.complete(user, weekly!.id);
 
     expect(result.pointsAwarded).toBe(20);
-    expect(result.currentStreakDays).toBe(0);
+    expect(result.currentStreakDays).toBe(1);
   });
 
-  it('counts only the daily completion when both cadences are finished', async () => {
+  it('continues a streak that a practice session kept alive yesterday', async () => {
+    await seedEnrolledUser(dailySpecs(1));
+    await prisma.userProfile.update({
+      where: { userId: user.id },
+      data: { currentStreakDays: 4, lastActiveDayKey: previousDayKey(periodKeyFor('daily', 'UTC')) },
+    });
+    const [first] = (await challenges.listToday(user)).challenges;
+
+    const result = await challenges.complete(user, first!.id);
+
+    expect(result.currentStreakDays).toBe(5);
+    await expect(me.getMe(user)).resolves.toMatchObject({
+      currentStreakDays: 5,
+      bestStreakDays: 5,
+    });
+  });
+
+  it('counts the day once when practice and a completion share it', async () => {
+    await seedEnrolledUser(dailySpecs(1));
+    const [first] = (await challenges.listToday(user)).challenges;
+
+    await streak.recordActiveDay(user.id);
+    const result = await challenges.complete(user, first!.id);
+
+    expect(result.currentStreakDays).toBe(1);
+  });
+
+  it('counts the day once when both cadences are finished', async () => {
     await seedEnrolledUser([
       { slug: 'daily-walk' },
       { slug: 'monthly-refill', defaultFrequency: 'monthly' },
@@ -270,15 +348,11 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('requires and stores a blood-pressure reading on complete', async () => {
-    await seedEnrolledUser([
-      { slug: 'check-bp', completionKind: 'vitals_bp' },
-    ]);
+    await seedEnrolledUser([{ slug: 'check-bp', completionKind: 'vitals_bp' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
 
     expect(assignment?.completionKind).toBe('vitals_bp');
-    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(
-      /blood pressure/,
-    );
+    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(/blood pressure/);
 
     const result = await challenges.complete(user, assignment!.id, {
       systolic: 120,
@@ -301,25 +375,16 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('requires a gym photo on complete', async () => {
-    await seedEnrolledUser([
-      { slug: 'gym-session', completionKind: 'evidence_photo' },
-    ]);
+    await seedEnrolledUser([{ slug: 'gym-session', completionKind: 'evidence_photo' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
 
     expect(assignment?.completionKind).toBe('evidence_photo');
-    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(
-      /gym photo/,
-    );
+    await expect(challenges.complete(user, assignment!.id)).rejects.toThrow(/gym photo/);
 
-    const result = await challenges.complete(
-      user,
-      assignment!.id,
-      undefined,
-      {
-        mimeType: 'image/jpeg',
-        imageBase64: 'a'.repeat(32),
-      },
-    );
+    const result = await challenges.complete(user, assignment!.id, undefined, {
+      mimeType: 'image/jpeg',
+      imageBase64: 'a'.repeat(32),
+    });
 
     expect(result.pointsAwarded).toBe(20);
   });
@@ -341,15 +406,10 @@ describe('ChallengesService against Postgres', () => {
     expect(requested.challenge.status).toBe('awaiting_evidence');
     expect(requested.evidenceRequest?.penaltyPoints).toBe(10);
 
-    const submitted = await challenges.complete(
-      user,
-      assignment!.id,
-      undefined,
-      {
-        mimeType: 'image/jpeg',
-        imageBase64: 'a'.repeat(32),
-      },
-    );
+    const submitted = await challenges.complete(user, assignment!.id, undefined, {
+      mimeType: 'image/jpeg',
+      imageBase64: 'a'.repeat(32),
+    });
 
     expect(submitted.pointsAwarded).toBe(40);
     expect(submitted.challenge.status).toBe('completed');
@@ -390,9 +450,9 @@ describe('ChallengesService against Postgres', () => {
     await me.updateCategories(user, ['asthma']);
     const afterChange = await challenges.listToday(user);
 
-    expect(
-      afterChange.challenges.find((challenge) => challenge.id === first!.id),
-    ).toMatchObject({ status: 'in_progress' });
+    expect(afterChange.challenges.find((challenge) => challenge.id === first!.id)).toMatchObject({
+      status: 'in_progress',
+    });
   });
 
   it('lists past completions for one challenge, newest first', async () => {
@@ -420,9 +480,7 @@ describe('ChallengesService against Postgres', () => {
   });
 
   it('includes the stored blood-pressure reading on a history row', async () => {
-    await seedEnrolledUser([
-      { slug: 'check-bp', completionKind: 'vitals_bp' },
-    ]);
+    await seedEnrolledUser([{ slug: 'check-bp', completionKind: 'vitals_bp' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
     await challenges.complete(user, assignment!.id, {
       systolic: 120,
@@ -473,11 +531,49 @@ describe('ChallengesService against Postgres', () => {
     await seedEnrolledUser([{ slug: 'fresh' }]);
     const [assignment] = (await challenges.listToday(user)).challenges;
 
-    await expect(
-      challenges.listHistory(user, assignment!.challengeId),
-    ).resolves.toEqual({
+    await expect(challenges.listHistory(user, assignment!.challengeId)).resolves.toEqual({
       challengeId: assignment!.challengeId,
       entries: [],
     });
+  });
+
+  it('holds a walk to the minutes its walker chose, on Today and at the finish', async () => {
+    await seedUser();
+    const walk = await prisma.challenge.create({
+      data: {
+        slug: 'ten-minute-walk',
+        title: 'Take a ten-minute walk',
+        description: 'Walk.',
+        category: 'general',
+        rewardPoints: 150,
+        captureKind: 'device_session',
+        deviceMetric: 'walk',
+        targetDurationMinutes: 10,
+      },
+    });
+    await enrollments.setEnrollment(user, walk.id, true, undefined, { targetDurationMinutes: 20 });
+    const walkOf = (minutes: number) => ({
+      source: 'in_app_gps' as const,
+      metric: 'walk' as const,
+      durationSeconds: minutes * 60,
+    });
+
+    const catalog = await enrollments.listCatalog(user);
+    const [occurrence] = (await challenges.listToday(user)).challenges;
+
+    expect(catalog.challenges[0]?.capture.target.durationMinutes).toBe(20);
+    expect(occurrence?.capture.target.durationMinutes).toBe(20);
+    await expect(
+      challenges.complete(user, occurrence!.id, undefined, undefined, undefined, walkOf(15)),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    const finished = await challenges.complete(
+      user,
+      occurrence!.id,
+      undefined,
+      undefined,
+      undefined,
+      walkOf(21),
+    );
+    expect(finished.pointsAwarded).toBe(150);
   });
 });

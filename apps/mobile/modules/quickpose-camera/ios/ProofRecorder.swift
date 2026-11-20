@@ -1,0 +1,603 @@
+import AVFoundation
+import CoreImage
+import CryptoKit
+import UIKit
+import VideoToolbox
+
+/**
+ * Writes a muted HEVC clip of the plain camera image. The skeleton stays on
+ * the live preview only.
+ *
+ * Proof chrome (wordmark, verification code, live rep count, date) is burned
+ * in before encoding so the exported file is self-evidencing. A poster JPEG is
+ * captured from the first written frame.
+ *
+ * Camera frames are not mirrored (QuickPose keeps ML input raw) but the front
+ * preview is, so a front-camera frame is mirrored to match what the person saw.
+ */
+final class ProofRecorder {
+  struct Overlay {
+    var code: String
+    var label: String
+    var count: Int
+  }
+
+  private(set) var isRecording = false
+
+  private var writer: AVAssetWriter?
+  private var input: AVAssetWriterInput?
+  private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
+  /// The clip's time zero. A session that starts before its first frame plays black until that frame.
+  private var firstFrameAt: CFTimeInterval?
+  /// Wall-clock ms of the first written frame, for trim-to-last-rep.
+  private var firstFrameWallMs: Double?
+  private var lastFrameSeconds: Double?
+  /// Optional end of the set in wall-clock ms; frames after this are dropped.
+  private var endAtWallMs: Double?
+  /// One frame in flight at most: a queued frame holds a camera buffer, and a backlog starves the camera and QuickPose.
+  private let inFlightLock = NSLock()
+  private var isFrameInFlight = false
+  private var outputURL: URL?
+  private var posterURL: URL?
+  private var posterCaptured = false
+  private var mirrorsCamera = false
+  private var maxDurationSeconds: Double = 0
+  private var overlay = Overlay(code: "", label: "", count: 0)
+  private let writeQueue = DispatchQueue(label: "healthy.proof-recorder")
+  private let imageContext = CIContext()
+
+  /// Defaults when JS sends an unusable value (mainstream vertical).
+  private static let defaultWidth = 1080
+  private static let defaultHeight = 1920
+  private static let defaultBitRate = 8_000_000
+  private static let defaultFrameRate = 30.0
+  private static let timescale: CMTimeScale = 600
+
+  private var targetWidth = ProofRecorder.defaultWidth
+  private var targetHeight = ProofRecorder.defaultHeight
+  private var minimumFrameGapSeconds = 1.0 / ProofRecorder.defaultFrameRate
+
+  struct Encoding {
+    var bitRate: Int
+    var frameRate: Double
+    var width: Int
+    var height: Int
+  }
+
+  func start(
+    overlay: Overlay,
+    mirrorsCamera: Bool,
+    maxDurationSeconds: Double,
+    encoding: Encoding
+  ) throws {
+    stopWithoutFinishing()
+
+    let width = Self.evenDimensionOrDefault(encoding.width, default: Self.defaultWidth)
+    let height = Self.evenDimensionOrDefault(encoding.height, default: Self.defaultHeight)
+    let bitRate = Self.clamped(encoding.bitRate, default: Self.defaultBitRate, min: 50_000, max: 200_000_000)
+    let frameRate = Self.clamped(
+      encoding.frameRate,
+      default: Self.defaultFrameRate,
+      min: 1,
+      max: 120
+    )
+
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("proof-clips", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    let stamp = Int(Date().timeIntervalSince1970 * 1000)
+    let videoURL = directory.appendingPathComponent("clip-\(stamp).mp4")
+    let poster = directory.appendingPathComponent("poster-\(stamp).jpg")
+
+    if FileManager.default.fileExists(atPath: videoURL.path) {
+      try FileManager.default.removeItem(at: videoURL)
+    }
+
+    let assetWriter = try AVAssetWriter(outputURL: videoURL, fileType: .mp4)
+    let settings: [String: Any] = [
+      AVVideoCodecKey: AVVideoCodecType.hevc,
+      AVVideoWidthKey: width,
+      AVVideoHeightKey: height,
+      AVVideoCompressionPropertiesKey: [
+        AVVideoAverageBitRateKey: bitRate,
+        AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main_AutoLevel,
+      ],
+    ]
+
+    let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+    videoInput.expectsMediaDataInRealTime = true
+
+    let pixelAdaptor = AVAssetWriterInputPixelBufferAdaptor(
+      assetWriterInput: videoInput,
+      sourcePixelBufferAttributes: [
+        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+        kCVPixelBufferWidthKey as String: width,
+        kCVPixelBufferHeightKey as String: height,
+      ]
+    )
+
+    guard assetWriter.canAdd(videoInput) else {
+      throw ProofRecorderError.cannotAddInput
+    }
+    assetWriter.add(videoInput)
+
+    guard assetWriter.startWriting() else {
+      throw assetWriter.error ?? ProofRecorderError.startFailed
+    }
+    assetWriter.startSession(atSourceTime: .zero)
+
+    writer = assetWriter
+    input = videoInput
+    adaptor = pixelAdaptor
+    firstFrameAt = nil
+    firstFrameWallMs = nil
+    lastFrameSeconds = nil
+    endAtWallMs = nil
+    outputURL = videoURL
+    posterURL = poster
+    posterCaptured = false
+    self.mirrorsCamera = mirrorsCamera
+    self.maxDurationSeconds = maxDurationSeconds
+    self.overlay = overlay
+    targetWidth = width
+    targetHeight = height
+    minimumFrameGapSeconds = 1.0 / frameRate
+    isRecording = true
+  }
+
+  /** Even dimensions only; range matches the API contract (256…3840). */
+  private static func evenDimensionOrDefault(_ value: Int, default fallback: Int) -> Int {
+    guard value >= 256, value <= 3840, value % 2 == 0 else { return fallback }
+    return value
+  }
+
+  private static func clamped(_ value: Int, default fallback: Int, min: Int, max: Int) -> Int {
+    guard value >= min, value <= max else { return fallback }
+    return value
+  }
+
+  private static func clamped(_ value: Double, default fallback: Double, min: Double, max: Double) -> Double {
+    guard value >= min, value <= max else { return fallback }
+    return value
+  }
+
+  /// Trims standing-up after the last rep. Old clients omit this and keep the full clip.
+  func setEndAtWallMs(_ endAtMs: Double?) {
+    endAtWallMs = endAtMs
+  }
+
+  func updateOverlay(code: String? = nil, label: String? = nil, count: Int? = nil) {
+    if let code { overlay.code = code }
+    if let label { overlay.label = label }
+    if let count { overlay.count = count }
+  }
+
+  /// Appends one composited frame. Safe to call from the QuickPose frame callback.
+  /// A frame without a camera image is skipped rather than written as black.
+  func append(cameraFrame: CVPixelBuffer?) {
+    guard isRecording, let writer, writer.status == .writing, let cameraFrame else { return }
+    guard claimFrameSlot() else { return }
+    let capturedAt = CACurrentMediaTime()
+
+    writeQueue.async { [weak self] in
+      guard let self else { return }
+      defer { self.releaseFrameSlot() }
+      guard self.isRecording else { return }
+      guard let input = self.input, input.isReadyForMoreMediaData else { return }
+      guard let adaptor = self.adaptor else { return }
+      let wallMs = Date().timeIntervalSince1970 * 1000
+      if let endAt = self.endAtWallMs, wallMs > endAt {
+        return
+      }
+      let elapsedSeconds = self.firstFrameAt.map { capturedAt - $0 } ?? 0
+      guard self.isDueForFrame(at: elapsedSeconds) else { return }
+      guard let camera = self.cameraImage(from: cameraFrame) else { return }
+
+      let composed = Self.compose(
+        camera: camera,
+        proof: self.overlay,
+        size: CGSize(width: self.targetWidth, height: self.targetHeight)
+      )
+
+      guard let buffer = Self.pixelBuffer(from: composed) else { return }
+      let time = CMTime(seconds: elapsedSeconds, preferredTimescale: Self.timescale)
+
+      if adaptor.append(buffer, withPresentationTime: time) {
+        if self.firstFrameAt == nil {
+          self.firstFrameAt = capturedAt
+          self.firstFrameWallMs = wallMs
+        }
+        self.lastFrameSeconds = elapsedSeconds
+        if !self.posterCaptured, let posterURL = self.posterURL,
+           let jpeg = composed.jpegData(compressionQuality: 0.7)
+        {
+          try? jpeg.write(to: posterURL, options: .atomic)
+          self.posterCaptured = true
+        }
+      }
+    }
+  }
+
+  private func claimFrameSlot() -> Bool {
+    inFlightLock.lock()
+    defer { inFlightLock.unlock() }
+    if isFrameInFlight { return false }
+    isFrameInFlight = true
+    return true
+  }
+
+  private func releaseFrameSlot() {
+    inFlightLock.lock()
+    isFrameInFlight = false
+    inFlightLock.unlock()
+  }
+
+  /// Real elapsed time keeps playback at the speed it happened; the gap caps the clip to the target fps.
+  private func isDueForFrame(at elapsedSeconds: Double) -> Bool {
+    guard elapsedSeconds <= maxDurationSeconds else { return false }
+    guard let lastFrameSeconds else { return true }
+    return elapsedSeconds - lastFrameSeconds >= minimumFrameGapSeconds
+  }
+
+  private func cameraImage(from frame: CVPixelBuffer) -> UIImage? {
+    var image = CIImage(cvPixelBuffer: frame)
+    if mirrorsCamera {
+      image = image.oriented(.upMirrored)
+    }
+    guard let cgImage = imageContext.createCGImage(image, from: image.extent) else { return nil }
+    return UIImage(cgImage: cgImage)
+  }
+
+  struct FinishResult {
+    let fileURL: URL
+    let posterURL: URL?
+    let sha256Hex: String
+    let byteSize: Int
+    let durationSeconds: Int
+  }
+
+  func finish(endAtWallMs: Double? = nil, completion: @escaping (Result<FinishResult, Error>) -> Void) {
+    guard isRecording, let writer, let input, let outputURL else {
+      completion(.failure(ProofRecorderError.notRecording))
+      return
+    }
+
+    if let endAtWallMs {
+      self.endAtWallMs = endAtWallMs
+    }
+
+    let tempPosterURL = posterURL
+    let posterWasCaptured = posterCaptured
+    let trimmedLastSeconds: Double = {
+      guard let endAt = self.endAtWallMs, let firstWall = self.firstFrameWallMs else {
+        return self.lastFrameSeconds ?? 0
+      }
+      let endSeconds = max(0, (endAt - firstWall) / 1000.0)
+      return min(self.lastFrameSeconds ?? endSeconds, endSeconds)
+    }()
+    isRecording = false
+    writeQueue.async {
+      input.markAsFinished()
+      writer.finishWriting {
+        if writer.status != .completed {
+          completion(.failure(writer.error ?? ProofRecorderError.finishFailed))
+          self.clearWriterState()
+          return
+        }
+
+        do {
+          let durableVideo = try Self.moveToApplicationSupport(from: outputURL, kind: "clip")
+          var durablePoster: URL?
+          if posterWasCaptured, let tempPosterURL {
+            durablePoster = try? Self.moveToApplicationSupport(from: tempPosterURL, kind: "poster")
+          }
+
+          let data = try Data(contentsOf: durableVideo, options: [.mappedIfSafe])
+          var digest = SHA256()
+          digest.update(data: data)
+          let hash = digest.finalize().map { String(format: "%02x", $0) }.joined()
+          let duration = max(1, Int(trimmedLastSeconds.rounded(.up)))
+          let result = FinishResult(
+            fileURL: durableVideo,
+            posterURL: durablePoster,
+            sha256Hex: hash,
+            byteSize: data.count,
+            durationSeconds: duration
+          )
+          self.clearWriterState()
+          completion(.success(result))
+        } catch {
+          self.clearWriterState()
+          completion(.failure(error))
+        }
+      }
+    }
+  }
+
+  /// Where finished clips live. iOS moves the app container on reinstall and update,
+  /// so JS rebuilds stored file URIs against this rather than trusting old absolute paths.
+  static func durableDirectory() throws -> URL {
+    let support = try FileManager.default.url(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask,
+      appropriateFor: nil,
+      create: true
+    )
+    let directory = support.appendingPathComponent("proof-clips", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    var resourceValues = URLResourceValues()
+    resourceValues.isExcludedFromBackup = true
+    var directoryForBackup = directory
+    try directoryForBackup.setResourceValues(resourceValues)
+    return directory
+  }
+
+  /// Moves a finished temp file into Application Support so iOS will not purge it.
+  private static func moveToApplicationSupport(from source: URL, kind: String) throws -> URL {
+    let directory = try durableDirectory()
+    let stamp = Int(Date().timeIntervalSince1970 * 1000)
+    let ext = source.pathExtension.isEmpty ? (kind == "poster" ? "jpg" : "mp4") : source.pathExtension
+    let destination = directory.appendingPathComponent("\(kind)-\(stamp).\(ext)")
+    if FileManager.default.fileExists(atPath: destination.path) {
+      try FileManager.default.removeItem(at: destination)
+    }
+    try FileManager.default.moveItem(at: source, to: destination)
+    return destination
+  }
+
+  func cancel() {
+    stopWithoutFinishing()
+  }
+
+  private func stopWithoutFinishing() {
+    isRecording = false
+    input?.markAsFinished()
+    writer?.cancelWriting()
+    if let outputURL, FileManager.default.fileExists(atPath: outputURL.path) {
+      try? FileManager.default.removeItem(at: outputURL)
+    }
+    clearWriterState()
+  }
+
+  private func clearWriterState() {
+    writer = nil
+    input = nil
+    adaptor = nil
+    firstFrameAt = nil
+    lastFrameSeconds = nil
+  }
+
+  private static func compose(
+    camera: UIImage,
+    proof: Overlay,
+    size: CGSize
+  ) -> UIImage {
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    format.opaque = true
+    let renderer = UIGraphicsImageRenderer(size: size, format: format)
+    return renderer.image { context in
+      UIColor.black.setFill()
+      context.fill(CGRect(origin: .zero, size: size))
+
+      drawAspectFill(camera, in: CGRect(origin: .zero, size: size))
+      drawProofChrome(proof, in: CGRect(origin: .zero, size: size))
+    }
+  }
+
+  private static func drawAspectFill(_ image: UIImage, in rect: CGRect) {
+    let imageSize = image.size
+    guard imageSize.width > 0, imageSize.height > 0 else { return }
+    let scale = max(rect.width / imageSize.width, rect.height / imageSize.height)
+    let drawSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+    let origin = CGPoint(
+      x: rect.midX - drawSize.width / 2,
+      y: rect.midY - drawSize.height / 2
+    )
+    image.draw(in: CGRect(origin: origin, size: drawSize))
+  }
+
+  /// Overlay layout was tuned at 720×1280; scale from frame height so env
+  /// encoding size does not shrink chips relative to the picture.
+  private static let chromeBaselineHeight: CGFloat = 1280
+
+  private struct ChromeMetrics {
+    let edgeInset: CGFloat
+    let topInset: CGFloat
+    let bottomInset: CGFloat
+    let chipPadding: UIEdgeInsets
+    let chipCornerRadius: CGFloat
+    let lineGap: CGFloat
+    let pipSize: CGFloat
+    let pipGap: CGFloat
+    let brandFont: UIFont
+    let codeFont: UIFont
+    let urlFont: UIFont
+    let countFont: UIFont
+    let dateFont: UIFont
+
+    init(scale: CGFloat) {
+      edgeInset = 28 * scale
+      topInset = 40 * scale
+      bottomInset = 56 * scale
+      chipPadding = UIEdgeInsets(
+        top: 10 * scale,
+        left: 16 * scale,
+        bottom: 10 * scale,
+        right: 16 * scale
+      )
+      chipCornerRadius = 14 * scale
+      lineGap = 3 * scale
+      pipSize = 12 * scale
+      pipGap = 10 * scale
+      brandFont = UIFont.systemFont(ofSize: 20 * scale, weight: .heavy)
+      codeFont = UIFont.monospacedSystemFont(ofSize: 20 * scale, weight: .semibold)
+      urlFont = UIFont.systemFont(ofSize: 14 * scale, weight: .medium)
+      countFont = UIFont.systemFont(ofSize: 28 * scale, weight: .bold)
+      dateFont = UIFont.systemFont(ofSize: 16 * scale, weight: .medium)
+    }
+  }
+
+  private enum Chrome {
+    static let chipFill = UIColor.black.withAlphaComponent(0.55)
+
+    static let dateFormatter: DateFormatter = {
+      let formatter = DateFormatter()
+      formatter.dateStyle = .medium
+      formatter.timeStyle = .none
+      return formatter
+    }()
+  }
+
+  private static func drawProofChrome(_ proof: Overlay, in rect: CGRect) {
+    let metrics = ChromeMetrics(scale: rect.height / chromeBaselineHeight)
+    drawBrandChip(in: rect, metrics: metrics)
+    drawCodeChip(code: proof.code, in: rect, metrics: metrics)
+    drawCountChip(proof, in: rect, metrics: metrics)
+  }
+
+  /// Top-left: recording pip and wordmark.
+  private static func drawBrandChip(in rect: CGRect, metrics: ChromeMetrics) {
+    let brand = "Beatset" as NSString
+    let attributes = textAttributes(font: metrics.brandFont)
+    let textSize = brand.size(withAttributes: attributes)
+    let padding = metrics.chipPadding
+    let chip = CGRect(
+      x: metrics.edgeInset,
+      y: metrics.topInset,
+      width: padding.left + metrics.pipSize + metrics.pipGap + textSize.width + padding.right,
+      height: padding.top + textSize.height + padding.bottom
+    )
+    fillChip(chip, cornerRadius: metrics.chipCornerRadius)
+
+    let pip = CGRect(
+      x: chip.minX + padding.left,
+      y: chip.midY - metrics.pipSize / 2,
+      width: metrics.pipSize,
+      height: metrics.pipSize
+    )
+    UIColor.systemRed.setFill()
+    UIBezierPath(ovalIn: pip).fill()
+
+    brand.draw(
+      at: CGPoint(x: pip.maxX + metrics.pipGap, y: chip.midY - textSize.height / 2),
+      withAttributes: attributes
+    )
+  }
+
+  /// Top-right: code and verify URL so anyone watching knows where to check it.
+  private static func drawCodeChip(code: String, in rect: CGRect, metrics: ChromeMetrics) {
+    let codeLine = code as NSString
+    let urlLine = "beatset.tech/v/\(code)" as NSString
+    let codeAttributes = textAttributes(font: metrics.codeFont)
+    let urlAttributes = textAttributes(font: metrics.urlFont, alpha: 0.85)
+    let codeSize = codeLine.size(withAttributes: codeAttributes)
+    let urlSize = urlLine.size(withAttributes: urlAttributes)
+    let padding = metrics.chipPadding
+    let width = padding.left + max(codeSize.width, urlSize.width) + padding.right
+    let chip = CGRect(
+      x: rect.width - metrics.edgeInset - width,
+      y: metrics.topInset,
+      width: width,
+      height: padding.top + codeSize.height + metrics.lineGap + urlSize.height + padding.bottom
+    )
+    fillChip(chip, cornerRadius: metrics.chipCornerRadius)
+
+    let rightEdge = chip.maxX - padding.right
+    let codeTop = chip.minY + padding.top
+    codeLine.draw(
+      at: CGPoint(x: rightEdge - codeSize.width, y: codeTop),
+      withAttributes: codeAttributes
+    )
+    urlLine.draw(
+      at: CGPoint(x: rightEdge - urlSize.width, y: codeTop + codeSize.height + metrics.lineGap),
+      withAttributes: urlAttributes
+    )
+  }
+
+  /// Bottom-centre: live count, label, and date.
+  private static func drawCountChip(_ proof: Overlay, in rect: CGRect, metrics: ChromeMetrics) {
+    let countLine = "\(proof.count)  ·  \(proof.label)" as NSString
+    let dateLine = Chrome.dateFormatter.string(from: Date()) as NSString
+    let countAttributes = textAttributes(font: metrics.countFont)
+    let dateAttributes = textAttributes(font: metrics.dateFont, alpha: 0.85)
+    let countSize = countLine.size(withAttributes: countAttributes)
+    let dateSize = dateLine.size(withAttributes: dateAttributes)
+    let padding = metrics.chipPadding
+    let width = padding.left + max(countSize.width, dateSize.width) + padding.right
+    let height = padding.top + countSize.height + metrics.lineGap + dateSize.height + padding.bottom
+    let chip = CGRect(
+      x: (rect.width - width) / 2,
+      y: rect.height - metrics.bottomInset - height,
+      width: width,
+      height: height
+    )
+    fillChip(chip, cornerRadius: metrics.chipCornerRadius)
+
+    let countTop = chip.minY + padding.top
+    countLine.draw(
+      at: CGPoint(x: chip.midX - countSize.width / 2, y: countTop),
+      withAttributes: countAttributes
+    )
+    dateLine.draw(
+      at: CGPoint(x: chip.midX - dateSize.width / 2, y: countTop + countSize.height + metrics.lineGap),
+      withAttributes: dateAttributes
+    )
+  }
+
+  private static func fillChip(_ chip: CGRect, cornerRadius: CGFloat) {
+    Chrome.chipFill.setFill()
+    UIBezierPath(roundedRect: chip, cornerRadius: cornerRadius).fill()
+  }
+
+  private static func textAttributes(font: UIFont, alpha: CGFloat = 1) -> [NSAttributedString.Key: Any] {
+    [.font: font, .foregroundColor: UIColor.white.withAlphaComponent(alpha)]
+  }
+
+  private static func pixelBuffer(from image: UIImage) -> CVPixelBuffer? {
+    guard let cgImage = image.cgImage else { return nil }
+    let width = cgImage.width
+    let height = cgImage.height
+    var buffer: CVPixelBuffer?
+    let attrs: [CFString: Any] = [
+      kCVPixelBufferCGImageCompatibilityKey: true,
+      kCVPixelBufferCGBitmapContextCompatibilityKey: true,
+    ]
+    let status = CVPixelBufferCreate(
+      kCFAllocatorDefault,
+      width,
+      height,
+      kCVPixelFormatType_32BGRA,
+      attrs as CFDictionary,
+      &buffer
+    )
+    guard status == kCVReturnSuccess, let pixelBuffer = buffer else { return nil }
+
+    CVPixelBufferLockBaseAddress(pixelBuffer, [])
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+
+    guard let context = CGContext(
+      data: CVPixelBufferGetBaseAddress(pixelBuffer),
+      width: width,
+      height: height,
+      bitsPerComponent: 8,
+      bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+    ) else {
+      return nil
+    }
+
+    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+    return pixelBuffer
+  }
+}
+
+enum ProofRecorderError: Error {
+  case cannotAddInput
+  case startFailed
+  case notRecording
+  case finishFailed
+}

@@ -19,9 +19,9 @@ jobs:
           cache: pnpm
       - run: pnpm install
       - run: pnpm --filter @product/brand build
-      - run: pnpm --filter @product/web build
-      - run: pnpm --filter @product/web exec playwright install --with-deps chromium
-      - run: pnpm --filter @product/web test:e2e
+      - run: pnpm --filter @product/website build
+      - run: pnpm --filter @product/website exec playwright install --with-deps chromium
+      - run: pnpm --filter @product/website test:e2e
 
   # Mobile Maestro runs via EAS Workflows (.eas/workflows) when Expo project is linked.
   maestro-reminder:

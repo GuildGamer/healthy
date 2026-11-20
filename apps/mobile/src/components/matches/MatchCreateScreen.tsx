@@ -1,209 +1,265 @@
-import type { MatchWindow } from '@product/client';
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import { useMutation } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import type { Crew } from '@product/client';
+import { MATCH_TITLE_MAX } from '@product/contract/match-board';
+import { spacing } from '@product/brand';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FormButton, FormErrorBanner } from '@/components/forms';
-import { displayFontFamily } from '@/lib/fonts';
-import { apiClient } from '@/lib/api';
-import { MatchCard, MatchKicker, MatchMetricMark } from './match-chrome';
+import { StyleSheet, Text, View } from 'react-native';
 import {
-  MATCH_CREATE_CTA,
-  MATCH_CREATE_TITLE,
-  MATCH_HOW_LONG,
-  MATCH_KICKER,
-  MATCH_RULE,
-  MATCH_SCORING_LABEL,
-  MATCH_TITLE,
-  MATCH_WINDOW_TODAY,
-  MATCH_WINDOW_TODAY_HINT,
-  MATCH_WINDOW_WEEK,
-  MATCH_WINDOW_WEEK_HINT,
-} from './match-copy';
-import { shareMatchLink } from './share-match-link';
+  DeckButton,
+  DeckPageNav,
+  DeckSheetMessage,
+  DeckSheetModal,
+} from '@/components/deck';
+import { TextField } from '@/components/forms/TextField';
+import { goBackOrHome } from '@/lib/go-back';
+import { apiClient } from '@/lib/api';
+import { type Theme, useThemedStyles } from '@/theme';
+import { ActivitySheet, HowYouWinSheet, SheetDone } from './CreateRuleSheets';
+import { CreateSettingRow } from './CreateSettingRow';
+import { GroupCard, GroupCardLine } from './GroupCard';
+import { GroupPage } from './GroupPage';
+import { HowLongSheet } from './HowLongSheet';
+import type { CreatePrefill } from './group-rerun';
+import { groupRuleBody, groupRuleTitle } from './group-rule-copy';
+import { CREATE_COPY, MATCH_MODE_LABEL } from './match-copy';
+import type { MatchLengthChoice } from './match-length';
+import {
+  MATCH_ANY_DAILY_CHOICE,
+  MATCH_ANY_DAILY_LABEL,
+  MATCH_METRIC_LABEL,
+  type MatchActivityChoice,
+} from './match-metric';
+import { useCreateGroup } from './useCreateGroup';
+import { WhosInSheet, type WhosInSelection } from './WhosInSheet';
 
-const WINDOWS: { id: MatchWindow; label: string; hint: string }[] = [
-  { id: 'today', label: MATCH_WINDOW_TODAY, hint: MATCH_WINDOW_TODAY_HINT },
-  { id: 'week', label: MATCH_WINDOW_WEEK, hint: MATCH_WINDOW_WEEK_HINT },
-];
+type CreateSheet = 'mode' | 'activity' | 'length' | 'crew' | 'rename';
 
-export function MatchCreateScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [window, setWindow] = useState<MatchWindow>('today');
-  const [error, setError] = useState<string | null>(null);
+const PRESET_LABEL = {
+  today: CREATE_COPY.today,
+  week: CREATE_COPY.week,
+  month: CREATE_COPY.month,
+} as const;
 
-  const create = useMutation({
-    mutationFn: () => apiClient.createMatch({ window }),
-    onSuccess: async (result) => {
-      setError(null);
-      await shareMatchLink(result.invite.url);
-      router.replace(`/matches/${result.match.id}`);
+function lengthLabel(length: MatchLengthChoice): string {
+  return length.kind === 'preset'
+    ? PRESET_LABEL[length.window]
+    : `${length.days} ${CREATE_COPY.daysUnit}`;
+}
+
+function activityLabel(choice: MatchActivityChoice): string {
+  return choice === MATCH_ANY_DAILY_CHOICE ? MATCH_ANY_DAILY_LABEL : MATCH_METRIC_LABEL[choice];
+}
+
+function whosInLabel(crews: readonly Crew[], selection: WhosInSelection): string {
+  const crewName = crews.find((crew) => crew.id === selection.crewId)?.name;
+  const people = selection.participantUserIds.length;
+  if (crewName && people > 0) {
+    return CREATE_COPY.peopleAndCrew(people, crewName);
+  }
+  if (crewName) {
+    return crewName;
+  }
+  if (people > 0) {
+    return CREATE_COPY.peoplePicked(people);
+  }
+  return CREATE_COPY.newGroupByLink;
+}
+
+/**
+ * Starting a group is one screen. The card on top is the invite your friends
+ * will see, rewritten as the four rows under it change.
+ */
+export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
+  const styles = useThemedStyles(createStyles);
+  const group = useCreateGroup(prefill);
+  const queryClient = useQueryClient();
+  const [openSheet, setOpenSheet] = useState<CreateSheet | null>(null);
+  const [renameCrew, setRenameCrew] = useState<Crew | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const close = () => setOpenSheet(null);
+  const lengthText = lengthLabel(group.length);
+
+  const rename = useMutation({
+    mutationFn: () => {
+      if (!renameCrew) {
+        throw new Error('No crew');
+      }
+      return apiClient.renameCrew({
+        crewId: renameCrew.id,
+        name: renameValue.trim(),
+      });
     },
-    onError: () => {
-      setError('We could not start that match. Try again.');
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['crews'] });
+      setRenameCrew(null);
+      setOpenSheet(null);
     },
   });
 
+  function openRename(crew: Crew) {
+    setRenameCrew(crew);
+    setRenameValue(crew.name);
+    setOpenSheet('rename');
+  }
+
   return (
-    <View style={styles.screen} testID="match-create-screen">
-      <View style={styles.body}>
-        <MatchKicker>{MATCH_KICKER}</MatchKicker>
-        <Text style={styles.title}>{MATCH_CREATE_TITLE}</Text>
-
-        <MatchCard>
-          <View style={styles.metricRow}>
-            <MatchMetricMark />
-            <View style={styles.metricText}>
-              <Text style={styles.metricTitle}>{MATCH_TITLE}</Text>
-              <Text style={styles.metricSub}>{MATCH_SCORING_LABEL}</Text>
-            </View>
-          </View>
-          <Text style={styles.rule}>{MATCH_RULE}</Text>
-        </MatchCard>
-
-        <Text style={styles.section}>{MATCH_HOW_LONG}</Text>
-        <View style={styles.windowRow}>
-          {WINDOWS.map((option) => {
-            const selected = option.id === window;
-
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                key={option.id}
-                onPress={() => setWindow(option.id)}
-                style={[styles.tile, selected ? styles.tileSelected : null]}
-                testID={`match-window-${option.id}`}
-              >
-                <Text
-                  style={[
-                    styles.tileLabel,
-                    selected ? styles.tileLabelSelected : null,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-                <Text
-                  style={[
-                    styles.tileHint,
-                    selected ? styles.tileHintSelected : null,
-                  ]}
-                >
-                  {option.hint}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {error ? <FormErrorBanner message={error} /> : null}
-      </View>
-
-      <View
-        style={[
-          styles.footer,
-          { paddingBottom: Math.max(insets.bottom, spacing.md) },
-        ]}
+    <>
+      <GroupPage
+        dock={
+          <>
+            {group.hasFailed ? (
+              <DeckSheetMessage message={CREATE_COPY.failed} testID="match-create-failed" />
+            ) : null}
+            <DeckButton
+              glyph={group.hasSeated ? undefined : 'share'}
+              label={group.hasSeated ? CREATE_COPY.ctaSeated : CREATE_COPY.cta}
+              loading={group.isStarting}
+              onPress={group.start}
+              testID="match-create-submit"
+            />
+          </>
+        }
+        nav={
+          <DeckPageNav
+            isClose
+            onBack={() => goBackOrHome('/(tabs)/challenges')}
+            title={CREATE_COPY.title}
+          />
+        }
+        testID="match-create-screen"
       >
-        <FormButton
-          label={MATCH_CREATE_CTA}
-          loading={create.isPending}
-          onPress={() => create.mutate()}
-          testID="match-create-submit"
-          trailingIcon="share"
+        <GroupCard
+          corner={lengthText}
+          rules={group.rules}
+          size="rule"
+          testID="match-create-card"
+          title={group.title.trim() || groupRuleTitle(group.rules)}
+        >
+          <GroupCardLine>{groupRuleBody(group.rules)}</GroupCardLine>
+        </GroupCard>
+        <View style={styles.titleField}>
+          <Text style={styles.titleLabel}>{CREATE_COPY.contestTitle}</Text>
+          <TextField
+            maxLength={MATCH_TITLE_MAX}
+            onChangeText={group.setTitle}
+            placeholder={CREATE_COPY.contestTitlePlaceholder}
+            testID="match-create-title"
+            value={group.title}
+          />
+        </View>
+        <View style={styles.rows}>
+          <CreateSettingRow
+            isFirst
+            label={CREATE_COPY.activity}
+            onPress={() => setOpenSheet('activity')}
+            testID="match-create-activity"
+            value={activityLabel(group.activityChoice)}
+          />
+          <CreateSettingRow
+            label={CREATE_COPY.howYouWin}
+            onPress={() => setOpenSheet('mode')}
+            testID="match-create-mode"
+            value={MATCH_MODE_LABEL[group.rules.scoringMode]}
+          />
+          <CreateSettingRow
+            label={CREATE_COPY.howLong}
+            onPress={() => setOpenSheet('length')}
+            testID="match-create-length"
+            value={lengthText}
+          />
+          <CreateSettingRow
+            label={CREATE_COPY.whosIn}
+            onPress={
+              group.crews.length > 0 || group.people.length > 0
+                ? () => setOpenSheet('crew')
+                : undefined
+            }
+            testID="match-create-crew"
+            value={whosInLabel(group.crews, group.whosIn)}
+          />
+        </View>
+        <Text style={styles.note}>{CREATE_COPY.note}</Text>
+      </GroupPage>
+
+      <HowYouWinSheet
+        onChoose={group.chooseMode}
+        onClose={close}
+        rules={group.rules}
+        visible={openSheet === 'mode'}
+      />
+      <ActivitySheet
+        activityChoice={group.activityChoice}
+        onChoose={group.chooseActivity}
+        onClose={close}
+        rules={group.rules}
+        visible={openSheet === 'activity'}
+      />
+      <HowLongSheet
+        length={group.length}
+        onChoose={group.chooseLength}
+        onClose={close}
+        scoringMode={group.rules.scoringMode}
+        visible={openSheet === 'length'}
+      />
+      <WhosInSheet
+        crews={group.crews}
+        onChange={group.chooseWhosIn}
+        onClose={close}
+        onRenameCrew={openRename}
+        people={group.people}
+        selection={group.whosIn}
+        visible={openSheet === 'crew'}
+      />
+      <DeckSheetModal
+        footer={
+          <>
+            <DeckButton
+              disabled={renameValue.trim().length === 0}
+              label={CREATE_COPY.renameCrewSave}
+              loading={rename.isPending}
+              onPress={() => rename.mutate()}
+              testID="match-rename-crew-save"
+            />
+            <SheetDone onClose={close} />
+          </>
+        }
+        onDismiss={close}
+        testID="match-rename-crew-sheet"
+        title={CREATE_COPY.renameCrewTitle}
+        visible={openSheet === 'rename' && renameCrew !== null}
+      >
+        <TextField
+          maxLength={40}
+          onChangeText={setRenameValue}
+          placeholder={CREATE_COPY.renameCrewPlaceholder}
+          testID="match-rename-crew-input"
+          value={renameValue}
         />
-      </View>
-    </View>
+      </DeckSheetModal>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  body: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    gap: spacing.md,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: displayFontFamily,
-    fontSize: fontSize.xxl,
-    lineHeight: 36,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  metricText: {
-    flex: 1,
-    gap: 2,
-  },
-  metricTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  metricSub: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-  },
-  rule: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-  },
-  section: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginTop: spacing.sm,
-  },
-  windowRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  tile: {
-    flex: 1,
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-  },
-  tileSelected: {
-    backgroundColor: colors.accentSurface,
-    borderColor: colors.accent,
-  },
-  tileLabel: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
-  tileLabelSelected: {
-    color: colors.accent,
-  },
-  tileHint: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    lineHeight: 16,
-  },
-  tileHintSelected: {
-    color: colors.text,
-  },
-  footer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    titleField: {
+      marginTop: 14,
+      gap: 8,
+      paddingHorizontal: spacing.xs,
+    },
+    titleLabel: {
+      color: theme.colors.muted,
+      fontSize: 13.5,
+      fontWeight: '600',
+    },
+    rows: {
+      marginTop: 12,
+    },
+    note: {
+      color: theme.colors.muted,
+      fontSize: 14.5,
+      lineHeight: 21,
+      marginTop: 14,
+      paddingHorizontal: spacing.xs,
+    },
+  });

@@ -3,7 +3,7 @@ import { Implement, implement } from '@orpc/nest';
 import { Public } from '@thallesp/nestjs-better-auth';
 import { appContract } from '@product/contract';
 import type { RequestWithAuth } from '../../../shared/types/request-with-auth.js';
-import { PushDevicesService } from '../../shared-modules/push/push-devices.service.js';
+import { PushDevicesService } from '../../shared-modules/push/index.js';
 
 @Controller()
 @Public()

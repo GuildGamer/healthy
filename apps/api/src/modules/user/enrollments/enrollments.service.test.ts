@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/server';
 import { DEFAULT_CHALLENGE_ICON } from '@product/contract';
 import { describe, expect, it, vi } from 'vitest';
+import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from './enrollments.service.js';
 
 const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
@@ -20,6 +21,7 @@ type CatalogRow = {
   captureKind?: string;
   deviceMetric?: string | null;
   targetCount?: number | null;
+  sortOrder?: number;
 };
 
 function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
@@ -35,6 +37,7 @@ function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
     instruction: 'Ten minutes outside.',
     icon: 'walk',
     requiresMembership: false,
+    sortOrder: 100,
     ...overrides,
   };
 }
@@ -50,6 +53,14 @@ function createPrismaMock(options: {
   }>;
   challenge?: Record<string, unknown> | null;
   membershipActive?: boolean;
+  existingEnrollment?: {
+    id: string;
+    isActive: boolean;
+    targetCount: number | null;
+    frequency: string;
+  } | null;
+  openOccurrences?: Array<{ id: string; frequency: string; periodKey: string }>;
+  occupyingOccurrenceId?: string | null;
 }) {
   return {
     userProfile: {
@@ -61,6 +72,7 @@ function createPrismaMock(options: {
         return Promise.resolve({
           healthCategories: options.categories ?? ['general'],
           membershipActive: options.membershipActive ?? false,
+          timeZone: 'UTC',
         });
       }),
     },
@@ -85,9 +97,21 @@ function createPrismaMock(options: {
           reminders: [],
         })),
       ),
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn().mockResolvedValue(
+        options.existingEnrollment === undefined ? null : options.existingEnrollment,
+      ),
       upsert: vi.fn().mockResolvedValue({ id: 'e1' }),
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    userChallenge: {
+      findMany: vi.fn().mockResolvedValue(options.openOccurrences ?? []),
+      findUnique: vi.fn().mockResolvedValue(
+        options.occupyingOccurrenceId
+          ? { id: options.occupyingOccurrenceId }
+          : null,
+      ),
+      update: vi.fn().mockResolvedValue({}),
+      delete: vi.fn().mockResolvedValue({}),
     },
   };
 }
@@ -97,21 +121,33 @@ function createRemindersMock() {
 }
 
 function createService(prisma: ReturnType<typeof createPrismaMock>) {
-  return new EnrollmentsService(
-    prisma as never,
-    createRemindersMock() as never,
-  );
+  return new EnrollmentsService(prisma as never, createRemindersMock() as never);
 }
 
 describe('EnrollmentsService.listCatalog', () => {
+  it('orders catalog rows by sortOrder in the database query', async () => {
+    const prisma = createPrismaMock({
+      catalog: [
+        catalogRow({ id: 'c2', slug: 'walk', title: 'Walk', sortOrder: 100 }),
+        catalogRow({ id: 'c1', slug: 'pushups', title: 'Push-ups', sortOrder: 0 }),
+      ],
+    });
+
+    await createService(prisma).listCatalog(user);
+
+    expect(prisma.challenge.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
+      }),
+    );
+  });
+
   it('falls back to the catalog cadence for a challenge with no enrolment', async () => {
     const prisma = createPrismaMock({
       catalog: [catalogRow({ defaultFrequency: 'weekly' })],
     });
 
-    const result = await createService(prisma).listCatalog(
-      user,
-    );
+    const result = await createService(prisma).listCatalog(user);
 
     expect(result.challenges[0]).toMatchObject({
       frequency: 'weekly',
@@ -137,9 +173,7 @@ describe('EnrollmentsService.listCatalog', () => {
       enrollments: [{ challengeId: 'c1', frequency: 'weekly', isActive: true }],
     });
 
-    const result = await createService(prisma).listCatalog(
-      user,
-    );
+    const result = await createService(prisma).listCatalog(user);
 
     expect(result.challenges[0]).toMatchObject({
       frequency: 'weekly',
@@ -170,7 +204,7 @@ describe('EnrollmentsService.listCatalog', () => {
     const result = await createService(prisma).listCatalog(user);
 
     expect(result.challenges[0]?.capture.target.count).toBe(12);
-    expect(result.challenges[0]?.title).toBe('Do twelve push-ups');
+    expect(result.challenges[0]?.title).toBe('Do 12 push-ups');
   });
 
   it('treats a deactivated enrolment as not enrolled', async () => {
@@ -179,42 +213,30 @@ describe('EnrollmentsService.listCatalog', () => {
       enrollments: [{ challengeId: 'c1', frequency: 'daily', isActive: false }],
     });
 
-    const result = await createService(prisma).listCatalog(
-      user,
-    );
+    const result = await createService(prisma).listCatalog(user);
 
     expect(result.challenges[0]?.isEnrolled).toBe(false);
     expect(result.enrolledCount).toBe(0);
   });
 
-  it('narrows to the chosen conditions plus general health', async () => {
-    const prisma = createPrismaMock({ categories: ['asthma'] });
+  it.each([[['asthma']], [[]]])(
+    'offers only everyday health while conditions are out of scope (chosen: %j)',
+    async (categories) => {
+      const prisma = createPrismaMock({ categories });
 
-    await createService(prisma).listCatalog(user);
+      await createService(prisma).listCatalog(user);
 
-    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
-      { where: { category: { in: string[] } } },
-    ];
-    expect(argument.where.category.in.sort()).toEqual(['asthma', 'general']);
-  });
-
-  it('shows every category before onboarding has chosen any', async () => {
-    const prisma = createPrismaMock({ categories: [] });
-
-    await createService(prisma).listCatalog(user);
-
-    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
-      { where: { category: { in: string[] } } },
-    ];
-    expect(argument.where.category.in).toHaveLength(4);
-  });
+      const [argument] = prisma.challenge.findMany.mock.calls[0] as [
+        { where: { category: { in: string[] } } },
+      ];
+      expect(argument.where.category.in).toEqual(['general']);
+    },
+  );
 
   it('rejects unauthenticated callers', async () => {
     const prisma = createPrismaMock({});
 
-    await expect(
-      createService(prisma).listCatalog(null),
-    ).rejects.toBeInstanceOf(ORPCError);
+    await expect(createService(prisma).listCatalog(null)).rejects.toBeInstanceOf(ORPCError);
   });
 });
 
@@ -222,9 +244,9 @@ describe('EnrollmentsService.setEnrollment', () => {
   it('rejects a challenge that does not exist', async () => {
     const prisma = createPrismaMock({ challenge: null });
 
-    await expect(
-      createService(prisma).setEnrollment(user, 'nope', true),
-    ).rejects.toBeInstanceOf(ORPCError);
+    await expect(createService(prisma).setEnrollment(user, 'nope', true)).rejects.toBeInstanceOf(
+      ORPCError,
+    );
     expect(prisma.challengeEnrollment.upsert).not.toHaveBeenCalled();
   });
 
@@ -239,9 +261,9 @@ describe('EnrollmentsService.setEnrollment', () => {
       },
     });
 
-    await expect(
-      createService(prisma).setEnrollment(user, 'c1', true),
-    ).rejects.toBeInstanceOf(ORPCError);
+    await expect(createService(prisma).setEnrollment(user, 'c1', true)).rejects.toBeInstanceOf(
+      ORPCError,
+    );
   });
 
   it('blocks free users from joining a membership challenge', async () => {
@@ -256,9 +278,7 @@ describe('EnrollmentsService.setEnrollment', () => {
       membershipActive: false,
     });
 
-    await expect(
-      createService(prisma).setEnrollment(user, 'c1', true),
-    ).rejects.toMatchObject({
+    await expect(createService(prisma).setEnrollment(user, 'c1', true)).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
     expect(prisma.challengeEnrollment.upsert).not.toHaveBeenCalled();
@@ -267,12 +287,7 @@ describe('EnrollmentsService.setEnrollment', () => {
   it('stores the requested cadence', async () => {
     const prisma = createPrismaMock({ catalog: [catalogRow()] });
 
-    await createService(prisma).setEnrollment(
-      user,
-      'c1',
-      true,
-      'monthly',
-    );
+    await createService(prisma).setEnrollment(user, 'c1', true, 'monthly');
 
     const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
       { create: { frequency: string }; update: { frequency: string } },
@@ -293,11 +308,7 @@ describe('EnrollmentsService.setEnrollment', () => {
       catalog: [catalogRow()],
     });
 
-    await createService(prisma).setEnrollment(
-      user,
-      'c1',
-      true,
-    );
+    await createService(prisma).setEnrollment(user, 'c1', true);
 
     const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
       { create: { frequency: string } },
@@ -317,13 +328,9 @@ describe('EnrollmentsService.setEnrollment', () => {
       catalog: [catalogRow()],
     });
 
-    await createService(prisma).setEnrollment(
-      user,
-      'c1',
-      true,
-      undefined,
-      12,
-    );
+    await createService(prisma).setEnrollment(user, 'c1', true, undefined, {
+      targetCount: 12,
+    });
 
     const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
       { create: { targetCount: number }; update: { targetCount: number } },
@@ -336,24 +343,142 @@ describe('EnrollmentsService.setEnrollment', () => {
     const prisma = createPrismaMock({ catalog: [catalogRow()] });
 
     await expect(
-      createService(prisma).setEnrollment(user, 'c1', true, undefined, 12),
+      createService(prisma).setEnrollment(user, 'c1', true, undefined, { targetCount: 12 }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     expect(prisma.challengeEnrollment.upsert).not.toHaveBeenCalled();
+  });
+
+  it('stores a minutes goal on a timed challenge', async () => {
+    const prisma = createPrismaMock({
+      challenge: {
+        id: 'c1',
+        isActive: true,
+        defaultFrequency: 'daily',
+        requiresMembership: false,
+        targetCount: null,
+        targetDurationMinutes: 10,
+      },
+      catalog: [catalogRow()],
+    });
+
+    await createService(prisma).setEnrollment(user, 'c1', true, undefined, {
+      targetDurationMinutes: 25,
+    });
+
+    const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
+      {
+        create: { targetDurationMinutes: number };
+        update: { targetDurationMinutes: number };
+      },
+    ];
+    expect(argument.create.targetDurationMinutes).toBe(25);
+    expect(argument.update.targetDurationMinutes).toBe(25);
+  });
+
+  it.each([4, 121])('rejects %i minutes, outside five minutes to two hours', async (minutes) => {
+    const prisma = createPrismaMock({
+      challenge: {
+        id: 'c1',
+        isActive: true,
+        defaultFrequency: 'daily',
+        requiresMembership: false,
+        targetCount: null,
+        targetDurationMinutes: 10,
+      },
+      catalog: [catalogRow()],
+    });
+
+    await expect(
+      createService(prisma).setEnrollment(user, 'c1', true, undefined, {
+        targetDurationMinutes: minutes,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    expect(prisma.challengeEnrollment.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a minutes goal on a challenge that is not timed', async () => {
+    const prisma = createPrismaMock({ catalog: [catalogRow()] });
+
+    await expect(
+      createService(prisma).setEnrollment(user, 'c1', true, undefined, {
+        targetDurationMinutes: 20,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
   it('deactivates rather than deletes when opting out', async () => {
     const prisma = createPrismaMock({ catalog: [catalogRow()] });
 
-    await createService(prisma).setEnrollment(
-      user,
-      'c1',
-      false,
-    );
+    await createService(prisma).setEnrollment(user, 'c1', false);
 
     const [argument] = prisma.challengeEnrollment.upsert.mock.calls[0] as [
       { update: { isActive: boolean } },
     ];
     expect(argument.update.isActive).toBe(false);
+  });
+
+  it('moves an open occurrence onto the new cadence', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+      existingEnrollment: {
+        id: 'e1',
+        isActive: true,
+        targetCount: null,
+        frequency: 'monthly',
+      },
+      openOccurrences: [{ id: 'uc-month', frequency: 'monthly', periodKey: '2026-10-01' }],
+    });
+
+    await createService(prisma).setEnrollment(user, 'c1', true, 'daily');
+
+    expect(prisma.userChallenge.update).toHaveBeenCalledWith({
+      where: { id: 'uc-month' },
+      data: {
+        frequency: 'daily',
+        periodKey: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      },
+    });
+    expect(prisma.userChallenge.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes an obsolete open occurrence when the new period key is taken', async () => {
+    const todayKey = periodKeyFor('daily', 'UTC');
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+      existingEnrollment: {
+        id: 'e1',
+        isActive: true,
+        targetCount: null,
+        frequency: 'monthly',
+      },
+      openOccurrences: [
+        { id: 'uc-day', frequency: 'daily', periodKey: todayKey },
+        { id: 'uc-month', frequency: 'monthly', periodKey: '2026-10-01' },
+      ],
+      occupyingOccurrenceId: 'uc-day',
+    });
+
+    await createService(prisma).setEnrollment(user, 'c1', true, 'daily');
+
+    expect(prisma.userChallenge.delete).toHaveBeenCalledWith({ where: { id: 'uc-month' } });
+    expect(prisma.userChallenge.update).not.toHaveBeenCalled();
+  });
+
+  it('leaves open occurrences alone when the cadence did not change', async () => {
+    const prisma = createPrismaMock({
+      catalog: [catalogRow()],
+      existingEnrollment: {
+        id: 'e1',
+        isActive: true,
+        targetCount: null,
+        frequency: 'daily',
+      },
+      openOccurrences: [{ id: 'uc1', frequency: 'daily', periodKey: '2026-10-28' }],
+    });
+
+    await createService(prisma).setEnrollment(user, 'c1', true, 'daily');
+
+    expect(prisma.userChallenge.findMany).not.toHaveBeenCalled();
   });
 });
 
@@ -362,13 +487,9 @@ describe('EnrollmentsService.enrollDefaultsFor', () => {
     const prisma = createPrismaMock({
       catalog: [catalogRow()],
     });
-    prisma.challenge.findMany.mockResolvedValue([
-      { id: 'c1', defaultFrequency: 'daily' },
-    ]);
+    prisma.challenge.findMany.mockResolvedValue([{ id: 'c1', defaultFrequency: 'daily' }]);
 
-    await createService(prisma).enrollDefaultsFor(user.id, [
-      'general',
-    ]);
+    await createService(prisma).enrollDefaultsFor(user.id, ['general']);
 
     const [argument] = prisma.challenge.findMany.mock.calls[0] as [
       { where: Record<string, unknown> },
@@ -378,13 +499,9 @@ describe('EnrollmentsService.enrollDefaultsFor', () => {
 
   it('never revives an enrolment the user turned off', async () => {
     const prisma = createPrismaMock({});
-    prisma.challenge.findMany.mockResolvedValue([
-      { id: 'c1', defaultFrequency: 'daily' },
-    ]);
+    prisma.challenge.findMany.mockResolvedValue([{ id: 'c1', defaultFrequency: 'daily' }]);
 
-    await createService(prisma).enrollDefaultsFor(user.id, [
-      'general',
-    ]);
+    await createService(prisma).enrollDefaultsFor(user.id, ['general']);
 
     const [argument] = prisma.challengeEnrollment.createMany.mock.calls[0] as [
       { skipDuplicates: boolean },
@@ -396,10 +513,72 @@ describe('EnrollmentsService.enrollDefaultsFor', () => {
     const prisma = createPrismaMock({});
     prisma.challenge.findMany.mockResolvedValue([]);
 
-    await createService(prisma).enrollDefaultsFor(user.id, [
-      'general',
-    ]);
+    await createService(prisma).enrollDefaultsFor(user.id, ['general']);
 
     expect(prisma.challengeEnrollment.createMany).not.toHaveBeenCalled();
+  });
+
+  it('never enrols a walk even when it is still flagged as default', async () => {
+    const prisma = createPrismaMock({});
+    prisma.challenge.findMany.mockResolvedValue([
+      { id: 'walk', defaultFrequency: 'daily', deviceMetric: 'walk' },
+      { id: 'push', defaultFrequency: 'daily', deviceMetric: 'pushups' },
+    ]);
+
+    await createService(prisma).enrollDefaultsFor(user.id, ['general']);
+
+    const [argument] = prisma.challengeEnrollment.createMany.mock.calls[0] as [
+      { data: Array<{ challengeId: string }> },
+    ];
+    expect(argument.data.map((row) => row.challengeId)).toEqual(['push']);
+  });
+});
+
+describe('EnrollmentsService.listStarterChallenges', () => {
+  it('lists only active default challenges, with no account needed', async () => {
+    const prisma = createPrismaMock({ catalog: [catalogRow()] });
+
+    await createService(prisma).listStarterChallenges();
+
+    const [argument] = prisma.challenge.findMany.mock.calls[0] as [
+      { where: Record<string, unknown> },
+    ];
+    expect(argument.where).toEqual({ isActive: true, isDefault: true });
+    expect(prisma.userProfile.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('marks general health as included whatever is picked', async () => {
+    const prisma = createPrismaMock({
+      catalog: [
+        catalogRow({ id: 'push', category: 'general', deviceMetric: 'pushups' }),
+        catalogRow({ id: 'bp', category: 'hypertension', completionKind: 'vitals_bp' }),
+      ],
+    });
+
+    const { challenges } = await createService(prisma).listStarterChallenges();
+
+    expect(challenges.map((challenge) => [challenge.challengeId, challenge.isUniversal])).toEqual([
+      ['push', true],
+      ['bp', false],
+    ]);
+  });
+
+  it('hides a walk from the starter preview even when it is still flagged as default', async () => {
+    const prisma = createPrismaMock({
+      catalog: [
+        catalogRow({ id: 'walk', category: 'general', deviceMetric: 'walk' }),
+        catalogRow({
+          id: 'push',
+          category: 'general',
+          deviceMetric: 'pushups',
+          slug: 'twenty-push-ups',
+          title: 'Do 5 push-ups',
+        }),
+      ],
+    });
+
+    const { challenges } = await createService(prisma).listStarterChallenges();
+
+    expect(challenges.map((challenge) => challenge.challengeId)).toEqual(['push']);
   });
 });

@@ -7,7 +7,8 @@ config({
   path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'),
 });
 
-const { prisma } = await import('../src/index.js');
+const { getPrisma } = await import('../src/index.js');
+const prisma = getPrisma();
 
 type ChallengeSeed = {
   slug: string;
@@ -20,26 +21,17 @@ type ChallengeSeed = {
   isDefault: boolean;
   /** Opt-in / higher-friction catalog needs membership. */
   requiresMembership?: boolean;
+  /** Lower values surface first in catalog and challenge lists. */
+  sortOrder?: number;
   completionKind?:
-    | 'check_in'
-    | 'vitals_bp'
-    | 'evidence_photo'
-    | 'glucose'
-    | 'peak_flow'
-    | 'water'
-    | 'carbs';
+    'check_in' | 'vitals_bp' | 'evidence_photo' | 'glucose' | 'peak_flow' | 'water' | 'carbs';
   /** Material Community Icons glyph name. */
   icon: string;
   instruction?: string;
   surpriseEvidenceChancePercent?: number;
   surpriseEvidenceWindowSeconds?: number;
   surpriseEvidencePenaltyPoints?: number;
-  captureKind?:
-    | 'self_report'
-    | 'structured_log'
-    | 'photo'
-    | 'device_sample'
-    | 'device_session';
+  captureKind?: 'self_report' | 'structured_log' | 'photo' | 'device_sample' | 'device_session';
   deviceMetric?:
     | 'walk'
     | 'run'
@@ -48,7 +40,14 @@ type ChallengeSeed = {
     | 'sleep'
     | 'weight'
     | 'heart_rate'
-    | 'pushups';
+    | 'pushups'
+    | 'squats'
+    | 'plank'
+    | 'jumping_jacks'
+    | 'burpees'
+    | 'sit_ups'
+    | 'mountain_climbers'
+    | 'lunges';
   targetDurationMinutes?: number;
   targetDistanceMeters?: number;
   targetCount?: number;
@@ -140,8 +139,7 @@ const challengeSeeds: ChallengeSeed[] = [
     isDefault: false,
     completionKind: 'carbs',
     icon: 'food',
-    instruction:
-      'Note the carbohydrates in your main meals, as grams or a short description.',
+    instruction: 'Note the carbohydrates in your main meals, as grams or a short description.',
   },
   {
     slug: 'diabetic-foot-check',
@@ -183,8 +181,7 @@ const challengeSeeds: ChallengeSeed[] = [
     isDefault: false,
     completionKind: 'peak_flow',
     icon: 'weather-windy',
-    instruction:
-      'Blow into your peak flow meter three times and log the best reading.',
+    instruction: 'Blow into your peak flow meter three times and log the best reading.',
   },
   {
     slug: 'asthma-trigger-review',
@@ -213,13 +210,14 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 100,
     defaultFrequency: 'daily',
-    isDefault: true,
+    isDefault: false,
     completionKind: 'water',
+    /** Glasses a day; admins can change it in the catalog. */
+    targetCount: 8,
     surpriseEvidenceChancePercent: 20,
     surpriseEvidencePenaltyPoints: 10,
     icon: 'cup-water',
-    instruction:
-      'Log how much water you drank today, in glasses or millilitres.',
+    instruction: 'Log how much water you drank today, in glasses or millilitres.',
   },
   {
     slug: 'ten-minute-walk',
@@ -228,8 +226,9 @@ const challengeSeeds: ChallengeSeed[] = [
     category: 'general',
     rewardPoints: 150,
     defaultFrequency: 'daily',
-    isDefault: true,
+    isDefault: false,
     icon: 'walk',
+    sortOrder: 5,
     captureKind: 'device_session',
     deviceMetric: 'walk',
     targetDurationMinutes: 10,
@@ -245,6 +244,7 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: false,
     icon: 'shoe-print',
+    sortOrder: 3,
     captureKind: 'device_sample',
     deviceMetric: 'steps',
     targetCount: 5_000,
@@ -253,19 +253,134 @@ const challengeSeeds: ChallengeSeed[] = [
   },
   {
     slug: 'twenty-push-ups',
-    title: 'Do twenty push-ups',
+    title: 'Do 5 push-ups',
     description:
       'Prop your phone, get your whole body in frame, and complete your set of push-ups counted on-device.',
     category: 'general',
     rewardPoints: 150,
     defaultFrequency: 'daily',
-    isDefault: false,
+    isDefault: true,
     icon: 'arm-flex',
+    sortOrder: 0,
     captureKind: 'device_session',
     deviceMetric: 'pushups',
+    targetCount: 5,
+    instruction:
+      'Prop your phone side-on so your whole body is in the frame: head to feet, both arms visible. Start your first push-up. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'twenty-squats',
+    title: 'Do 20 squats',
+    description:
+      'Prop your phone, face the camera, and complete your set of squats counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'arm-flex',
+    sortOrder: 1,
+    captureKind: 'device_session',
+    deviceMetric: 'squats',
     targetCount: 20,
     instruction:
-      'Prop your phone so your whole body is in the frame: head to feet, both arms visible. Start your first push-up. Counting begins automatically. Video stays on this device.',
+      'Prop your phone facing you so your whole body is in the frame. Start your first squat. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'sixty-second-plank',
+    title: 'Hold a 60-second plank',
+    description:
+      'Prop your phone side-on and hold a plank while the camera times it.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: true,
+    icon: 'arm-flex',
+    sortOrder: 2,
+    captureKind: 'device_session',
+    deviceMetric: 'plank',
+    targetCount: 60,
+    instruction:
+      'Prop your phone side-on so your whole body is in the frame. Get into a plank; the timer runs while you hold it. Video stays on this device.',
+  },
+  {
+    slug: 'thirty-jumping-jacks',
+    title: 'Do 30 jumping jacks',
+    description: 'Face the camera and complete jumping jacks counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 3,
+    captureKind: 'device_session',
+    deviceMetric: 'jumping_jacks',
+    targetCount: 30,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'ten-burpees',
+    title: 'Do 10 burpees',
+    description: 'Face the camera and complete burpees counted on-device.',
+    category: 'general',
+    rewardPoints: 200,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 4,
+    captureKind: 'device_session',
+    deviceMetric: 'burpees',
+    targetCount: 10,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'twenty-sit-ups',
+    title: 'Do 20 sit-ups',
+    description: 'Prop your phone side-on and complete sit-ups counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 6,
+    captureKind: 'device_session',
+    deviceMetric: 'sit_ups',
+    targetCount: 20,
+    instruction:
+      'Prop your phone side-on so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'forty-mountain-climbers',
+    title: 'Do 40 mountain climbers',
+    description: 'Face the camera and complete mountain climbers counted on-device.',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 7,
+    captureKind: 'device_session',
+    deviceMetric: 'mountain_climbers',
+    targetCount: 40,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Counting begins automatically. Video stays on this device.',
+  },
+  {
+    slug: 'twenty-lunges',
+    title: 'Do 20 lunges',
+    description: 'Face the camera and complete lunges counted on-device (left plus right).',
+    category: 'general',
+    rewardPoints: 150,
+    defaultFrequency: 'daily',
+    isDefault: false,
+    icon: 'arm-flex',
+    sortOrder: 8,
+    captureKind: 'device_session',
+    deviceMetric: 'lunges',
+    targetCount: 20,
+    instruction:
+      'Prop your phone facing you so your whole body is in the frame. Left and right lunges count together. Video stays on this device.',
   },
   {
     slug: 'gym-session',
@@ -275,6 +390,7 @@ const challengeSeeds: ChallengeSeed[] = [
     rewardPoints: 200,
     defaultFrequency: 'daily',
     isDefault: false,
+    sortOrder: 1,
     completionKind: 'evidence_photo',
     instruction:
       'Take a selfie at the gym. Your face and the gym (machines, racks, or the gym floor) must be visible. Photos from home will not count.',
@@ -289,6 +405,9 @@ const challengeSeeds: ChallengeSeed[] = [
     defaultFrequency: 'daily',
     isDefault: false,
     icon: 'sleep',
+    captureKind: 'structured_log',
+    deviceMetric: 'sleep',
+    instruction: 'Enter the time you went to bed and when you woke up. You can also say how rested you feel.',
   },
   {
     slug: 'weekly-weigh-in',
@@ -327,29 +446,61 @@ function assertLeanStarterDefaults(seeds: readonly ChallengeSeed[]): void {
   }
 
   const general = defaultsByCategory.get('general') ?? [];
-  if (general.length > 2) {
-    throw new Error(
-      `General defaults must stay ≤2 (got ${general.length}: ${general.join(', ')})`,
-    );
+  if (general.length > 3) {
+    throw new Error(`General defaults must stay ≤3 (got ${general.length}: ${general.join(', ')})`);
   }
 
   for (const category of ['hypertension', 'diabetes', 'asthma'] as const) {
     const list = defaultsByCategory.get(category) ?? [];
     if (list.length > 2) {
-      throw new Error(
-        `${category} defaults must stay ≤2 (got ${list.length}: ${list.join(', ')})`,
-      );
+      throw new Error(`${category} defaults must stay ≤2 (got ${list.length}: ${list.join(', ')})`);
     }
   }
 }
 
-const tipSeeds: Array<{
+const WHO_PHYSICAL_ACTIVITY_SOURCE = 'WHO physical activity';
+const WHO_PHYSICAL_ACTIVITY_URL =
+  'https://www.who.int/news-room/fact-sheets/detail/physical-activity';
+const WHO_SLEEP_SOURCE = 'WHO sleep recommendations';
+const WHO_SLEEP_URL =
+  'https://www.who.int/tools/your-life-your-health/life-phases/adulthood-ages-18-65-/move-for-health';
+
+type TipSeed = {
   slug: string;
   category: ChallengeSeed['category'];
   title: string;
   body: string;
   sortOrder: number;
-}> = [
+  challengeSlug?: string | null;
+  activityKey?: string | null;
+  source?: string | null;
+  sourceUrl?: string | null;
+};
+
+/** Non-fitness general slugs hidden by the competitive fitness pivot. */
+const HIDDEN_GENERAL_SLUGS = new Set([
+  'log-water-intake',
+  'sleep-log',
+  'weekly-weigh-in',
+  'medication-refill',
+]);
+
+function challengeIsActive(challenge: {
+  category: ChallengeSeed['category'];
+  slug: string;
+}): boolean {
+  if (challenge.category !== 'general') {
+    return false;
+  }
+
+  return !HIDDEN_GENERAL_SLUGS.has(challenge.slug);
+}
+
+function tipIsActive(tip: { category: TipSeed['category'] }): boolean {
+  return tip.category === 'general';
+}
+
+const tipSeeds: TipSeed[] = [
   {
     slug: 'salt',
     category: 'hypertension',
@@ -419,6 +570,7 @@ const tipSeeds: Array<{
     title: 'Drink a glass of water before each meal',
     body: 'It is the easiest hydration habit to remember, because the reminder is already built into your day.',
     sortOrder: 0,
+    activityKey: 'water',
   },
   {
     slug: 'hourly-movement',
@@ -426,6 +578,9 @@ const tipSeeds: Array<{
     title: 'Stand up and move for two minutes every hour',
     body: 'Breaking up long stretches of sitting does more for circulation and stiffness than any single workout.',
     sortOrder: 1,
+    activityKey: 'hourly-move',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
   },
   {
     slug: 'sleep-schedule',
@@ -433,6 +588,82 @@ const tipSeeds: Array<{
     title: 'Keep your sleep and wake times consistent',
     body: 'A steady schedule does more for how rested you feel than the total number of hours you spend in bed.',
     sortOrder: 2,
+  },
+  {
+    slug: 'benefit-pushups',
+    category: 'general',
+    title: 'A short set still counts',
+    body: 'Muscle-strengthening on two or more days a week keeps you in the fight. A short set today counts toward that.',
+    sortOrder: 10,
+    challengeSlug: 'twenty-push-ups',
+    activityKey: 'pushups',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-squats',
+    category: 'general',
+    title: 'Legs win contests too',
+    body: 'Squats build the strength you use every day, and they are an easy contest to settle with friends.',
+    sortOrder: 10,
+    challengeSlug: 'twenty-squats',
+    activityKey: 'squats',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-plank',
+    category: 'general',
+    title: 'Hold longer, climb the board',
+    body: 'Core endurance is a fair contest: longest hold wins, timed by your camera.',
+    sortOrder: 10,
+    challengeSlug: 'sixty-second-plank',
+    activityKey: 'plank',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-walk',
+    category: 'general',
+    title: 'Why a ten-minute walk matters',
+    body: 'Adults need regular aerobic activity. Even a short brisk walk adds minutes toward the weekly goal.',
+    sortOrder: 11,
+    challengeSlug: 'ten-minute-walk',
+    activityKey: 'walk',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-steps',
+    category: 'general',
+    title: 'Why daily steps matter',
+    body: 'Accumulating movement through the day helps meet recommended activity levels. Steps are a simple way to track that.',
+    sortOrder: 12,
+    challengeSlug: 'five-thousand-steps',
+    activityKey: 'steps',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
+  },
+  {
+    slug: 'benefit-sleep',
+    category: 'general',
+    title: 'Why logging sleep matters',
+    body: 'Noticing how long you slept and how rested you feel makes patterns visible, and good sleep supports everyday health.',
+    sortOrder: 13,
+    challengeSlug: 'sleep-log',
+    activityKey: 'sleep',
+    source: WHO_SLEEP_SOURCE,
+    sourceUrl: WHO_SLEEP_URL,
+  },
+  {
+    slug: 'benefit-asthma-activity',
+    category: 'asthma',
+    title: 'Why gentle activity still matters',
+    body: 'Staying active, at a pace that feels safe for you, supports lung health and everyday fitness. Warm up and follow your care plan.',
+    sortOrder: 10,
+    activityKey: 'asthma-activity',
+    source: WHO_PHYSICAL_ACTIVITY_SOURCE,
+    sourceUrl: WHO_PHYSICAL_ACTIVITY_URL,
   },
 ];
 
@@ -465,21 +696,21 @@ async function main(): Promise<void> {
           ? 'self_report'
           : 'structured_log');
 
+    const isActive = challengeIsActive(challenge);
+
     await prisma.challenge.upsert({
       where: { slug: challenge.slug },
       create: {
         ...challenge,
-        requiresMembership:
-          challenge.requiresMembership ?? !challenge.isDefault,
+        requiresMembership: challenge.requiresMembership ?? !challenge.isDefault,
         completionKind,
         captureKind,
         instruction,
-        surpriseEvidenceChancePercent:
-          challenge.surpriseEvidenceChancePercent ?? 0,
-        surpriseEvidenceWindowSeconds:
-          challenge.surpriseEvidenceWindowSeconds ?? 60,
-        surpriseEvidencePenaltyPoints:
-          challenge.surpriseEvidencePenaltyPoints ?? 25,
+        isActive,
+        surpriseEvidenceChancePercent: challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds: challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints: challenge.surpriseEvidencePenaltyPoints ?? 25,
+        sortOrder: challenge.sortOrder ?? 100,
       },
       update: {
         title: challenge.title,
@@ -488,9 +719,9 @@ async function main(): Promise<void> {
         rewardPoints: challenge.rewardPoints,
         defaultFrequency: challenge.defaultFrequency,
         isDefault: challenge.isDefault,
-        requiresMembership:
-          challenge.requiresMembership ?? !challenge.isDefault,
-        isActive: true,
+        requiresMembership: challenge.requiresMembership ?? !challenge.isDefault,
+        isActive,
+        sortOrder: challenge.sortOrder ?? 100,
         completionKind,
         captureKind,
         deviceMetric: challenge.deviceMetric ?? null,
@@ -499,26 +730,44 @@ async function main(): Promise<void> {
         targetCount: challenge.targetCount ?? null,
         instruction,
         icon: challenge.icon,
-        surpriseEvidenceChancePercent:
-          challenge.surpriseEvidenceChancePercent ?? 0,
-        surpriseEvidenceWindowSeconds:
-          challenge.surpriseEvidenceWindowSeconds ?? 60,
-        surpriseEvidencePenaltyPoints:
-          challenge.surpriseEvidencePenaltyPoints ?? 25,
+        surpriseEvidenceChancePercent: challenge.surpriseEvidenceChancePercent ?? 0,
+        surpriseEvidenceWindowSeconds: challenge.surpriseEvidenceWindowSeconds ?? 60,
+        surpriseEvidencePenaltyPoints: challenge.surpriseEvidencePenaltyPoints ?? 25,
       },
     });
   }
 
   for (const tip of tipSeeds) {
+    const challengeSlug = tip.challengeSlug ?? null;
+    const activityKey = tip.activityKey ?? null;
+    const source = tip.source ?? null;
+    const sourceUrl = tip.sourceUrl ?? null;
+    const isActive = tipIsActive(tip);
+
     await prisma.tip.upsert({
       where: { slug: tip.slug },
-      create: tip,
+      create: {
+        slug: tip.slug,
+        category: tip.category,
+        title: tip.title,
+        body: tip.body,
+        sortOrder: tip.sortOrder,
+        isActive,
+        challengeSlug,
+        activityKey,
+        source,
+        sourceUrl,
+      },
       update: {
         category: tip.category,
         title: tip.title,
         body: tip.body,
         sortOrder: tip.sortOrder,
-        isActive: true,
+        isActive,
+        challengeSlug,
+        activityKey,
+        source,
+        sourceUrl,
       },
     });
   }
@@ -527,10 +776,10 @@ async function main(): Promise<void> {
     where: { slug: 'healthy-starter' },
     create: {
       slug: 'healthy-starter',
-      name: 'Healthy',
+      name: 'Beatset',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
-        'Full challenge catalog for your conditions',
+        'Full fitness challenge catalog',
         'Pose, steps, and gym challenges',
         'Up to five reminders per challenge',
         'Finish-what-you-started nudges',
@@ -543,16 +792,16 @@ async function main(): Promise<void> {
       paymentMethodIds: [],
       prices: {
         create: [
-          { marketKey: 'NG', currency: 'NGN', amountMinor: 100_000 },
+          { marketKey: 'NG', currency: 'NGN', amountMinor: 120_000 },
           { marketKey: '*', currency: 'USD', amountMinor: 200 },
         ],
       },
     },
     update: {
-      name: 'Healthy',
+      name: 'Beatset',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
-        'Full challenge catalog for your conditions',
+        'Full fitness challenge catalog',
         'Pose, steps, and gym challenges',
         'Up to five reminders per challenge',
         'Finish-what-you-started nudges',
@@ -576,9 +825,9 @@ async function main(): Promise<void> {
         planId: starter.id,
         marketKey: 'NG',
         currency: 'NGN',
-        amountMinor: 100_000,
+        amountMinor: 120_000,
       },
-      update: { currency: 'NGN', amountMinor: 100_000 },
+      update: { currency: 'NGN', amountMinor: 120_000 },
     });
     await prisma.membershipPlanPrice.upsert({
       where: {
@@ -592,11 +841,106 @@ async function main(): Promise<void> {
       },
       update: { currency: 'USD', amountMinor: 200 },
     });
+    await prisma.membershipProduct.upsert({
+      where: {
+        provider_providerProductId: {
+          provider: 'apple',
+          providerProductId: 'com.healthyapp.app.premium.month',
+        },
+      },
+      create: {
+        planId: starter.id,
+        provider: 'apple',
+        providerProductId: 'com.healthyapp.app.premium.month',
+        marketKey: '*',
+        isLive: false,
+      },
+      update: {},
+    });
+  }
+
+  await prisma.experiment.upsert({
+    where: { key: 'engagement_holdout_v1' },
+    create: {
+      id: 'exp_engagement_holdout_v1',
+      key: 'engagement_holdout_v1',
+      name: 'Engagement holdout',
+      description:
+        'Ended: cadence treatment caps retired; all members keep original six-slot schedule. Group board_move burst policy is unchanged.',
+      status: 'ended',
+      primaryMetric: 'completion_rate',
+      startAt: new Date(),
+      endAt: new Date(),
+      variants: {
+        create: [
+          {
+            id: 'var_engagement_holdout_v1_holdout',
+            key: 'holdout',
+            name: 'Holdout',
+            weight: 1,
+          },
+          {
+            id: 'var_engagement_holdout_v1_treatment',
+            key: 'treatment',
+            name: 'Treatment',
+            weight: 9,
+          },
+        ],
+      },
+    },
+    update: {
+      name: 'Engagement holdout',
+      description:
+        'Ended: cadence treatment caps retired; all members keep original six-slot schedule. Group board_move burst policy is unchanged.',
+      status: 'ended',
+      primaryMetric: 'completion_rate',
+      endAt: new Date(),
+    },
+  });
+
+  const holdoutExperiment = await prisma.experiment.findUnique({
+    where: { key: 'engagement_holdout_v1' },
+    select: { id: true },
+  });
+
+  if (holdoutExperiment) {
+    await prisma.experimentVariant.upsert({
+      where: {
+        experimentId_key: {
+          experimentId: holdoutExperiment.id,
+          key: 'holdout',
+        },
+      },
+      create: {
+        id: 'var_engagement_holdout_v1_holdout',
+        experimentId: holdoutExperiment.id,
+        key: 'holdout',
+        name: 'Holdout',
+        weight: 1,
+      },
+      update: { name: 'Holdout', weight: 1 },
+    });
+    await prisma.experimentVariant.upsert({
+      where: {
+        experimentId_key: {
+          experimentId: holdoutExperiment.id,
+          key: 'treatment',
+        },
+      },
+      create: {
+        id: 'var_engagement_holdout_v1_treatment',
+        experimentId: holdoutExperiment.id,
+        key: 'treatment',
+        name: 'Treatment',
+        weight: 9,
+      },
+      update: { name: 'Treatment', weight: 9 },
+    });
   }
 
   // eslint-disable-next-line no-console
   console.log(
-    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips, membership starter`,
+    `Seed complete: waitlist seed@example.com, ${challengeSeeds.length} challenges, ${tipSeeds.length} tips, membership starter, engagement holdout`,
   );
 }
 

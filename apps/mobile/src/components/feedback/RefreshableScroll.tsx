@@ -1,12 +1,6 @@
-import { colors } from '@product/brand';
-import { useEffect, useState, type ReactNode } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-  type ScrollViewProps,
-} from 'react-native';
+import { type ReactNode } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
+import { useTheme } from '@/theme';
 import { Loader } from './Loader';
 import { usePullRefresh } from './use-pull-refresh';
 
@@ -16,24 +10,18 @@ interface RefreshableScrollProps extends Omit<ScrollViewProps, 'refreshControl'>
 }
 
 /**
- * iOS Fabric ignores RefreshControl tintColor on first mount, so the system
- * spinner stays dark and disappears on our navy screens. We re-apply the mint
- * tint after attach, and draw our own loader while a pull is in flight.
+ * Fabric makes the RefreshControl tint unreliable. Drive the visible spinner
+ * ourselves and paint the native control in the page colour so the pull
+ * gesture still works without a second spinner.
  */
 export function RefreshableScroll({
   onPullRefresh,
   children,
   ...scrollProps
 }: RefreshableScrollProps) {
+  const { colors } = useTheme();
   const { isRefreshing, onRefresh } = usePullRefresh(onPullRefresh);
-  const [tintColor, setTintColor] = useState(colors.muted);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setTintColor(colors.accent);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, []);
+  const hiddenTint = colors.background;
 
   return (
     <View style={styles.host}>
@@ -42,12 +30,12 @@ export function RefreshableScroll({
         {...scrollProps}
         refreshControl={
           <RefreshControl
-            colors={[tintColor]}
+            colors={[hiddenTint]}
             onRefresh={onRefresh}
-            progressBackgroundColor={colors.surface}
+            progressBackgroundColor={colors.background}
             refreshing={isRefreshing}
-            tintColor={tintColor}
-            titleColor={tintColor}
+            tintColor={hiddenTint}
+            titleColor={hiddenTint}
           />
         }
       >

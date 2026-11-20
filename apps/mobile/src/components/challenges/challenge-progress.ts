@@ -1,9 +1,7 @@
 import type { ChallengeFieldProgress, UserChallengeStatus } from '@product/client';
 
 export type ChallengeProgress =
-  | { kind: 'idle' }
-  | { kind: 'done' }
-  | { kind: 'step'; step: number; total: number };
+  { kind: 'idle' } | { kind: 'done' } | { kind: 'step'; step: number; total: number };
 
 export function challengeProgress(
   status: UserChallengeStatus,

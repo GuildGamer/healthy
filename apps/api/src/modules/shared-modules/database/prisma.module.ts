@@ -1,11 +1,5 @@
-import {
-  Global,
-  Inject,
-  Injectable,
-  Module,
-  type OnApplicationShutdown,
-} from '@nestjs/common';
-import { prisma, type PrismaClient } from '@product/db';
+import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '@nestjs/common';
+import { getPrisma, type PrismaClient } from '@product/db';
 import { PRISMA } from './prisma.tokens.js';
 
 @Injectable()
@@ -22,7 +16,7 @@ class PrismaShutdownHook implements OnApplicationShutdown {
   providers: [
     {
       provide: PRISMA,
-      useValue: prisma satisfies PrismaClient,
+      useFactory: (): PrismaClient => getPrisma(),
     },
     PrismaShutdownHook,
   ],

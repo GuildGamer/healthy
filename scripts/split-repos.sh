@@ -4,7 +4,7 @@
 #
 # Usage:
 #   ./scripts/split-repos.sh mobile
-#   ./scripts/split-repos.sh web
+#   ./scripts/split-repos.sh website
 #   ./scripts/split-repos.sh api
 #
 # Always operates on a fresh clone so the original monorepo stays intact.
@@ -18,10 +18,10 @@ WORK_ROOT="${TMPDIR:-/tmp}/product-split-${STAMP}"
 
 case "$TARGET" in
   mobile) SUBDIR="apps/mobile" ;;
-  web) SUBDIR="apps/web" ;;
+  website) SUBDIR="apps/website" ;;
   api) SUBDIR="apps/api" ;;
   *)
-    echo "Usage: $0 {mobile|web|api}"
+    echo "Usage: $0 {mobile|website|api}"
     exit 1
     ;;
 esac

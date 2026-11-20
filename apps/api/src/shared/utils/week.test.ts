@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   rankingWindow,
+  startOfUtcDay,
   startOfUtcMonth,
   startOfUtcWeek,
   weekStartKey,
 } from './week.js';
+
+describe('startOfUtcDay', () => {
+  it('floors to midnight UTC', () => {
+    expect(startOfUtcDay(new Date('2026-10-22T23:59:59.999Z')).toISOString()).toBe(
+      '2026-10-22T00:00:00.000Z',
+    );
+  });
+});
 
 describe('startOfUtcWeek', () => {
   it.each([
@@ -13,9 +22,7 @@ describe('startOfUtcWeek', () => {
     ['2026-09-06T23:59:59Z', '2026-08-31'], // Sunday, still the same week
     ['2026-09-07T00:00:00Z', '2026-09-07'], // next Monday opens a new one
   ])('maps %s to the week opening %s', (now, expected) => {
-    expect(startOfUtcWeek(new Date(now)).toISOString().slice(0, 10)).toBe(
-      expected,
-    );
+    expect(startOfUtcWeek(new Date(now)).toISOString().slice(0, 10)).toBe(expected);
   });
 
   it('opens exactly at midnight', () => {
@@ -35,9 +42,7 @@ describe('startOfUtcMonth', () => {
     ['2026-08-30T12:00:00Z', '2026-08-01'],
     ['2026-09-01T00:00:00Z', '2026-09-01'],
   ])('maps %s to the month opening %s', (now, expected) => {
-    expect(startOfUtcMonth(new Date(now)).toISOString().slice(0, 10)).toBe(
-      expected,
-    );
+    expect(startOfUtcMonth(new Date(now)).toISOString().slice(0, 10)).toBe(expected);
   });
 
   it('opens exactly at midnight', () => {

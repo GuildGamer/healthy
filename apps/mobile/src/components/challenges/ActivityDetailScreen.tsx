@@ -1,0 +1,315 @@
+import type { ActivityProofClip } from '@product/client';
+import { fontSize, fontWeight, radii, spacing } from '@product/brand';
+import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { DeckButton, DeckNoteCard, DeckPushedPage, DeckSheetMessage } from '@/components/deck';
+import { Loader } from '@/components/feedback';
+import { formatPointsDelta } from '@/components/points';
+import { apiClient } from '@/lib/api';
+import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
+import { type Theme, useThemedStyles } from '@/theme';
+import type { completionShareRoute } from './completion-poster';
+import { ACTIVITY_COPY, POSE_COPY } from './constants/doing-copy';
+import { ProofClipPrimaryRow } from './ProofClipActions';
+import { ProofVideoPlayer } from './ProofVideoPlayer';
+import { type ActivityClipState, useActivityClip } from './useActivityClip';
+
+const AMOUNT_SIZE = 40;
+/** A clip with nothing left to show is a line of text, not a tall empty frame. */
+const COMPACT_FRAME_HEIGHT = 96;
+
+/** One thing done, as a History row opens it. */
+export type ActivityDetail = {
+  title: string;
+  amount: string;
+  when: string;
+  /** Practice earns nothing, so it carries no points line. */
+  points: number | null;
+  proofClip: ActivityProofClip | null;
+  /** Lets a finish History has not caught up with still find its clip on the phone. */
+  userChallengeId: string | null;
+  shareCard: ReturnType<typeof completionShareRoute> | null;
+};
+
+type ActivityDetailScreenProps = {
+  detail: ActivityDetail | undefined;
+  isPending: boolean;
+  onBack: () => void;
+  onRefresh: () => Promise<unknown>;
+};
+
+/** The clip leads, because it is the proof; the share card is one more thing to do with it. */
+export function ActivityDetailScreen({
+  detail,
+  isPending,
+  onBack,
+  onRefresh,
+}: ActivityDetailScreenProps) {
+  return (
+    <DeckPushedPage
+      onBack={onBack}
+      onPullRefresh={onRefresh}
+      testID="activity-detail-screen"
+      title={detail?.title ?? ''}
+    >
+      <ActivityBody
+        detail={detail}
+        isPending={isPending}
+        onBack={onBack}
+        onRetry={() => void onRefresh()}
+      />
+    </DeckPushedPage>
+  );
+}
+
+function ActivityBody({
+  detail,
+  isPending,
+  onBack,
+  onRetry,
+}: {
+  detail: ActivityDetail | undefined;
+  isPending: boolean;
+  onBack: () => void;
+  onRetry: () => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+
+  if (isPending) {
+    return (
+      <View style={styles.loader}>
+        <Loader />
+      </View>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <DeckNoteCard
+        action={{
+          label: ACTIVITY_COPY.tryAgain,
+          onPress: onRetry,
+          testID: 'activity-detail-retry',
+        }}
+        body={ACTIVITY_COPY.notFoundBody}
+        glyph="offline"
+        title={ACTIVITY_COPY.notFoundTitle}
+      />
+    );
+  }
+
+  return <ActivityContent detail={detail} onBack={onBack} />;
+}
+
+function ActivityContent({ detail, onBack }: { detail: ActivityDetail; onBack: () => void }) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const meForProofLimits = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+    staleTime: 60_000,
+  });
+  const maxDurationSeconds = proofClipMaxDurationSeconds(meForProofLimits.data?.proofClipLimits);
+  const clip = useActivityClip(detail.proofClip, detail.userChallengeId);
+  const hasClip = clip.clipId !== null;
+  const shareCard = detail.shareCard;
+  const meta =
+    detail.points === null ? detail.when : `${detail.when} · ${formatPointsDelta(detail.points)}`;
+
+  return (
+    <View style={styles.content}>
+      {hasClip ? <ClipStage clip={clip} /> : null}
+      <View style={styles.facts}>
+        <Text style={styles.amount} testID="activity-detail-amount">
+          {detail.amount}
+        </Text>
+        <Text style={styles.meta}>{meta}</Text>
+      </View>
+      <View style={styles.actions}>
+        {clip.proof.error ? <DeckSheetMessage message={clip.proof.error} /> : null}
+        {clip.canAct ? (
+          <ProofClipPrimaryRow
+            maxDurationSeconds={maxDurationSeconds}
+            proof={clip.proof}
+            showNarrowedHint={clip.isUploaded}
+          />
+        ) : null}
+        {shareCard ? (
+          <DeckButton
+            label={ACTIVITY_COPY.shareCard}
+            onPress={() => router.push(shareCard)}
+            testID="activity-detail-share-card"
+            variant={clip.canAct ? 'quiet' : 'primary'}
+          />
+        ) : null}
+        {clip.isUploaded && clip.clipId ? (
+          <RemoveFromBeatset clipId={clip.clipId} onLeave={onBack} />
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function RemoveFromBeatset({ clipId, onLeave }: { clipId: string; onLeave: () => void }) {
+  const styles = useThemedStyles(createStyles);
+
+  function confirm() {
+    Alert.alert(POSE_COPY.removeTitle, POSE_COPY.removeBody, [
+      { text: POSE_COPY.removeCancel, style: 'cancel' },
+      {
+        text: POSE_COPY.removeConfirm,
+        style: 'destructive',
+        onPress: () => {
+          void apiClient
+            .removeProofClip({ clipId })
+            .then(() => {
+              onLeave();
+            })
+            .catch(() => undefined);
+        },
+      },
+    ]);
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={confirm}
+      style={styles.removeWrap}
+      testID="activity-remove-clip"
+    >
+      <Text style={styles.remove}>{POSE_COPY.removeFromBeatset}</Text>
+    </Pressable>
+  );
+}
+
+function ClipStage({ clip }: { clip: ActivityClipState }) {
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={styles.stage} testID="activity-detail-clip">
+      <ClipFrame clip={clip} />
+      {clip.displayCode ? (
+        <Text style={styles.code} testID="activity-detail-code">
+          {clipCaption(clip)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function ClipFrame({ clip }: { clip: ActivityClipState }) {
+  const styles = useThemedStyles(createStyles);
+
+  if (clip.isLoading) {
+    return (
+      <View style={[styles.frame, styles.centered]}>
+        <Loader />
+      </View>
+    );
+  }
+
+  if (clip.videoUri) {
+    return (
+      <ProofVideoPlayer
+        key={clip.videoUri}
+        posterUri={clip.posterUri}
+        testID="activity-detail-video"
+        uri={clip.videoUri}
+      />
+    );
+  }
+
+  return (
+    <View
+      style={[clip.posterUri ? styles.frame : styles.compactFrame, styles.centered]}
+      testID="activity-detail-clip-missing"
+    >
+      {clip.posterUri ? (
+        <Image source={{ uri: clip.posterUri }} style={StyleSheet.absoluteFill} />
+      ) : null}
+      <Text style={styles.missing}>
+        {clip.isExpired ? POSE_COPY.proofExpired : POSE_COPY.proofNotOnPhone}
+      </Text>
+    </View>
+  );
+}
+
+function clipCaption(clip: ActivityClipState): string {
+  const audienceLabel =
+    clip.audience === 'only_me' ? POSE_COPY.proofOnlyMeStatus : POSE_COPY.proofAnyoneStatus;
+  return `${clip.displayCode} · ${audienceLabel}`;
+}
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    loader: {
+      marginTop: spacing.xl,
+    },
+    content: {
+      gap: spacing.lg,
+      marginTop: spacing.md,
+    },
+    stage: {
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    frame: {
+      width: '100%',
+      aspectRatio: 9 / 16,
+      maxHeight: 420,
+      borderRadius: radii.md,
+      backgroundColor: '#000',
+      overflow: 'hidden',
+    },
+    compactFrame: {
+      width: '100%',
+      height: COMPACT_FRAME_HEIGHT,
+      borderRadius: radii.md,
+      backgroundColor: '#000',
+    },
+    centered: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    missing: {
+      color: '#fff',
+      fontSize: fontSize.sm,
+      paddingHorizontal: spacing.lg,
+      textAlign: 'center',
+    },
+    code: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      letterSpacing: 1,
+    },
+    facts: {
+      paddingHorizontal: spacing.xs,
+    },
+    amount: {
+      color: theme.colors.text,
+      fontSize: AMOUNT_SIZE,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: -1.5,
+      lineHeight: AMOUNT_SIZE + 4,
+    },
+    meta: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      lineHeight: 21,
+      marginTop: 6,
+    },
+    actions: {
+      gap: spacing.sm,
+    },
+    removeWrap: {
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    remove: {
+      color: theme.colors.danger,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+    },
+  });

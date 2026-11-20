@@ -1,18 +1,61 @@
 import type { DeviceActivity, DeviceMetric, HealthLinkStatus } from '@product/client';
+import { Platform } from 'react-native';
+import { trackEvent } from '@/lib/analytics';
+import {
+  aggregateLastNightSleep,
+  lastNightSleepQueryBounds,
+  type SleepInterval,
+} from './sleep-health-aggregate';
+import {
+  deviceSampleFromWalkWorkout,
+  isHealthConnectWalkExerciseType,
+  isHealthKitWalkActivityType,
+  sortWalkSamplesLongestFirst,
+} from './walk-health-samples';
 
 export type DeviceSample = DeviceActivity & {
   label: string;
 };
 
+/** Last night's sleep from Apple Health or Health Connect (UI provenance only). */
+export type SleepSample = {
+  wentToBedAt: string;
+  wokeUpAt: string;
+  source: 'healthkit' | 'health_connect';
+  durationMinutes: number;
+  /** True when the store only had in-bed time, not asleep stages. */
+  inBedOnly: boolean;
+};
+
 export const NATIVE_MOVEMENT_UNAVAILABLE =
-  'This install cannot use location yet. Rebuild the iOS app, then try again. You can still confirm by hand.';
+  'This install cannot use location yet. Update Beatset, then try again. You can still confirm by hand.';
 
 type LocationPermissionStatus = { GRANTED: string };
 
-type LocationModule = {
+export type LocationModule = {
   PermissionStatus: LocationPermissionStatus;
-  Accuracy: { Balanced: number };
+  Accuracy: { Balanced: number; High: number };
+  ActivityType?: { Fitness: number };
   requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
+  requestBackgroundPermissionsAsync?: () => Promise<{ status: string }>;
+  hasStartedLocationUpdatesAsync?: (taskName: string) => Promise<boolean>;
+  startLocationUpdatesAsync?: (
+    taskName: string,
+    options: {
+      accuracy: number;
+      distanceInterval: number;
+      timeInterval: number;
+      showsBackgroundLocationIndicator?: boolean;
+      pausesUpdatesAutomatically?: boolean;
+      activityType?: number;
+      foregroundService?: {
+        notificationTitle: string;
+        notificationBody: string;
+        notificationColor?: string;
+      };
+    },
+  ) => Promise<void>;
+  stopLocationUpdatesAsync?: (taskName: string) => Promise<void>;
   watchPositionAsync: (
     options: {
       accuracy: number;
@@ -26,14 +69,26 @@ type LocationModule = {
   ) => Promise<{ remove: () => void }>;
 };
 
-type PedometerModule = {
+export type PedometerModule = {
   isAvailableAsync: () => Promise<boolean>;
   getPermissionsAsync: () => Promise<{ granted: boolean }>;
   requestPermissionsAsync: () => Promise<{ granted: boolean }>;
-  getStepCountAsync: (
-    start: Date,
-    end: Date,
-  ) => Promise<{ steps: number }>;
+  getStepCountAsync: (start: Date, end: Date) => Promise<{ steps: number }>;
+  /** Live running total since the subscription started. */
+  watchStepCount: (callback: (result: { steps: number }) => void) => {
+    remove: () => void;
+  };
+};
+
+/** Acceleration on each axis, in g, gravity included. */
+export type AccelerometerSample = { x: number; y: number; z: number };
+
+export type AccelerometerModule = {
+  isAvailableAsync: () => Promise<boolean>;
+  setUpdateInterval: (intervalMs: number) => void;
+  addListener: (callback: (sample: AccelerometerSample) => void) => {
+    remove: () => void;
+  };
 };
 
 export function startOfLocalDay(at: Date = new Date()): Date {
@@ -50,10 +105,19 @@ export async function loadLocationModule(): Promise<LocationModule | null> {
   }
 }
 
-async function loadPedometerModule(): Promise<PedometerModule | null> {
+export async function loadPedometerModule(): Promise<PedometerModule | null> {
   try {
     const sensors = await import('expo-sensors');
     return sensors.Pedometer;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadAccelerometerModule(): Promise<AccelerometerModule | null> {
+  try {
+    const sensors = await import('expo-sensors');
+    return sensors.Accelerometer;
   } catch {
     return null;
   }
@@ -69,18 +133,30 @@ export async function requestMovementAccess(): Promise<
     throw new Error(NATIVE_MOVEMENT_UNAVAILABLE);
   }
 
-  const locationResult = location
-    ? await location.requestForegroundPermissionsAsync()
-    : null;
+  const locationResult = location ? await location.requestForegroundPermissionsAsync() : null;
   const motion = pedometer ? await pedometer.requestPermissionsAsync() : null;
-  const granted =
-    locationResult?.status === location?.PermissionStatus.GRANTED ||
-    Boolean(motion?.granted);
+  const locationGranted =
+    locationResult?.status === location?.PermissionStatus.GRANTED;
+  const motionGranted = Boolean(motion?.granted);
 
+  if (location) {
+    trackEvent('permission_result', {
+      permission: 'location',
+      granted: Boolean(locationGranted),
+    });
+  }
+  if (pedometer) {
+    trackEvent('permission_result', {
+      permission: 'motion',
+      granted: motionGranted,
+    });
+  }
+
+  const granted = Boolean(locationGranted) || motionGranted;
   return granted ? 'connected' : 'denied';
 }
 
-export async function readTodaySteps(): Promise<number | null> {
+export async function readTodaySteps(options?: { ask?: boolean }): Promise<number | null> {
   const pedometer = await loadPedometerModule();
   if (!pedometer) {
     return null;
@@ -91,30 +167,35 @@ export async function readTodaySteps(): Promise<number | null> {
     return null;
   }
 
-  const permission = await pedometer.getPermissionsAsync();
+  let permission = await pedometer.getPermissionsAsync();
+  if (!permission.granted && options?.ask) {
+    permission = await pedometer.requestPermissionsAsync();
+  }
   if (!permission.granted) {
     return null;
   }
 
-  const result = await pedometer.getStepCountAsync(
-    startOfLocalDay(),
-    new Date(),
-  );
+  const result = await pedometer.getStepCountAsync(startOfLocalDay(), new Date());
   return result.steps;
 }
 
 /**
- * Watch workouts from Apple Health / Health Connect are not wired yet.
- * The API already accepts those sources; this returns [] until the native
- * Health module is added. Phone GPS and the pedometer cover v1.
+ * Pedometer step totals and finished walk workouts from Apple Health /
+ * Health Connect. Fail closed to [] when the store is missing or denied.
  */
-export async function listTodayDeviceSamples(
-  metric: DeviceMetric,
-): Promise<DeviceSample[]> {
-  if (metric !== 'steps') {
-    return [];
+export async function listTodayDeviceSamples(metric: DeviceMetric): Promise<DeviceSample[]> {
+  if (metric === 'steps') {
+    return listTodayStepSamples();
   }
 
+  if (metric === 'walk') {
+    return listTodayWalkWorkouts();
+  }
+
+  return [];
+}
+
+async function listTodayStepSamples(): Promise<DeviceSample[]> {
   const steps = await readTodaySteps();
   if (steps === null) {
     return [];
@@ -131,4 +212,340 @@ export async function listTodayDeviceSamples(
       label: `${steps.toLocaleString('en-GB')} steps on this phone today`,
     },
   ];
+}
+
+async function listTodayWalkWorkouts(): Promise<DeviceSample[]> {
+  if (Platform.OS === 'ios') {
+    return readHealthKitTodayWalks();
+  }
+
+  if (Platform.OS === 'android') {
+    return readHealthConnectTodayWalks();
+  }
+
+  return [];
+}
+
+/**
+ * Asks Apple Health / Health Connect for sleep and workout read access.
+ * Never writes. Kept as the Connect Health entry point name used by settings.
+ */
+export async function requestSleepHealthAccess(): Promise<
+  Extract<HealthLinkStatus, 'connected' | 'denied'>
+> {
+  return requestHealthStoreAccess();
+}
+
+/** Sleep + walk workouts from the platform health store. Never writes. */
+export async function requestHealthStoreAccess(): Promise<
+  Extract<HealthLinkStatus, 'connected' | 'denied'>
+> {
+  if (Platform.OS === 'ios') {
+    return requestHealthKitStoreAccess();
+  }
+
+  if (Platform.OS === 'android') {
+    return requestHealthConnectStoreAccess();
+  }
+
+  return 'denied';
+}
+
+/**
+ * Last night's sleep in the 18:00 yesterday → 12:00 today window, or null when
+ * unauthorized, unavailable, or empty.
+ */
+export async function readLastNightSleep(now: Date = new Date()): Promise<SleepSample | null> {
+  if (Platform.OS === 'ios') {
+    return readHealthKitLastNightSleep(now);
+  }
+
+  if (Platform.OS === 'android') {
+    return readHealthConnectLastNightSleep(now);
+  }
+
+  return null;
+}
+
+const HEALTHKIT_SLEEP_TYPE = 'HKCategoryTypeIdentifierSleepAnalysis' as const;
+const HEALTHKIT_WORKOUT_TYPE = 'HKWorkoutTypeIdentifier' as const;
+
+const HEALTHKIT_ASLEEP_VALUES = new Set([
+  1, // asleepUnspecified / asleep
+  3, // asleepCore
+  4, // asleepDeep
+  5, // asleepREM
+]);
+const HEALTHKIT_IN_BED_VALUE = 0;
+
+async function requestHealthKitStoreAccess(): Promise<'connected' | 'denied'> {
+  try {
+    const healthkit = await import('@kingstinct/react-native-healthkit');
+    const available = await healthkit.isHealthDataAvailableAsync();
+    if (!available) {
+      trackEvent('permission_result', { permission: 'health', granted: false });
+      return 'denied';
+    }
+
+    await healthkit.requestAuthorization({
+      toRead: [HEALTHKIT_SLEEP_TYPE, HEALTHKIT_WORKOUT_TYPE],
+    });
+    // HealthKit does not report read denial; a successful prompt counts as connected.
+    trackEvent('permission_result', { permission: 'health', granted: true });
+    return 'connected';
+  } catch {
+    trackEvent('permission_result', { permission: 'health', granted: false });
+    return 'denied';
+  }
+}
+
+async function readHealthKitTodayWalks(): Promise<DeviceSample[]> {
+  try {
+    const healthkit = await import('@kingstinct/react-native-healthkit');
+    const available = await healthkit.isHealthDataAvailableAsync();
+    if (!available) {
+      return [];
+    }
+
+    const dayStart = startOfLocalDay();
+    const now = new Date();
+    const workouts = await healthkit.queryWorkoutSamples({
+      limit: 0,
+      ascending: false,
+      filter: {
+        date: {
+          startDate: dayStart,
+          endDate: now,
+        },
+      },
+    });
+
+    const samples: DeviceSample[] = [];
+    for (const workout of workouts) {
+      if (!isHealthKitWalkActivityType(workout.workoutActivityType)) {
+        continue;
+      }
+
+      const durationSeconds =
+        typeof workout.duration?.quantity === 'number'
+          ? workout.duration.quantity
+          : undefined;
+      const distanceMeters =
+        typeof workout.totalDistance?.quantity === 'number'
+          ? workout.totalDistance.quantity
+          : null;
+
+      const sample = deviceSampleFromWalkWorkout({
+        source: 'healthkit',
+        externalId: `healthkit:${workout.uuid}`,
+        startedAt: workout.startDate,
+        endedAt: workout.endDate,
+        durationSeconds,
+        distanceMeters,
+      });
+      if (sample) {
+        samples.push(sample);
+      }
+    }
+
+    return sortWalkSamplesLongestFirst(samples);
+  } catch {
+    return [];
+  }
+}
+
+async function readHealthKitLastNightSleep(now: Date): Promise<SleepSample | null> {
+  try {
+    const healthkit = await import('@kingstinct/react-native-healthkit');
+    const available = await healthkit.isHealthDataAvailableAsync();
+    if (!available) {
+      return null;
+    }
+
+    const { start, end } = lastNightSleepQueryBounds(now);
+    const samples = await healthkit.queryCategorySamples(HEALTHKIT_SLEEP_TYPE, {
+      limit: 0,
+      ascending: true,
+      filter: {
+        date: {
+          startDate: start,
+          endDate: end,
+        },
+      },
+    });
+
+    const intervals: SleepInterval[] = [];
+    for (const sample of samples) {
+      const startMs = sample.startDate.getTime();
+      const endMs = sample.endDate.getTime();
+      if (!(endMs > startMs)) {
+        continue;
+      }
+
+      if (HEALTHKIT_ASLEEP_VALUES.has(sample.value)) {
+        intervals.push({ startMs, endMs, kind: 'asleep' });
+        continue;
+      }
+
+      if (sample.value === HEALTHKIT_IN_BED_VALUE) {
+        intervals.push({ startMs, endMs, kind: 'in_bed' });
+      }
+    }
+
+    const night = aggregateLastNightSleep(intervals);
+    if (!night) {
+      return null;
+    }
+
+    return {
+      ...night,
+      source: 'healthkit',
+    };
+  } catch {
+    return null;
+  }
+}
+
+const HEALTH_CONNECT_ASLEEP_STAGES = new Set([
+  2, // SLEEPING
+  4, // LIGHT
+  5, // DEEP
+  6, // REM
+]);
+
+async function requestHealthConnectStoreAccess(): Promise<'connected' | 'denied'> {
+  try {
+    const healthConnect = await import('react-native-health-connect');
+    const ready = await healthConnect.initialize();
+    if (!ready) {
+      return 'denied';
+    }
+
+    const granted = await healthConnect.requestPermission([
+      { accessType: 'read', recordType: 'SleepSession' },
+      { accessType: 'read', recordType: 'ExerciseSession' },
+    ]);
+    const allowed = granted.some(
+      (permission) =>
+        'recordType' in permission &&
+        (permission.recordType === 'SleepSession' ||
+          permission.recordType === 'ExerciseSession') &&
+        permission.accessType === 'read',
+    );
+    return allowed ? 'connected' : 'denied';
+  } catch {
+    return 'denied';
+  }
+}
+
+async function readHealthConnectTodayWalks(): Promise<DeviceSample[]> {
+  try {
+    const healthConnect = await import('react-native-health-connect');
+    const ready = await healthConnect.initialize();
+    if (!ready) {
+      return [];
+    }
+
+    const dayStart = startOfLocalDay();
+    const now = new Date();
+    const { records } = await healthConnect.readRecords('ExerciseSession', {
+      timeRangeFilter: {
+        operator: 'between',
+        startTime: dayStart.toISOString(),
+        endTime: now.toISOString(),
+      },
+    });
+
+    const samples: DeviceSample[] = [];
+    for (const record of records) {
+      if (!isHealthConnectWalkExerciseType(record.exerciseType)) {
+        continue;
+      }
+
+      const metadataId = record.metadata?.id?.trim();
+      const externalId = metadataId
+        ? `health_connect:${metadataId}`
+        : `health_connect:${record.startTime}:${record.endTime}`;
+
+      const sample = deviceSampleFromWalkWorkout({
+        source: 'health_connect',
+        externalId,
+        startedAt: new Date(record.startTime),
+        endedAt: new Date(record.endTime),
+      });
+      if (sample) {
+        samples.push(sample);
+      }
+    }
+
+    return sortWalkSamplesLongestFirst(samples);
+  } catch {
+    return [];
+  }
+}
+
+async function readHealthConnectLastNightSleep(now: Date): Promise<SleepSample | null> {
+  try {
+    const healthConnect = await import('react-native-health-connect');
+    const ready = await healthConnect.initialize();
+    if (!ready) {
+      return null;
+    }
+
+    const { start, end } = lastNightSleepQueryBounds(now);
+    const { records } = await healthConnect.readRecords('SleepSession', {
+      timeRangeFilter: {
+        operator: 'between',
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+      },
+    });
+
+    const intervals: SleepInterval[] = [];
+    for (const record of records) {
+      const stages = record.stages ?? [];
+      if (stages.length === 0) {
+        const startMs = Date.parse(record.startTime);
+        const endMs = Date.parse(record.endTime);
+        if (endMs > startMs) {
+          intervals.push({ startMs, endMs, kind: 'asleep' });
+        }
+        continue;
+      }
+
+      let hasAsleep = false;
+      for (const stage of stages) {
+        if (!HEALTH_CONNECT_ASLEEP_STAGES.has(stage.stage)) {
+          continue;
+        }
+        const startMs = Date.parse(stage.startTime);
+        const endMs = Date.parse(stage.endTime);
+        if (!(endMs > startMs)) {
+          continue;
+        }
+        hasAsleep = true;
+        intervals.push({ startMs, endMs, kind: 'asleep' });
+      }
+
+      if (!hasAsleep) {
+        const startMs = Date.parse(record.startTime);
+        const endMs = Date.parse(record.endTime);
+        if (endMs > startMs) {
+          intervals.push({ startMs, endMs, kind: 'in_bed' });
+        }
+      }
+    }
+
+    const night = aggregateLastNightSleep(intervals);
+    if (!night) {
+      return null;
+    }
+
+    return {
+      ...night,
+      source: 'health_connect',
+    };
+  } catch {
+    return null;
+  }
 }

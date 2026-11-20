@@ -1,166 +1,129 @@
-import { colors, spacing } from '@product/brand';
+import { fontWeight, spacing } from '@product/brand';
 import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { FormButton, OtpInput, PasswordInsetField } from '@/components/forms';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  FormButton,
-  FormErrorBanner,
-  FormField,
-  PasswordField,
-} from '@/components/forms';
-import { resetPasswordWithOtp } from '@/lib/auth-client';
-import { AuthScreenHeader } from './AuthScreenHeader';
+  requestPasswordResetEmail,
+  resetPasswordWithOtp,
+  signIn,
+  waitForSession,
+} from '@/lib/auth-client';
+import { saveLastSignInMethod } from '@/lib/last-sign-in-method';
+import { type Theme, useThemedStyles } from '@/theme';
+import { MINIMUM_PASSWORD_LENGTH, PASSWORD_RULE } from '@/lib/credentials';
+import { useEmailCode } from './email-code';
+import { EmailCodeStatus } from './EmailCodeStatus';
+import { FrontDoorLayout, FrontDoorTitle } from './FrontDoorLayout';
+import { FieldRule } from './FrontDoorText';
 
-const MINIMUM_PASSWORD_LENGTH = 8;
-const RESET_FAILED_MESSAGE =
-  'We could not reset that password. Request a new code and try again.';
-const NETWORK_FAILED_MESSAGE =
-  'We could not reach the server. Check your connection and try again.';
-
-type ResetPasswordScreenProps = {
+interface ResetPasswordScreenProps {
   email: string;
-  otp: string;
   onBackPress: () => void;
-  onResetComplete: () => void;
-};
+  /** Called once signed in with the new password: no success page, no second log in. */
+  onSignedIn: () => Promise<void> | void;
+}
 
-export function ResetPasswordScreen({
-  email,
-  otp,
-  onBackPress,
-  onResetComplete,
-}: ResetPasswordScreenProps) {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function ResetPasswordScreen({ email, onBackPress, onSignedIn }: ResetPasswordScreenProps) {
+  const styles = useThemedStyles(createStyles);
+  const emailCode = useEmailCode(() => requestPasswordResetEmail(email));
+  const [password, setPassword] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const requirements = [
-    {
-      text: `At least ${MINIMUM_PASSWORD_LENGTH} characters`,
-      valid: newPassword.length >= MINIMUM_PASSWORD_LENGTH,
-    },
-    {
-      text: 'One uppercase letter',
-      valid: /[A-Z]/.test(newPassword),
-    },
-    {
-      text: 'One lowercase letter',
-      valid: /[a-z]/.test(newPassword),
-    },
-    {
-      text: 'One number',
-      valid: /[0-9]/.test(newPassword),
-    },
-  ];
+  const isPasswordLongEnough = password.length >= MINIMUM_PASSWORD_LENGTH;
+  const canSave = emailCode.isComplete && isPasswordLongEnough;
 
-  const passwordsMismatch =
-    confirmPassword.length > 0 && newPassword !== confirmPassword;
-  const canSubmit =
-    requirements.every((requirement) => requirement.valid) &&
-    newPassword === confirmPassword &&
-    otp.length === 6;
-
-  async function handleSubmit() {
-    if (!canSubmit) {
+  async function saveAndSignIn() {
+    if (!canSave || isSaving) {
       return;
     }
 
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
+    setIsSaving(true);
     try {
-      const { error } = await resetPasswordWithOtp({
-        email,
-        otp,
-        password: newPassword,
-      });
-
-      if (error) {
-        setErrorMessage(RESET_FAILED_MESSAGE);
+      const reset = await resetPasswordWithOtp({ email, otp: emailCode.code, password });
+      if (reset.error) {
+        emailCode.reject(reset.error);
         return;
       }
 
-      onResetComplete();
+      const signedIn = await signIn.email({ email, password });
+      if (signedIn.error || !(await waitForSession())) {
+        emailCode.failConnection();
+        return;
+      }
+
+      await saveLastSignInMethod('email');
+      await onSignedIn();
     } catch {
-      setErrorMessage(NETWORK_FAILED_MESSAGE);
+      emailCode.failConnection();
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <AuthScreenHeader
-            onBackPress={onBackPress}
-            subtitle="Your new password must be different from previously used passwords."
-            title="Create New Password"
-          />
-
-          {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
-
-          <FormField label="New Password" required>
-            <PasswordField
-              autoComplete="new-password"
-              onChangeText={setNewPassword}
-              placeholder="Enter new password"
-              requirements={requirements}
-              testID="reset-password"
-              value={newPassword}
-            />
-          </FormField>
-
-          <FormField
-            error={passwordsMismatch ? 'Passwords do not match' : undefined}
-            label="Confirm New Password"
-            required
-          >
-            <PasswordField
-              autoComplete="new-password"
-              hasError={passwordsMismatch}
-              onChangeText={setConfirmPassword}
-              placeholder="Re-enter new password"
-              testID="reset-password-confirm"
-              value={confirmPassword}
-            />
-          </FormField>
-
+    <FrontDoorLayout
+      dock={
+        emailCode.failure === 'expired' ? (
           <FormButton
-            disabled={!canSubmit}
-            label="Reset Password"
-            loading={isSubmitting}
-            onPress={handleSubmit}
+            label="Send a new code"
+            loading={emailCode.isResending}
+            onPress={() => void emailCode.resend()}
+            testID="reset-password-new-code"
+          />
+        ) : (
+          <FormButton
+            disabled={!canSave}
+            label="Save and sign in"
+            loading={isSaving}
+            onPress={() => void saveAndSignIn()}
             testID="reset-password-submit"
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        )
+      }
+      onBackPress={onBackPress}
+      testID="reset-password"
+    >
+      <FrontDoorTitle
+        subtitle={
+          <>
+            Enter the code we sent to <Text style={styles.email}>{email}</Text>, then choose a new
+            password.
+          </>
+        }
+        title="Set a new password"
+      />
+      <View style={styles.code}>
+        <OtpInput
+          onChange={emailCode.changeCode}
+          testID="reset-password-otp"
+          tone={emailCode.tone}
+          value={emailCode.code}
+        />
+      </View>
+      <EmailCodeStatus emailCode={emailCode} />
+      <PasswordInsetField
+        containerStyle={styles.password}
+        label="New password"
+        onChangeText={setPassword}
+        purpose="new"
+        testID="reset-password-new"
+        value={password}
+      />
+      <FieldRule met={isPasswordLongEnough} text={PASSWORD_RULE} />
+    </FrontDoorLayout>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    email: {
+      color: theme.colors.text,
+      fontWeight: fontWeight.semibold,
+    },
+    code: {
+      marginTop: spacing.lg,
+    },
+    password: {
+      marginTop: spacing.md,
+    },
+  });

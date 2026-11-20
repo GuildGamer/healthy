@@ -1,7 +1,4 @@
-import {
-  minSwingForBody,
-  PushupRepMachine,
-} from './pushup-rep-machine';
+import { minSwingForBody, PushupRepMachine } from './pushup-rep-machine';
 
 function triangleWave(timeMs: number, cycleMs: number, top: number, bottom: number): number {
   const phase = (timeMs % cycleMs) / cycleMs;

@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 import { ScreenLoader } from '@/components/feedback';
-import { ManageChallengesScreen } from '@/components/challenges';
+import { AddChallengeScreen } from '@/components/challenges';
 import { useSession } from '@/lib/auth-client';
 
 export default function ManageChallengesRoute() {
@@ -14,5 +14,5 @@ export default function ManageChallengesRoute() {
     return <Redirect href="/login" />;
   }
 
-  return <ManageChallengesScreen />;
+  return <AddChallengeScreen />;
 }

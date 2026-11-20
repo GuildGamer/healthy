@@ -19,14 +19,19 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 |------|------|
 | `03-contract-first` | `packages/contract`, `packages/client`, `apps/api` |
 | `06-mobile` | `apps/mobile` |
-| `07-web` | `apps/web` |
+| `07-website` | `apps/website` |
 | `11-admin` | `apps/admin`, `apps/api/src/modules/admin` |
 | `09-prisma` | `packages/db` |
 | `10-typescript` | `*.ts` / `*.tsx` |
+| `12-social` | Groups, matches, invites, leaderboard-facing surfaces |
 
 ## Human docs
 
 - `README.md` — quick start
+- `docs/product.md` — north star, core loop, voice guide
+- `docs/design-direction.md` — visual direction: modes, colour roles, type, deck cards
+- `docs/social.md` — group challenges, invite loop, anti-complexity tenets
+- `docs/invite-preview.md` — invite link preview image spec and designer brief
 - `docs/testing.md` — device + CI testing loop
 - `docs/releases.md` — EAS Update vs store
 - `docs/splitting-repos.md` — optional later split
