@@ -1,6 +1,11 @@
 import * as Haptics from 'expo-haptics';
 import { requireOptionalNativeModule } from 'expo-modules-core';
-import { isHapticsNativeAvailable, playGoalReachedHaptic, playSentHaptic } from './haptics';
+import {
+  isHapticsNativeAvailable,
+  playGoalReachedHaptic,
+  playSelectionHaptic,
+  playSentHaptic,
+} from './haptics';
 
 jest.mock('expo-modules-core', () => {
   const actual = jest.requireActual('expo-modules-core') as object;
@@ -57,5 +62,21 @@ describe('haptics', () => {
     await playSentHaptic();
 
     expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
+  });
+
+  it('plays a selection tick when a control changes', async () => {
+    mockedRequire.mockReturnValue({});
+
+    await playSelectionHaptic();
+
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays silent on a selection tick when the native module is missing', async () => {
+    mockedRequire.mockReturnValue(null);
+
+    await playSelectionHaptic();
+
+    expect(Haptics.selectionAsync).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLoader } from '@/components/feedback';
 import { Glyph, type GlyphName } from '@/components/icons';
 import { useSession } from '@/lib/auth-client';
+import { playSelectionHaptic } from '@/lib/haptics';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 import {
@@ -149,6 +150,16 @@ function TabsShell() {
 
   return (
     <Tabs
+      screenListeners={({ navigation, route }) => ({
+        tabPress: () => {
+          const state = navigation.getState();
+          const current = state.routes[state.index];
+          if (!current || current.key === route.key) {
+            return;
+          }
+          void playSelectionHaptic();
+        },
+      })}
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,

@@ -53,3 +53,8 @@ export async function playGoalReachedHaptic(): Promise<void> {
 export async function playSentHaptic(): Promise<void> {
   await playHaptic((haptics) => haptics.impactAsync(haptics.ImpactFeedbackStyle.Light));
 }
+
+/** Selection tick for a control that changed, such as the bottom tab bar. */
+export async function playSelectionHaptic(): Promise<void> {
+  await playHaptic((haptics) => haptics.selectionAsync());
+}
