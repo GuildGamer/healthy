@@ -231,7 +231,7 @@ function BillboardBand({ scale }: { scale: number }) {
         },
       ]}
     >
-      <Text style={[styles.bandWordmark, { fontSize: designSize.wordmark * scale }]}>Healthy</Text>
+      <Text style={[styles.bandWordmark, { fontSize: designSize.wordmark * scale }]}>Beatset</Text>
       <Text
         style={[styles.bandUrl, { fontSize: designSize.url * scale, letterSpacing: 0.2 * scale }]}
       >

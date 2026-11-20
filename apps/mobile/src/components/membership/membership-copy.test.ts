@@ -10,7 +10,7 @@ function plan(overrides: Partial<MembershipOfferedPlan>): MembershipOfferedPlan 
   return {
     planId: 'plan-month',
     slug: 'healthy',
-    name: 'Healthy',
+    name: 'Beatset',
     tagline: 'Every challenge',
     features: ['The full challenge catalog'],
     interval: 'month',

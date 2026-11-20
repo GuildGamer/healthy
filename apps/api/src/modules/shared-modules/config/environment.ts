@@ -61,14 +61,14 @@ export type MailConfig =
 const DEFAULT_SEND_BYTE_FROM = 'hello@gethealthyapp.com';
 
 /**
- * Inbox From line: always "Healthy &lt;mailbox&gt;" so clients never show the
+ * Inbox From line: always "Beatset &lt;mailbox&gt;" so clients never show the
  * bare local-part (e.g. "hello") when MAIL_FROM / SMTP_FROM is just an address.
  */
 export function mailFromAddress(mailbox: string): string {
   const trimmed = mailbox.trim();
   const wrapped = /^.*<([^>]+)>\s*$/.exec(trimmed);
   const address = (wrapped?.[1] ?? trimmed).trim();
-  return `Healthy <${address}>`;
+  return `Beatset <${address}>`;
 }
 
 /**

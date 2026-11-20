@@ -84,8 +84,8 @@ export function periodReportShareText(report: PeriodReport): string {
       ? '1 day active'
       : `${report.activeDays} days active`;
   return highlight
-    ? `I had ${days} on Healthy (${report.periodLabel}). ${highlight}.`
-    : `I had ${days} on Healthy (${report.periodLabel}).`;
+    ? `I had ${days} on Beatset (${report.periodLabel}). ${highlight}.`
+    : `I had ${days} on Beatset (${report.periodLabel}).`;
 }
 
 /** Metric period poster: activity fill, total as the hero. */
@@ -136,5 +136,5 @@ export function metricPeriodShareText(stats: MetricPeriodStats): string {
   const label = isMatchMetric(stats.metric)
     ? MATCH_METRIC_LABEL[stats.metric]
     : stats.metric;
-  return `I did ${formatCount(stats.count)} ${stats.unit} on Healthy (${stats.periodLabel}). ${label}.`;
+  return `I did ${formatCount(stats.count)} ${stats.unit} on Beatset (${stats.periodLabel}). ${label}.`;
 }

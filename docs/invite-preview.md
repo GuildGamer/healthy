@@ -6,7 +6,7 @@ Telegram and Slack then fetch the page's Open Graph image. That image is drawn
 on demand by
 [`apps/website/src/pages/match/[token]/og.png.ts`](../apps/website/src/pages/match/[token]/og.png.ts).
 
-It is the first thing most new members ever see of Healthy, so it is a product
+It is the first thing most new members ever see of Beatset, so it is a product
 surface, not a meta tag. It follows [`design-direction.md`](design-direction.md).
 
 ## Why it was redesigned
@@ -64,7 +64,7 @@ tap away on the join screen, so the card does not repeat them.
 - **Trade-off:** some apps show a square preview smaller than a wide one —
   WhatsApp tends to use a compact thumbnail beside the text. Check on device
   in WhatsApp and iMessage before shipping.
-- **Healthy night**, as for every exported image.
+- **Beatset night**, as for every exported image.
 - **Small file.** Flat colour; the only raster image is the host photo.
 - **Satori renderer.** Flexbox, solid fills, rounded corners, borders (dashed
   included), simple shadows, embedded PNG/JPEG, bundled fonts. No blend modes,
@@ -112,13 +112,13 @@ At thumbnail size:
 
 ## Designer brief
 
-> **Healthy invite link preview, 1200×1200 square**
+> **Beatset invite link preview, 1200×1200 square**
 >
 > When a member shares a contest invite, this image is what their friend sees in
 > WhatsApp or iMessage. It should say "Ada invited you into Push-up Sunday" in
 > about a second. The whole image is one card in the activity's colour — the
 > card the friend will find in their Today deck after joining — with no footer
-> band. Follow `docs/design-direction.md`: Healthy night, activity colours,
+> band. Follow `docs/design-direction.md`: Beatset night, activity colours,
 > system-sans titles. No leaf.
 >
 > Keep it to who, what and when; the join screen carries the rule, roster and

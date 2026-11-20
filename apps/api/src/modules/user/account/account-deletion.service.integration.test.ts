@@ -235,7 +235,7 @@ async function seedGroups(): Promise<void> {
 async function seedRenewingPlan(): Promise<void> {
   const plan = await prisma.membershipPlan.upsert({
     where: { slug: 'deletion-test' },
-    create: { slug: 'deletion-test', name: 'Healthy', tagline: 'All of it', features: ['All'] },
+    create: { slug: 'deletion-test', name: 'Beatset', tagline: 'All of it', features: ['All'] },
     update: {},
   });
   await prisma.subscription.create({

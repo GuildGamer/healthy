@@ -97,7 +97,7 @@ function ReminderPreview({
       <Image accessibilityIgnoresInvertColors source={appIcon} style={styles.previewIcon} />
       <View style={styles.previewText}>
         <View style={styles.previewHeader}>
-          <Text style={styles.previewApp}>Healthy</Text>
+          <Text style={styles.previewApp}>Beatset</Text>
           <Text style={styles.previewTime}>{formatClockTime(reminderMinute)}</Text>
         </View>
         <Text style={styles.previewTitle}>{REMINDER_TITLE}</Text>

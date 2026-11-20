@@ -1,6 +1,6 @@
 # Product
 
-Healthy is the app a group chat uses to settle "who's stronger".
+Beatset is the app a group chat uses to settle "who's stronger".
 
 The product is a short, camera-verified fitness contest between people who
 already know each other. One person starts a contest, shares a link that says

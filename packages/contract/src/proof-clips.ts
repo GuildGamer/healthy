@@ -340,7 +340,7 @@ export const verifyProofCodeOutputSchema = z.discriminatedUnion('outcome', [
   z.object({
     outcome: z.literal('private'),
   }),
-  /** The code is real but the video has not reached Healthy yet. */
+  /** The code is real but the video has not reached Beatset yet. */
   z.object({
     outcome: z.literal('not_uploaded'),
   }),

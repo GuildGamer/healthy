@@ -17,6 +17,6 @@ export const WALK_OFFER_NOT_NOW_LABEL = 'Not now';
 /** Android background-location service while watching for a walk. */
 export const WALK_OFFER_FOREGROUND_SERVICE = {
   notificationTitle: 'Looking out for your walk',
-  notificationBody: 'Healthy will ask when it looks like you have started.',
+  notificationBody: 'Beatset will ask when it looks like you have started.',
   notificationColor: '#3DDC97',
 } as const;

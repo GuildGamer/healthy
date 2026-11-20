@@ -98,7 +98,7 @@ describe('AdminNotificationsService', () => {
         to: 'ada@example.com',
         subject: 'Do one now',
         text: expect.stringContaining('Got a few minutes?'),
-        html: expect.stringContaining('Healthy'),
+        html: expect.stringContaining('Beatset'),
       }),
     );
     expect(prisma.adminAuditEvent.create).toHaveBeenCalled();

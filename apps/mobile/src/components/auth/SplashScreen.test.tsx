@@ -62,12 +62,12 @@ describe('SplashScreen', () => {
     jest.restoreAllMocks();
   });
 
-  it('shows the app icon and the Healthy wordmark, cards tucked behind', async () => {
+  it('shows the app icon and the Beatset wordmark, cards tucked behind', async () => {
     await renderSplash({ hasNativeSplashHidden: false, isReady: false, onExited: jest.fn() });
 
     expect(screen.getByTestId('splash-screen')).toBeOnTheScreen();
     expect(screen.getByTestId('splash-icon')).toBeOnTheScreen();
-    expect(screen.getByText('Healthy')).toBeOnTheScreen();
+    expect(screen.getByText('Beatset')).toBeOnTheScreen();
     expect(backCard()).toHaveStyle({ opacity: 0 });
   });
 

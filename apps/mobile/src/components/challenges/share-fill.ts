@@ -22,7 +22,7 @@ export type ShareFillOption = {
 };
 
 /**
- * Ordered swatches for the share colour carousel. Hexes are the Healthy-night
+ * Ordered swatches for the share colour carousel. Hexes are the Beatset-night
  * deck fills so exports stay on-brand regardless of the phone's mode.
  */
 export const SHARE_FILL_OPTIONS: readonly ShareFillOption[] = [

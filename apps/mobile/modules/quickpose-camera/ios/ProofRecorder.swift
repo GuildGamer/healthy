@@ -460,7 +460,7 @@ final class ProofRecorder {
 
   /// Top-left: recording pip and wordmark.
   private static func drawBrandChip(in rect: CGRect, metrics: ChromeMetrics) {
-    let brand = "Healthy" as NSString
+    let brand = "Beatset" as NSString
     let attributes = textAttributes(font: metrics.brandFont)
     let textSize = brand.size(withAttributes: attributes)
     let padding = metrics.chipPadding

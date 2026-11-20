@@ -18,7 +18,7 @@ function LaunchLayout() {
 const SCREENS = {
   '(tabs)/_layout': () => <Slot />,
   '(tabs)/index': () => <Text>Today</Text>,
-  '(auth)/onboarding': () => <Text>Welcome to Healthy</Text>,
+  '(auth)/onboarding': () => <Text>Welcome to Beatset</Text>,
 };
 
 async function renderLaunch(index: () => React.JSX.Element) {

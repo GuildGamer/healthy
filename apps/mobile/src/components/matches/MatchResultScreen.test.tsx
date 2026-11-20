@@ -101,7 +101,7 @@ describe('MatchResultScreen', () => {
 
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(share.mock.calls[0]?.[0]).toEqual({
-      message: 'I won a 7-day walking group on Healthy.',
+      message: 'I won a 7-day walking group on Beatset.',
     });
     share.mockRestore();
     await view.cleanup();

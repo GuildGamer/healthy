@@ -138,5 +138,5 @@ export function nextDayKey(dayKey: string): string {
 export function shareDayMessage(completedCount: number, streakDays: number): string {
   const challenges = completedCount === 1 ? '1 challenge' : `${completedCount} challenges`;
   const run = streakDays > 1 ? ` ${streakDays} days in a row.` : '';
-  return `I finished ${challenges} on Healthy today.${run}`;
+  return `I finished ${challenges} on Beatset today.${run}`;
 }

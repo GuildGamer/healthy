@@ -11,7 +11,7 @@ import {
 } from './pose-session-copy';
 
 describe('rewritePoseCoachPrompt', () => {
-  it('rewrites QuickPose’s plank side-on coach into Healthy wording', () => {
+  it('rewrites QuickPose’s plank side-on coach into Beatset wording', () => {
     expect(rewritePoseCoachPrompt('Get on your front, side on')).toBe(POSE_PLANK_SIDE_ON);
   });
 

@@ -8,7 +8,7 @@ export interface HealthCategoryOption {
   line: string;
   /** Material Community Icons glyph, same pack as challenge marks. */
   mark: string;
-  /** Healthy's own icon family, used on the condition picker. */
+  /** Beatset's own icon family, used on the condition picker. */
   glyph: GlyphName;
 }
 

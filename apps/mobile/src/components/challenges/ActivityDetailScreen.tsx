@@ -144,14 +144,14 @@ function ActivityContent({ detail, onBack }: { detail: ActivityDetail; onBack: (
           />
         ) : null}
         {clip.isUploaded && clip.clipId ? (
-          <RemoveFromHealthy clipId={clip.clipId} onLeave={onBack} />
+          <RemoveFromBeatset clipId={clip.clipId} onLeave={onBack} />
         ) : null}
       </View>
     </View>
   );
 }
 
-function RemoveFromHealthy({ clipId, onLeave }: { clipId: string; onLeave: () => void }) {
+function RemoveFromBeatset({ clipId, onLeave }: { clipId: string; onLeave: () => void }) {
   const styles = useThemedStyles(createStyles);
 
   function confirm() {
@@ -179,7 +179,7 @@ function RemoveFromHealthy({ clipId, onLeave }: { clipId: string; onLeave: () =>
       style={styles.removeWrap}
       testID="activity-remove-clip"
     >
-      <Text style={styles.remove}>{POSE_COPY.removeFromHealthy}</Text>
+      <Text style={styles.remove}>{POSE_COPY.removeFromBeatset}</Text>
     </Pressable>
   );
 }

@@ -27,7 +27,7 @@ describe('otpMailContent', () => {
     expect(mail.text).toContain('123456');
     expect(mail.html).toContain('letter-spacing:8px');
     expect(mail.html).toContain('123456');
-    expect(mail.html).toContain('Healthy');
+    expect(mail.html).toContain('Beatset');
     expect(mail.html).not.toContain('Reset your password');
     expect(mail.html).not.toContain('height:6px');
     expect(mail.html).not.toContain('width:40px');
@@ -35,7 +35,7 @@ describe('otpMailContent', () => {
 });
 
 describe('periodRecapMail', () => {
-  it('offers Open in Healthy', () => {
+  it('offers Open in Beatset', () => {
     const mail = periodRecapMail({
       period: 'week',
       periodLabel: 'Oct 19–25',
@@ -44,8 +44,8 @@ describe('periodRecapMail', () => {
       openUrl: 'https://www.gethealthyapp.com/progress/report?period=week&on=2026-10-25',
     });
 
-    expect(mail.subject).toBe('Your week on Healthy');
-    expect(mail.html).toContain('Open in Healthy');
+    expect(mail.subject).toBe('Your week on Beatset');
+    expect(mail.html).toContain('Open in Beatset');
     expect(mail.text).toContain('6 days active');
   });
 });

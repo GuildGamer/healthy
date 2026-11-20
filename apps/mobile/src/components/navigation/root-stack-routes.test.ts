@@ -30,7 +30,7 @@ function registeredScreens(): Map<string, string> {
 }
 
 /**
- * The root stack draws a native "Back / Healthy" header by default, and every
+ * The root stack draws a native "Back / Beatset" header by default, and every
  * page draws its own `DeckPageNav`. A route left out of `_layout.tsx` shows both.
  */
 describe('root stack routes', () => {

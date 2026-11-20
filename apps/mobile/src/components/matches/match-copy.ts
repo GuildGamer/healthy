@@ -124,7 +124,7 @@ export const BOARD_COPY = {
   nudgeTitle: (name: string) => `Nudge ${name}?`,
   nudgeNote: (name: string) => `This is what ${name} gets. One nudge per person a day.`,
   nudgeSend: 'Send nudge',
-  pushApp: 'Healthy',
+  pushApp: 'Beatset',
 } as const;
 
 export const JOIN_COPY = {

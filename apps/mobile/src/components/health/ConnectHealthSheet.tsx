@@ -46,7 +46,7 @@ export function ConnectHealthSheet({
         </Text>
         <Text style={styles.body}>
           We only read workouts, steps, sleep, and the route you start in the app. You confirm
-          before anything is marked done. Healthy never writes to the health store.
+          before anything is marked done. Beatset never writes to the health store.
         </Text>
         {healthLink.errorMessage ? <FormErrorBanner message={healthLink.errorMessage} /> : null}
       </View>

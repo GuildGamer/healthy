@@ -15,7 +15,7 @@ function planInput() {
   return {
     id: 'plan-1',
     slug: 'healthy-starter',
-    name: 'Healthy',
+    name: 'Beatset',
     tagline: 'Keep the streak honest.',
     features: ['Full catalog'],
     interval: 'year' as const,
@@ -57,7 +57,7 @@ describe('AdminMembershipService live billing lock', () => {
     const updated = {
       id: 'plan-1',
       slug: 'healthy-starter',
-      name: 'Healthy Plus',
+      name: 'Beatset Plus',
       tagline: 'Keep the streak honest.',
       features: ['Full catalog'],
       interval: 'month',
@@ -113,7 +113,7 @@ describe('AdminMembershipService live billing lock', () => {
     const result = await service.update(admin, {
       ...planInput(),
       interval: 'month',
-      name: 'Healthy Plus',
+      name: 'Beatset Plus',
       prices: [
         {
           marketKey: 'NG',
@@ -123,7 +123,7 @@ describe('AdminMembershipService live billing lock', () => {
       ],
     });
 
-    expect(result.plan.name).toBe('Healthy Plus');
+    expect(result.plan.name).toBe('Beatset Plus');
     expect(result.plan.hasLiveBilling).toBe(true);
     expect(result.plan.interval).toBe('month');
   });

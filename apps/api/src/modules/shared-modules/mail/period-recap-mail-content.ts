@@ -10,10 +10,10 @@ export function periodRecapMail(input: {
 }): MailParts {
   const title =
     input.period === 'week'
-      ? 'Your week on Healthy'
+      ? 'Your week on Beatset'
       : input.period === 'month'
-        ? 'Your month on Healthy'
-        : 'Your year on Healthy';
+        ? 'Your month on Beatset'
+        : 'Your year on Beatset';
 
   const days =
     input.activeDays === 1 ? '1 day active' : `${input.activeDays} days active`;
@@ -21,7 +21,7 @@ export function periodRecapMail(input: {
   const bodyLines = [
     `${input.periodLabel}: ${days}.`,
     ...(input.highlightLine ? [input.highlightLine] : []),
-    'Open Healthy to see the full report and share a card.',
+    'Open Beatset to see the full report and share a card.',
   ];
 
   return brandedMail({
@@ -29,6 +29,6 @@ export function periodRecapMail(input: {
     eyebrow: input.periodLabel,
     headline: days,
     bodyLines,
-    cta: { label: 'Open in Healthy', url: input.openUrl },
+    cta: { label: 'Open in Beatset', url: input.openUrl },
   });
 }

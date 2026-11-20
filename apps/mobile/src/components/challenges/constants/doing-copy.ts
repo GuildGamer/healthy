@@ -88,13 +88,13 @@ export const WALK_COPY = {
   useThis: 'Use this',
   foundOnPhone: 'Found on your phone',
   keepGoing: 'Keep going, or finish when you like.',
-  locationOffTitle: 'Location is off for Healthy.',
+  locationOffTitle: 'Location is off for Beatset.',
   locationOffBody:
     'We use it only while you record, to measure the walk. You can turn it on in Settings.',
   openSettings: 'Open Settings',
   distance: 'distance',
   steps: 'steps today',
-  stepsUnread: 'Healthy can’t read steps on this phone.',
+  stepsUnread: 'Beatset can’t read steps on this phone.',
   pause: 'Pause',
   resume: 'Resume',
   close: 'Close',
@@ -153,7 +153,7 @@ export const POSE_COPY = {
   audienceDone: 'Done',
   audienceNarrowedHint:
     'New viewers can’t watch it. Copies already sent or saved stay where they are.',
-  removeFromHealthy: 'Remove from Healthy',
+  removeFromBeatset: 'Remove from Beatset',
   removeTitle: 'Remove this clip?',
   removeBody: 'Its code will show it as removed. This can’t be undone.',
   removeConfirm: 'Remove',
@@ -188,7 +188,7 @@ export const SHARE_COPY = {
   title: 'Share',
   share: 'Share',
   close: 'Close',
-  brand: 'Healthy',
+  brand: 'Beatset',
   colour: 'Colour',
   failed: 'That didn’t share. Try again.',
 } as const;

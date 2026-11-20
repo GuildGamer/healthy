@@ -14,7 +14,7 @@ export async function readNotificationPermission(): Promise<NotificationPermissi
 }
 
 /**
- * What the phone allows for Healthy. Read again whenever the app comes back,
+ * What the phone allows for Beatset. Read again whenever the app comes back,
  * because the usual fix is a trip to the phone's settings.
  */
 export function useNotificationPermission(): NotificationPermission {

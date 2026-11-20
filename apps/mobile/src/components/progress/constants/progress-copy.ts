@@ -35,7 +35,7 @@ export const PROGRESS_COPY = {
   statsFailed: 'Those totals didn’t load.',
   statsUnknown: 'That activity isn’t on your list.',
   share: 'Share',
-  shareFallback: 'I’m on a run with Healthy.',
+  shareFallback: 'I’m on a run with Beatset.',
   reportsTitle: 'Reports',
   reportsMeta: 'Workouts and week, month, year',
   periodOverviewTitle: 'Days active',

@@ -51,7 +51,7 @@ describe('AccountScreen', () => {
 
     fireEvent.press(await screen.findByTestId('profile-sign-out'));
     expect(signOut).not.toHaveBeenCalled();
-    expect(screen.getByText('Sign out of Healthy?')).toBeOnTheScreen();
+    expect(screen.getByText('Sign out of Beatset?')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('confirm-sign-out'));
     expect(signOut).toHaveBeenCalledTimes(1);

@@ -18,7 +18,7 @@ describe('MembershipOfferService', () => {
           {
             id: 'plan-month',
             slug: 'healthy-starter',
-            name: 'Healthy',
+            name: 'Beatset',
             tagline: 'Monthly',
             features: ['Catalog'],
             interval: 'month',
@@ -39,7 +39,7 @@ describe('MembershipOfferService', () => {
           {
             id: 'plan-year',
             slug: 'healthy-starter-year',
-            name: 'Healthy yearly',
+            name: 'Beatset yearly',
             tagline: 'Yearly',
             features: ['Catalog'],
             interval: 'year',
@@ -94,7 +94,7 @@ describe('MembershipOfferService', () => {
           {
             id: 'plan-month',
             slug: 'healthy-starter',
-            name: 'Healthy',
+            name: 'Beatset',
             tagline: 'Monthly',
             features: ['Catalog'],
             interval: 'month',

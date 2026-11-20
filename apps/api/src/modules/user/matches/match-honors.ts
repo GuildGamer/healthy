@@ -116,7 +116,7 @@ function championHonor(
     names,
     'You took the crown.',
     proof,
-    'I took the crown on Healthy.',
+    'I took the crown on Beatset.',
     'champion',
   );
 }
@@ -158,7 +158,7 @@ function pickBestSet(
     names,
     'Set beast.',
     `${best.count} in one go`,
-    'I had the best set on Healthy.',
+    'I had the best set on Beatset.',
     'best_set',
   );
 }
@@ -207,7 +207,7 @@ function pickFastestSet(
     names,
     'Fastest set!',
     `${best.count} in ${best.durationSeconds}s`,
-    'I had the fastest set on Healthy.',
+    'I had the fastest set on Beatset.',
     'fastest_set',
   );
 }
@@ -264,7 +264,7 @@ function pickBiggestDay(
     names,
     'Day crusher.',
     `${best.total} in one day`,
-    'I had the biggest day on Healthy.',
+    'I had the biggest day on Beatset.',
     'biggest_day',
   );
 }
@@ -290,7 +290,7 @@ function pickFirstScore(events: StandingEvent[], names: NameByUser): MatchHonor 
     names,
     'First blood.',
     'Opened the board',
-    'I opened the board on Healthy.',
+    'I opened the board on Beatset.',
     'first_score',
   );
 }
@@ -318,7 +318,7 @@ function pickPhotoFinish(final: StandingsResult, names: NameByUser): MatchHonor 
     names,
     'Photo finish.',
     'Same score · second by a moment',
-    'I had a photo finish on Healthy.',
+    'I had a photo finish on Beatset.',
     'photo_finish',
   );
 }
@@ -400,7 +400,7 @@ function pickComeback(
     names,
     'Comeback King!',
     `${ordinal(midRanks.get(bestUserId)!)} → ${ordinal(finalRanks.get(bestUserId)!)}`,
-    'Comeback King in our group on Healthy.',
+    'Comeback King in our group on Beatset.',
     'comeback',
   );
 }
@@ -492,7 +492,7 @@ function pickIronWeek(
     names,
     'Iron week.',
     `${bestCount}/${allDays.length} days`,
-    'Iron week on Healthy.',
+    'Iron week on Beatset.',
     'iron_week',
   );
 }

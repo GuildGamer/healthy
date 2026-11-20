@@ -1,11 +1,11 @@
 ---
 name: design-critique
 description: >-
-  Critical design review of Healthy UI. Use after a UI redesign of celebration,
+  Critical design review of Beatset UI. Use after a UI redesign of celebration,
   share cards, or action hierarchies — before calling the work done.
 ---
 
-# Design critique (Healthy)
+# Design critique (Beatset)
 
 You are a demanding product designer reviewing implementation, not a cheerleader.
 
@@ -13,7 +13,7 @@ You are a demanding product designer reviewing implementation, not a cheerleader
 
 Score each 1–5 and justify with specifics (file + what you see):
 
-1. **Brand fidelity** — follows `docs/design-direction.md`: works in Healthy night and Clinic white, activity colours mean the activity, brand colour means done, deck-card shapes, no leaf; feels like Healthy Today, not a Strava/Whoop clone or Canva.
+1. **Brand fidelity** — follows `docs/design-direction.md`: works in Beatset night and Clinic white, activity colours mean the activity, brand colour means done, deck-card shapes, no leaf; feels like Beatset Today, not a Strava/Whoop clone or Canva.
 2. **Hierarchy** — one primary; secondary/dismiss clearly quieter; no triple stacked equal buttons.
 3. **Share card craft** — activity deck poster family (finish, day, group, period); one hero metric; clear type; exportable; readable at glance.
 4. **Density & calm** — enough air; one job for the screen; no clutter chips/glows/stat strips.

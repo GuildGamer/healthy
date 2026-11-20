@@ -46,7 +46,7 @@ function isSleepChallenge(challenge: DeckChallenge): boolean {
   return challenge.capture.kind === 'structured_log' && challenge.capture.metric === 'sleep';
 }
 
-/** How the card is proved: Healthy's honest edge, so it gets its own line. */
+/** How the card is proved: Beatset's honest edge, so it gets its own line. */
 export function deckCardProof(challenge: DeckChallenge): DeckProof {
   if (challenge.capture.metric && isPoseMetric(challenge.capture.metric)) {
     return {

@@ -146,10 +146,10 @@ function RootStack() {
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,
         contentStyle: { backgroundColor: colors.background },
-        title: 'Healthy',
+        title: 'Beatset',
         // iOS labels back with the previous screen's title, and the tabs
         // screen has none of its own — so every push off a tab offered
-        // "Healthy", which names the app rather than the destination.
+        // "Beatset", which names the app rather than the destination.
         headerBackTitle: 'Back',
         // A native pop is a no-op after a deep link or a redirect, and the
         // system button hides when it thinks there is nowhere to go. This

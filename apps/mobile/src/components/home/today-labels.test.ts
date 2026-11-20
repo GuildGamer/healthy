@@ -138,8 +138,8 @@ describe('nextDayKey', () => {
 describe('shareDayMessage', () => {
   it('says what was done and the run, and nothing measured', () => {
     expect(shareDayMessage(4, 7)).toBe(
-      'I finished 4 challenges on Healthy today. 7 days in a row.',
+      'I finished 4 challenges on Beatset today. 7 days in a row.',
     );
-    expect(shareDayMessage(1, 0)).toBe('I finished 1 challenge on Healthy today.');
+    expect(shareDayMessage(1, 0)).toBe('I finished 1 challenge on Beatset today.');
   });
 });

@@ -36,7 +36,7 @@ describe('SharePosterCard', () => {
 
     expect(screen.getByTestId('share-poster-route')).toBeTruthy();
     expect(screen.getByText('32')).toBeTruthy();
-    expect(screen.getByText('Healthy')).toBeTruthy();
+    expect(screen.getByText('Beatset')).toBeTruthy();
   });
 
   it('stays metric-only when there is no route', () => {

@@ -55,7 +55,7 @@ if (process.env.EAS_BUILD && !GOOGLE_MAPS_API_KEY) {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Healthy',
+  name: 'Beatset',
   slug: 'healthy',
   scheme: 'healthy',
   version: '1.0.0',
@@ -83,16 +83,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
     infoPlist: {
       NSCameraUsageDescription:
-        'Healthy uses the camera to count reps on this phone and optionally record a proof clip of your set.',
+        'Beatset uses the camera to count reps on this phone and optionally record a proof clip of your set.',
       NSPhotoLibraryAddUsageDescription:
-        'Healthy saves proof clips you choose to keep in your Photos library.',
+        'Beatset saves proof clips you choose to keep in your Photos library.',
       NSLocationWhenInUseUsageDescription:
-        'Healthy uses your location to record walking and running routes.',
+        'Beatset uses your location to record walking and running routes.',
       NSLocationAlwaysAndWhenInUseUsageDescription:
-        'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
+        'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
       NSLocationAlwaysUsageDescription:
-        'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
-      NSMotionUsageDescription: 'Healthy uses motion data to count steps from this phone.',
+        'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
+      NSMotionUsageDescription: 'Beatset uses motion data to count steps from this phone.',
       // Required by ActivityKit. Without this key, startActivity fails and the
       // lock-screen walk card never appears.
       NSSupportsLiveActivities: true,
@@ -107,7 +107,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/icon.png',
-      backgroundColor: '#3DDC97',
+      backgroundColor: '#0FA36B',
     },
     // Resize the window when the soft keyboard opens so focused fields stay visible.
     // Requires a new native build; EAS Update alone does not apply this.
@@ -160,7 +160,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.health.READ_SLEEP',
       'android.permission.health.READ_EXERCISE',
     ],
-    // Plugins add these by default, but Healthy records no audio, and saving
+    // Plugins add these by default, but Beatset records no audio, and saving
     // clips or picking a profile photo needs no media read access on Android
     // 13+ (system photo picker, add-only saves). Play reviews broad photo and
     // video access, so keep them out. Android 12 and older still use
@@ -188,13 +188,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         photosPermission: false,
         savePhotosPermission:
-          'Healthy saves proof clips you choose to keep in your Photos library.',
+          'Beatset saves proof clips you choose to keep in your Photos library.',
         isAccessMediaLocationEnabled: false,
       },
     ],
     [
       // Hands off to the animated `SplashScreen` component. The native splash
-      // can follow the phone (Clinic white / Healthy night) but not a stored
+      // can follow the phone (Clinic white / Beatset night) but not a stored
       // Light or Dark choice — that arrives only after JS reads SecureStore.
       // Colours mirror `@product/brand`, which cannot be imported here because
       // the package resolves to a build output Expo CLI may not have yet.
@@ -272,15 +272,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-camera',
       {
         cameraPermission:
-          'Healthy uses the camera to prove gym sessions and count push-ups on this phone.',
+          'Beatset uses the camera to prove gym sessions and count push-ups on this phone.',
         recordAudioAndroid: false,
       },
     ],
     [
       'expo-image-picker',
       {
-        cameraPermission: 'Healthy uses the camera for gym proof and your profile photo.',
-        photosPermission: 'Healthy uses your photos so you can set a profile picture.',
+        cameraPermission: 'Beatset uses the camera for gym proof and your profile photo.',
+        photosPermission: 'Beatset uses your photos so you can set a profile picture.',
         microphonePermission: false,
       },
     ],
@@ -288,11 +288,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Healthy uses your location to record walking and running routes.',
+          'Beatset uses your location to record walking and running routes.',
         locationAlwaysAndWhenInUsePermission:
-          'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
+          'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
         locationAlwaysPermission:
-          'Healthy uses your location in the background so a walk keeps measuring after you lock the phone.',
+          'Beatset uses your location in the background so a walk keeps measuring after you lock the phone.',
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
@@ -304,17 +304,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Widget extension for the lock-screen walk card. Only list this once —
     // applying it twice duplicates the Xcode target and breaks pod install.
     'expo-live-activity',
-    // Overwrites the generated SwiftUI with Healthy’s deck-style Pause/Resume card.
+    // Overwrites the generated SwiftUI with Beatset’s deck-style Pause/Resume card.
     './modules/walk-live-activity/app.plugin.js',
     [
       '@kingstinct/react-native-healthkit',
       {
         NSHealthShareUsageDescription:
-          'Healthy reads walks and last night’s sleep from Apple Health so you can confirm them in one tap.',
+          'Beatset reads walks and last night’s sleep from Apple Health so you can confirm them in one tap.',
         // Apple still requires this string when the HealthKit entitlement is present,
-        // even though Healthy only reads health data and never writes to the store.
+        // even though Beatset only reads health data and never writes to the store.
         NSHealthUpdateUsageDescription:
-          'Healthy does not write sleep, workouts, or other health data to Apple Health.',
+          'Beatset does not write sleep, workouts, or other health data to Apple Health.',
         background: false,
       },
     ],

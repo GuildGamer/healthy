@@ -97,7 +97,7 @@ describe('readEnvironment', () => {
     expect(staging.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'Healthy <hello@gethealthyapp.com>',
+      from: 'Beatset <hello@gethealthyapp.com>',
     });
   });
 
@@ -161,7 +161,7 @@ describe('readEnvironment', () => {
       SMTP_PORT: '587',
       SMTP_USER: 'mailer',
       SMTP_PASS: 'secret',
-      SMTP_FROM: 'Healthy <noreply@example.com>',
+      SMTP_FROM: 'Beatset <noreply@example.com>',
     });
 
     expect(environment.mail).toEqual({
@@ -170,7 +170,7 @@ describe('readEnvironment', () => {
       port: 587,
       user: 'mailer',
       pass: 'secret',
-      from: 'Healthy <noreply@example.com>',
+      from: 'Beatset <noreply@example.com>',
     });
   });
 
@@ -353,11 +353,11 @@ describe('readEnvironment', () => {
     expect(environment.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'Healthy <hello@gethealthyapp.com>',
+      from: 'Beatset <hello@gethealthyapp.com>',
     });
   });
 
-  it('reads an explicit SendByte mailbox and always names Healthy', () => {
+  it('reads an explicit SendByte mailbox and always names Beatset', () => {
     const bare = readEnvironment({
       EMAIL_PROVIDER: 'SendByte',
       SEND_BYTE_LIVE_KEY: 'sk_live_test',
@@ -372,12 +372,12 @@ describe('readEnvironment', () => {
     expect(bare.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'Healthy <hello@gethealthyapp.com>',
+      from: 'Beatset <hello@gethealthyapp.com>',
     });
     expect(alreadyNamed.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'Healthy <ops@gethealthyapp.com>',
+      from: 'Beatset <ops@gethealthyapp.com>',
     });
   });
 
@@ -398,7 +398,7 @@ describe('readEnvironment', () => {
       port: 587,
       user: 'mailer',
       pass: 'secret',
-      from: 'Healthy <noreply@example.com>',
+      from: 'Beatset <noreply@example.com>',
     });
   });
 
@@ -423,7 +423,7 @@ describe('readEnvironment', () => {
     expect(environment.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',
-      from: 'Healthy <hello@gethealthyapp.com>',
+      from: 'Beatset <hello@gethealthyapp.com>',
     });
   });
 

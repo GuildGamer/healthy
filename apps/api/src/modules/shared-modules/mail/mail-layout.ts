@@ -19,7 +19,7 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * Healthy transactional shell: Clinic white card, navy wordmark, optional
+ * Beatset transactional shell: Clinic white card, navy wordmark, optional
  * large OTP code block, optional mint CTA. No accent “progress” bar.
  */
 export function brandedMail(input: {
@@ -43,7 +43,7 @@ export function brandedMail(input: {
     ...(input.code ? [input.code] : []),
     ...bodyAfterCode,
     ...(input.cta ? [`${input.cta.label}: ${input.cta.url}`] : []),
-    '— Healthy',
+    '— Beatset',
   ]
     .filter((line) => line.length > 0)
     .join('\n\n');
@@ -92,7 +92,7 @@ export function brandedMail(input: {
         <table role="presentation" width="100%" style="max-width:480px;background:#ffffff;border-radius:16px;padding:28px 24px;">
           <tr>
             <td>
-              <p style="margin:0 0 20px;font-family:Arial,sans-serif;font-size:22px;font-weight:800;color:${NAVY};letter-spacing:-0.5px;">Healthy</p>
+              <p style="margin:0 0 20px;font-family:Arial,sans-serif;font-size:22px;font-weight:800;color:${NAVY};letter-spacing:-0.5px;">Beatset</p>
               ${eyebrowHtml}
               ${headlineHtml}
               <div style="font-family:Arial,sans-serif;">${bodyBeforeHtml}${codeHtml}${bodyAfterHtml}${ctaHtml}</div>

@@ -22,7 +22,7 @@ describe('SplashScreen appearance', () => {
     );
 
     expect(colorOf('splash-screen', 'backgroundColor')).toBe(lightColors.background);
-    expect(StyleSheet.flatten(screen.getByText('Healthy').props.style).color).toBe(
+    expect(StyleSheet.flatten(screen.getByText('Beatset').props.style).color).toBe(
       lightColors.text,
     );
     SPLASH_FAN.forEach(({ kind }) => {
@@ -31,7 +31,7 @@ describe('SplashScreen appearance', () => {
     expect(screen.getByTestId('splash-icon')).toBeOnTheScreen();
   });
 
-  it('uses Healthy night, light wordmark, and dark deck cards when the phone is dark', () => {
+  it('uses Beatset night, light wordmark, and dark deck cards when the phone is dark', () => {
     jest.mocked(useColorScheme).mockReturnValue('dark');
 
     render(
@@ -41,7 +41,7 @@ describe('SplashScreen appearance', () => {
     );
 
     expect(colorOf('splash-screen', 'backgroundColor')).toBe(darkColors.background);
-    expect(StyleSheet.flatten(screen.getByText('Healthy').props.style).color).toBe(darkColors.text);
+    expect(StyleSheet.flatten(screen.getByText('Beatset').props.style).color).toBe(darkColors.text);
     SPLASH_FAN.forEach(({ kind }) => {
       expect(colorOf(`splash-fan-${kind}`, 'backgroundColor')).toBe(darkDeckCards[kind]);
     });

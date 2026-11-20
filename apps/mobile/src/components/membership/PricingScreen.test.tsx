@@ -25,7 +25,7 @@ jest.mock('@/lib/apple-membership', () => {
 const offer = {
   planId: 'plan-month',
   slug: 'healthy-starter',
-  name: 'Healthy',
+  name: 'Beatset',
   tagline: 'Monthly',
   features: ['Full catalog'],
   interval: 'month' as const,
@@ -43,7 +43,7 @@ const offer = {
     {
       planId: 'plan-month',
       slug: 'healthy-starter',
-      name: 'Healthy',
+      name: 'Beatset',
       tagline: 'Monthly',
       features: ['Full catalog'],
       interval: 'month' as const,

@@ -3,7 +3,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Glyph } from '@/components/icons';
 import { type Theme, useTheme, useThemedStyles, withAlpha } from '@/theme';
 
-/** The phone refuses Healthy's notifications; the only fix is in the phone's settings. */
+/** The phone refuses Beatset's notifications; the only fix is in the phone's settings. */
 export function PhoneNotificationsOffBanner() {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -13,7 +13,7 @@ export function PhoneNotificationsOffBanner() {
       <Glyph color={colors.warning} name="bellOff" size={18} strokeWidth={2} />
       <View style={styles.text}>
         <Text style={[styles.body, styles.title]}>
-          Notifications are off for Healthy on this phone.
+          Notifications are off for Beatset on this phone.
         </Text>
         <Text style={styles.body}>Photo checks and reminders can’t reach you.</Text>
         <Pressable

@@ -104,7 +104,7 @@ export function AccountScreen() {
         closeTestID="sign-out-sheet-cancel"
         onClose={() => setIsSignOutOpen(false)}
         testID="sign-out-sheet"
-        title="Sign out of Healthy?"
+        title="Sign out of Beatset?"
         visible={isSignOutOpen}
       />
     </SettingsPage>

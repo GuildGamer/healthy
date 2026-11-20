@@ -776,7 +776,7 @@ async function main(): Promise<void> {
     where: { slug: 'healthy-starter' },
     create: {
       slug: 'healthy-starter',
-      name: 'Healthy',
+      name: 'Beatset',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
         'Full fitness challenge catalog',
@@ -798,7 +798,7 @@ async function main(): Promise<void> {
       },
     },
     update: {
-      name: 'Healthy',
+      name: 'Beatset',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
         'Full fitness challenge catalog',

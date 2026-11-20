@@ -55,7 +55,7 @@ export function SplashScreen({ hasNativeSplashHidden, isReady, onExited }: Splas
           ))}
         </Animated.View>
         <Image
-          accessibilityLabel="Healthy"
+          accessibilityLabel="Beatset"
           source={appIcon}
           style={styles.icon}
           testID="splash-icon"
@@ -63,7 +63,7 @@ export function SplashScreen({ hasNativeSplashHidden, isReady, onExited }: Splas
       </View>
       <View style={styles.caption}>
         <Text allowFontScaling={false} style={styles.wordmark}>
-          Healthy
+          Beatset
         </Text>
       </View>
     </Animated.View>

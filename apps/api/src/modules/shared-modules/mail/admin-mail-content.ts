@@ -1,13 +1,13 @@
 import { brandedMail, type MailParts } from './mail-layout.js';
 
-/** Operator broadcast wrapped in the Healthy shell. */
+/** Operator broadcast wrapped in the Beatset shell. */
 export function adminBroadcastMail(input: {
   title: string;
   text: string;
 }): MailParts {
   return brandedMail({
     subject: input.title,
-    eyebrow: 'From Healthy',
+    eyebrow: 'From Beatset',
     headline: input.title,
     bodyLines: input.text.split(/\n+/).filter((line) => line.trim().length > 0),
   });
@@ -20,7 +20,7 @@ export function operatorInviteMail(input: {
   adminAppUrl: string;
 }): MailParts {
   return brandedMail({
-    subject: 'You’re an operator on Healthy',
+    subject: 'You’re an operator on Beatset',
     eyebrow: 'Admin',
     headline: `Welcome, ${input.name}`,
     bodyLines: [

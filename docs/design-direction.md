@@ -1,6 +1,6 @@
 # Design direction
 
-How Healthy looks, after the October 2026 overhaul. This replaces the earlier
+How Beatset looks, after the October 2026 overhaul. This replaces the earlier
 navy-and-leaf direction; nothing new should use the leaf (`hero-banner`).
 
 The values live in [`packages/brand/src/index.ts`](../packages/brand/src/index.ts)
@@ -17,7 +17,7 @@ shape.
 
 ## Two modes
 
-| | Healthy night (dark) | Clinic white (light) |
+| | Beatset night (dark) | Clinic white (light) |
 |---|---|---|
 | Page | Navy `#0B1220` | Cool grey `#F5F6F8` |
 | Card | Filled with the activity's deep colour | White, with a 6pt rail in the activity colour along the top |
@@ -80,7 +80,7 @@ week/month/year recaps all read as the **deck card** you played
   sender's mode; photo overlays use night ink.
 - Soft radius (~26).
 - Label and period on top; one big numeral and unit; hairline brand row
-  (`Healthy` + a short meta line). No mint band.
+  (`Beatset` + a short meta line). No mint band.
 - Optional full-bleed gym selfie or walk GPS path on a finish.
 
 ### 2. Invite link preview
@@ -115,7 +115,7 @@ Rules:
   needs naming). Prefer that over “Share with friends”; friends are reached via
   the system sheet or Challenge a friend.
 - Dismiss / Not now stays the quietest control.
-- Report emails use **Open in Healthy** (deep link to `/progress/report`), not
+- Report emails use **Open in Beatset** (deep link to `/progress/report`), not
   Share — sharing happens in-app from the report screen.
 - Activity stats and period reports live under You: week card opens the week
   report; enrolled metrics open `/progress/metric/[metric]`.

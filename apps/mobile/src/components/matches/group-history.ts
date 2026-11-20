@@ -112,14 +112,14 @@ export function resultShareLine(board: MatchBoard): string {
   const group = `a ${contestDays(board)}-day ${groupNoun(board)} group`;
 
   if (you && board.winnerUserId === you.userId) {
-    return `I won ${group} on Healthy.`;
+    return `I won ${group} on Beatset.`;
   }
 
   if (!you || you.score === 0) {
-    return `I just finished ${group} on Healthy.`;
+    return `I just finished ${group} on Beatset.`;
   }
 
-  return `I came ${ordinal(you.rank)} in ${group} on Healthy.`;
+  return `I came ${ordinal(you.rank)} in ${group} on Beatset.`;
 }
 
 function winningSentence(

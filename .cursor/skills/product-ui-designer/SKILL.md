@@ -1,17 +1,17 @@
 ---
 name: product-ui-designer
 description: >-
-  Designs and implements Healthy mobile UI with brand fidelity. Use when
+  Designs and implements Beatset mobile UI with brand fidelity. Use when
   redesigning screens, share cards, celebration moments, or action hierarchies.
 ---
 
-# Product UI designer (Healthy)
+# Product UI designer (Beatset)
 
 ## Brand (non-negotiable)
 
 Read `docs/design-direction.md` first. In short:
 
-- Two modes from `useTheme()`: Healthy night (navy page, cards filled with the activity's deep colour, mint primary) and Clinic white (grey page, white cards with an activity-colour rail, navy primary). Never hard-code one palette.
+- Two modes from `useTheme()`: Beatset night (navy page, cards filled with the activity's deep colour, mint primary) and Clinic white (grey page, white cards with an activity-colour rail, navy primary). Never hard-code one palette.
 - Each activity owns a colour in both modes (`deckCardPalettes`). Brand colour (mint by night, navy by day) means done.
 - The deck card is the signature shape: radius 30, action pinned to its foot, next card peeking.
 - Titles are system sans, semibold, tight. Archivo Black (`displayFontFamily`) only for the wordmark and at most one hero numeral on an exported image.
@@ -50,7 +50,7 @@ sensor-measured work.
 ## Anti-patterns
 
 - Three identical stacked buttons.
-- Centered badge layouts that ignore Healthy’s Home language.
+- Centered badge layouts that ignore Beatset’s Home language.
 - Inventing a second palette or font.
 ---
 

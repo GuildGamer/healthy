@@ -28,7 +28,7 @@ export type SleepSample = {
 };
 
 export const NATIVE_MOVEMENT_UNAVAILABLE =
-  'This install cannot use location yet. Update Healthy, then try again. You can still confirm by hand.';
+  'This install cannot use location yet. Update Beatset, then try again. You can still confirm by hand.';
 
 type LocationPermissionStatus = { GRANTED: string };
 

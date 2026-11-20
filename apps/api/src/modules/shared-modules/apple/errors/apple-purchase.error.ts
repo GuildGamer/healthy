@@ -20,6 +20,6 @@ export const APPLE_PURCHASE_ERROR_MESSAGE: Record<
   product_not_configured: 'This Apple product is not available yet',
   duplicate_subscription: 'You already have an active membership',
   subscription_linked_to_other_user:
-    'This Apple subscription is already linked to another Healthy account',
+    'This Apple subscription is already linked to another Beatset account',
   transaction_not_active: 'This Apple subscription is no longer active',
 };

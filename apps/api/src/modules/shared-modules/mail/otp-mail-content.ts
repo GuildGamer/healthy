@@ -10,15 +10,15 @@ const OTP_MAIL: Record<
   { subject: string; intro: string }
 > = {
   'password-reset': {
-    subject: 'Your Healthy password reset code',
+    subject: 'Your Beatset password reset code',
     intro: 'Use this code to reset your password.',
   },
   'email-verification': {
-    subject: 'Your Healthy verification code',
+    subject: 'Your Beatset verification code',
     intro: 'Use this code to verify your email.',
   },
   'change-email': {
-    subject: 'Confirm your new Healthy email',
+    subject: 'Confirm your new Beatset email',
     intro: 'Use this code to confirm your new email.',
   },
 };

@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 
 const empty: UpsertMembershipPlanInput = {
   slug: 'healthy-starter',
-  name: 'Healthy',
+  name: 'Beatset',
   tagline: 'Keep the streak honest. One clear membership.',
   features: [
     'Full challenge catalog for your conditions',

@@ -63,7 +63,7 @@ if [[ "$CREATE" -eq 1 ]]; then
   if ! gh repo view "${ORG}/${REMOTE_NAME}" >/dev/null 2>&1; then
     echo "+ Creating ${ORG}/${REMOTE_NAME}"
     gh repo create "${ORG}/${REMOTE_NAME}" --private \
-      --description "Deploy satellite for Healthy ${TARGET} (synced from GuildGamer/healthy)"
+      --description "Deploy satellite for Beatset ${TARGET} (synced from GuildGamer/healthy)"
   else
     echo "+ ${ORG}/${REMOTE_NAME} already exists"
   fi
@@ -195,7 +195,7 @@ fi
 cat > "${OUT}/README.md" <<EOF
 # ${REMOTE_NAME}
 
-Deploy satellite for Healthy **${TARGET}**.
+Deploy satellite for Beatset **${TARGET}**.
 
 - **Source of truth:** [GuildGamer/healthy](https://github.com/GuildGamer/healthy) monorepo
 - **Sync:** from the monorepo run \`./scripts/sync-deploy-repo.sh ${TARGET} --push\`

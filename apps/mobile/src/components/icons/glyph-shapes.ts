@@ -1,5 +1,5 @@
 /**
- * Healthy's own icon family: a 24-point grid, a 1.75 stroke and round ends.
+ * Beatset's own icon family: a 24-point grid, a 1.75 stroke and round ends.
  * A shape with `fill: 'solid'` is filled with the icon colour; `fill: 'cutout'`
  * is filled with the surface behind it, to carve detail out of a solid shape.
  */

@@ -35,7 +35,7 @@ describe('createMailer', () => {
       {
         mode: 'sendbyte',
         apiKey: 'sk_test_example',
-        from: 'Healthy <hello@gethealthyapp.com>',
+        from: 'Beatset <hello@gethealthyapp.com>',
       },
       client,
     );
@@ -53,9 +53,9 @@ describe('createMailer', () => {
     expect(send).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        from: 'Healthy <hello@gethealthyapp.com>',
+        from: 'Beatset <hello@gethealthyapp.com>',
         to: 'ada@example.com',
-        subject: 'Your Healthy password reset code',
+        subject: 'Your Beatset password reset code',
         text: expect.stringContaining('123456'),
         html: expect.stringContaining('123456'),
       }),
@@ -63,7 +63,7 @@ describe('createMailer', () => {
     expect(send).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        subject: 'Your Healthy verification code',
+        subject: 'Your Beatset verification code',
         html: expect.stringContaining('1&lt;2'),
       }),
     );
@@ -71,7 +71,7 @@ describe('createMailer', () => {
       3,
       expect.objectContaining({
         to: 'ada@new.example',
-        subject: 'Confirm your new Healthy email',
+        subject: 'Confirm your new Beatset email',
       }),
     );
   });
@@ -90,7 +90,7 @@ describe('createMailer', () => {
       {
         mode: 'sendbyte',
         apiKey: 'sk_test_example',
-        from: 'Healthy <hello@gethealthyapp.com>',
+        from: 'Beatset <hello@gethealthyapp.com>',
       },
       client,
     );

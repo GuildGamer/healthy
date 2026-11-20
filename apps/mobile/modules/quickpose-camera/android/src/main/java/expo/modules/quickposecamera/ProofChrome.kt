@@ -36,7 +36,7 @@ internal object ProofChrome {
   private const val PIP_SIZE = 12f
   private const val PIP_GAP = 10f
   private const val SECONDARY_ALPHA = 217
-  private const val BRAND = "Healthy"
+  private const val BRAND = "Beatset"
   private const val VERIFY_PATH = "gethealthyapp.com/v/"
 
   private val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(140, 0, 0, 0) }

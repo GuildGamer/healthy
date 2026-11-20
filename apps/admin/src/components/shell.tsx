@@ -88,9 +88,11 @@ export function Shell({ children }: { children: ReactNode }) {
           background: 'var(--surface)',
         }}
       >
-        <p style={{ fontFamily: 'Fraunces, Georgia, serif', fontSize: 22, margin: '0 0 24px' }}>
-          Healthy
-        </p>
+        <img
+          alt="Beatset"
+          src="/wordmark-navy.svg"
+          style={{ display: 'block', height: 56, width: 'auto', margin: '0 0 24px' }}
+        />
         <nav className="stack">
           {NAV.filter((item) => canSee(roles, item)).map((item) => (
             <Link

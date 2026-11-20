@@ -51,9 +51,9 @@ export type QuickPoseCameraProps = {
 };
 
 const LIVE_CAMERA_NOT_READY = 'Live camera is not ready yet. Wait a moment and try again.';
-const PHONE_ONLY = 'Camera counting needs the Healthy phone app.';
+const PHONE_ONLY = 'Camera counting needs the Beatset phone app.';
 /** Stale binary: JS would mount a stub native view and crash. */
-export const POSE_CAMERA_NEEDS_UPDATE = 'Update Healthy to count reps on this phone.';
+export const POSE_CAMERA_NEEDS_UPDATE = 'Update Beatset to count reps on this phone.';
 
 function useQuickPoseCamera() {
   const [camera, setCamera] = useState<ComponentType<QuickPoseCameraProps> | null>(null);

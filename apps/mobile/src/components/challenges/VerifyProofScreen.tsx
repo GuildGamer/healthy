@@ -111,7 +111,7 @@ function VerifyResult({ result }: { result: VerifyProofCodeOutput }) {
         <View style={styles.outcomeBlock} testID="verify-verified">
           <Text style={styles.outcome}>{VERIFY_COPY.verified}</Text>
           <Text style={styles.meta}>
-            Recorded in Healthy · {result.recordedAt.slice(0, 10)} · {result.count} counted
+            Recorded in Beatset · {result.recordedAt.slice(0, 10)} · {result.count} counted
             by camera
           </Text>
           {result.videoUrl ? (

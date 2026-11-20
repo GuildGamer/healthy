@@ -4,7 +4,7 @@ import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { PoseSessionScreen } from './PoseSessionScreen';
 
 /** Mirrors `POSE_CAMERA_NEEDS_UPDATE` in usePoseSession (mocked below). */
-const POSE_CAMERA_NEEDS_UPDATE = 'Update Healthy to count reps on this phone.';
+const POSE_CAMERA_NEEDS_UPDATE = 'Update Beatset to count reps on this phone.';
 
 const testSafeAreaMetrics: Metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },

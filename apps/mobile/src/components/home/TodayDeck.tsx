@@ -12,7 +12,7 @@ import { useDeckSwipe } from './useDeckSwipe';
 import { useSwipeHint } from './useSwipeHint';
 
 const CARD_TILT_DEGREES = 9;
-/** Healthy night dims the next card's own fill; Clinic white's grey edge is already quiet. */
+/** Beatset night dims the next card's own fill; Clinic white's grey edge is already quiet. */
 const RESTING_UNDER_OPACITY = { dimmed: 0.7, covered: 1 } as const;
 
 interface TodayDeckProps {

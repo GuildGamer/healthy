@@ -52,7 +52,7 @@ export function HelpScreen() {
           testID="open-terms"
         />
       </SettingsGroup>
-      {version ? <SettingsNote centered>{`Healthy ${version}`}</SettingsNote> : null}
+      {version ? <SettingsNote centered>{`Beatset ${version}`}</SettingsNote> : null}
     </SettingsPage>
   );
 }

@@ -83,7 +83,7 @@ export function poseShortLine(input: { count: number; target: number }): string 
 }
 
 /**
- * Turns known QuickPose form lines into Healthy wording for the banner.
+ * Turns known QuickPose form lines into Beatset wording for the banner.
  * Raw SDK strings still gate the hold timer; this is display-only.
  */
 export function rewritePoseCoachPrompt(prompt: string): string {

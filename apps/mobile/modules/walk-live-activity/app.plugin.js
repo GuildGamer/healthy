@@ -1,6 +1,6 @@
 /**
  * Overwrites the lock-screen SwiftUI that `expo-live-activity` generates with
- * Healthy's deck-style card (eyebrow, Pause/Resume).
+ * Beatset's deck-style card (eyebrow, Pause/Resume).
  *
  * `expo-live-activity` writes its stock Swift during the `xcodeproj` mod, and
  * Expo always runs `dangerous` mods before that, so this copy must be a

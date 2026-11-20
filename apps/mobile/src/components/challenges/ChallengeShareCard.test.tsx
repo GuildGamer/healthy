@@ -86,7 +86,7 @@ describe('ChallengeShareCard', () => {
     expect(screen.getByText('points')).toBeOnTheScreen();
     expect(screen.getByText('Streak')).toBeOnTheScreen();
     expect(screen.getByText('12 days')).toBeOnTheScreen();
-    expect(screen.getByText('Healthy')).toBeOnTheScreen();
+    expect(screen.getByText('Beatset')).toBeOnTheScreen();
     expect(screen.getByText(SHARE_CARD_URL)).toBeOnTheScreen();
     expect(screen.queryByText('Goal')).toBeNull();
     expect(screen.queryByText('Counted by camera')).toBeNull();
@@ -185,7 +185,7 @@ describe('ChallengeShareCard', () => {
       />,
     );
 
-    expect(screen.getByText('Healthy')).toBeOnTheScreen();
+    expect(screen.getByText('Beatset')).toBeOnTheScreen();
     expect(screen.getByText('12')).toBeOnTheScreen();
     expect(screen.getByText('day streak')).toBeOnTheScreen();
     expect(screen.getByText(formatShareStamp(capturedAt))).toBeOnTheScreen();

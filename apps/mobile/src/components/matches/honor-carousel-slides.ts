@@ -76,7 +76,7 @@ export function honorSlideShareText(board: MatchBoard, slide: HonorCarouselSlide
     return slide.honor.shareText;
   }
   if (slide.type === 'board') {
-    return 'Our group honors on Healthy.';
+    return 'Our group honors on Beatset.';
   }
   return resultShareLine(board);
 }

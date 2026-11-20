@@ -569,7 +569,7 @@ describe('ChallengeSessionScreen walk goal', () => {
 
     fireEvent.press(await screen.findByTestId('start-session'));
 
-    expect(await screen.findByText('Location is off for Healthy.')).toBeOnTheScreen();
+    expect(await screen.findByText('Location is off for Beatset.')).toBeOnTheScreen();
     expect(watchPositionAsync).not.toHaveBeenCalled();
     expect(screen.getByTestId('session-open-settings')).toBeOnTheScreen();
     expect(screen.getByTestId('confirm-challenge')).toBeOnTheScreen();

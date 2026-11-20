@@ -48,7 +48,7 @@ export function MovementScreen() {
       <SettingsGroup isSpaced={false}>
         <Text style={styles.read}>
           Steps, workouts, sleep, and the route of a walk you start in the app. You confirm before
-          anything is marked done. Healthy never writes to the health store.
+          anything is marked done. Beatset never writes to the health store.
         </Text>
       </SettingsGroup>
     </SettingsPage>

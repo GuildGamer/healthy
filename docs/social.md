@@ -489,7 +489,7 @@ diff stays reviewable.
 ## Proof clips
 
 An opt-in recording of a camera-counted set (solo or group). The clip burns in
-the Healthy logo, a server-issued verification code, and the live rep count.
+the Beatset logo, a server-issued verification code, and the live rep count.
 
 **Who can watch** is a consent setting with two values: *Anyone with the code*
 and *Only me*. Asked once when proof recording is first turned on, overridable
@@ -509,7 +509,7 @@ happened.
 
 Verify-by-code returns one of: checks out, kept private, not uploaded yet, or
 removed — never a name or groups. Report and block ship with the feature.
-**Remove from Healthy** (History) marks the clip removed; the hourly sweep
+**Remove from Beatset** (History) marks the clip removed; the hourly sweep
 deletes the stored file.
 
 ## Not building

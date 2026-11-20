@@ -31,7 +31,7 @@ function fill(testID: string): unknown {
 
 /** Day and group shares use the activity/streak deck fill, not a night slip. */
 describe('exported share cards', () => {
-  it('use the streak deck fill on Healthy night', () => {
+  it('use the streak deck fill on Beatset night', () => {
     jest.mocked(useColorScheme).mockReturnValue('dark');
     render(
       <ThemeProvider>

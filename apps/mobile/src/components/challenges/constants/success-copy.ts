@@ -5,7 +5,7 @@ export const SUCCESS_COPY = {
   sharePrompt: 'Post it to your story or send it to a friend.',
   share: 'Share',
   shareResult: 'Share result',
-  shareDialog: 'Share your Healthy win',
+  shareDialog: 'Share your Beatset win',
   prepareFailed: 'Could not prepare that image. Try again.',
   sharingUnavailable: 'Sharing is not available on this device.',
   shareFailed: 'Could not share that image. Try again.',

@@ -50,7 +50,7 @@ screen that already solves the same shape and match it.
 - Every new `app/` route is registered in the root `Stack` in `app/_layout.tsx`
   with `headerShown: false`, and draws its own `DeckPageNav` that leaves via
   `goBackOrHome`. `root-stack-routes.test.ts` fails otherwise; a missing entry
-  shows the native "Back / Healthy" header on top of the page's own.
+  shows the native "Back / Beatset" header on top of the page's own.
 - `router.back()` is a no-op after a deep link; leave a page with `goBackOrHome`.
 - Colours come from `theme.colors` keys that exist (`text`, `muted`, …). An
   unknown key is `undefined`, which renders black in dark mode.
