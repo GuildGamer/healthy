@@ -76,9 +76,9 @@ const gym: TodayChallenge = {
   },
 };
 
-/** The server refuses a photo with a 4xx, which the save queue treats as final. */
+/** The server refuses a photo with BAD_REQUEST; the outbox drops it (no park). */
 function photoRejected(message: string): Error {
-  return Object.assign(new Error(message), { status: 422 });
+  return Object.assign(new Error(message), { status: 400 });
 }
 
 function renderScreen() {

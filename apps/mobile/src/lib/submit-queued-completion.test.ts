@@ -82,8 +82,8 @@ describe('submitQueuedCompletion', () => {
     );
   });
 
-  it('returns failed only for permanent errors', async () => {
-    execute.mockRejectedValue(Object.assign(new Error('gone'), { status: 400 }));
+  it('parks permanent errors for manual retry', async () => {
+    execute.mockRejectedValue(Object.assign(new Error('gone'), { status: 422 }));
     classify.mockReturnValue('permanent');
 
     const result = await submitQueuedCompletion({
@@ -97,5 +97,21 @@ describe('submitQueuedCompletion', () => {
       'gone',
       expect.objectContaining({ kind: 'permanent', status: 'parked' }),
     );
+  });
+
+  it('drops domain refusals so they do not need attention', async () => {
+    execute.mockRejectedValue(
+      Object.assign(new Error('You appear to be in a car, not a gym.'), { status: 400 }),
+    );
+    classify.mockReturnValue('rejected');
+
+    const result = await submitQueuedCompletion({
+      kind: 'record_practice',
+      input: pending.input,
+    });
+
+    expect(result.outcome).toBe('failed');
+    expect(remove).toHaveBeenCalledWith(pending.id);
+    expect(mark).not.toHaveBeenCalled();
   });
 });

@@ -112,16 +112,29 @@ describe('flushPendingCompletions', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('parks a permanent 4xx failure', async () => {
+  it('drops a domain 400 refusal instead of parking it', async () => {
     const entry = practiceEntry();
     listPending.mockResolvedValue([entry]);
-    execute.mockRejectedValue(Object.assign(new Error('bad request'), { status: 400 }));
+    execute.mockRejectedValue(
+      Object.assign(new Error('You appear to be in a car, not a gym.'), { status: 400 }),
+    );
+
+    await flushPendingCompletions();
+
+    expect(removePending).toHaveBeenCalledWith(entry.id);
+    expect(markAttempt).not.toHaveBeenCalled();
+  });
+
+  it('parks other permanent 4xx failures', async () => {
+    const entry = practiceEntry();
+    listPending.mockResolvedValue([entry]);
+    execute.mockRejectedValue(Object.assign(new Error('gone'), { status: 422 }));
 
     await flushPendingCompletions();
 
     expect(markAttempt).toHaveBeenCalledWith(
       entry.id,
-      'bad request',
+      'gone',
       expect.objectContaining({
         kind: 'permanent',
         status: 'parked',

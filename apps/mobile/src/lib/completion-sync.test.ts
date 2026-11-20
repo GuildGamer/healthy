@@ -40,8 +40,26 @@ describe('classifySyncError', () => {
     );
   });
 
+  it('drops domain 400 refusals instead of parking them', () => {
+    expect(
+      classifySyncError(
+        Object.assign(new Error('You appear to be in a car, not a gym.'), { status: 400 }),
+      ),
+    ).toBe('rejected');
+  });
+
+  it('retries a transient photo-check outage even when status is 400', () => {
+    expect(
+      classifySyncError(
+        Object.assign(new Error('We could not check that photo. Try again in a moment.'), {
+          status: 400,
+        }),
+      ),
+    ).toBe('retryable');
+  });
+
   it('parks other 4xx as permanent', () => {
-    expect(classifySyncError(Object.assign(new Error('bad'), { status: 400 }))).toBe('permanent');
+    expect(classifySyncError(Object.assign(new Error('gone'), { status: 404 }))).toBe('permanent');
     expect(classifySyncError(new Error('Request failed with status 422'))).toBe('permanent');
   });
 });

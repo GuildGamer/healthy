@@ -28,8 +28,9 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Network failures, timeouts, 5xx and 429 keep retrying. Other 4xx are parked
- * until the app version changes.
+ * Network failures, timeouts, 5xx and 429 keep retrying.
+ * 400 domain refusals (photo didn’t pass, etc.) are dropped — not parked.
+ * Checker-unavailable 400s still retry. Other 4xx park until an app update.
  */
 export function classifySyncError(error: unknown): PendingErrorKind {
   if (error instanceof TypeError) {
@@ -50,6 +51,10 @@ export function classifySyncError(error: unknown): PendingErrorKind {
     return 'retryable';
   }
 
+  if (isTransientPhotoCheckMessage(message)) {
+    return 'retryable';
+  }
+
   const status = (error as { status?: number; statusCode?: number }).status
     ?? (error as { status?: number; statusCode?: number }).statusCode
     ?? parseStatusFromMessage(error.message);
@@ -60,10 +65,22 @@ export function classifySyncError(error: unknown): PendingErrorKind {
   if (status === 429 || status >= 500) {
     return 'retryable';
   }
+  // BAD_REQUEST domain outcomes (evidence reject, wrong vitals, etc.).
+  if (status === 400) {
+    return 'rejected';
+  }
   if (status >= 400 && status < 500) {
     return 'permanent';
   }
   return 'retryable';
+}
+
+/** Matches API REJECT_UNAVAILABLE — worth another try, not “needs attention”. */
+function isTransientPhotoCheckMessage(message: string): boolean {
+  return (
+    message.includes('could not check that photo') ||
+    message.includes('try again in a moment')
+  );
 }
 
 function parseStatusFromMessage(message: string): number | null {
@@ -142,6 +159,11 @@ async function flushOnce(): Promise<void> {
       anySucceeded = true;
     } catch (error) {
       const kind = classifySyncError(error);
+      if (kind === 'rejected') {
+        await removePendingCompletion(entry.id);
+        continue;
+      }
+
       if (kind === 'permanent') {
         await markPendingCompletionAttempt(entry.id, errorMessage(error), {
           kind: 'permanent',

@@ -32,6 +32,11 @@ export async function submitQueuedCompletion(
     return { outcome: 'saved', executed, pendingId: pending.id };
   } catch (error) {
     const kind = classifySyncError(error);
+    if (kind === 'rejected') {
+      await removePendingCompletion(pending.id);
+      return { outcome: 'failed', pending, error };
+    }
+
     if (kind === 'permanent') {
       await markPendingCompletionAttempt(
         pending.id,

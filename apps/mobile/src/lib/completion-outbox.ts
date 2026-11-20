@@ -10,7 +10,11 @@ import * as SecureStore from 'expo-secure-store';
 const INDEX_KEY = 'completion_outbox_v1';
 
 export type PendingSyncStatus = 'pending' | 'parked';
-export type PendingErrorKind = 'retryable' | 'permanent' | null;
+/**
+ * `rejected` is a domain refusal (e.g. gym photo didn’t pass). It is never
+ * stored on an outbox row — callers drop the entry instead of parking it.
+ */
+export type PendingErrorKind = 'retryable' | 'permanent' | 'rejected' | null;
 
 type PendingBase = {
   /** Stable dedupe key for this logical piece of work. */
