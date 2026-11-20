@@ -9,16 +9,9 @@ import {
 } from '@/components/challenges/SharePosterCard';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { SharePosterText } from '@/components/challenges/SharePosterText';
-import { useTheme } from '@/theme';
 import { GroupFace } from './GroupFace';
 import { honorCardTitle, honorChallengeTitle, honorMetaLine } from './honor-copy';
-import { honorFillFor } from './honor-palettes';
-
-const INK = {
-  text: '#F4F2EE',
-  sub: '#B8B4AD',
-  track: '#3D3A45',
-} as const;
+import { honorFillFor, honorInkFor } from './honor-palettes';
 
 /**
  * Deck poster for one group honor: identity, brag title, proof, contest meta.
@@ -32,10 +25,10 @@ export function HonorShareCard({
   honor: MatchHonor;
   isHolder: boolean;
 }) {
-  const theme = useTheme();
   const challenge = honorChallengeTitle(board);
   const title = honorCardTitle(honor, isHolder);
   const standing = board.standings.find((row) => row.userId === honor.userId);
+  const ink = honorInkFor(honor.palette);
 
   return (
     <View style={styles.shell} testID={`honor-share-card-${honor.kind}`}>
@@ -50,27 +43,27 @@ export function HonorShareCard({
             userId={honor.userId}
           />
           <View style={styles.identityText}>
-            <SharePosterText style={[styles.name, { color: INK.text }]}>
+            <SharePosterText style={[styles.name, { color: ink.text }]}>
               {honor.displayName}
             </SharePosterText>
             {challenge ? (
-              <SharePosterText style={[styles.challenge, { color: INK.sub }]}>
+              <SharePosterText style={[styles.challenge, { color: ink.sub }]}>
                 {challenge}
               </SharePosterText>
             ) : null}
           </View>
         </View>
         <View style={styles.spacer} />
-        <SharePosterText style={[styles.title, { color: INK.text }]}>{title}</SharePosterText>
-        <SharePosterText style={[styles.proof, { color: INK.sub }]}>{honor.proof}</SharePosterText>
-        <SharePosterText style={[styles.meta, { color: INK.sub }]}>
+        <SharePosterText style={[styles.title, { color: ink.text }]}>{title}</SharePosterText>
+        <SharePosterText style={[styles.proof, { color: ink.sub }]}>{honor.proof}</SharePosterText>
+        <SharePosterText style={[styles.meta, { color: ink.sub }]}>
           {honorMetaLine(board)}
         </SharePosterText>
-        <View style={[styles.brand, { borderTopColor: theme.deckCards.track ?? INK.track }]}>
-          <SharePosterText style={[styles.brandName, { color: INK.text }]}>
+        <View style={[styles.brand, { borderTopColor: ink.track }]}>
+          <SharePosterText style={[styles.brandName, { color: ink.text }]}>
             {SHARE_COPY.brand}
           </SharePosterText>
-          <SharePosterText style={[styles.meta, { color: INK.sub }]}>
+          <SharePosterText style={[styles.meta, { color: ink.sub }]}>
             {honor.kind === 'champion' ? 'Won' : honor.title.replace(/[!]$/, '')}
           </SharePosterText>
         </View>

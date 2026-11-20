@@ -4,8 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Dimensions,
   FlatList,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   StyleSheet,
@@ -108,9 +108,24 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
   const summary = resultSummary(board);
   const hasPodium = board.winnerUserId !== null;
   const listRef = useRef<FlatList<HonorCarouselSlide>>(null);
-  const pageWidth = Dimensions.get('window').width;
+  const [pageWidth, setPageWidth] = useState(0);
+  const posterScale =
+    pageWidth === 0 || pageWidth > SHARE_POSTER_WIDTH
+      ? 0.92
+      : pageWidth / SHARE_POSTER_WIDTH;
+
+  const onCarouselLayout = (event: LayoutChangeEvent) => {
+    const nextWidth = event.nativeEvent.layout.width;
+    if (nextWidth <= 0) {
+      return;
+    }
+    setPageWidth((current) => (current > 0 ? current : nextWidth));
+  };
 
   const onScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (pageWidth <= 0) {
+      return;
+    }
     const next = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
     if (next >= 0 && next < slides.length) {
       setActiveIndex(next);
@@ -144,25 +159,40 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
           {summary.sentence ? <Text style={styles.sentence}>{summary.sentence}</Text> : null}
         </View>
         {slides.length > 0 ? (
-          <View style={styles.carousel} testID="match-honors-carousel">
-            <FlatList
-              ref={listRef}
-              data={slides}
-              horizontal
-              keyExtractor={(item, index) =>
-                item.type === 'honor' ? `${item.honor.kind}-${item.honor.userId}` : `${item.type}-${index}`
-              }
-              onMomentumScrollEnd={onScrollEnd}
-              pagingEnabled
-              renderItem={({ item }) => (
-                <View style={[styles.slide, { width: pageWidth }]}>
-                  <View style={styles.slideCard}>
-                    <HonorSlidePreview board={board} slide={item} />
+          <View
+            onLayout={onCarouselLayout}
+            style={[styles.carousel, pageWidth > 0 ? { width: pageWidth } : null]}
+            testID="match-honors-carousel"
+          >
+            {pageWidth > 0 ? (
+              <FlatList
+                ref={listRef}
+                data={slides}
+                extraData={pageWidth}
+                getItemLayout={(_, index) => ({
+                  length: pageWidth,
+                  offset: pageWidth * index,
+                  index,
+                })}
+                horizontal
+                style={{ width: pageWidth }}
+                keyExtractor={(item, index) =>
+                  item.type === 'honor'
+                    ? `${item.honor.kind}-${item.honor.userId}`
+                    : `${item.type}-${index}`
+                }
+                onMomentumScrollEnd={onScrollEnd}
+                pagingEnabled
+                renderItem={({ item }) => (
+                  <View style={[styles.slide, { width: pageWidth }]}>
+                    <View style={[styles.slideCard, { transform: [{ scale: posterScale }] }]}>
+                      <HonorSlidePreview board={board} slide={item} />
+                    </View>
                   </View>
-                </View>
-              )}
-              showsHorizontalScrollIndicator={false}
-            />
+                )}
+                showsHorizontalScrollIndicator={false}
+              />
+            ) : null}
             {slides.length > 1 ? (
               <>
                 <View style={styles.dots}>
@@ -364,14 +394,15 @@ const createStyles = (theme: Theme) =>
     carousel: {
       marginTop: spacing.lg,
       marginBottom: spacing.md,
+      overflow: 'hidden',
     },
     slide: {
       alignItems: 'center',
+      overflow: 'hidden',
     },
     slideCard: {
       width: SHARE_POSTER_WIDTH,
       height: SHARE_POSTER_HEIGHT,
-      transform: [{ scale: 0.92 }],
     },
     dots: {
       flexDirection: 'row',

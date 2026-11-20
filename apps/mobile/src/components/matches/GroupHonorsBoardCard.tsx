@@ -10,42 +10,37 @@ import {
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { SharePosterText } from '@/components/challenges/SharePosterText';
 import { honorBoardLine, honorChallengeTitle, honorMetaLine } from './honor-copy';
-import { honorFillFor } from './honor-palettes';
-
-const INK = {
-  text: '#F4F2EE',
-  sub: '#B8B4AD',
-  track: '#3D3A45',
-} as const;
+import { honorFillFor, honorInkFor } from './honor-palettes';
 
 /** Summary poster listing who earned which honor. */
 export function GroupHonorsBoardCard({ board }: { board: MatchBoard }) {
   const honors = board.honors ?? [];
   const challenge = honorChallengeTitle(board);
+  const ink = honorInkFor('honors_board');
 
   return (
     <View style={styles.shell} testID="match-honors-board-card">
       <View style={[styles.fill, { backgroundColor: honorFillFor('honors_board') }]} />
       <View style={styles.type}>
-        <SharePosterText style={[styles.eyebrow, { color: INK.sub }]}>
+        <SharePosterText style={[styles.eyebrow, { color: ink.sub }]}>
           {challenge ?? honorMetaLine(board)}
         </SharePosterText>
-        <SharePosterText style={[styles.title, { color: INK.text }]}>Honors</SharePosterText>
+        <SharePosterText style={[styles.title, { color: ink.text }]}>Honors</SharePosterText>
         <View style={styles.list}>
           {honors.slice(0, 6).map((row) => (
             <SharePosterText
               key={`${row.kind}-${row.userId}`}
-              style={[styles.line, { color: INK.sub }]}
+              style={[styles.line, { color: ink.sub }]}
             >
               {honorBoardLine(row)}
             </SharePosterText>
           ))}
         </View>
-        <View style={[styles.brand, { borderTopColor: INK.track }]}>
-          <SharePosterText style={[styles.brandName, { color: INK.text }]}>
+        <View style={[styles.brand, { borderTopColor: ink.track }]}>
+          <SharePosterText style={[styles.brandName, { color: ink.text }]}>
             {SHARE_COPY.brand}
           </SharePosterText>
-          <SharePosterText style={[styles.eyebrow, { color: INK.sub }]}>
+          <SharePosterText style={[styles.eyebrow, { color: ink.sub }]}>
             {`${board.participantCount} people`}
           </SharePosterText>
         </View>
