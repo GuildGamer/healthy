@@ -98,8 +98,7 @@ function LiveCamera({
   const [message, setMessage] = useState<string | null>(null);
 
   async function shoot() {
-    // Mirror / EXIF bake happens after shutter — keep the live preview like iPhone Camera.
-    const captured = await takePhoto({ facing });
+    const captured = await takePhoto();
     if (captured.status === 'captured') {
       onTaken(captured.photo);
       return;
@@ -111,8 +110,8 @@ function LiveCamera({
   return (
     <View style={styles.screen} testID="capture-camera-screen">
       {/*
-        Front preview stays mirrored (iPhone Camera). Capture is normalized
-        after takePictureAsync so review + upload match that preview.
+        Live front preview is mirrored like iPhone Camera. The saved JPEG from
+        takePictureAsync is already upright and unmirrored (stock Camera).
       */}
       <CameraView facing={facing} ref={cameraRef} style={StyleSheet.absoluteFill} />
       <FrameCorners />

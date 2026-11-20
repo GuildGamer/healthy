@@ -78,11 +78,10 @@ describe('CaptureCameraScreen', () => {
     expect(await screen.findByTestId('camera-preview-image')).toBeOnTheScreen();
     fireEvent.press(screen.getByTestId('camera-use-photo'));
 
-    // Front takes are mirrored after shutter via ImageManipulator (see jest.setup).
     expect(onUse).toHaveBeenCalledWith({
       mimeType: 'image/jpeg',
-      imageBase64: 'normalized-bytes',
-      previewUri: 'file://shot.jpg?normalized',
+      imageBase64: 'bbbb',
+      previewUri: 'file://shot.jpg',
       width: 3024,
       height: 4032,
     });
