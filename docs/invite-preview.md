@@ -1,7 +1,7 @@
 # Invite link preview
 
 The image a friend sees when a member shares a contest invite. The app shares
-text plus `https://www.gethealthyapp.com/match/<token>`; WhatsApp, iMessage,
+text plus `https://beatset.tech/match/<token>`; WhatsApp, iMessage,
 Telegram and Slack then fetch the page's Open Graph image. That image is drawn
 on demand by
 [`apps/website/src/pages/match/[token]/og.png.ts`](../apps/website/src/pages/match/[token]/og.png.ts).

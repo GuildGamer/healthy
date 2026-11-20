@@ -156,7 +156,7 @@ services:
       - key: BETTER_AUTH_URL
         sync: false
       - key: WEBSITE_URL
-        value: https://www.gethealthyapp.com
+        value: https://beatset.tech
       # Required in production: SendByte (SEND_BYTE_LIVE_KEY) or a complete SMTP transport.
       - key: EMAIL_PROVIDER
         sync: false

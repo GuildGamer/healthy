@@ -22,7 +22,7 @@ describe('reportHrefFromUrl', () => {
   it('maps the shared https report onto the screen, keeping the closed day', () => {
     expect(
       reportHrefFromUrl(
-        'https://www.gethealthyapp.com/progress/report?period=month&on=2026-10-31',
+        'https://beatset.tech/progress/report?period=month&on=2026-10-31',
       ),
     ).toBe('/progress/report?period=month&on=2026-10-31');
   });
@@ -51,7 +51,7 @@ describe('reportHrefFromUrl', () => {
   it('fills the closed month when old mail only named the period', () => {
     expect(
       reportHrefFromUrl(
-        'https://www.gethealthyapp.com/progress/report?period=month',
+        'https://beatset.tech/progress/report?period=month',
         AFTER_OCTOBER,
       ),
     ).toBe('/progress/report?period=month&on=2026-10-31');
@@ -60,13 +60,13 @@ describe('reportHrefFromUrl', () => {
   it('fills the closed week and year when the day is missing', () => {
     expect(
       reportHrefFromUrl(
-        'https://www.gethealthyapp.com/app/progress/report?period=week',
+        'https://beatset.tech/app/progress/report?period=week',
         AFTER_OCTOBER,
       ),
     ).toBe('/progress/report?period=week&on=2026-10-25');
     expect(
       reportHrefFromUrl(
-        'https://www.gethealthyapp.com/progress/report?period=year',
+        'https://beatset.tech/progress/report?period=year',
         AFTER_OCTOBER,
       ),
     ).toBe('/progress/report?period=year&on=2025-12-31');
@@ -75,13 +75,13 @@ describe('reportHrefFromUrl', () => {
   it('drops a period or day that is not one of ours', () => {
     expect(
       reportHrefFromUrl(
-        'https://www.gethealthyapp.com/progress/report?period=day&on=October',
+        'https://beatset.tech/progress/report?period=day&on=October',
       ),
     ).toBe('/progress/report');
   });
 
   it('ignores the rest of the site', () => {
-    expect(reportHrefFromUrl('https://www.gethealthyapp.com/progress/reports')).toBeNull();
+    expect(reportHrefFromUrl('https://beatset.tech/progress/reports')).toBeNull();
     expect(reportHrefFromUrl('https://example.com/progress/report?period=month')).toBeNull();
     expect(reportHrefFromUrl('not a url')).toBeNull();
   });

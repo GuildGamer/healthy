@@ -36,9 +36,9 @@ type GeminiResponsePayload = {
   candidates?: GeminiCandidate[];
 };
 
-type GeminiThinkingConfig = {
-  thinkingConfig: { thinkingBudget: 0 };
-};
+type GeminiThinkingConfig =
+  | { thinkingConfig: { thinkingBudget: 0 } }
+  | { thinkingConfig: { thinkingLevel: 'low' } };
 
 export function createGeminiEvidenceValidator(
   config: GeminiVisionConfig,
@@ -121,13 +121,18 @@ function geminiBody(model: string, photo: GymPhotoInput, expectation: string): s
 }
 
 /**
- * 2.5 Flash thinks by default, which spends tokens and can hide the JSON
- * verdict in a thought part. A budget of 0 turns that off. Other Gemini
- * models keep their own thinking settings.
+ * 2.5 Flash thinks by default; a budget of 0 turns that off so the JSON
+ * verdict is not buried in a thought part. 3.x Flash uses thinkingLevel
+ * instead (budget is rejected); "low" keeps this yes/no photo check cheap.
+ * Other Gemini models keep their own thinking settings.
  */
 function geminiThinkingConfig(model: string): GeminiThinkingConfig | null {
   if (model.includes('2.5') && model.includes('flash')) {
     return { thinkingConfig: { thinkingBudget: 0 } };
+  }
+
+  if (model.includes('3.') && model.includes('flash')) {
+    return { thinkingConfig: { thinkingLevel: 'low' } };
   }
 
   return null;

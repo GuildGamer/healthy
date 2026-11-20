@@ -12,7 +12,42 @@ describe('createGeminiEvidenceValidator', () => {
     vi.unstubAllGlobals();
   });
 
-  it('accepts a photo Gemini approves', async () => {
+  it('accepts a photo Gemini approves and uses thinkingLevel for 3.x Flash', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: '{"accepted":true}' }] } }],
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const validator = createGeminiEvidenceValidator({
+      mode: 'gemini',
+      apiKey: 'gemini-test',
+      model: 'gemini-3.8-flash',
+    });
+
+    await expect(validator.validateGymPhoto(photo)).resolves.toEqual({
+      accepted: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'x-goog-api-key': 'gemini-test' }),
+      }),
+    );
+    const request = fetchMock.mock.calls[0]?.[1] as { body: string };
+    expect(request.body).toContain('physically inside a gym');
+    expect(request.body).toContain(photo.imageBase64);
+    expect(request.body).toContain('"thinkingLevel":"low"');
+    expect(request.body).not.toContain('thinkingBudget');
+    expect(request.body).not.toContain('gemini-test');
+  });
+
+  it('still sends thinkingBudget 0 for 2.5 Flash', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       text: async () =>
@@ -32,18 +67,9 @@ describe('createGeminiEvidenceValidator', () => {
       accepted: true,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ 'x-goog-api-key': 'gemini-test' }),
-      }),
-    );
     const request = fetchMock.mock.calls[0]?.[1] as { body: string };
-    expect(request.body).toContain('physically inside a gym');
-    expect(request.body).toContain(photo.imageBase64);
     expect(request.body).toContain('"thinkingBudget":0');
-    expect(request.body).not.toContain('gemini-test');
+    expect(request.body).not.toContain('thinkingLevel');
   });
 
   it('ignores a thought part and reads the verdict', async () => {
@@ -70,7 +96,7 @@ describe('createGeminiEvidenceValidator', () => {
     const validator = createGeminiEvidenceValidator({
       mode: 'gemini',
       apiKey: 'gemini-test',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
     });
 
     await expect(validator.validateGymPhoto(photo)).resolves.toEqual({
@@ -86,7 +112,7 @@ describe('createGeminiEvidenceValidator', () => {
     const validator = createGeminiEvidenceValidator({
       mode: 'gemini',
       apiKey: 'gemini-test',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
     });
 
     await expect(validator.validateGymPhoto(photo)).resolves.toEqual({
@@ -116,7 +142,7 @@ describe('createGeminiEvidenceValidator', () => {
     const validator = createGeminiEvidenceValidator({
       mode: 'gemini',
       apiKey: 'gemini-test',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
     });
 
     await expect(validator.validateGymPhoto(photo)).resolves.toEqual({

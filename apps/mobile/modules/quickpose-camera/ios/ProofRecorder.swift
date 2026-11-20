@@ -490,7 +490,7 @@ final class ProofRecorder {
   /// Top-right: code and verify URL so anyone watching knows where to check it.
   private static func drawCodeChip(code: String, in rect: CGRect, metrics: ChromeMetrics) {
     let codeLine = code as NSString
-    let urlLine = "gethealthyapp.com/v/\(code)" as NSString
+    let urlLine = "beatset.tech/v/\(code)" as NSString
     let codeAttributes = textAttributes(font: metrics.codeFont)
     let urlAttributes = textAttributes(font: metrics.urlFont, alpha: 0.85)
     let codeSize = codeLine.size(withAttributes: codeAttributes)

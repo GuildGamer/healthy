@@ -122,6 +122,8 @@ After a binary is installed:
 maestro test apps/mobile/.maestro/home.yml
 ```
 
+The flow launches the Android package `com.beatset.app` (see `.maestro/home.yml`). An iOS install is `com.healthyapp.app` and needs its own flow.
+
 ## As you go (per change)
 
 | Change | What to run |

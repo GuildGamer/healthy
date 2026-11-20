@@ -14,7 +14,7 @@ describe('readEnvironment', () => {
     expect(environment.appleIap).toEqual({ mode: 'disabled' });
     expect(environment.storage).toEqual({ mode: 'disabled' });
     expect(environment.adminAppUrl).toBe('http://localhost:3001');
-    expect(environment.websiteUrl).toBe('https://www.gethealthyapp.com');
+    expect(environment.websiteUrl).toBe('https://beatset.tech');
     expect(environment.adminBootstrapEmail).toBeNull();
     expect(environment.testingMembership).toBe(true);
     expect(environment.proofClipEncoding).toEqual({
@@ -228,7 +228,7 @@ describe('readEnvironment', () => {
     expect(environment.evidenceVision).toEqual({
       mode: 'gemini',
       apiKey: 'gemini-live',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
     });
   });
 

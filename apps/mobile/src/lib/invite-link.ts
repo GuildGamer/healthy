@@ -1,19 +1,23 @@
 /**
  * Maps an invite URL onto `app/match/[token]`.
  *
- * The OS delivers `https://www.gethealthyapp.com/match/<token>` when the app
- * is installed. The apex host 308s to www, so new shares use www; apex is
- * still accepted if a link arrives without that redirect. `healthy://` is
- * only the fallback the website fires from inside a webview.
+ * New shares are `https://beatset.tech/match/<token>`. `www.beatset.tech` is
+ * accepted if a link arrives that way. The previous site stays accepted so
+ * invites already sent still open the app. `healthy://` is only the fallback
+ * the website fires from inside a webview.
  */
 
-const CANONICAL_INVITE_HOST = 'www.gethealthyapp.com';
-const APEX_INVITE_HOST = 'gethealthyapp.com';
+const CANONICAL_INVITE_HOST = 'beatset.tech';
 const APP_SCHEME = 'healthy:';
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 const INVITE_PATH_PATTERN = /^\/match\/([A-Za-z0-9_-]{8,64})\/?$/;
 
-const INVITE_HOSTS = new Set([CANONICAL_INVITE_HOST, APEX_INVITE_HOST]);
+const INVITE_HOSTS = new Set([
+  CANONICAL_INVITE_HOST,
+  'www.beatset.tech',
+  'www.gethealthyapp.com',
+  'gethealthyapp.com',
+]);
 
 export function inviteHrefFromUrl(value: string): `/match/${string}` | null {
   const url = parseUrl(value);

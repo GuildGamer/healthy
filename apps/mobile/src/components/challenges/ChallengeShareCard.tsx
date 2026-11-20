@@ -58,7 +58,7 @@ export const SHARE_CARD_EXPORT_HEIGHT = Math.round(
   SHARE_CARD_EXPORT_WIDTH / SHARE_CARD_ASPECT_RATIO,
 );
 
-export const SHARE_CARD_URL = 'gethealthyapp.com';
+export const SHARE_CARD_URL = 'beatset.tech';
 
 /** Width the type scale below is drawn for; the card scales from here. */
 const DESIGN_WIDTH = 360;

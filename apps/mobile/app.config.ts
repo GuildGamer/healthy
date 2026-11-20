@@ -1,17 +1,19 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 /**
- * Host for universal / app links. The apex `gethealthyapp.com` 308s to www,
- * and iOS and Android will not open an app from a link that redirects, so
- * invites and this claim both use www. `/match/<token>` mirrors
- * `app/match/[token]`. `/progress/report` is the recap email. `/app/progress/report`
- * is the path older mail used; `path` is exact so it does not also claim
- * `/progress/reports`.
+ * Host for universal / app links. New invites use `beatset.tech` with no
+ * redirect: iOS and Android will not open the app from a link that redirects.
+ * `www.gethealthyapp.com` stays claimed so links already sent still open the
+ * app. `/match/<token>` mirrors `app/match/[token]`. `/progress/report` is the
+ * recap email. `/app/progress/report` is the path older mail used; `path` is
+ * exact so it does not also claim `/progress/reports`.
  *
  * `associatedDomains` and `intentFilters` are native. They apply only after
  * a new dev-client build (`make ios` / `make android`), not an EAS Update.
  */
-const LINK_HOST = 'www.gethealthyapp.com';
+const LINK_HOST = 'beatset.tech';
+const LEGACY_LINK_HOST = 'www.gethealthyapp.com';
+const LINK_HOSTS = [LINK_HOST, LEGACY_LINK_HOST] as const;
 /** Trailing slash matters: without it Android would also claim `/matches/...`. */
 const MATCH_INVITE_PATH_PREFIX = '/match/';
 const PROOF_VERIFY_PATH_PREFIX = '/v/';
@@ -19,15 +21,14 @@ const REPORT_PATH = '/progress/report';
 const LEGACY_REPORT_PATH = '/app/progress/report';
 
 /**
- * Canonical store IDs for your own Apple/Google account later.
- * Override for disposable TestFlight / friend-account builds so you do not
- * register the real ID on a team you will abandon (Apple App IDs stick to the
- * team that creates them).
+ * Store application ids. Override either one for a disposable friend-account
+ * build. Apple App IDs stick to the team that creates them, and a Play package
+ * name sticks to the developer account that creates the app.
  *
  * Example throwaway: IOS_BUNDLE_IDENTIFIER=com.healthyapp.tfpreview
  */
 const IOS_BUNDLE_IDENTIFIER = process.env.IOS_BUNDLE_IDENTIFIER?.trim() || 'com.healthyapp.app';
-const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE?.trim() || 'com.healthyapp.app';
+const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE?.trim() || 'com.beatset.app';
 /** CFBundleVersion. Codemagic sets this before prebuild; local builds stay on 1. */
 const IOS_BUILD_NUMBER = process.env.IOS_BUILD_NUMBER?.trim() || '1';
 /**
@@ -78,7 +79,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: IOS_BUNDLE_IDENTIFIER,
     buildNumber: IOS_BUILD_NUMBER,
-    associatedDomains: [`applinks:${LINK_HOST}`],
+    associatedDomains: LINK_HOSTS.map((host) => `applinks:${host}`),
     // Set once the App Store listing exists (numeric id from App Store Connect).
     // appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
     infoPlist: {
@@ -126,28 +127,28 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         // the app directly instead of showing a chooser.
         autoVerify: true,
         category: ['BROWSABLE', 'DEFAULT'],
-        data: [
+        data: LINK_HOSTS.flatMap((host) => [
           {
             scheme: 'https',
-            host: LINK_HOST,
+            host,
             pathPrefix: MATCH_INVITE_PATH_PREFIX,
           },
           {
             scheme: 'https',
-            host: LINK_HOST,
+            host,
             pathPrefix: PROOF_VERIFY_PATH_PREFIX,
           },
           {
             scheme: 'https',
-            host: LINK_HOST,
+            host,
             path: REPORT_PATH,
           },
           {
             scheme: 'https',
-            host: LINK_HOST,
+            host,
             path: LEGACY_REPORT_PATH,
           },
-        ],
+        ]),
       },
     ],
     playStoreUrl: `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`,

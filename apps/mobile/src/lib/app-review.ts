@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Linking, Platform } from 'react-native';
 
-const ANDROID_PACKAGE = 'com.healthyapp.app';
+const ANDROID_PACKAGE = 'com.beatset.app';
 
 type StoreReviewModule = {
   hasAction: () => Promise<boolean>;

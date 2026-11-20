@@ -306,7 +306,7 @@ function readMail(source: NodeJS.ProcessEnv, policy: MailPolicy): MailConfig {
 }
 
 const DEFAULT_OPENAI_VISION_MODEL = 'gpt-4o-mini';
-const DEFAULT_GEMINI_VISION_MODEL = 'gemini-2.5-flash';
+const DEFAULT_GEMINI_VISION_MODEL = 'gemini-3.8-flash';
 
 function readEvidenceVisionProvider(
   value: string | undefined,
@@ -647,7 +647,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     // link only this machine can open is worse than one pointing at the
     // public site. The apex host 308s to www, and a redirect cannot be a
     // universal / app link, so the shared origin is www.
-    websiteUrl: readOptional(source.WEBSITE_URL) ?? 'https://www.gethealthyapp.com',
+    websiteUrl: readOptional(source.WEBSITE_URL) ?? 'https://beatset.tech',
     adminBootstrapEmail: readOptional(source.ADMIN_BOOTSTRAP_EMAIL),
     adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
     testingMembership: readTestingMembership(source),

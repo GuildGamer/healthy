@@ -73,7 +73,7 @@ export const ANALYTICS_EVENT_PROPERTIES = {
   activity_session_ended: z.object({
     metric: matchMetricSchema,
     context: z.enum(['challenge', 'contest', 'practice']),
-    outcome: z.enum(['saved', 'abandoned', 'failed']),
+    outcome: z.enum(['saved', 'abandoned', 'failed', 'queued']),
     count: z.number().int().nonnegative(),
     durationSeconds: z.number().int().nonnegative(),
     matchId: z.string().max(64).optional(),

@@ -1,20 +1,23 @@
 /**
  * Maps a recap email link onto `app/progress/report`.
  *
- * Shared links are `https://www.gethealthyapp.com/progress/report`. The apex
- * host still 308s to www, and mail already sent used `/app/progress/report`.
- * `healthy://` is the fallback the website fires when the universal link
- * stays in the browser.
+ * New mail uses `https://beatset.tech/progress/report`. Mail already sent used
+ * the previous host and `/app/progress/report`; both still open. `healthy://`
+ * is the fallback the website fires when the universal link stays in the browser.
  */
 
-const CANONICAL_HOST = 'www.gethealthyapp.com';
-const APEX_HOST = 'gethealthyapp.com';
+const CANONICAL_HOST = 'beatset.tech';
 const APP_SCHEME = 'healthy:';
 const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const PERIODS = new Set(['week', 'month', 'year']);
 const REPORT_PATHS = new Set(['/progress/report', '/app/progress/report']);
 
-const HOSTS = new Set([CANONICAL_HOST, APEX_HOST]);
+const HOSTS = new Set([
+  CANONICAL_HOST,
+  'www.beatset.tech',
+  'www.gethealthyapp.com',
+  'gethealthyapp.com',
+]);
 
 type ReportPeriod = 'week' | 'month' | 'year';
 
