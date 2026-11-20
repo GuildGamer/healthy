@@ -15,8 +15,8 @@ export type SyncStatusLineProps = {
 };
 
 /**
- * Quiet status under Today’s tally, beside a board score, or on the success
- * screen. Muted xs text with a small pulsing dot — no new chrome.
+ * Quiet sync status in Today’s header (between date and inbox), beside a board
+ * score, or on the success screen. Muted xs text with a small pulsing dot.
  */
 export function SyncStatusLine({
   tone,

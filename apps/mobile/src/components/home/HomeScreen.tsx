@@ -63,6 +63,18 @@ export function HomeScreen({ focus = null }: { focus?: TodayFocus | null }) {
   const styles = useThemedStyles(createStyles);
   const today = useTodayQueries();
   const now = new Date();
+  const sync = usePendingSync();
+  const [showParked, setShowParked] = useState(false);
+  const syncStatus =
+    sync.parkedCount > 0
+      ? {
+          tone: 'attention' as const,
+          label: attentionSetsLabel(sync.parkedCount),
+          onPress: () => setShowParked(true),
+        }
+      : sync.pendingCount > 0
+        ? { tone: 'syncing' as const, label: syncingSetsLabel(sync.pendingCount) }
+        : null;
 
   return (
     <CardActsProvider>
@@ -76,11 +88,17 @@ export function HomeScreen({ focus = null }: { focus?: TodayFocus | null }) {
           <TodayHeader
             date={dayMonthLabel(now)}
             onOpenInbox={() => router.push('/notifications')}
+            syncStatus={syncStatus}
             unreadCount={today.unreadCount}
             weekday={weekdayLabel(now)}
           />
           <TodayBody focus={focus} today={today} weekday={weekdayLabel(now)} />
         </RefreshableScroll>
+        <ParkedSetsSheet
+          entries={sync.parked}
+          onDismiss={() => setShowParked(false)}
+          visible={showParked}
+        />
         <CardToastBar />
       </View>
     </CardActsProvider>
@@ -157,18 +175,6 @@ function DeckSection({
     finished.finish && !opensDayPage ? withFinishedCard(deck.items, finished.finish) : deck.items;
   const openDoneChallenge = useOpenDoneChallenge(today.liveGroups);
   const isShowingStaleCopy = challengesQuery.isError && challengesQuery.data !== undefined;
-  const sync = usePendingSync();
-  const [showParked, setShowParked] = useState(false);
-  const syncStatus =
-    sync.parkedCount > 0
-      ? {
-          tone: 'attention' as const,
-          label: attentionSetsLabel(sync.parkedCount),
-          onPress: () => setShowParked(true),
-        }
-      : sync.pendingCount > 0
-        ? { tone: 'syncing' as const, label: syncingSetsLabel(sync.pendingCount) }
-        : null;
 
   return (
     <View style={styles.section}>
@@ -185,7 +191,6 @@ function DeckSection({
           bestStreakDays: me?.bestStreakDays ?? 0,
         })}
         segments={deck.segments}
-        syncStatus={syncStatus}
         updatedLabel={isShowingStaleCopy ? lastUpdatedLabel(challengesQuery.dataUpdatedAt) : null}
         winLineAfter={deck.winLineAfter}
       />
@@ -199,11 +204,6 @@ function DeckSection({
       {deck.isDayDone ? null : <DoneChips items={deck.done} onOpen={openDoneChallenge} />}
       {deck.presence ? <PresenceLine now={now} presence={deck.presence} /> : null}
       {deck.showsMembershipLine ? <MembershipLine /> : null}
-      <ParkedSetsSheet
-        entries={sync.parked}
-        onDismiss={() => setShowParked(false)}
-        visible={showParked}
-      />
     </View>
   );
 }

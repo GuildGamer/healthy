@@ -1,5 +1,9 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  SyncStatusLine,
+  type SyncStatusTone,
+} from '@/components/feedback/SyncStatusLine';
 import { Glyph } from '@/components/icons';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
@@ -7,15 +11,29 @@ const INBOX_BUTTON_SIZE = 40;
 const BELL_SIZE = 22;
 const UNREAD_DOT_SIZE = 9;
 
+export type TodayHeaderSyncStatus = {
+  tone: SyncStatusTone;
+  label: string;
+  onPress?: () => void;
+};
+
 interface TodayHeaderProps {
   weekday: string;
   date: string;
   unreadCount: number;
   onOpenInbox: () => void;
+  /** Quiet sync / attention line between the date and the inbox bell. */
+  syncStatus?: TodayHeaderSyncStatus | null;
 }
 
-/** The day, and the inbox bell, which carries a dot when there is something new. */
-export function TodayHeader({ weekday, date, unreadCount, onOpenInbox }: TodayHeaderProps) {
+/** The day, optional sync status, and the inbox bell. */
+export function TodayHeader({
+  weekday,
+  date,
+  unreadCount,
+  onOpenInbox,
+  syncStatus = null,
+}: TodayHeaderProps) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const hasUnread = unreadCount > 0;
@@ -28,6 +46,19 @@ export function TodayHeader({ weekday, date, unreadCount, onOpenInbox }: TodayHe
         </Text>
         <Text style={styles.date}>{date}</Text>
       </View>
+      {syncStatus ? (
+        <View style={styles.sync}>
+          <SyncStatusLine
+            compact
+            label={syncStatus.label}
+            onPress={syncStatus.onPress}
+            testID="home-sync-status"
+            tone={syncStatus.tone}
+          />
+        </View>
+      ) : (
+        <View style={styles.syncSpacer} />
+      )}
       <Pressable
         accessibilityLabel={hasUnread ? `${unreadCount} unread notifications` : 'Notifications'}
         accessibilityRole="button"
@@ -48,12 +79,13 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     row: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       justifyContent: 'space-between',
+      gap: spacing.sm,
       paddingHorizontal: spacing.xs,
     },
     dateBlock: {
-      flex: 1,
+      flexShrink: 1,
     },
     weekday: {
       color: theme.colors.text,
@@ -65,6 +97,16 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.muted,
       fontSize: fontSize.sm,
       marginTop: 3,
+    },
+    sync: {
+      flex: 1,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      minWidth: 0,
+      paddingRight: spacing.xs,
+    },
+    syncSpacer: {
+      flex: 1,
     },
     inbox: {
       width: INBOX_BUTTON_SIZE,
