@@ -21,7 +21,7 @@ interface GroupStandingsProps {
   rules: GroupRules;
   /** Contest id — used to add waiting reps to your own row. */
   matchId?: string;
-  /** Opens a member's photo, the one thing a face in the standings does. */
+  /** Opens a member's photo from their face; the rest of the row opens their sets. */
   onPreviewPhoto: (imageUri: string) => void;
   /** Leave the podium's three out of a finished board's list. */
   skipTop?: number;
@@ -117,14 +117,16 @@ function StandingLane({
 
   return (
     <Pressable
+      accessibilityHint={openActivity ? BOARD_COPY.openMemberSetsHint : undefined}
       accessibilityRole={openActivity ? 'button' : undefined}
       disabled={!openActivity}
       onPress={openActivity}
-      style={[
+      style={({ pressed }) => [
         styles.lane,
         isFirst || row.isYou ? null : styles.divided,
         row.isYou ? styles.you : null,
         row.isPending ? styles.pending : null,
+        openActivity && pressed ? styles.pressed : null,
       ]}
       testID={`match-standing-${row.userId}`}
     >
@@ -191,6 +193,9 @@ const createStyles = (theme: Theme) =>
     },
     pending: {
       opacity: 0.5,
+    },
+    pressed: {
+      opacity: 0.7,
     },
     rank: {
       width: 18,

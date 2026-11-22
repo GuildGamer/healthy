@@ -116,6 +116,8 @@ export const BOARD_COPY = {
   memberAttempts: 'Sets',
   memberAttemptsEmpty: 'No sets yet in this contest.',
   memberActivityFailed: 'Their sets didn’t load.',
+  /** Standing row → their sets in this contest. */
+  openMemberSetsHint: 'Opens their sets in this contest',
   seats: (count: number) => `${count} of ${MATCH_PARTICIPANT_CAP}`,
   cancelledBody: 'This group was cancelled. Scores logged before then stay here.',
   seeResult: 'See the result',
