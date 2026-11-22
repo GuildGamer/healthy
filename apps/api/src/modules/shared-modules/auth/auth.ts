@@ -33,6 +33,11 @@ export const auth = betterAuth({
   }),
   secret,
   baseURL,
+  // iOS drops the state cookie set while redirecting to Google. The single-use
+  // verification row is still required, so a missing cookie is not a mismatch.
+  account: {
+    skipStateCookieCheck: true,
+  },
   emailAndPassword: {
     enabled: true,
   },
