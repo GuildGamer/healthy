@@ -21,6 +21,8 @@ export type ProofRecordedEvent = {
   byteSize: number;
   durationSeconds: number;
   posterUri?: string;
+  /** Last ≤15s cut for Stories / Status when the full clip is longer. */
+  socialFileUri?: string;
 };
 
 export type ProofClipContext = {

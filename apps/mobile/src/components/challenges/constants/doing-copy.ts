@@ -124,6 +124,7 @@ export const POSE_COPY = {
   proofSendWithoutCheck: 'Send without the check',
   proofGettingCodeReady: 'Getting the code ready…',
   proofPostToGroup: 'Post to group',
+  proofOnGroupBoard: 'On the group board',
   proofPublishFailed: 'Could not upload the clip. Try again.',
   proofSendFailed: 'Could not send the clip. Try again.',
   proofAlreadyPostedToday:
@@ -138,6 +139,7 @@ export const POSE_COPY = {
   sentAnyone: 'Sent. Anyone with the code can watch.',
   sentOnlyMe: 'Sent. Only you can watch.',
   postedToGroup: 'Posted to your group.',
+  proofCodeCheckingOut: 'The code will check out in a moment.',
   proofAnyoneStatus: 'Anyone with the code',
   proofOnlyMeStatus: 'Only me',
   proofAnyoneNote: 'Anyone with the code can watch',

@@ -10,6 +10,8 @@ export type LocalProofClip = {
   clipId: string;
   fileUri: string;
   posterUri: string | null;
+  /** Last ≤15s cut for Stories / Status; falls back to `fileUri` when absent. */
+  socialFileUri?: string | null;
   sha256: string;
   byteSize: number;
   durationSeconds: number;
@@ -74,6 +76,9 @@ function normalizeClip(clip: LocalProofClip): LocalProofClip {
     ...clip,
     fileUri: resolveProofClipUri(clip.fileUri, directoryUri),
     posterUri: clip.posterUri ? resolveProofClipUri(clip.posterUri, directoryUri) : null,
+    socialFileUri: clip.socialFileUri
+      ? resolveProofClipUri(clip.socialFileUri, directoryUri)
+      : null,
     count: typeof clip.count === 'number' && Number.isFinite(clip.count) ? clip.count : 0,
     serverRecorded: clip.serverRecorded === true,
   };

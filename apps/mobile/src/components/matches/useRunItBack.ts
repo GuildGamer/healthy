@@ -3,8 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { apiClient } from '@/lib/api';
 import { createPrefillParams, rerunCreateInput } from './group-rerun';
-import { shareMatchLink } from './share-match-link';
-
 /** Keep in sync with `CREW_NAME_MAX` in `@product/contract`. */
 const CREW_NAME_MAX = 40;
 
@@ -48,17 +46,13 @@ export function useRunItBack(board: MatchBoard) {
     },
     onSuccess: async ({ created, crewId }) => {
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
-      if (!crewId) {
-        await shareMatchLink({
-          url: created.match.inviteUrl,
-          hostScore: created.match.yourScore,
-          hostTitle: created.match.hostTitle,
-          metric: created.match.metric,
-          scoringMode: created.match.scoringMode,
-          endsAt: created.match.endsAt,
-        });
-      }
-      router.replace(`/matches/${created.match.id}`);
+      router.replace({
+        pathname: '/matches/[matchId]',
+        params: {
+          matchId: created.match.id,
+          ...(crewId ? {} : { shareInvite: '1' }),
+        },
+      });
     },
   });
 

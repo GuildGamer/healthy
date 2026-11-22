@@ -284,6 +284,19 @@ function createPrismaMock(match = loadedMatch()) {
         },
       ),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findMany: vi.fn().mockImplementation(
+        async ({
+          where,
+        }: {
+          where: { matchId: string; userId: string };
+        }) =>
+          current.match.attempts
+            .filter((row) => row.matchId === where.matchId && row.userId === where.userId)
+            .map((row) => ({
+              ...row,
+              proofClips: [],
+            })),
+      ),
     },
     matchReaction: {
       createMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -2206,6 +2219,93 @@ describe('MatchesService', () => {
     await service.get(host, 'm1');
 
     expect(prisma.deviceActivityLog.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lists a member’s sets with a play target only for clips posted to the group', async () => {
+    const performedAt = new Date('2026-09-04T11:00:00.000Z');
+    const match = loadedMatch({
+      attempts: [
+        {
+          id: 'a1',
+          matchId: 'm1',
+          userId: host.id,
+          count: 40,
+          durationSeconds: 50,
+          source: 'in_app_pose',
+          clientAttemptId: 'c1',
+          performedAt,
+          recordedAt: performedAt,
+        },
+      ],
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date('2026-09-04T10:00:00.000Z'),
+          acceptedAt: new Date('2026-09-04T10:00:00.000Z'),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date('2026-09-04T10:05:00.000Z'),
+          acceptedAt: new Date('2026-09-04T10:05:00.000Z'),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    prisma.matchAttempt.findMany.mockResolvedValueOnce([
+      {
+        id: 'a1',
+        matchId: 'm1',
+        userId: host.id,
+        count: 40,
+        performedAt,
+        recordedAt: performedAt,
+        proofClips: [{ id: 'clip-posted', postedToGroupAt: performedAt, status: 'ready' }],
+      },
+      {
+        id: 'a2',
+        matchId: 'm1',
+        userId: host.id,
+        count: 12,
+        performedAt,
+        recordedAt: performedAt,
+        proofClips: [],
+      },
+    ]);
+    const service = createService(prisma);
+
+    await expect(service.listMemberActivity(guest, 'm1', host.id)).resolves.toEqual({
+      userId: host.id,
+      displayName: 'Ada',
+      attempts: [
+        {
+          attemptId: 'a1',
+          count: 40,
+          performedAt: performedAt.toISOString(),
+          proofClipId: 'clip-posted',
+        },
+        {
+          attemptId: 'a2',
+          count: 12,
+          performedAt: performedAt.toISOString(),
+          proofClipId: null,
+        },
+      ],
+    });
+  });
+
+  it('rejects member activity from a non-participant', async () => {
+    const service = createService(createPrismaMock());
+    const stranger = { id: 'stranger', email: 'x@a.co', name: 'X' };
+
+    await expect(service.listMemberActivity(stranger, 'm1', host.id)).rejects.toBeInstanceOf(
+      ORPCError,
+    );
   });
 });
 

@@ -2,12 +2,11 @@ import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckPushedPage, DeckSegmented } from '@/components/deck';
-import {
-  sharePosterParams,
-  shareRunLineParams,
-} from '@/components/challenges/share-poster';
+import { DeckPushedPage, DeckSegmented } from '@/components/deck';
+import { defaultShareFillId } from '@/components/challenges/share-fill';
+import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
+import { ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
@@ -17,6 +16,7 @@ import {
   periodReportFacts,
   periodReportPoster,
   periodReportRunLine,
+  periodReportShareText,
 } from './period-posters';
 
 type ReportPeriod = 'week' | 'month' | 'year';
@@ -46,7 +46,7 @@ function onDayFromParam(value: string | string[] | undefined): string | undefine
   return undefined;
 }
 
-/** Week / month / year recap: days active as the hero, Share as the primary. */
+/** Week / month / year recap: days active as the hero, destinations as the primary. */
 export function PeriodReportScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ period?: string; on?: string }>();
@@ -64,19 +64,11 @@ export function PeriodReportScreen() {
   const poster = report ? periodReportPoster(report) : null;
   const runLine = report ? periodReportRunLine(report) : null;
   const facts = report ? periodReportFacts(report) : [];
-
-  function openShare() {
-    if (!poster) {
-      return;
-    }
-    router.push({
-      pathname: '/challenge/share',
-      params: {
-        ...sharePosterParams(poster),
-        ...shareRunLineParams(runLine),
-      },
-    });
-  }
+  const destinations = useShareDestinations({
+    buildPayload: () => ({
+      caption: report ? periodReportShareText(report) : PROGRESS_COPY.shareFallback,
+    }),
+  });
 
   return (
     <DeckPushedPage
@@ -105,12 +97,26 @@ export function PeriodReportScreen() {
             </Text>
           </View>
           <ProgressFactRow facts={facts} testID="period-report-facts" />
-          <DeckButton
-            glyph="share"
-            label={PROGRESS_COPY.share}
-            onPress={openShare}
-            testID="period-report-share"
-          />
+          <View testID="period-report-share">
+            <ShareDestinationRow
+              disabled={destinations.isBusy}
+              onSelect={destinations.select}
+            />
+          </View>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            pointerEvents="none"
+            style={styles.offscreen}
+          >
+            <View collapsable={false} ref={destinations.shotRef}>
+              <SharePosterCard
+                fillId={defaultShareFillId(poster.kind)}
+                poster={poster}
+                runLine={runLine}
+              />
+            </View>
+          </View>
         </>
       ) : (
         <Text style={[styles.failed, { color: colors.muted }]}>{PROGRESS_COPY.reportFailed}</Text>
@@ -143,5 +149,11 @@ const createStyles = (_theme: Theme) =>
     failed: {
       marginTop: spacing.xl,
       fontSize: fontSize.sm,
+    },
+    offscreen: {
+      position: 'absolute',
+      left: -4000,
+      top: 0,
+      opacity: 0,
     },
   });

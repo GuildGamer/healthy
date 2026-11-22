@@ -486,6 +486,35 @@ diff stays reviewable.
 | 3 | Cheers, nudges, notification budget, recap share card |
 | 4 | More metrics (steps, walk distance), possibly `team_total`; handles only if link sharing proves insufficient |
 
+## Finish and share
+
+The finish screen has one job: **send the set**. Motivation peaks the moment
+the count lands; every control that is not sending gets out of the way. The
+same destination language applies to every shareable moment — a set, a day, a
+card, or an invite — not only proof finish.
+
+- **Default payload.** The deck poster (when there is one), a short caption
+  ("Think you can beat me?" on finishes), and the invite link when present.
+  Destinations (WhatsApp, Status, Instagram, Messages, Copy link, More) open
+  immediately. Never wait on an upload before the sheet or deep link.
+- **In-place row vs sheet.** When the foot job is sharing, use the destination
+  row on the screen. When Share is an icon or a post-create handoff, open
+  `ShareDestinationSheet` with the same destinations.
+- **The clip is a second, explicit send.** It uses the file already on the
+  phone. The upload that makes the code checkable runs in the background and
+  never blocks a send.
+- **On the group board.** Inside a group contest this is a switch, default on.
+  Leaving the screen with it on posts the clip (`postedToGroupAt`), still under
+  the one-post-per-day cap. It is not a primary button and not a verb the
+  person has to learn.
+- **Who can check the code** stays a quiet audience control (Anyone / Only me).
+  It was already chosen when proof recording was turned on.
+- **A mate's clip** is reached from their standing: open their sets in this
+  contest, and play only those posted to the group. The board itself does not
+  grow a clip list or a feed.
+- **Social video.** 1080×1920, H.264, 30 fps, 4.5 Mbps. Stories and Status get
+  a cut of at most 15 seconds. The full clip stays what the group watches.
+
 ## Proof clips
 
 An opt-in recording of a camera-counted set (solo or group). The clip burns in
@@ -495,8 +524,8 @@ the Beatset logo, a server-issued verification code, and the live rep count.
 and *Only me*. Asked once when proof recording is first turned on, overridable
 per set on the finish screen, and changeable later from History or Settings.
 **Send** hands the video file to another app; it is not the same as who can
-watch. **Post to group** is the only action that puts a clip on the group board
-(`postedToGroupAt`) and uses the one-post-per-day cap.
+watch. **On the group board** (default-on switch on a group finish) is the only
+action that sets `postedToGroupAt` and uses the one-post-per-day cap.
 
 *Anyone with the code* uploads as soon as the set is saved on the phone, so the
 code becomes checkable without sending. *Only me* never uploads unless the

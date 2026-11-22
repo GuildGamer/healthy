@@ -110,10 +110,16 @@ function LiveCamera({
   return (
     <View style={styles.screen} testID="capture-camera-screen">
       {/*
-        Live front preview is mirrored like iPhone Camera. The saved JPEG from
-        takePictureAsync is already upright and unmirrored (stock Camera).
+        The front viewfinder is a mirror. mirror bakes that same left-right
+        orientation into the JPEG, so review, share, and upload match the shot
+        you lined up. The back camera stays unmirrored.
       */}
-      <CameraView facing={facing} ref={cameraRef} style={StyleSheet.absoluteFill} />
+      <CameraView
+        facing={facing}
+        mirror={facing === 'front'}
+        ref={cameraRef}
+        style={StyleSheet.absoluteFill}
+      />
       <FrameCorners />
       <View style={[styles.topBar, { top: insets.top + spacing.sm }]}>
         <DeckNavButton

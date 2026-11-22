@@ -1,23 +1,23 @@
 import type { MatchBoard } from '@product/client';
 import { useQuery } from '@tanstack/react-query';
-import { type Href, Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { type Href, Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { DeckNavButton, DeckNoteCard, DeckPageNav, DeckToast } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import { ProfilePhotoPreviewModal } from '@/components/profile/ProfilePhotoPreviewModal';
+import { ShareDestinationSheet } from '@/components/share';
 import { goBackOrHome } from '@/lib/go-back';
 import { hasSeenMatchResult } from '@/lib/seen-match-results';
 import { BoardDock } from './BoardDock';
 import { BoardHero } from './BoardHero';
 import { BoardOptionsSheet } from './BoardOptionsSheet';
 import { GroupPage } from './GroupPage';
-import { GroupProofClips } from './GroupProofClips';
 import { GroupStandings } from './GroupStandings';
 import { GroupTodayStrip } from './GroupTodayStrip';
 import { BOARD_COPY, GROUPS_COPY } from './match-copy';
 import { NudgeSheet } from './NudgeSheet';
-import { shareMatchLink } from './share-match-link';
+import { inviteSharePayload } from './share-match-link';
 import { useFaceTaps } from './useFaceTaps';
 import { useGroupBoard } from './useGroupBoard';
 
@@ -88,22 +88,37 @@ function LiveBoard({
   onRefresh: () => Promise<unknown>;
 }) {
   const router = useRouter();
+  const params = useLocalSearchParams<{ shareInvite?: string }>();
   const faces = useFaceTaps(actions.react);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const isOpen = match.status === 'open';
   const isWaiting = isOpen && match.participantCount === 1;
   const canShare = isOpen && match.participantCount < match.participantCap;
   const you = match.standings.find((row) => row.isYou);
-  const share = () =>
-    void shareMatchLink({
-      url: match.inviteUrl,
-      hostScore: you?.score ?? match.yourScore,
-      hostTitle: match.hostTitle,
-      metric: match.metric,
-      scoringMode: match.scoringMode,
-      endsAt: match.endsAt,
-    });
+  const invitePayload = useMemo(
+    () =>
+      inviteSharePayload({
+        url: match.inviteUrl,
+        hostScore: you?.score ?? match.yourScore,
+        hostTitle: match.hostTitle,
+        metric: match.metric,
+        scoringMode: match.scoringMode,
+        endsAt: match.endsAt,
+      }),
+    [match, you?.score],
+  );
+
+  useEffect(() => {
+    if (params.shareInvite !== '1') {
+      return;
+    }
+    setIsShareOpen(true);
+    router.setParams({ shareInvite: undefined });
+  }, [params.shareInvite, router]);
+
+  const openShare = () => setIsShareOpen(true);
 
   function stepAway(isHost: boolean) {
     const onError = () =>
@@ -145,7 +160,7 @@ function LiveBoard({
                 router.navigate(session ? `/matches/${match.id}/${session}` : BACK_HREF)
               }
               onSeeResult={() => router.push(`/matches/${match.id}/result`)}
-              onShare={share}
+              onShare={openShare}
             />
           ) : undefined
         }
@@ -157,7 +172,7 @@ function LiveBoard({
                 canShare={canShare}
                 isOpen={isOpen}
                 onMore={() => setIsOptionsOpen(true)}
-                onShare={share}
+                onShare={openShare}
               />
             }
           />
@@ -169,9 +184,6 @@ function LiveBoard({
         {isOpen && !isWaiting ? (
           <GroupTodayStrip onTapFace={faces.onTapFace} rules={match} standings={match.standings} />
         ) : null}
-        {isWaiting ? null : (
-          <GroupProofClips isFinished={match.status === 'completed'} matchId={match.id} />
-        )}
         {isWaiting ? null : (
           <GroupStandings
             matchId={match.id}
@@ -188,7 +200,7 @@ function LiveBoard({
         onClose={() => setIsOptionsOpen(false)}
         onShare={() => {
           setIsOptionsOpen(false);
-          share();
+          openShare();
         }}
         onVerifyClip={() => {
           setIsOptionsOpen(false);
@@ -196,6 +208,12 @@ function LiveBoard({
         }}
         onStepAway={confirmStepAway}
         visible={isOptionsOpen}
+      />
+      <ShareDestinationSheet
+        onClose={() => setIsShareOpen(false)}
+        payload={invitePayload}
+        testID="match-share-destination-sheet"
+        visible={isShareOpen}
       />
       <NudgeSheet
         hasFailed={faces.hasNudgeFailed}

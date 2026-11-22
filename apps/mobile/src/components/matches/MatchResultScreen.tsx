@@ -26,6 +26,7 @@ import {
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import { ProfilePhotoPreviewModal } from '@/components/profile/ProfilePhotoPreviewModal';
+import { ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { markMatchResultSeen } from '@/lib/seen-match-results';
 import { type Theme, useThemedStyles } from '@/theme';
@@ -44,7 +45,6 @@ import {
 import { resultSummary } from './group-history';
 import { BOARD_COPY, GROUPS_COPY, RESULT_COPY } from './match-copy';
 import { RunItBackSheet } from './RunItBackSheet';
-import { useHonorShare } from './useHonorShare';
 import { useRunItBack } from './useRunItBack';
 
 const PODIUM_PLACES = 3;
@@ -96,11 +96,12 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
   const [activeIndex, setActiveIndex] = useState(0);
   const activeSlide = slides[activeIndex] ?? slides[0] ?? { type: 'recap' as const };
   const shareText = honorSlideShareText(board, activeSlide);
-  const shareLabel =
-    activeSlide.type === 'honor' && activeSlide.isYours
-      ? RESULT_COPY.shareHonor
-      : RESULT_COPY.share;
-  const honorShare = useHonorShare(shareText, RESULT_COPY.shareDialog);
+  const honorShare = useShareDestinations({
+    buildPayload: () => ({
+      caption: shareText,
+      inviteUrl: board.inviteUrl,
+    }),
+  });
   const [isRerunOpen, setIsRerunOpen] = useState(false);
   const [isNameCrewOpen, setIsNameCrewOpen] = useState(false);
   const [crewName, setCrewName] = useState('');
@@ -143,9 +144,8 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
             onNameAndSave={() => setIsNameCrewOpen(true)}
             onRunItBack={() => setIsRerunOpen(true)}
             onSaveCrew={() => rerun.saveCrew()}
-            isSharing={honorShare.isSharing}
-            onShare={() => void honorShare.share()}
-            shareLabel={shareLabel}
+            isSharing={honorShare.isBusy}
+            onSelectDestination={honorShare.select}
           />
         }
         nav={<DeckPageNav isClose onBack={onClose} />}
@@ -308,8 +308,7 @@ function ResultDock({
   onRunItBack,
   onSaveCrew,
   onNameAndSave,
-  onShare,
-  shareLabel,
+  onSelectDestination,
 }: {
   canSaveCrew: boolean;
   isCrewSaved: boolean;
@@ -318,8 +317,7 @@ function ResultDock({
   onRunItBack: () => void;
   onSaveCrew: () => void;
   onNameAndSave: () => void;
-  onShare: () => void;
-  shareLabel: string;
+  onSelectDestination: ReturnType<typeof useShareDestinations>['select'];
 }) {
   const styles = useThemedStyles(createStyles);
 
@@ -332,8 +330,8 @@ function ResultDock({
         onPress={onRunItBack}
         testID="match-run-it-back"
       />
-      <View style={styles.quietRow}>
-        {canSaveCrew ? (
+      {canSaveCrew ? (
+        <View style={styles.quietRow}>
           <DeckButton
             disabled={isCrewSaved}
             glyph={isCrewSaved ? 'check' : 'bookmark'}
@@ -343,16 +341,10 @@ function ResultDock({
             testID="match-save-crew"
             variant="tonal"
           />
-        ) : null}
-        <DeckButton
-          glyph="share"
-          isFlexible
-          label={shareLabel}
-          loading={isSharing}
-          onPress={onShare}
-          testID="match-result-share"
-          variant="tonal"
-        />
+        </View>
+      ) : null}
+      <View testID="match-result-share">
+        <ShareDestinationRow disabled={isSharing} onSelect={onSelectDestination} />
       </View>
       {canSaveCrew && !isCrewSaved ? (
         <DeckButton

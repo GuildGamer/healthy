@@ -1,7 +1,7 @@
 import { darkDeckCards } from '@product/brand';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Share, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { apiClient } from '@/lib/api';
@@ -156,11 +156,10 @@ describe('ChallengeShareScreen friend invite', () => {
       match: { id: 'm1', yourScore: 22 },
       invite: { token: 't', url: 'https://invite.example/m1' },
     });
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
     const view = renderShare(pushups, pushupFriend);
 
     expect(await screen.findByTestId('share-poster')).toBeOnTheScreen();
-    fireEvent.press(await screen.findByTestId('share-challenge-friend'));
+    fireEvent.press(await screen.findByTestId('share-dest-challenge'));
 
     await waitFor(() => {
       expect(mockedApi.createMatch).toHaveBeenCalledWith({
@@ -183,9 +182,16 @@ describe('ChallengeShareScreen friend invite', () => {
         expect.objectContaining({ experiment_variant: 'treatment' }),
       );
     });
-    expect(share).toHaveBeenCalled();
+    const { useRouter } = jest.requireMock('expo-router') as {
+      useRouter: () => { push: jest.Mock };
+    };
+    await waitFor(() =>
+      expect(useRouter().push).toHaveBeenCalledWith({
+        pathname: '/matches/[matchId]',
+        params: { matchId: 'm1', shareInvite: '1' },
+      }),
+    );
     expect(JSON.stringify(mockedApi.createMatch.mock.calls)).not.toMatch(/128|Sam/);
-    share.mockRestore();
     await view.settle();
   });
 
@@ -194,7 +200,7 @@ describe('ChallengeShareScreen friend invite', () => {
     const view = renderShare(pushups, pushupFriend);
 
     expect(await screen.findByTestId('share-poster')).toBeOnTheScreen();
-    expect(await screen.findByTestId('share-challenge-friend')).toBeOnTheScreen();
+    expect(await screen.findByTestId('share-dest-challenge')).toBeOnTheScreen();
     await view.settle();
   });
 
@@ -204,10 +210,9 @@ describe('ChallengeShareScreen friend invite', () => {
       match: { id: 'm2', yourScore: 0 },
       invite: { token: 't', url: 'https://invite.example/m2' },
     });
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
     const view = renderShare(reading, readingFriend);
 
-    fireEvent.press(await screen.findByTestId('share-challenge-friend'));
+    fireEvent.press(await screen.findByTestId('share-dest-challenge'));
 
     await waitFor(() => {
       expect(mockedApi.createMatch).toHaveBeenCalledWith({
@@ -221,13 +226,17 @@ describe('ChallengeShareScreen friend invite', () => {
         experimentVariantKey: 'treatment',
       });
     });
-    await waitFor(() => expect(share).toHaveBeenCalled());
-    const sent = JSON.stringify({
-      create: mockedApi.createMatch.mock.calls,
-      share: share.mock.calls,
-    });
+    const { useRouter } = jest.requireMock('expo-router') as {
+      useRouter: () => { push: jest.Mock };
+    };
+    await waitFor(() =>
+      expect(useRouter().push).toHaveBeenCalledWith({
+        pathname: '/matches/[matchId]',
+        params: { matchId: 'm2', shareInvite: '1' },
+      }),
+    );
+    const sent = JSON.stringify(mockedApi.createMatch.mock.calls);
     expect(sent).not.toMatch(/128|82|70|mmol|Sam|blood pressure/i);
-    share.mockRestore();
     await view.settle();
   });
 });

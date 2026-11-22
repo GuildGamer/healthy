@@ -61,12 +61,14 @@ function renderCamera(overrides: Partial<Parameters<typeof CaptureCameraScreen>[
 }
 
 describe('CaptureCameraScreen', () => {
-  it('keeps the front live preview mirrored like iPhone Camera (no capture-time flip)', () => {
+  it('keeps a front selfie in the viewfinder orientation and a back photo unmirrored', () => {
     renderCamera();
 
-    const live = screen.getByTestId('camera-live');
-    expect(live).not.toHaveProp('mirror', false);
-    expect(live).not.toHaveStyle({ transform: [{ scaleX: -1 }] });
+    expect(screen.getByTestId('camera-live')).toHaveProp('mirror', true);
+
+    fireEvent.press(screen.getByTestId('camera-flip'));
+
+    expect(screen.getByTestId('camera-live')).toHaveProp('mirror', false);
   });
 
   it('says what has to be in the frame, then shows the take full size', async () => {

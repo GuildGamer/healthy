@@ -471,6 +471,34 @@ export const leaveMatchContract = oc
   .input(matchIdInputSchema)
   .output(listMyMatchesOutputSchema);
 
+/**
+ * One member's sets in this contest. A play target appears only when they
+ * posted a proof clip to the group board — not a feed, just their attempts.
+ */
+export const listMatchMemberActivityInputSchema = z.object({
+  matchId: z.string().min(1),
+  userId: z.string().min(1),
+});
+
+export const matchMemberAttemptSchema = z.object({
+  attemptId: z.string().min(1),
+  count: z.number().int().nonnegative(),
+  performedAt: z.string().datetime(),
+  /** Present only when a clip was posted to this group for that set. */
+  proofClipId: z.string().min(1).nullable(),
+});
+
+export const listMatchMemberActivityOutputSchema = z.object({
+  userId: z.string().min(1),
+  displayName: z.string().min(1),
+  attempts: z.array(matchMemberAttemptSchema),
+});
+
+export const listMatchMemberActivityContract = oc
+  .route({ method: 'GET', path: '/matches/{matchId}/members/{userId}/activity' })
+  .input(listMatchMemberActivityInputSchema)
+  .output(listMatchMemberActivityOutputSchema);
+
 export type MatchMetric = z.infer<typeof matchMetricSchema>;
 export type MatchScoringMode = z.infer<typeof matchScoringModeSchema>;
 export type MatchStatus = z.infer<typeof matchStatusSchema>;
@@ -492,3 +520,6 @@ export type MatchMove = z.infer<typeof matchMoveSchema>;
 export type ListMyMatchesOutput = z.infer<typeof listMyMatchesOutputSchema>;
 export type SubmitMatchAttemptInput = z.infer<typeof submitMatchAttemptInputSchema>;
 export type ReactToMatchMemberInput = z.infer<typeof reactToMatchMemberInputSchema>;
+export type ListMatchMemberActivityInput = z.infer<typeof listMatchMemberActivityInputSchema>;
+export type ListMatchMemberActivityOutput = z.infer<typeof listMatchMemberActivityOutputSchema>;
+export type MatchMemberAttempt = z.infer<typeof matchMemberAttemptSchema>;

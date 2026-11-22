@@ -259,6 +259,10 @@ function RootStack() {
         options={{ headerShown: false, title: 'Push-ups' }}
       />
       <Stack.Screen name="matches/[matchId]/walk" options={{ headerShown: false, title: 'Walk' }} />
+      <Stack.Screen
+        name="matches/[matchId]/member/[userId]"
+        options={{ headerShown: false, title: 'Sets' }}
+      />
       <Stack.Screen name="match/[token]" options={{ headerShown: false, title: 'Group invite' }} />
       <Stack.Screen name="proof/index" options={{ headerShown: false, title: 'Proof clips' }} />
       <Stack.Screen name="proof/[clipId]" options={{ headerShown: false, title: 'Proof clip' }} />

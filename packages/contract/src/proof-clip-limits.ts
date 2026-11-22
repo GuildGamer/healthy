@@ -31,13 +31,15 @@ export const PROOF_CLIP_HARD_RETENTION_DAYS = 90;
 
 /**
  * Default encoder profile when the server omits `encoding` (older API) or the
- * device is offline — 1080×1920 at 30 fps, ~8 Mbps, suitable for social-style
- * vertical video.
+ * device is offline — 1080×1920 at 30 fps, ~4.5 Mbps. That bitrate still looks
+ * sharp after Instagram / WhatsApp / X re-encode without inflating the file.
  */
-export const PROOF_CLIP_DEFAULT_BIT_RATE = 8_000_000;
+export const PROOF_CLIP_DEFAULT_BIT_RATE = 4_500_000;
 export const PROOF_CLIP_DEFAULT_FRAME_RATE = 30;
 export const PROOF_CLIP_DEFAULT_WIDTH = 1080;
 export const PROOF_CLIP_DEFAULT_HEIGHT = 1920;
+/** Max length of the Stories / Status cut derived from a finished proof clip. */
+export const PROOF_CLIP_SOCIAL_CUT_MAX_SECONDS = 15;
 
 export type ProofClipEncodingLimits = {
   bitRate: number;

@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
-import { Alert, Share } from 'react-native';
+import { Alert } from 'react-native';
 import { apiClient } from '@/lib/api';
 import { hasSeenMatchResult } from '@/lib/seen-match-results';
 import { MatchBoardScreen } from './MatchBoardScreen';
@@ -22,8 +22,16 @@ jest.mock('@/lib/seen-match-results', () => ({
 
 const mockNavigate = jest.fn();
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
+const mockSetParams = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ navigate: mockNavigate, replace: mockReplace, push: jest.fn() }),
+  useRouter: () => ({
+    navigate: mockNavigate,
+    replace: mockReplace,
+    push: mockPush,
+    setParams: mockSetParams,
+  }),
+  useLocalSearchParams: () => ({}),
   router: { replace: jest.fn(), canDismiss: () => false, dismiss: jest.fn() },
   Redirect: ({ href }: { href: string }) => {
     const { Text: MockText } = jest.requireActual('react-native');
@@ -120,7 +128,6 @@ describe('MatchBoardScreen', () => {
   });
 
   it('sells the invite while nobody else has joined', async () => {
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
     mockedApi.getMatch.mockResolvedValue(
       liveBoard({
         participantCount: 1,
@@ -135,8 +142,8 @@ describe('MatchBoardScreen', () => {
     expect(screen.queryByTestId('match-today-strip')).toBeNull();
 
     fireEvent.press(screen.getByTestId('match-share-link'));
-    await waitFor(() => expect(share).toHaveBeenCalled());
-    share.mockRestore();
+    expect(await screen.findByTestId('match-share-destination-sheet')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-dest-whatsapp')).toBeOnTheScreen();
     await view.cleanup();
   });
 
@@ -187,6 +194,21 @@ describe('MatchBoardScreen', () => {
     fireEvent.press(await screen.findByLabelText('Ada’s photo'));
 
     expect(await screen.findByTestId('profile-photo-preview-image')).toBeOnTheScreen();
+    await view.cleanup();
+  });
+
+  it('opens a member’s sets from their standing row', async () => {
+    mockedApi.getMatch.mockResolvedValue(liveBoard());
+    const view = renderWithClient(<MatchBoardScreen matchId="m1" />);
+
+    fireEvent.press(await screen.findByTestId('match-standing-ada'));
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: '/matches/[matchId]/member/[userId]',
+        params: { matchId: 'm1', userId: 'ada' },
+      }),
+    );
     await view.cleanup();
   });
 

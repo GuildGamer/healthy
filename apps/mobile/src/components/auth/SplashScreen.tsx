@@ -2,7 +2,7 @@ import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 import { Glyph } from '@/components/icons';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
-import appIcon from '../../../assets/icon.png';
+import splashIcon from '../../../assets/splash-icon.png';
 import {
   SPLASH_CARD_SIZE,
   SPLASH_FAN_PIVOT,
@@ -56,7 +56,7 @@ export function SplashScreen({ hasNativeSplashHidden, isReady, onExited }: Splas
         </Animated.View>
         <Image
           accessibilityLabel="Beatset"
-          source={appIcon}
+          source={splashIcon}
           style={styles.icon}
           testID="splash-icon"
         />
@@ -135,10 +135,10 @@ const createStyles = (theme: Theme) =>
       right: 0,
       height: FAN_RAIL_HEIGHT,
     },
+    /** Corners are transparent in the file, matching the native splash from the first frame. */
     icon: {
       width: SPLASH_ICON_SIZE,
       height: SPLASH_ICON_SIZE,
-      borderRadius: radii.xl,
     },
     /** Hung off the midpoint so the icon itself never moves. */
     caption: {

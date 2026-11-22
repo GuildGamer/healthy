@@ -24,8 +24,9 @@ import { ChallengeDeckCard } from './ChallengeDeckCard';
 import { FinishedDeckCard } from './FinishedDeckCard';
 import { withFinishedCard } from './finished-deck';
 import { TODAY_COPY } from './constants/today-copy';
+import { useShareDestinations } from '@/components/share';
 import { DayDoneCard } from './DayDoneCard';
-import { dayShareParams } from './day-share-route';
+import { DayShareCard } from './DayShareCard';
 import { DoneChips } from './DoneChips';
 import { FirstRunCard } from './FirstRunCard';
 import { GroupDeckCard } from './GroupDeckCard';
@@ -37,6 +38,7 @@ import {
   dayMonthLabel,
   lastUpdatedLabel,
   runLabel,
+  shareDayMessage,
   streakSentence,
   tallyLabel,
   weekdayLabel,
@@ -237,23 +239,22 @@ function useDeckItemRenderer(
   const cardActs = useCardActs();
   const { deck, me } = today;
   const streakDays = me?.currentStreakDays ?? 0;
+  const dayShareContent = {
+    weekday,
+    dateLabel: dayMonthLabel(new Date()),
+    completedCount: deck.win.filled,
+    totalCount: deck.win.target,
+    pointsToday: deck.pointsToday,
+    streakDays,
+  };
+  const dayShare = useShareDestinations({
+    buildPayload: () => ({
+      caption: shareDayMessage(deck.win.filled, streakDays),
+    }),
+  });
 
   function actOnGroup(matchId: string, session: MatchSessionRoute | null) {
     router.push(session ? `/matches/${matchId}/${session}` : `/matches/${matchId}`);
-  }
-
-  function openDayShare() {
-    router.push({
-      pathname: '/share/day',
-      params: dayShareParams({
-        weekday,
-        dateLabel: dayMonthLabel(new Date()),
-        completedCount: deck.win.filled,
-        totalCount: deck.win.target,
-        pointsToday: deck.pointsToday,
-        streakDays,
-      }),
-    });
   }
 
   return function renderDeckItem(item: DeckItem) {
@@ -263,18 +264,30 @@ function useDeckItemRenderer(
 
     if (item.type === 'dayDone') {
       return (
-        <DayDoneCard
-          completedCount={deck.win.filled}
-          isSharing={false}
-          onShare={openDayShare}
-          pointsToday={deck.pointsToday}
-          streakLine={streakSentence(streakDays)}
-          tomorrowTip={today.tomorrowTip}
-          totalCount={deck.win.target}
-          weekday={weekday}
-          weeklyRank={today.weeklyRank}
-          weeklyRankAtDayStart={today.weeklyRankAtDayStart}
-        />
+        <>
+          <DayDoneCard
+            completedCount={deck.win.filled}
+            isSharing={dayShare.isBusy}
+            onSelectDestination={dayShare.select}
+            pointsToday={deck.pointsToday}
+            streakLine={streakSentence(streakDays)}
+            tomorrowTip={today.tomorrowTip}
+            totalCount={deck.win.target}
+            weekday={weekday}
+            weeklyRank={today.weeklyRank}
+            weeklyRankAtDayStart={today.weeklyRankAtDayStart}
+          />
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            pointerEvents="none"
+            style={offscreenShotStyles.wrap}
+          >
+            <View collapsable={false} ref={dayShare.shotRef}>
+              <DayShareCard content={dayShareContent} />
+            </View>
+          </View>
+        </>
       );
     }
 
@@ -328,6 +341,15 @@ function MembershipLine() {
     </Pressable>
   );
 }
+
+const offscreenShotStyles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    left: -4000,
+    top: 0,
+    opacity: 0,
+  },
+});
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({

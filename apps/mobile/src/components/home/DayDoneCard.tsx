@@ -1,6 +1,7 @@
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckButton, DeckCardFrame, DeckEyebrow } from '@/components/deck';
+import { DeckCardFrame, DeckEyebrow } from '@/components/deck';
+import { ShareDestinationRow, type ShareDestinationSelectId } from '@/components/share';
 import type { HealthTip } from '@/components/tips';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { TODAY_COPY } from './constants/today-copy';
@@ -16,8 +17,8 @@ interface DayDoneCardProps {
   weeklyRankAtDayStart: number | null;
   streakLine: string | null;
   tomorrowTip: HealthTip | null;
-  isSharing: boolean;
-  onShare: () => void;
+  isSharing?: boolean;
+  onSelectDestination: (id: ShareDestinationSelectId) => void;
 }
 
 /** The deck folded into one card: what the day earned, and one thing for tomorrow. */
@@ -30,8 +31,8 @@ export function DayDoneCard({
   weeklyRankAtDayStart,
   streakLine,
   tomorrowTip,
-  isSharing,
-  onShare,
+  isSharing = false,
+  onSelectDestination,
 }: DayDoneCardProps) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -41,12 +42,9 @@ export function DayDoneCard({
       fill={colors.surface}
       footer={
         <View style={styles.action}>
-          <DeckButton
-            glyph="share"
-            label={TODAY_COPY.shareDay}
-            loading={isSharing}
-            onPress={onShare}
-            testID="home-share-day"
+          <ShareDestinationRow
+            disabled={isSharing}
+            onSelect={onSelectDestination}
           />
         </View>
       }

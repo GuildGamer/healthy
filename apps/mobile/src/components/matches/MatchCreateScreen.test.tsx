@@ -64,8 +64,7 @@ describe('MatchCreateScreen', () => {
     await view.cleanup();
   });
 
-  it('starts the group and opens the share sheet with its link', async () => {
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+  it('starts the group and opens destinations on the board with its link', async () => {
     mockedApi.createMatch.mockResolvedValue({
       match: liveBoard({ id: 'new' }),
       invite: { token: 't', url: 'u' },
@@ -82,9 +81,12 @@ describe('MatchCreateScreen', () => {
         dailyScope: 'any_challenge',
       }),
     );
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/matches/new'));
-    expect(share).toHaveBeenCalled();
-    share.mockRestore();
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith({
+        pathname: '/matches/[matchId]',
+        params: { matchId: 'new', shareInvite: '1' },
+      }),
+    );
     await view.cleanup();
   });
 

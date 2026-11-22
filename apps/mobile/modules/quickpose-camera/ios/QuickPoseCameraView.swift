@@ -397,6 +397,9 @@ final class HealthyQuickPoseView: ExpoView {
           if let poster = finished.posterURL {
             payload["posterUri"] = poster.absoluteString
           }
+          if let social = finished.socialFileURL {
+            payload["socialFileUri"] = social.absoluteString
+          }
           self?.onProofRecorded(payload)
         case .failure:
           self?.onProofRecordingError(["message": "Could not finish proof recording."])

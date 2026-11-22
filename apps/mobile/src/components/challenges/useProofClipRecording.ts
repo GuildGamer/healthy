@@ -400,6 +400,7 @@ export function useProofClipRecording(
           clipId,
           fileUri: event.fileUri,
           posterUri: event.posterUri ?? null,
+          socialFileUri: event.socialFileUri ?? null,
           sha256: event.sha256,
           byteSize: event.byteSize,
           durationSeconds: event.durationSeconds,

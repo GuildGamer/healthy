@@ -88,4 +88,12 @@ export class MatchesController {
       return this.matchesService.leave(user, input.matchId);
     });
   }
+
+  @Implement(appContract.listMatchMemberActivity)
+  listMatchMemberActivity(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.listMatchMemberActivity).handler(async ({ input }) => {
+      return this.matchesService.listMemberActivity(user, input.matchId, input.userId);
+    });
+  }
 }

@@ -739,7 +739,7 @@ describe('HomeScreen', () => {
     await cleanup();
   });
 
-  it('opens the day share preview with counts only', async () => {
+  it('offers day destinations when the day is done', async () => {
     givenChallenges([
       todayChallenge({
         id: 'uc-bp',
@@ -751,28 +751,18 @@ describe('HomeScreen', () => {
     ]);
     const { cleanup } = renderHome();
 
-    fireEvent.press(await screen.findByTestId('home-share-day'));
-    expect(useRouter().push).toHaveBeenCalledWith({
-      pathname: '/share/day',
-      params: expect.objectContaining({
-        completedCount: '1',
-        totalCount: '1',
-        streakDays: '7',
-        pointsToday: '150',
-      }),
-    });
+    expect(await screen.findByTestId('home-day-done')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-dest-whatsapp')).toBeOnTheScreen();
 
     await cleanup();
   });
 
-  it('still offers Share the day when the day is done', async () => {
+  it('still offers destinations when the day is done', async () => {
     givenChallenges([todayChallenge({ id: 'uc1', status: 'completed' })]);
     const { cleanup } = renderHome();
 
-    fireEvent.press(await screen.findByTestId('home-share-day'));
-    expect(useRouter().push).toHaveBeenCalledWith(
-      expect.objectContaining({ pathname: '/share/day' }),
-    );
+    expect(await screen.findByTestId('share-destination-row')).toBeOnTheScreen();
 
     await cleanup();
   });

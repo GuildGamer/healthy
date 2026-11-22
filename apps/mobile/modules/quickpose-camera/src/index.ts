@@ -70,6 +70,8 @@ export type ProofRecordedEvent = {
     byteSize: number;
     durationSeconds: number;
     posterUri?: string;
+    /** Last ≤15s cut for Stories / Status when the full clip is longer. */
+    socialFileUri?: string;
   };
 };
 
@@ -105,7 +107,7 @@ export type QuickPoseCameraViewProps = {
   resetCountToken?: number;
   style?: StyleProp<ViewStyle>;
   onUpdate?: (event: QuickPoseCameraUpdateEvent) => void;
-  /** When set, the native view records a muted proof clip (HEVC on iOS, H.264 on Android). */
+  /** When set, the native view records a muted proof clip (H.264 on iOS and Android). */
   proofRecording?: ProofRecordingConfig | null;
   /** Optional overlay override (freeze/review). Live count is native-owned. */
   proofCount?: number;

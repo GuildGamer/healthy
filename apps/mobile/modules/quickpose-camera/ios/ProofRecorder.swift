@@ -46,11 +46,12 @@ final class ProofRecorder {
   private let writeQueue = DispatchQueue(label: "healthy.proof-recorder")
   private let imageContext = CIContext()
 
-  /// Defaults when JS sends an unusable value (mainstream vertical).
+  /// Defaults when JS sends an unusable value (social-safe vertical).
   private static let defaultWidth = 1080
   private static let defaultHeight = 1920
-  private static let defaultBitRate = 8_000_000
+  private static let defaultBitRate = 4_500_000
   private static let defaultFrameRate = 30.0
+  private static let socialCutMaxSeconds: Double = 15
   private static let timescale: CMTimeScale = 600
 
   private var targetWidth = ProofRecorder.defaultWidth
@@ -96,12 +97,14 @@ final class ProofRecorder {
 
     let assetWriter = try AVAssetWriter(outputURL: videoURL, fileType: .mp4)
     let settings: [String: Any] = [
-      AVVideoCodecKey: AVVideoCodecType.hevc,
+      AVVideoCodecKey: AVVideoCodecType.h264,
       AVVideoWidthKey: width,
       AVVideoHeightKey: height,
       AVVideoCompressionPropertiesKey: [
         AVVideoAverageBitRateKey: bitRate,
-        AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main_AutoLevel,
+        AVVideoMaxKeyFrameIntervalKey: Int(max(1, frameRate.rounded())),
+        AVVideoExpectedSourceFrameRateKey: Int(max(1, frameRate.rounded())),
+        AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
       ],
     ]
 
@@ -252,6 +255,8 @@ final class ProofRecorder {
   struct FinishResult {
     let fileURL: URL
     let posterURL: URL?
+    /// Last ≤15s cut for Stories / Status; nil when the full clip is already short.
+    let socialFileURL: URL?
     let sha256Hex: String
     let byteSize: Int
     let durationSeconds: Int
@@ -298,9 +303,14 @@ final class ProofRecorder {
           digest.update(data: data)
           let hash = digest.finalize().map { String(format: "%02x", $0) }.joined()
           let duration = max(1, Int(trimmedLastSeconds.rounded(.up)))
+          let socialURL = Self.exportSocialCut(
+            from: durableVideo,
+            durationSeconds: Double(duration)
+          )
           let result = FinishResult(
             fileURL: durableVideo,
             posterURL: durablePoster,
+            socialFileURL: socialURL,
             sha256Hex: hash,
             byteSize: data.count,
             durationSeconds: duration
@@ -313,6 +323,50 @@ final class ProofRecorder {
         }
       }
     }
+  }
+
+  /**
+   * Last `socialCutMaxSeconds` of the finished clip for Stories / Status.
+   * Returns nil when the full clip is already within that length, or when
+   * export fails — callers then share the full file.
+   */
+  private static func exportSocialCut(from source: URL, durationSeconds: Double) -> URL? {
+    guard durationSeconds > socialCutMaxSeconds else {
+      return nil
+    }
+
+    let asset = AVURLAsset(url: source)
+    guard let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetMediumQuality) else {
+      return nil
+    }
+
+    let start = max(0, durationSeconds - socialCutMaxSeconds)
+    let startTime = CMTime(seconds: start, preferredTimescale: timescale)
+    let cutDuration = CMTime(seconds: socialCutMaxSeconds, preferredTimescale: timescale)
+    export.timeRange = CMTimeRange(start: startTime, duration: cutDuration)
+
+    let stamp = Int(Date().timeIntervalSince1970 * 1000)
+    guard let directory = try? durableDirectory() else {
+      return nil
+    }
+    let destination = directory.appendingPathComponent("social-\(stamp).mp4")
+    if FileManager.default.fileExists(atPath: destination.path) {
+      try? FileManager.default.removeItem(at: destination)
+    }
+    export.outputURL = destination
+    export.outputFileType = .mp4
+
+    let gate = DispatchSemaphore(value: 0)
+    export.exportAsynchronously {
+      gate.signal()
+    }
+    _ = gate.wait(timeout: .now() + 30)
+
+    guard export.status == .completed else {
+      try? FileManager.default.removeItem(at: destination)
+      return nil
+    }
+    return destination
   }
 
   /// Where finished clips live. iOS moves the app container on reinstall and update,

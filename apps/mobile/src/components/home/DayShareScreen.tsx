@@ -5,24 +5,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
-import { DeckButton, DeckNavButton } from '@/components/deck';
+import { DeckNavButton } from '@/components/deck';
+import { ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useThemedStyles } from '@/theme';
-import { TODAY_COPY } from './constants/today-copy';
 import { DayShareCard } from './DayShareCard';
 import { shareDayMessage } from './today-labels';
 import type { DayShareContent } from './types/day-share';
-import { useShareDay } from './useShareDay';
 
-/** Preview the day’s share card, pick a colour, then hand the PNG to the sheet. */
+/** Preview the day’s share card, pick a colour, then send it to a destination. */
 export function DayShareScreen({ content }: { content: DayShareContent }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [fillId, setFillId] = useState<ShareFillId>(() => defaultShareFillId('streak'));
-  const dayShare = useShareDay(
-    shareDayMessage(content.completedCount, content.streakDays),
-    TODAY_COPY.shareDay,
-  );
+  const caption = shareDayMessage(content.completedCount, content.streakDays);
+  const destinations = useShareDestinations({
+    buildPayload: () => ({ caption }),
+  });
 
   return (
     <View
@@ -42,17 +41,14 @@ export function DayShareScreen({ content }: { content: DayShareContent }) {
         <Text style={styles.navTitle}>{SHARE_COPY.title}</Text>
         <View style={styles.navSpacer} />
       </View>
-      <View collapsable={false} ref={dayShare.shotRef} style={styles.posterWrap}>
+      <View collapsable={false} ref={destinations.shotRef} style={styles.posterWrap}>
         <DayShareCard content={content} fillId={fillId} />
       </View>
       <View style={styles.actions}>
         <ShareFillCarousel onSelect={setFillId} selected={fillId} />
-        <DeckButton
-          glyph="share"
-          label={SHARE_COPY.share}
-          loading={dayShare.isSharing}
-          onPress={() => void dayShare.share()}
-          testID="day-share-poster"
+        <ShareDestinationRow
+          disabled={destinations.isBusy}
+          onSelect={destinations.select}
         />
       </View>
     </View>

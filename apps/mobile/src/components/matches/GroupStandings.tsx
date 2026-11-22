@@ -1,6 +1,7 @@
 import type { MatchStanding } from '@product/client';
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { StyleSheet, Text, View } from 'react-native';
+import { type Href, useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DeckSectionTitle } from '@/components/deck';
 import { SyncStatusLine } from '@/components/feedback/SyncStatusLine';
 import { usePendingSync } from '@/lib/pending-sync-store';
@@ -52,6 +53,7 @@ export function GroupStandings({
           isFirst={index === 0}
           key={row.userId}
           leadScore={leadScore}
+          matchId={matchId}
           onPreviewPhoto={onPreviewPhoto}
           pendingBonus={row.isYou ? pendingBonus : 0}
           row={row}
@@ -85,6 +87,7 @@ function StandingLane({
   rules,
   leadScore,
   isFirst,
+  matchId,
   onPreviewPhoto,
   pendingBonus,
 }: {
@@ -92,18 +95,31 @@ function StandingLane({
   rules: GroupRules;
   leadScore: number;
   isFirst: boolean;
+  matchId?: string;
   onPreviewPhoto: (imageUri: string) => void;
   pendingBonus: number;
 }) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
+  const router = useRouter();
   const displayScore = row.score + pendingBonus;
   const { fraction } = standingProgress({ score: displayScore, leadScore });
   const hasScore = displayScore > 0 && !row.isPending;
   const photo = row.image ?? null;
+  const openActivity =
+    matchId && !row.isPending
+      ? () =>
+          router.push({
+            pathname: '/matches/[matchId]/member/[userId]',
+            params: { matchId, userId: row.userId },
+          } as unknown as Href)
+      : undefined;
 
   return (
-    <View
+    <Pressable
+      accessibilityRole={openActivity ? 'button' : undefined}
+      disabled={!openActivity}
+      onPress={openActivity}
       style={[
         styles.lane,
         isFirst || row.isYou ? null : styles.divided,
@@ -150,7 +166,7 @@ function StandingLane({
           />
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

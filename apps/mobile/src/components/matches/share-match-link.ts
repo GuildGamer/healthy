@@ -2,6 +2,7 @@ import type { MatchMetric, MatchScoringMode } from '@product/contract/match-boar
 import { Platform, type ShareContent } from 'react-native';
 import { shareWithTracking } from '@/lib/analytics';
 import { inviteShareMessage } from './invite-message';
+import type { SharePayload } from './share-destination';
 
 export type ShareMatchLinkOptions = {
   url: string;
@@ -12,6 +13,14 @@ export type ShareMatchLinkOptions = {
   scoringMode: MatchScoringMode;
   endsAt?: string | Date | null;
 };
+
+/** Caption + invite URL for destination row / sheet. System overflow still uses `shareMatchLink`. */
+export function inviteSharePayload(options: ShareMatchLinkOptions): SharePayload {
+  return {
+    caption: inviteShareMessage(options),
+    inviteUrl: options.url,
+  };
+}
 
 export async function shareMatchLink(options: ShareMatchLinkOptions): Promise<void> {
   const message = `${inviteShareMessage(options)}\n${options.url}`;

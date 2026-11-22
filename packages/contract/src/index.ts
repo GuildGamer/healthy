@@ -48,6 +48,7 @@ import {
   getMatchContract,
   joinMatchContract,
   leaveMatchContract,
+  listMatchMemberActivityContract,
   listMyMatchesContract,
   previewMatchContract,
   publicPreviewMatchContract,
@@ -1011,6 +1012,7 @@ export const appContract = {
   cancelMatch: cancelMatchContract,
   reactToMatchMember: reactToMatchMemberContract,
   leaveMatch: leaveMatchContract,
+  listMatchMemberActivity: listMatchMemberActivityContract,
   getExperimentAssignment: getExperimentAssignmentContract,
   trackAnalyticsEvent: trackAnalyticsEventContract,
   trackAnalyticsEventsBatch: trackAnalyticsEventsBatchContract,
@@ -1127,6 +1129,8 @@ export {
 export type {
   CreateMatchInput,
   CreateMatchOutput,
+  ListMatchMemberActivityInput,
+  ListMatchMemberActivityOutput,
   ListMyMatchesOutput,
   MatchAttemptSource,
   MatchBoard,
@@ -1138,6 +1142,7 @@ export type {
   MatchInviteLink,
   MatchLength,
   MatchListItem,
+  MatchMemberAttempt,
   MatchMetric,
   MatchMove,
   MatchPreview,
@@ -1152,6 +1157,13 @@ export type {
   ReactToMatchMemberInput,
   ResolvedCreateMatchInput,
   SubmitMatchAttemptInput,
+} from './matches.js';
+
+export {
+  listMatchMemberActivityContract,
+  listMatchMemberActivityInputSchema,
+  listMatchMemberActivityOutputSchema,
+  matchMemberAttemptSchema,
 } from './matches.js';
 
 export {

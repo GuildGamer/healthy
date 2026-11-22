@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import { apiClient } from '@/lib/api';
 import { MetricStatsScreen } from './MetricStatsScreen';
 
@@ -61,26 +61,14 @@ beforeEach(() => {
 });
 
 describe('MetricStatsScreen', () => {
-  it('keeps stats on the page and opens the share preview with facts', async () => {
+  it('keeps stats on the page with destinations, not a separate share route', async () => {
     const { cleanup } = renderStats();
 
     expect(await screen.findByTestId('metric-stats-share')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-dest-challenge')).toBeOnTheScreen();
     expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
-    expect(screen.queryByTestId('share-poster-image')).toBeNull();
-
-    fireEvent.press(screen.getByTestId('metric-stats-share'));
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/challenge/share',
-      params: expect.objectContaining({
-        kind: 'strength',
-        label: 'Push-ups',
-        value: '33',
-        unit: 'push-ups',
-        corner: 'Nov 9–11',
-        runLine: '2 days on',
-        facts: expect.stringContaining('Best day'),
-      }),
-    });
+    expect(mockPush).not.toHaveBeenCalled();
 
     await cleanup();
   });

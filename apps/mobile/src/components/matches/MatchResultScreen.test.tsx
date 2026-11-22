@@ -81,12 +81,12 @@ describe('MatchResultScreen', () => {
     expect(within(card).getByText('1st', hidden)).toBeOnTheScreen();
     expect(within(card).queryByText(/Ada|Kemi|Tunde/, hidden)).toBeNull();
 
-    fireEvent.press(screen.getByTestId('match-result-share'));
+    fireEvent.press(screen.getByTestId('share-dest-overflow'));
     await waitFor(() =>
-      expect(Sharing.shareAsync).toHaveBeenCalledWith('file://share-card.jpg', {
-        mimeType: 'image/png',
-        dialogTitle: 'Share your result',
-      }),
+      expect(Sharing.shareAsync).toHaveBeenCalledWith(
+        'file://share-card.jpg',
+        expect.objectContaining({ mimeType: 'image/png' }),
+      ),
     );
     await view.cleanup();
   });
@@ -97,12 +97,14 @@ describe('MatchResultScreen', () => {
     mockedApi.getMatch.mockResolvedValue(wonBoard());
     const view = renderWithClient(<MatchResultScreen matchId="m1" />);
 
-    fireEvent.press(await screen.findByTestId('match-result-share'));
+    fireEvent.press(await screen.findByTestId('share-dest-overflow'));
 
     await waitFor(() => expect(share).toHaveBeenCalled());
-    expect(share.mock.calls[0]?.[0]).toEqual({
-      message: 'I won a 7-day walking group on Beatset.',
-    });
+    expect(share.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining('I won a 7-day walking group on Beatset.'),
+      }),
+    );
     share.mockRestore();
     await view.cleanup();
   });
@@ -130,7 +132,12 @@ describe('MatchResultScreen', () => {
         parentMatchId: 'm1',
       }),
     );
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/matches/again'));
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith({
+        pathname: '/matches/[matchId]',
+        params: { matchId: 'again' },
+      }),
+    );
     await view.cleanup();
   });
 });

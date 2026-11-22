@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+
 import type { ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { ProofClipActions } from './ProofClipActions';
@@ -132,11 +133,13 @@ describe('ProofClipActions', () => {
   it('never shows a raw upload error', async () => {
     uploadProofClip.mockRejectedValue(new Error('PUT https://bucket/abc 403 SignatureDoesNotMatch'));
 
-    renderActions(<ProofClipActions audience="anyone" clipId="clip-1" />, {
+    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />, {
       clipId: 'clip-1',
       local: localClip,
     });
-    fireEvent.press(screen.getByTestId('proof-primary'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('proof-primary'));
+    });
 
     expect(await screen.findByText('Could not upload the clip. Try again.')).toBeOnTheScreen();
     expect(screen.queryByText(/SignatureDoesNotMatch/)).toBeNull();
@@ -153,7 +156,9 @@ describe('ProofClipActions', () => {
       clipId: 'clip-1',
       local: localClip,
     });
-    fireEvent.press(screen.getByTestId('proof-primary'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('proof-primary'));
+    });
 
     expect(
       await screen.findByText(

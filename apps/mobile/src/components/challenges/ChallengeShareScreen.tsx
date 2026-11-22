@@ -1,16 +1,15 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import * as Sharing from 'expo-sharing';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { captureRef } from 'react-native-view-shot';
-import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
-import { shareWithTracking, trackEvent } from '@/lib/analytics';
+import { DeckNavButton, DeckSheetMessage } from '@/components/deck';
+import { trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { clearPendingShareRoute } from '@/lib/share-card-session';
 import type { ShareRoutePoint } from '@/lib/share-route-path';
+import { ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { type Theme, useThemedStyles } from '@/theme';
 import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { friendChallengeSpec } from './friend-challenge';
@@ -23,7 +22,7 @@ import { SharePosterCard } from './SharePosterCard';
 import type { ShareFriend } from './types/friend-challenge';
 import type { SharePoster } from './types/share-poster';
 
-/** Exactly the image that will be posted, then the phone's own places to post it. */
+/** Exactly the image that will be posted, then one-tap destinations to send it. */
 export function ChallengeShareScreen({
   poster,
   friend = null,
@@ -46,9 +45,6 @@ export function ChallengeShareScreen({
 }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const posterRef = useRef<View>(null);
-  const [isSharing, setIsSharing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [fillId, setFillId] = useState<ShareFillId>(() => defaultShareFillId(poster.kind));
   // Hold the route for this screen; the session is cleared on leave so a later
   // history share for another finish never paints this path.
@@ -62,44 +58,16 @@ export function ChallengeShareScreen({
   );
   const meQuery = useQuery({ queryKey: ['me'], queryFn: () => apiClient.me() });
   const invite = useFriendChallenge({
-    spec: friendChallengeSpec(
-      friend?.source ?? { kind: 'day' },
-    ),
+    spec: friendChallengeSpec(friend?.source ?? { kind: 'day' }),
     isEligible: friend?.isEligible ?? false,
     userChallengeId: friend?.userChallengeId,
   });
-
-  async function shareImage(): Promise<boolean> {
-    if (!posterRef.current || !(await Sharing.isAvailableAsync())) {
-      return false;
-    }
-
-    const uri = await captureRef(posterRef, { format: 'png', quality: 1 });
-    await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: SHARE_COPY.title });
-    return true;
-  }
-
-  async function share() {
-    setIsSharing(true);
-    setError(null);
-    try {
-      const sharedImage = await shareImage().catch(() => false);
-      if (sharedImage) {
-        trackEvent('share_completed', {
-          surface: 'challenge_poster',
-          completed: true,
-        });
-      } else {
-        await shareWithTracking('challenge_poster', {
-          message: posterShareText(poster),
-        });
-      }
-    } catch {
-      setError(SHARE_COPY.failed);
-    } finally {
-      setIsSharing(false);
-    }
-  }
+  const destinations = useShareDestinations({
+    buildPayload: () => ({
+      caption: posterShareText(poster),
+    }),
+    onChallenge: invite.challengeFriend,
+  });
 
   return (
     <View
@@ -119,7 +87,12 @@ export function ChallengeShareScreen({
         <Text style={styles.navTitle}>{SHARE_COPY.title}</Text>
         <View style={styles.navSpacer} />
       </View>
-      <View collapsable={false} ref={posterRef} style={styles.posterWrap}>
+      <View
+        collapsable={false}
+        ref={destinations.shotRef}
+        style={styles.posterWrap}
+        testID="share-poster"
+      >
         <SharePosterCard
           fillId={fillId}
           photoUri={photoUri}
@@ -128,26 +101,21 @@ export function ChallengeShareScreen({
           runLine={runLine ?? posterRunLine(meQuery.data?.currentStreakDays ?? 0)}
         />
       </View>
-      {error ? <DeckSheetMessage message={error} /> : null}
       {invite.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
       <View style={styles.actions}>
         <ShareFillCarousel onSelect={setFillId} selected={fillId} />
-        <DeckButton
-          glyph="share"
-          label={SHARE_COPY.share}
-          loading={isSharing}
-          onPress={() => void share()}
-          testID="share-poster"
+        <ShareDestinationRow
+          disabled={destinations.isBusy || invite.isCreating}
+          onSelect={(id) => {
+            trackEvent('share_completed', {
+              surface: 'challenge_poster',
+              completed: true,
+              destination: id,
+            });
+            destinations.select(id);
+          }}
+          showChallenge={invite.isOffered}
         />
-        {invite.isOffered ? (
-          <DeckButton
-            label={FRIEND_CHALLENGE_COPY.action}
-            loading={invite.isCreating}
-            onPress={invite.challengeFriend}
-            testID="share-challenge-friend"
-            variant="quiet"
-          />
-        ) : null}
       </View>
     </View>
   );

@@ -153,7 +153,7 @@ describe('useProofClipRecording', () => {
       expect.objectContaining({
         code: 'ABCD-EFG',
         maxDurationSeconds: 3_600,
-        bitRate: 8_000_000,
+        bitRate: 4_500_000,
         frameRate: 30,
         width: 1080,
         height: 1920,

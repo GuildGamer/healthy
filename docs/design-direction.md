@@ -97,23 +97,27 @@ leaf card; delete when nothing imports its art.
 
 ## Shareable moments (CTA)
 
-Every surface that can produce a share picture must offer a **Share** action.
-No orphan card preview without a way to send it.
+Every surface that can produce a shareable moment must offer destinations to
+send it. No orphan card preview without a way to send it.
 
 | Role | Control | When |
 |---|---|---|
-| Primary | Full-width `Share` with share glyph | Default on finish, day done, history share sheet, activity stats, period reports |
-| Primary (experiment) | `Challenge a friend` full-width; Share as round icon (`Share result`) | Post-finish when the friend-challenge offer is on (`ChallengeSuccessScreen`) |
-| Secondary | Quiet / tonal `Share` or share icon | When another product primary owns the foot (e.g. Run it back on group result) |
-| Secondary invite | Quiet text / tonal `Challenge a friend` | Optional under Share when volume justifies; never a second solid twin of Share |
+| Primary | Destination row (WhatsApp, Status, Instagram, Messages, Copy link, More) | Default on finish, day done, history share, activity stats, period reports, group result |
+| Primary (clip finish) | Same row + **Send clip**; group-board switch as specified | Post-set when a proof clip is the hero |
+| Sheet | `ShareDestinationSheet` (caption + same row) | Share glyph / secondary chrome, or post-create invite handoffs (board, create group, run it back, challenge a friend) |
+| Secondary invite | Challenge disc on the destination row | Optional; never a second solid twin of Share |
+| Group board | Default-on switch, applied on leave | Clip finish inside a group; never a solid "Post to group" button |
 
 Rules:
 
-- One solid primary max. Do not stack Share and Challenge a friend as two equal
-  full-width buttons.
-- Label is **Share** (or **Share the day** / **Share card** when the object
-  needs naming). Prefer that over “Share with friends”; friends are reached via
-  the system sheet or Challenge a friend.
+- The **destination row** is the default primary for shareable moments. Solid
+  full-width Share is retired on those feet.
+- When Share is not the screen’s foot job, a Share glyph opens
+  **ShareDestinationSheet** with the same destinations.
+- Clip finish keeps Send clip and the group-board switch. Destinations open
+  immediately; uploads never block a send.
+- Send clip only when a clip URI exists. Challenge only when friend-challenge
+  is offered. Link-only payloads (invite URL + caption) are first-class.
 - Dismiss / Not now stays the quietest control.
 - Report emails use **Open in Beatset** (deep link to `/progress/report`), not
   Share — sharing happens in-app from the report screen.

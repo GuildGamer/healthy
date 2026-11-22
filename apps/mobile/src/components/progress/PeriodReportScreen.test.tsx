@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import { apiClient } from '@/lib/api';
 import { PeriodReportScreen } from './PeriodReportScreen';
 
@@ -57,24 +57,13 @@ beforeEach(() => {
 });
 
 describe('PeriodReportScreen', () => {
-  it('keeps the recap on the page and opens the share preview', async () => {
+  it('keeps the recap on the page with destinations, not a separate share route', async () => {
     const { cleanup } = renderReport();
 
     expect(await screen.findByTestId('period-report-share')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
     expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
-    expect(screen.queryByTestId('share-poster-image')).toBeNull();
-
-    fireEvent.press(screen.getByTestId('period-report-share'));
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/challenge/share',
-      params: expect.objectContaining({
-        kind: 'streak',
-        label: 'Week recap',
-        value: '6',
-        runLine: '240 push-ups',
-        facts: expect.stringContaining('Push-ups'),
-      }),
-    });
+    expect(mockPush).not.toHaveBeenCalled();
 
     await cleanup();
   });

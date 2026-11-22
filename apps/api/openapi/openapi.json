@@ -10654,6 +10654,95 @@
         }
       }
     },
+    "/matches/{matchId}/members/{userId}/activity": {
+      "get": {
+        "operationId": "listMatchMemberActivity",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "attempts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "attemptId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "performedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "proofClipId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "attemptId",
+                          "count",
+                          "performedAt",
+                          "proofClipId"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "displayName",
+                    "attempts"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/experiments/assign": {
       "post": {
         "operationId": "getExperimentAssignment",

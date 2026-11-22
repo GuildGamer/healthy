@@ -30,7 +30,8 @@ type UseProofClipOptions = {
 /**
  * One set's local proof clip and what can be done with it. Anyone clips upload
  * when the set ends (or when audience flips to Anyone). Only me stays local
- * until they post to a group. Send still shares the file.
+ * until they post to a group. Send always shares the file on the phone first;
+ * the upload that makes the code checkable never blocks that sheet.
  */
 export function useProofClip(
   clipId: string | null,
@@ -115,6 +116,28 @@ export function useProofClip(
     }
   }
 
+  /** Queues the upload that makes the code checkable. Never awaited by send. */
+  function queueBackgroundUpload(postToGroup: boolean) {
+    if (!clipId) {
+      return;
+    }
+    if (audience === 'only_me' && !postToGroup) {
+      return;
+    }
+    void uploadIfNeeded(postToGroup).then((ok) => {
+      if (ok) {
+        void queryClient.invalidateQueries({ queryKey: ['progress'] });
+        void queryClient.invalidateQueries({ queryKey: ['challenges', 'history'] });
+        if (postToGroup) {
+          setStatusLine(POSE_COPY.postedToGroup);
+          (options.onPublished ?? (() => undefined))();
+        } else if (audience === 'anyone') {
+          setStatusLine(POSE_COPY.proofCodeCheckingOut);
+        }
+      }
+    });
+  }
+
   async function openShareSheet() {
     if (!clip) {
       return;
@@ -138,14 +161,11 @@ export function useProofClip(
     setIsBusy(true);
     setError(null);
     try {
-      if (audience === 'anyone') {
-        const uploaded = await uploadIfNeeded(false);
-        if (!uploaded) {
-          return;
-        }
-      }
       await openShareSheet();
       setStatusLine(audience === 'anyone' ? POSE_COPY.sentAnyone : POSE_COPY.sentOnlyMe);
+      if (audience === 'anyone') {
+        queueBackgroundUpload(false);
+      }
       (options.onPublished ?? (() => undefined))();
     } catch {
       setError(POSE_COPY.proofSendFailed);
@@ -187,6 +207,19 @@ export function useProofClip(
     } finally {
       setIsBusy(false);
     }
+  }
+
+  /** Starts a group upload without blocking the UI. Used when leaving with the switch on. */
+  function queuePostToGroup() {
+    if (!clipId) {
+      return;
+    }
+    void markLocalProofClipPendingUpload(clipId, {
+      audience,
+      postToGroup: true,
+    }).then(() => {
+      queueBackgroundUpload(true);
+    });
   }
 
   async function saveToPhotos() {
@@ -266,6 +299,7 @@ export function useProofClip(
     send: () => void send(),
     sendWithoutCheck: () => void sendWithoutCheck(),
     postToGroup: () => void postToGroup(),
+    queuePostToGroup,
     saveToPhotos: () => void saveToPhotos(),
     confirmDiscard,
     watch,

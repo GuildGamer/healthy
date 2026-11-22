@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { shareMatchLink } from '@/components/matches/share-match-link';
 import { apiClient } from '@/lib/api';
 import { trackEvent } from '@/lib/track-event';
 import { FRIEND_REFERRAL_EXPERIMENT } from './constants/friend-challenge';
@@ -79,15 +78,10 @@ export function useFriendChallenge(input: FriendChallengeInput) {
         challenge_id: result.match.id,
         practice: eventContext.practice,
       });
-      await shareMatchLink({
-        url: result.invite.url,
-        hostScore: input.spec.match.seedCount ?? result.match.yourScore,
-        hostTitle: result.match.hostTitle,
-        metric: result.match.metric,
-        scoringMode: result.match.scoringMode,
-        endsAt: result.match.endsAt,
+      router.push({
+        pathname: '/matches/[matchId]',
+        params: { matchId: result.match.id, shareInvite: '1' },
       });
-      router.push(`/matches/${result.match.id}`);
     },
   });
 

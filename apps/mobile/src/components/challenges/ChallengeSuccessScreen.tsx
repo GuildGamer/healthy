@@ -4,12 +4,18 @@ import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
-import { DeckButton, DeckRoundButton, DeckSheetMessage } from '@/components/deck';
+import { DeckButton, DeckSheetMessage } from '@/components/deck';
 import { SyncStatusLine } from '@/components/feedback/SyncStatusLine';
+import { inviteShareMessage } from '@/components/matches/invite-message';
 import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
+import {
+  openShareDestination,
+  type ShareDestinationId,
+} from '@/components/matches/share-destination';
+import { SHARE_DEST_COPY, ShareDestinationRow } from '@/components/share';
 import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
@@ -28,7 +34,8 @@ import { SUCCESS_COPY } from './constants/success-copy';
 import { friendChallengeSpec } from './friend-challenge';
 import { nextGoalLadderOffer, type GoalLadderOffer } from './goal-ladder';
 import { poseShareCopy } from './pose-share-copy';
-import { ProofClipHero, ProofClipPrimaryRow } from './ProofClipActions';
+import { ProofClipAudienceControl } from './ProofClipAudienceControl';
+import { ProofClipHero } from './ProofClipActions';
 import { posterForSuccess, type SuccessFace } from './success-poster';
 import { defaultShareFillId, type ShareFillId } from './share-fill';
 import { posterRunLine } from './share-poster';
@@ -298,6 +305,19 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   }
 
   if (proof.isLoading || proof.clip) {
+    const clipPose = poseShareCopy(activityKey ?? matchMetric);
+    const clipPoster = posterForSuccess({
+      title,
+      face: successFace({ face, completedCount, matchMetric, minutes, glasses }),
+      count: completedCount,
+      minutes,
+      glasses,
+      metric: clipPose.metric,
+    });
+    const clipFill = fillId ?? defaultShareFillId(clipPoster.kind);
+    const streakForClip =
+      isMatch || practice ? (me?.currentStreakDays ?? currentStreakDays) : currentStreakDays;
+
     return (
       <SafeAreaView style={styles.container} testID="challenge-success-screen">
         {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
@@ -316,13 +336,28 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
           ) : (
             <ProofClipHero fill maxDurationSeconds={proofMaxDurationSeconds} proof={proof} />
           )}
+          <View
+            collapsable={false}
+            pointerEvents="none"
+            ref={shareImage.shotRef}
+            style={styles.offscreenPoster}
+          >
+            <SharePosterCard
+              fillId={clipFill}
+              photoUri={photoUri}
+              poster={clipPoster}
+              runLine={posterRunLine(streakForClip)}
+            />
+          </View>
         </View>
         <ClipFinishActions
+          completedCount={completedCount}
           doneLabel={doneLabel}
           friend={friend}
-          maxDurationSeconds={proofMaxDurationSeconds}
+          matchId={matchId}
           onDone={leave}
           proof={proof}
+          shareImage={shareImage}
         />
       </SafeAreaView>
     );
@@ -380,7 +415,12 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         {shareImage.error ? <DeckSheetMessage message={shareImage.error} /> : null}
         {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
         <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
-        <SuccessActions friend={friend} shareImage={shareImage} />
+        <SuccessActions
+          completedCount={completedCount}
+          friend={friend}
+          matchId={matchId}
+          shareImage={shareImage}
+        />
         {ladderOffer && challengeId ? (
           <GoalLadderPrompt
             challengeId={challengeId}
@@ -410,40 +450,163 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
 }
 
 /**
- * With a clip, the clip is the one job: publishing it is the only solid
- * button, and a friend challenge drops to a quiet word beside the way out.
+ * With a clip, the one job is sending the set: destinations open immediately,
+ * group board is a default-on switch, and Not now is the quiet way out.
  */
 function ClipFinishActions({
   proof,
   friend,
   doneLabel,
-  maxDurationSeconds,
+  matchId,
+  completedCount,
+  shareImage,
   onDone,
 }: {
   proof: ProofClipState;
   friend: ReturnType<typeof useFriendChallenge>;
   doneLabel: string;
-  maxDurationSeconds: number;
+  matchId?: string;
+  completedCount?: number;
+  shareImage: ReturnType<typeof useShareCardImage>;
   onDone: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
-  const offersFriend = friend.isReady && friend.isOffered;
+  const { colors } = useTheme();
+  const isGroup = Boolean(matchId);
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiClient.me(),
+    staleTime: 60_000,
+  });
+  const matchQuery = useQuery({
+    queryKey: ['matches', matchId],
+    queryFn: () => apiClient.getMatch({ matchId: matchId! }),
+    enabled: Boolean(matchId),
+  });
+  const postedTodayQuery = useQuery({
+    queryKey: ['proof-clips', 'match', matchId, 'today-cap'],
+    queryFn: () => apiClient.listMatchProofClips({ matchId: matchId! }),
+    enabled: Boolean(matchId),
+  });
+  const myUserId = meQuery.data?.id;
+  const alreadyPostedToday =
+    Boolean(myUserId) &&
+    (postedTodayQuery.data?.clips.some((clip) => clip.userId === myUserId) ?? false);
+  const [postToBoard, setPostToBoard] = useState(!alreadyPostedToday);
+  const [statusNote, setStatusNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (alreadyPostedToday) {
+      setPostToBoard(false);
+    }
+  }, [alreadyPostedToday]);
+
+  const inviteUrl = matchQuery.data?.inviteUrl ?? null;
+  const caption =
+    matchQuery.data != null
+      ? inviteShareMessage({
+          hostScore: completedCount ?? matchQuery.data.yourScore,
+          hostTitle: matchQuery.data.hostTitle,
+          metric: matchQuery.data.metric,
+          scoringMode: matchQuery.data.scoringMode,
+          endsAt: matchQuery.data.endsAt,
+        })
+      : completedCount != null && completedCount > 0
+        ? `I did ${completedCount}. Think you can beat me?`
+        : 'Think you can beat me?';
+
+  async function capturePosterUri(): Promise<string | null> {
+    if (!shareImage.shotRef.current) {
+      return null;
+    }
+    try {
+      return await captureRef(shareImage.shotRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function onDestination(id: ShareDestinationId | 'challenge') {
+    if (id === 'challenge') {
+      friend.challengeFriend();
+      return;
+    }
+
+    const posterUri = await capturePosterUri();
+
+    await openShareDestination(id, {
+      caption,
+      inviteUrl,
+      posterUri,
+      clipUri: proof.clip?.fileUri,
+      socialClipUri: proof.clip?.socialFileUri ?? null,
+    });
+
+    if (id === 'copy') {
+      setStatusNote(SHARE_DEST_COPY.copiedLink);
+    }
+
+    if (proof.audience === 'anyone') {
+      setStatusNote((current) => current ?? POSE_COPY.proofCodeCheckingOut);
+    }
+  }
+
+  function leave() {
+    if (isGroup && postToBoard && !alreadyPostedToday) {
+      proof.queuePostToGroup();
+    }
+    onDone();
+  }
 
   return (
     <View style={styles.actions}>
       {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
       {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
-      <ProofClipPrimaryRow maxDurationSeconds={maxDurationSeconds} proof={proof} />
-      <View style={[styles.quietRow, offersFriend ? styles.quietRowSplit : null]}>
-        {offersFriend ? (
-          <QuietAction
-            disabled={friend.isCreating}
-            label={FRIEND_CHALLENGE_COPY.action}
-            onPress={friend.challengeFriend}
-            testID="challenge-success-challenge-friend"
+      {alreadyPostedToday ? (
+        <Text style={styles.hint}>{POSE_COPY.proofAlreadyPostedToday}</Text>
+      ) : null}
+      <ShareDestinationRow
+        disabled={proof.isBusy}
+        onSelect={(id) => void onDestination(id)}
+        showChallenge={!isGroup && friend.isReady && friend.isOffered}
+        showClip
+      />
+      {isGroup ? (
+        <View style={styles.boardRow} testID="proof-group-board-row">
+          <Text style={styles.boardLabel}>{POSE_COPY.proofOnGroupBoard}</Text>
+          <Switch
+            accessibilityLabel={POSE_COPY.proofOnGroupBoard}
+            disabled={alreadyPostedToday || proof.isBusy}
+            onValueChange={setPostToBoard}
+            testID="proof-group-board-switch"
+            thumbColor={colors.surface}
+            trackColor={{ false: colors.tickIdle, true: colors.accent }}
+            value={postToBoard && !alreadyPostedToday}
           />
-        ) : null}
-        <QuietAction label={doneLabel} onPress={onDone} testID="challenge-success-done" />
+        </View>
+      ) : null}
+      <ProofClipAudienceControl
+        disabled={proof.isBusy}
+        onChange={(next) => void proof.setAudience(next)}
+        value={proof.audience}
+      />
+      <QuietAction
+        disabled={proof.isBusy}
+        label={POSE_COPY.saveToPhotos}
+        onPress={proof.saveToPhotos}
+        testID="proof-save-photos"
+      />
+      {statusNote || proof.statusLine ? (
+        <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-status-line">
+          {statusNote ?? proof.statusLine}
+        </Text>
+      ) : null}
+      <View style={styles.quietRow}>
+        <QuietAction label={doneLabel} onPress={leave} testID="challenge-success-done" />
       </View>
     </View>
   );
@@ -528,12 +691,46 @@ function GoalLadderPrompt({
 function SuccessActions({
   friend,
   shareImage,
+  completedCount,
+  matchId,
 }: {
   friend: ReturnType<typeof useFriendChallenge>;
   shareImage: ReturnType<typeof useShareCardImage>;
+  completedCount?: number;
+  matchId?: string;
 }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const [statusNote, setStatusNote] = useState<string | null>(null);
+
+  async function onDestination(id: ShareDestinationId | 'challenge') {
+    if (id === 'challenge') {
+      friend.challengeFriend();
+      return;
+    }
+
+    const posterUri = shareImage.shotRef.current
+      ? await captureRef(shareImage.shotRef, {
+          format: 'png',
+          quality: 1,
+          result: 'tmpfile',
+        }).catch(() => null)
+      : null;
+
+    const caption =
+      completedCount != null && completedCount > 0
+        ? `I did ${completedCount}. Think you can beat me?`
+        : 'Think you can beat me?';
+
+    await openShareDestination(id, {
+      caption,
+      posterUri,
+    });
+
+    if (id === 'copy') {
+      setStatusNote(SHARE_DEST_COPY.copiedLink);
+    }
+  }
 
   if (!friend.isReady) {
     return (
@@ -543,41 +740,23 @@ function SuccessActions({
     );
   }
 
-  if (!friend.isOffered) {
-    return (
-      <>
-        <Text style={styles.actionPrompt}>{SUCCESS_COPY.sharePrompt}</Text>
-        <DeckButton
-          glyph="share"
-          label={SUCCESS_COPY.share}
-          loading={shareImage.isSharing}
-          onPress={shareImage.share}
-          testID="challenge-success-share"
-        />
-      </>
-    );
-  }
-
   return (
     <>
-      <Text style={styles.actionPrompt}>{FRIEND_CHALLENGE_COPY.prompt}</Text>
-      <View style={styles.primaryRow}>
-        <DeckButton
-          isFlexible
-          label={FRIEND_CHALLENGE_COPY.action}
-          loading={friend.isCreating}
-          onPress={friend.challengeFriend}
-          testID="challenge-success-challenge-friend"
-        />
-        <DeckRoundButton
-          accessibilityLabel={SUCCESS_COPY.shareResult}
-          disabled={shareImage.isSharing}
-          glyph="share"
-          onPress={shareImage.share}
-          onSurface
-          testID="challenge-success-share"
+      <Text style={styles.actionPrompt}>
+        {friend.isOffered ? FRIEND_CHALLENGE_COPY.prompt : SUCCESS_COPY.sharePrompt}
+      </Text>
+      <View testID="challenge-success-share">
+        <ShareDestinationRow
+          disabled={shareImage.isSharing || friend.isCreating}
+          onSelect={(id) => void onDestination(id)}
+          showChallenge={!matchId && friend.isOffered}
         />
       </View>
+      {statusNote ? (
+        <Text accessibilityLiveRegion="polite" style={styles.hint}>
+          {statusNote}
+        </Text>
+      ) : null}
     </>
   );
 }
@@ -706,11 +885,34 @@ const createStyles = (theme: Theme) =>
     posterWrap: {
       marginTop: 18,
     },
+    offscreenPoster: {
+      position: 'absolute',
+      left: -4000,
+      top: 0,
+      opacity: 0,
+    },
     actions: {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.lg,
       paddingBottom: spacing.sm,
       gap: spacing.md,
+    },
+    boardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    boardLabel: {
+      color: theme.colors.text,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      flex: 1,
+    },
+    hint: {
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
     },
     ladderBlock: {
       gap: spacing.sm,

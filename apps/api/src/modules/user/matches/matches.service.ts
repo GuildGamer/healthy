@@ -10,6 +10,7 @@ import {
   matchInviteUrl,
   resolveMatchLength,
   type DeviceActivity,
+  type ListMatchMemberActivityOutput,
   type ListMyMatchesOutput,
   type MatchBoard,
   type MatchListItem,
@@ -563,6 +564,55 @@ export class MatchesService {
     // Opening the contest is the accept. A crew seat costs the member one tap
     // to decline (ignore the push) and none to take part.
     return await this.buildBoard(await this.acceptSeat(match, user.id), user.id);
+  }
+
+  /**
+   * One member's sets in this contest. A play target is included only when they
+   * posted a proof clip to the group (`postedToGroupAt`). Only-me clips stay out.
+   */
+  async listMemberActivity(
+    currentUser: AuthenticatedUser | null | undefined,
+    matchId: string,
+    memberUserId: string,
+  ): Promise<ListMatchMemberActivityOutput> {
+    const user = requireUser(currentUser);
+    const match = await this.loadById(matchId);
+    this.assertParticipant(match, user.id);
+
+    const member = match.participants.find((row) => row.userId === memberUserId);
+    if (!member) {
+      throw new ORPCError('NOT_FOUND', { message: MATCH_NOT_FOUND });
+    }
+
+    const attempts = await this.prisma.matchAttempt.findMany({
+      where: { matchId, userId: memberUserId },
+      include: {
+        proofClips: {
+          where: {
+            status: 'ready',
+            postedToGroupAt: { not: null },
+          },
+          orderBy: { postedToGroupAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: [{ performedAt: 'desc' }, { recordedAt: 'desc' }],
+    });
+
+    return {
+      userId: memberUserId,
+      displayName: groupNameFor(member.user),
+      attempts: attempts.map((attempt) => {
+        const when = attempt.performedAt ?? attempt.recordedAt;
+        const posted = attempt.proofClips[0] ?? null;
+        return {
+          attemptId: attempt.id,
+          count: attempt.count,
+          performedAt: when.toISOString(),
+          proofClipId: posted?.id ?? null,
+        };
+      }),
+    };
   }
 
   async listMine(currentUser: AuthenticatedUser | null | undefined): Promise<ListMyMatchesDto> {

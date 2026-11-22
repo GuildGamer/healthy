@@ -10,8 +10,8 @@ import {
 
 /**
  * One press of the shutter, sized for the photo check and kept off the shutter
- * sound. Uses Expo's processed JPEG as-is (upright, unmirrored like stock
- * iPhone Camera) — no post-capture flip or EXIF re-bake.
+ * sound. Uses Expo's processed JPEG as-is. The front CameraView mirror prop
+ * is what keeps that JPEG in the viewfinder's left-right orientation.
  */
 export function useTakePhoto(cameraRef: RefObject<CameraView | null>) {
   const [isCapturing, setIsCapturing] = useState(false);

@@ -483,6 +483,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
       "durationSeconds" to finished.durationSeconds,
     )
     finished.posterFile?.let { payload["posterUri"] = Uri.fromFile(it).toString() }
+    finished.socialFile?.let { payload["socialFileUri"] = Uri.fromFile(it).toString() }
     onProofRecorded(payload)
   }
 

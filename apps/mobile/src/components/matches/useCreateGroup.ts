@@ -14,7 +14,6 @@ import {
   legalScoringModeFor,
   matchActivityInput,
 } from './match-metric';
-import { shareMatchLink } from './share-match-link';
 import type { WhosInSelection } from './WhosInSheet';
 
 function emptyWhosIn(crewId: string | null, participantUserIds: string[]): WhosInSelection {
@@ -60,19 +59,16 @@ export function useCreateGroup(prefill: CreatePrefill) {
       }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
-      // Link-first when nobody was seated. Seated contests still keep Share on
-      // the board for anyone joining from outside.
-      if (!hasSeated) {
-        await shareMatchLink({
-          url: result.match.inviteUrl,
-          hostScore: result.match.yourScore,
-          hostTitle: result.match.hostTitle,
-          metric: result.match.metric,
-          scoringMode: result.match.scoringMode,
-          endsAt: result.match.endsAt,
-        });
-      }
-      router.replace(`/matches/${result.match.id}`);
+      // Link-first when nobody was seated: open destinations on the board.
+      // Seated contests still keep Share on the board for outside joins.
+      const shareInvite = !hasSeated ? '1' : undefined;
+      router.replace({
+        pathname: '/matches/[matchId]',
+        params: {
+          matchId: result.match.id,
+          ...(shareInvite ? { shareInvite } : {}),
+        },
+      });
     },
   });
 

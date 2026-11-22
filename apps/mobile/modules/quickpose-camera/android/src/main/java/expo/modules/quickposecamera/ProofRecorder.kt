@@ -31,6 +31,8 @@ internal class ProofRecorder(private val context: Context) {
   data class FinishResult(
     val videoFile: File,
     val posterFile: File?,
+    /** Last ≤15s cut for Stories / Status; null when the full clip is already short. */
+    val socialFile: File?,
     val sha256Hex: String,
     val byteSize: Long,
     val durationSeconds: Int,
@@ -258,13 +260,30 @@ internal class ProofRecorder(private val context: Context) {
     } else {
       null
     }
+    val durationSeconds = trimmedDurationSeconds(finished)
+    val socialFile = exportSocialCut(durableVideo, durationSeconds)
     return FinishResult(
       videoFile = durableVideo,
       posterFile = durablePoster,
+      socialFile = socialFile,
       sha256Hex = sha256Hex(durableVideo),
       byteSize = durableVideo.length(),
-      durationSeconds = trimmedDurationSeconds(finished),
+      durationSeconds = durationSeconds,
     )
+  }
+
+  /** Last SOCIAL_CUT_MAX_SECONDS of the finished clip; null when already short. */
+  private fun exportSocialCut(source: File, durationSeconds: Int): File? {
+    if (durationSeconds <= SOCIAL_CUT_MAX_SECONDS) {
+      return null
+    }
+    return runCatching {
+      ProofSocialCut.exportLastSeconds(
+        source = source,
+        destination = File(durableDirectory(context), "social-${System.currentTimeMillis()}.mp4"),
+        maxSeconds = SOCIAL_CUT_MAX_SECONDS.toDouble(),
+      )
+    }.getOrNull()
   }
 
   private fun trimmedDurationSeconds(finished: Clip): Int {
@@ -296,7 +315,8 @@ internal class ProofRecorder(private val context: Context) {
     private const val PROOF_CLIPS_FOLDER = "proof-clips"
     private const val DEFAULT_WIDTH = 1080
     private const val DEFAULT_HEIGHT = 1920
-    private const val DEFAULT_BIT_RATE = 8_000_000
+    private const val DEFAULT_BIT_RATE = 4_500_000
+    private const val SOCIAL_CUT_MAX_SECONDS = 15
     private const val DEFAULT_FRAME_RATE = 30
     private const val BIT_RATE_MIN = 50_000
     private const val BIT_RATE_MAX = 200_000_000
