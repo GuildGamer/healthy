@@ -508,9 +508,9 @@ card, or an invite — not only proof finish.
   the phone. The upload that makes the code checkable runs in the background
   and never blocks a send.
 - **On the group board.** Inside a group contest this is a switch, default on.
-  Leaving via X with it on posts the clip (`postedToGroupAt`), still under
-  the one-post-per-day cap. It is not a primary button and not a verb the
-  person has to learn.
+  Leaving via X with it on posts the clip (`postedToGroupAt`). Each set may
+  post its own clip. It is not a primary button and not a verb the person has
+  to learn.
 - **Who can check the code** is chosen when proof recording is first turned
   on, and changeable later in History / Settings — not on the finish foot.
 - **A mate's clip** is reached from their standing: open their sets in this
@@ -529,7 +529,7 @@ and *Only me*. Asked once when proof recording is first turned on, overridable
 per set on the finish screen, and changeable later from History or Settings.
 **Send** hands the video file to another app; it is not the same as who can
 watch. **On the group board** (default-on switch on a group finish) is the only
-action that sets `postedToGroupAt` and uses the one-post-per-day cap.
+action that sets `postedToGroupAt`.
 
 *Anyone with the code* uploads as soon as the set is saved on the phone, so the
 code becomes checkable without sending. *Only me* never uploads unless the
@@ -548,8 +548,8 @@ deletes the stored file.
 ## Not building
 
 A follow graph, an activity feed, comments, public or discoverable groups, or a
-photo gallery / media feed inside groups. Proof clips are one posted clip per
-member per contest day, not a feed. No crew page, crew feed, or crew chat — the
-three additions that would quietly turn an address-book entry into a club. No
-searchable user directory. Recorded here so they do not creep back in as "small
-additions".
+photo gallery / media feed inside groups. Proof clips attach to sets and are
+reached from a member's standing, not a feed. No crew page, crew feed, or crew
+chat — the three additions that would quietly turn an address-book entry into a
+club. No searchable user directory. Recorded here so they do not creep back in
+as "small additions".

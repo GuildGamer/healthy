@@ -10,6 +10,8 @@ import {
 } from '@/components/challenges/ActivityDetailScreen';
 import {
   dayCompletionShareRoute,
+  dayContestShareRoute,
+  posterForContestSet,
   posterForDoneItem,
 } from '@/components/challenges/completion-poster';
 import { goBackOrHome } from '@/lib/go-back';
@@ -60,14 +62,16 @@ function doneDetail(item: ProgressDoneItem, dayKey: string): ActivityDetail {
 }
 
 function contestDetail(item: ProgressContestSetItem, dayKey: string): ActivityDetail {
+  const poster = posterForContestSet(item);
+
   return {
     title: item.title,
-    amount: item.count === 1 ? '1' : String(item.count),
+    amount: `${poster.value} ${poster.unit}`,
     when: `${dayPageTitle(dayKey)} · ${clockTime(item.recordedAt)}`,
     points: null,
     proofClip: item.proofClip,
     userChallengeId: null,
-    shareCard: null,
+    shareCard: dayContestShareRoute(item),
   };
 }
 

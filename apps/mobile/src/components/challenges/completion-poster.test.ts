@@ -1,7 +1,16 @@
-import type { ChallengeHistoryLog, ProgressDoneItem } from '@product/client';
+import type {
+  ChallengeHistoryLog,
+  ProgressContestSetItem,
+  ProgressDoneItem,
+} from '@product/client';
 import { formatClockTime } from '@/lib/clock-time';
 import { posterShareText } from './share-poster';
-import { posterForDoneItem, posterForHistoryEntry } from './completion-poster';
+import {
+  dayContestShareRoute,
+  posterForContestSet,
+  posterForDoneItem,
+  posterForHistoryEntry,
+} from './completion-poster';
 
 const completedAt = '2026-10-20T09:15:00.000Z';
 
@@ -170,5 +179,46 @@ describe('posterForHistoryEntry', () => {
       expect(poster.value).toBe('Logged');
       expect(text).not.toMatch(/128|82|70|5\.4|420|45|Sam|fasting|Rice/);
     }
+  });
+});
+
+function contestSet(overrides: Partial<ProgressContestSetItem>): ProgressContestSetItem {
+  return {
+    id: 'set-1',
+    matchId: 'match-1',
+    title: 'Group push-ups',
+    metric: 'pushups',
+    count: 40,
+    recordedAt: completedAt,
+    proofClip: null,
+    ...overrides,
+  };
+}
+
+describe('group contest sets', () => {
+  it('puts the scored reps, or walked minutes, on the card', () => {
+    expect(posterForContestSet(contestSet({}))).toMatchObject({
+      kind: 'strength',
+      label: 'Group push-ups',
+      value: '40',
+      unit: 'push-ups',
+    });
+
+    expect(
+      posterForContestSet(contestSet({ metric: 'walk', title: 'Group walk', count: 25 })),
+    ).toMatchObject({ kind: 'walk', value: '25', unit: 'minutes walked' });
+  });
+
+  it('opens the share screen without offering a friend invite', () => {
+    expect(dayContestShareRoute(contestSet({}))).toEqual({
+      pathname: '/challenge/share',
+      params: expect.objectContaining({
+        label: 'Group push-ups',
+        value: '40',
+        unit: 'push-ups',
+        userChallengeId: 'set-1',
+        eligible: '0',
+      }),
+    });
   });
 });

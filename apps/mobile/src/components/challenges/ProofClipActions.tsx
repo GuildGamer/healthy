@@ -13,6 +13,7 @@ import { type Theme, useThemedStyles } from '@/theme';
 import { POSE_COPY } from './constants/doing-copy';
 import { ProofClipAudienceControl } from './ProofClipAudienceControl';
 import { ProofPlayBadge } from './ProofPlayBadge';
+import { ProofVideoPlayer } from './ProofVideoPlayer';
 import { type ProofClipState, useProofClip } from './useProofClip';
 
 const PANEL_POSTER_MAX_HEIGHT = 220;
@@ -20,19 +21,26 @@ const PANEL_POSTER_MAX_HEIGHT = 220;
 /**
  * The clip itself: first frame and a tap to watch. On History, the code and
  * Discard sit under the player. Finish hides that chrome — the code is already
- * burned into the video.
+ * burned into the video — and must not push the bare proof viewer, or canceling
+ * Instagram / X leaves the person on a dead-end clip page under the share row.
  * `fill` grows it into the space it is given; otherwise it stays compact.
  */
 export function ProofClipHero({
   proof,
   fill = false,
   showMeta = true,
+  opensViewer = true,
   maxDurationSeconds,
 }: {
   proof: ProofClipState;
   fill?: boolean;
   /** Code + Discard under the player. Off on the finish screen. */
   showMeta?: boolean;
+  /**
+   * When false, the poster stays put (finish share screen). A tap must not
+   * stack `/proof/[clipId]` on top of the destination row.
+   */
+  opensViewer?: boolean;
   maxDurationSeconds: number;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -42,24 +50,37 @@ export function ProofClipHero({
     return null;
   }
 
+  const posterStyle = [styles.poster, fill ? styles.posterFill : styles.posterCompact];
+
   return (
     <View style={[styles.hero, fill ? styles.heroFill : null]} testID="proof-clip-hero">
-      <Pressable
-        accessibilityLabel={POSE_COPY.proofWatch}
-        accessibilityRole="button"
-        onPress={proof.watch}
-        style={({ pressed }) => [
-          styles.poster,
-          fill ? styles.posterFill : styles.posterCompact,
-          pressed ? styles.pressed : null,
-        ]}
-        testID="proof-clip-watch"
-      >
-        {clip.posterUri ? (
-          <Image source={{ uri: clip.posterUri }} style={StyleSheet.absoluteFill} />
-        ) : null}
-        <ProofPlayBadge />
-      </Pressable>
+      {opensViewer ? (
+        <Pressable
+          accessibilityLabel={POSE_COPY.proofWatch}
+          accessibilityRole="button"
+          onPress={proof.watch}
+          style={({ pressed }) => [...posterStyle, pressed ? styles.pressed : null]}
+          testID="proof-clip-watch"
+        >
+          {clip.posterUri ? (
+            <Image source={{ uri: clip.posterUri }} style={StyleSheet.absoluteFill} />
+          ) : null}
+          <ProofPlayBadge />
+        </Pressable>
+      ) : (
+        <View style={posterStyle} testID="proof-clip-watch">
+          {clip.fileUri ? (
+            <ProofVideoPlayer posterUri={clip.posterUri} uri={clip.fileUri} />
+          ) : (
+            <>
+              {clip.posterUri ? (
+                <Image source={{ uri: clip.posterUri }} style={StyleSheet.absoluteFill} />
+              ) : null}
+              <ProofPlayBadge />
+            </>
+          )}
+        </View>
+      )}
       {showMeta ? (
         <View style={styles.caption}>
           <Text style={styles.code}>{clip.displayCode}</Text>

@@ -51,6 +51,7 @@ On the app page → **Environment variables** → create group **`testflight`**:
 | `APP_STORE_APPLE_ID` | Numeric id from ASC → App → App Information (not the bundle id) |
 | `EXPO_PUBLIC_API_URL` | Your deployed API base URL (https, no trailing slash) |
 | `EXPO_PUBLIC_QUICKPOSE_SDK_KEY` | QuickPose key registered for the **same** bundle ID |
+| `EXPO_PUBLIC_FACEBOOK_APP_ID` | Meta App ID for Instagram Stories share ([developers.facebook.com](https://developers.facebook.com)) |
 
 Mark secrets as **Secret**.
 

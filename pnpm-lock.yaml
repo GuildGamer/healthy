@@ -338,6 +338,9 @@ importers:
       react-native-worklets:
         specifier: 0.5.1
         version: 0.5.1(@babel/core@7.29.7)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      share-destination:
+        specifier: file:./modules/share-destination
+        version: file:apps/mobile/modules/share-destination(expo@54.0.37)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       walk-live-activity:
         specifier: file:./modules/walk-live-activity
         version: file:apps/mobile/modules/walk-live-activity(expo-live-activity@0.4.2(expo@54.0.37)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo-secure-store@15.0.8(expo@54.0.37))(expo@54.0.37)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -8726,6 +8729,13 @@ packages:
 
   shallowequal@1.1.0:
     resolution: {integrity: sha512-y0m1JoUZSlPAjXVtPPW70aZWfIL/dSP7AFkRnniLCrK/8MDKog3TySTBmckD+RObVxH0v4Tox67+F14PdED2oQ==}
+
+  share-destination@file:apps/mobile/modules/share-destination:
+    resolution: {directory: apps/mobile/modules/share-destination, type: directory}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
@@ -20137,6 +20147,12 @@ snapshots:
   sf-symbols-typescript@2.2.0: {}
 
   shallowequal@1.1.0: {}
+
+  share-destination@file:apps/mobile/modules/share-destination(expo@54.0.37)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.37(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0)
 
   sharp@0.34.5:
     dependencies:

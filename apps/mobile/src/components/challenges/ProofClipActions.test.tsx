@@ -145,28 +145,6 @@ describe('ProofClipActions', () => {
     expect(screen.queryByText(/SignatureDoesNotMatch/)).toBeNull();
   });
 
-  it('says why a second group post today was refused', async () => {
-    uploadProofClip.mockRejectedValue(
-      Object.assign(new Error('You already posted a clip to this group today.'), {
-        code: 'CONFLICT',
-      }),
-    );
-
-    renderActions(<ProofClipActions audience="only_me" clipId="clip-1" isGroup />, {
-      clipId: 'clip-1',
-      local: localClip,
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('proof-primary'));
-    });
-
-    expect(
-      await screen.findByText(
-        'You already posted a clip to this group today. Save this one to Photos instead.',
-      ),
-    ).toBeOnTheScreen();
-  });
-
   it('updates the status line after saving to Photos', async () => {
     queueAnyoneProofClipUpload.mockResolvedValue(true);
 

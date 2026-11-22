@@ -320,7 +320,7 @@ describe('ProofClipsService.setAudience', () => {
 });
 
 describe('ProofClipsService.requestUpload', () => {
-  it('refuses a second group post before any upload URL is issued', async () => {
+  it('lets a second clip be posted to the group on the same day', async () => {
     const { service, prisma, storage } = createHarness(
       clip({
         status: 'recorded',
@@ -330,17 +330,18 @@ describe('ProofClipsService.requestUpload', () => {
         expiresAt: null,
       }),
     );
-    prisma.proofClip.count.mockResolvedValueOnce(1);
+    storage.presignPut.mockResolvedValue({ url: 'https://upload.test/video', headers: {} });
+    prisma.proofClip.count.mockResolvedValue(1);
 
-    await expect(
-      service.requestUpload(owner, {
-        clipId: 'clip1',
-        videoByteSize: 1_024,
-        postToGroup: true,
-        audience: 'only_me',
-      }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
-    expect(storage.presignPut).not.toHaveBeenCalled();
+    await service.requestUpload(owner, {
+      clipId: 'clip1',
+      videoByteSize: 1_024,
+      postToGroup: true,
+      audience: 'only_me',
+    });
+
+    expect(storage.presignPut).toHaveBeenCalled();
+    expect(prisma.proofClip.count).not.toHaveBeenCalled();
   });
 });
 

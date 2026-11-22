@@ -127,8 +127,6 @@ export const POSE_COPY = {
   proofOnGroupBoard: 'On the group board',
   proofPublishFailed: 'Could not upload the clip. Try again.',
   proofSendFailed: 'Could not send the clip. Try again.',
-  proofAlreadyPostedToday:
-    'You already posted a clip to this group today. Save this one to Photos instead.',
   proofDiscard: 'Discard',
   proofWatch: 'Watch your proof clip',
   saveToPhotos: 'Save to Photos',

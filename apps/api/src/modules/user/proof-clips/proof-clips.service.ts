@@ -43,7 +43,6 @@ import {
 import {
   PROOF_CLIP_CANNOT_BLOCK_SELF,
   PROOF_CLIP_CONTEXT_NOT_FOUND,
-  PROOF_CLIP_DAILY_CAP,
   PROOF_CLIP_EXCEEDS_LIMITS,
   PROOF_CLIP_NOT_FOUND,
   PROOF_CLIP_NOT_OWNER,
@@ -240,7 +239,7 @@ export class ProofClipsService {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_UPLOAD_SIZE_MISMATCH });
     }
     if (intent.postToGroup && clip.status === 'recorded') {
-      await this.assertCanPostToGroup(user.id, clip);
+      await this.assertCanPostToGroup(clip);
     }
 
     this.requireStorage();
@@ -327,7 +326,7 @@ export class ProofClipsService {
     }
 
     if (intent.postToGroup) {
-      await this.assertCanPostToGroup(user.id, clip);
+      await this.assertCanPostToGroup(clip);
     }
 
     this.requireStorage();
@@ -775,32 +774,9 @@ export class ProofClipsService {
     return match.participants.some((p) => p.userId === userId && p.acceptedAt != null);
   }
 
-  private async assertCanPostToGroup(userId: string, clip: DbProofClip): Promise<void> {
+  private async assertCanPostToGroup(clip: DbProofClip): Promise<void> {
     if (!clip.matchId || !clip.recordedAt) {
       throw new ORPCError('BAD_REQUEST', { message: PROOF_CLIP_CONTEXT_NOT_FOUND });
-    }
-    await this.assertDailyPostCap(userId, clip.matchId, clip.recordedAt);
-  }
-
-  private async assertDailyPostCap(
-    userId: string,
-    matchId: string,
-    recordedAt: Date,
-  ): Promise<void> {
-    const dayKey = dayKeyFor(DEFAULT_TIME_ZONE, recordedAt);
-    const start = new Date(`${dayKey}T00:00:00.000Z`);
-    const end = new Date(`${dayKey}T23:59:59.999Z`);
-    const existing = await this.prisma.proofClip.count({
-      where: {
-        userId,
-        matchId,
-        status: 'ready',
-        postedToGroupAt: { not: null },
-        recordedAt: { gte: start, lte: end },
-      },
-    });
-    if (existing > 0) {
-      throw new ORPCError('CONFLICT', { message: PROOF_CLIP_DAILY_CAP });
     }
   }
 

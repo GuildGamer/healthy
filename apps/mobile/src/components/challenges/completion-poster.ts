@@ -3,13 +3,14 @@ import type {
   ChallengeHistoryEntry,
   ChallengeHistoryLog,
   DeviceMetric,
+  ProgressContestSetItem,
   ProgressDoneItem,
   ProgressShareResult,
 } from '@product/client';
 import { emptyChallengeTarget } from '@product/contract/challenge-capture';
 import { displayChallengeTitle } from '@product/contract/challenge-title';
 import { isPoseMetric } from '@product/contract/match-board';
-import { deckCardKindFor } from '@/components/deck';
+import { DECK_KIND_BY_METRIC, deckCardKindFor } from '@/components/deck';
 import { formatClockTime } from '@/lib/clock-time';
 import { friendSourceForCompletion, shareFriendParams } from './friend-challenge';
 import { poseShareCopy } from './pose-share-copy';
@@ -102,6 +103,38 @@ export function dayCompletionShareRoute(item: ProgressDoneItem) {
     source: friendSourceForCompletion({ share: item.share, metric: item.capture.metric }),
     userChallengeId: item.userChallengeId,
     isEligible: true,
+  });
+}
+
+/** Share card for a group contest set logged that day. */
+export function posterForContestSet(item: ProgressContestSetItem): SharePoster {
+  return {
+    kind: DECK_KIND_BY_METRIC[item.metric] ?? 'strength',
+    label: item.title,
+    value: String(item.count),
+    unit: contestSetUnit(item.metric),
+    when: item.recordedAt,
+  };
+}
+
+/** A walk set counts minutes; every other contest set counts camera reps. */
+function contestSetUnit(metric: DeviceMetric): string {
+  return metric === 'walk' ? WALK_UNIT : poseShareCopy(metric).unit;
+}
+
+/**
+ * Day-detail contest row → the same share screen as a personal finish.
+ * Friend invite stays off; the set already lived inside a group.
+ */
+export function dayContestShareRoute(item: ProgressContestSetItem) {
+  return completionShareRoute({
+    poster: posterForContestSet(item),
+    source: friendSourceForCompletion({
+      share: isPoseMetric(item.metric) ? { kind: 'reps', count: item.count } : null,
+      metric: item.metric,
+    }),
+    userChallengeId: item.id,
+    isEligible: false,
   });
 }
 

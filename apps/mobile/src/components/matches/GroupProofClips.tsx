@@ -32,8 +32,8 @@ export function GroupProofClips({ matchId, isFinished }: { matchId: string; isFi
               accessibilityRole="button"
               onPress={() =>
                 router.push({
-                  pathname: '/proof/[clipId]',
-                  params: { clipId: clip.id },
+                  pathname: '/matches/[matchId]/member/[userId]',
+                  params: { matchId, userId: clip.userId },
                 } as unknown as Href)
               }
               style={[styles.row, index === clips.length - 1 ? styles.rowLast : null]}

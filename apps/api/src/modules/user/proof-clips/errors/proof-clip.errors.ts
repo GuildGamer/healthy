@@ -3,7 +3,6 @@ export const PROOF_CLIP_NOT_OWNER = 'Only the owner can change this clip.';
 export const PROOF_CLIP_NOT_PARTICIPANT = 'Join the group to watch this clip.';
 export const PROOF_CLIP_WRONG_STATUS = 'This clip cannot be updated in its current state.';
 export const PROOF_CLIP_RESERVE_EXPIRED = 'The recording window for this clip has ended.';
-export const PROOF_CLIP_DAILY_CAP = 'You already posted a clip to this group today.';
 export const PROOF_CLIP_UPLOAD_MISSING = 'The uploaded file was not found.';
 export const PROOF_CLIP_UPLOAD_SIZE_MISMATCH = 'The uploaded file size does not match.';
 export const PROOF_CLIP_EXCEEDS_LIMITS = 'This clip is longer or larger than allowed.';

@@ -74,11 +74,44 @@ describe('MatchMemberActivityScreen', () => {
       params: { matchId: 'm1', userId: 'ada', attemptId: 'a1' },
     });
 
+    mockPush.mockClear();
     fireEvent.press(screen.getByTestId('match-member-attempt-a2'));
+    expect(mockPush).not.toHaveBeenCalled();
+
+    await view.cleanup();
+  });
+
+  it('opens the new activity detail for a filmed set, not the bare proof viewer', async () => {
+    mockedApi.listMatchMemberActivity.mockResolvedValue({
+      userId: 'ada',
+      displayName: 'Ada',
+      attempts: [
+        {
+          attemptId: 'filmed',
+          count: 40,
+          performedAt: '2026-10-22T09:15:00.000Z',
+          proofClipId: 'clip-1',
+          proofClip: {
+            id: 'clip-1',
+            displayCode: 'H7K-29Q',
+            status: 'ready',
+            audience: 'anyone',
+            isPostedToGroup: true,
+          },
+        },
+      ],
+    });
+
+    const view = renderWithClient(
+      <MatchMemberActivityScreen matchId="m1" userId="ada" />,
+    );
+
+    fireEvent.press(await screen.findByTestId('match-member-attempt-filmed'));
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/matches/[matchId]/member/[userId]/[attemptId]',
-      params: { matchId: 'm1', userId: 'ada', attemptId: 'a2' },
+      params: { matchId: 'm1', userId: 'ada', attemptId: 'filmed' },
     });
+    expect(JSON.stringify(mockPush.mock.calls)).not.toMatch(/\/proof\//);
 
     await view.cleanup();
   });

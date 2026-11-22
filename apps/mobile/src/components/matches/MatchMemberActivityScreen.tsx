@@ -98,17 +98,25 @@ export function MatchMemberActivityScreen({ matchId, userId }: MatchMemberActivi
             key={attempt.attemptId}
             metric={metric}
             now={now}
-            onOpen={() =>
-              router.push({
-                pathname: '/matches/[matchId]/member/[userId]/[attemptId]',
-                params: { matchId, userId, attemptId: attempt.attemptId },
-              } as unknown as Href)
+            onOpen={
+              hasPostedClip(attempt)
+                ? () =>
+                    router.push({
+                      pathname: '/matches/[matchId]/member/[userId]/[attemptId]',
+                      params: { matchId, userId, attemptId: attempt.attemptId },
+                    } as unknown as Href)
+                : undefined
             }
           />
         ))
       )}
     </GroupPage>
   );
+}
+
+/** The detail page leads with the clip, so a set without one has nothing to open. */
+function hasPostedClip(attempt: MatchMemberAttempt): boolean {
+  return attempt.proofClip != null;
 }
 
 function MemberAttemptRow({
@@ -122,16 +130,17 @@ function MemberAttemptRow({
   metric: MatchMetric | null;
   isFirst: boolean;
   now: Date;
-  onOpen: () => void;
+  /** Absent when there is no clip — the list already shows count and time. */
+  onOpen?: () => void;
 }) {
-  const hasClip = attempt.proofClip != null || attempt.proofClipId != null;
+  const hasClip = hasPostedClip(attempt);
   const kind = metric ? (DECK_KIND_BY_METRIC[metric] ?? null) : null;
   const amount =
     metric != null ? formatMatchMetricScore(metric, attempt.count) : String(attempt.count);
 
   return (
     <DeckListRow
-      accessibilityHint={hasClip ? ACTIVITY_COPY.openWithClipHint : ACTIVITY_COPY.openHint}
+      accessibilityHint={hasClip ? ACTIVITY_COPY.openWithClipHint : undefined}
       isFirst={isFirst}
       leading={<DeckDisc glyph={hasClip ? 'play' : undefined} kind={kind} />}
       meta={historyTimeLabel(attempt.performedAt)}

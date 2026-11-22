@@ -84,7 +84,7 @@ function DayBody({
             corner={`${detail.dailyDoneCount} of ${detail.dailyDueCount}`}
             label={PROGRESS_COPY.doneSection}
           />
-          <DayDoneRows dayKey={detail.dayKey} items={detail.done} />
+          <DayDoneRows items={detail.done} />
         </>
       ) : null}
       {hasAlso ? (

@@ -261,6 +261,11 @@ jest.mock('quickpose-camera', () => {
   };
 });
 
+jest.mock('share-destination', () => ({
+  shareToInstagramStories: jest.fn(async () => false),
+  shareToWhatsApp: jest.fn(async () => false),
+}));
+
 jest.mock('expo-iap', () => ({
   useIAP: () => ({
     connected: true,

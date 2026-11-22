@@ -461,33 +461,13 @@ function ClipFinishScreen({
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
   const isGroup = Boolean(matchId);
-  const meQuery = useQuery({
-    queryKey: ['me'],
-    queryFn: () => apiClient.me(),
-    staleTime: 60_000,
-  });
   const matchQuery = useQuery({
     queryKey: ['matches', matchId],
     queryFn: () => apiClient.getMatch({ matchId: matchId! }),
     enabled: Boolean(matchId),
   });
-  const postedTodayQuery = useQuery({
-    queryKey: ['proof-clips', 'match', matchId, 'today-cap'],
-    queryFn: () => apiClient.listMatchProofClips({ matchId: matchId! }),
-    enabled: Boolean(matchId),
-  });
-  const myUserId = meQuery.data?.id;
-  const alreadyPostedToday =
-    Boolean(myUserId) &&
-    (postedTodayQuery.data?.clips.some((clip) => clip.userId === myUserId) ?? false);
-  const [postToBoard, setPostToBoard] = useState(!alreadyPostedToday);
+  const [postToBoard, setPostToBoard] = useState(true);
   const [statusNote, setStatusNote] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (alreadyPostedToday) {
-      setPostToBoard(false);
-    }
-  }, [alreadyPostedToday]);
 
   const inviteUrl = matchQuery.data?.inviteUrl ?? null;
   const caption =
@@ -540,7 +520,7 @@ function ClipFinishScreen({
   }
 
   function leave() {
-    if (isGroup && postToBoard && !alreadyPostedToday) {
+    if (isGroup && postToBoard) {
       proof.queuePostToGroup();
     }
     onLeave();
@@ -574,6 +554,7 @@ function ClipFinishScreen({
           <ProofClipHero
             fill
             maxDurationSeconds={proofMaxDurationSeconds}
+            opensViewer={false}
             proof={proof}
             showMeta={false}
           />
@@ -595,9 +576,6 @@ function ClipFinishScreen({
       <View style={styles.actions}>
         {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
         {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
-        {alreadyPostedToday ? (
-          <Text style={styles.hint}>{POSE_COPY.proofAlreadyPostedToday}</Text>
-        ) : null}
         <ShareDestinationRow
           disabled={proof.isBusy}
           onSelect={(id) => void onDestination(id)}
@@ -609,12 +587,12 @@ function ClipFinishScreen({
             <Text style={styles.boardLabel}>{POSE_COPY.proofOnGroupBoard}</Text>
             <Switch
               accessibilityLabel={POSE_COPY.proofOnGroupBoard}
-              disabled={alreadyPostedToday || proof.isBusy}
+              disabled={proof.isBusy}
               onValueChange={setPostToBoard}
               testID="proof-group-board-switch"
               thumbColor={colors.surface}
               trackColor={{ false: colors.tickIdle, true: colors.accent }}
-              value={postToBoard && !alreadyPostedToday}
+              value={postToBoard}
             />
           </View>
         ) : null}

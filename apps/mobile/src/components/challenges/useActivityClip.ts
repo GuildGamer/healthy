@@ -48,6 +48,8 @@ export function useActivityClip(summary: ActivityProofClip | null, userChallenge
 
   const remote = remoteQuery.data ?? null;
   const isUploaded = summary?.status === 'ready' || proof.hasUploaded || remote != null;
+  /** Local clip still needs Send / Post / audience — not the bare viewer chrome. */
+  const needsPublishActions = Boolean(local) && !isUploaded;
 
   return {
     clipId,
@@ -59,6 +61,7 @@ export function useActivityClip(summary: ActivityProofClip | null, userChallenge
     isUploaded,
     isPostedToGroup: summary?.isPostedToGroup === true || (proof.hasUploaded && isGroup),
     canAct: Boolean(local) || isUploaded,
+    needsPublishActions,
     isExpired: summary?.status === 'expired' && !local,
     isLoading: Boolean(clipId) && (localQuery.isPending || remoteQuery.isLoading),
   };

@@ -15,11 +15,12 @@ interface GlyphProps {
 
 function shapeColors(shape: GlyphShape, color: string, cutoutColor: string) {
   if (shape.fill === 'solid') {
-    return { fill: color, stroke: color };
+    // Filled marks (brand logos) must not inherit the family stroke.
+    return { fill: color, stroke: 'none' };
   }
 
   if (shape.fill === 'cutout') {
-    return { fill: cutoutColor, stroke: cutoutColor };
+    return { fill: cutoutColor, stroke: 'none' };
   }
 
   return { fill: 'none', stroke: color };

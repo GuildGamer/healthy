@@ -1,9 +1,12 @@
 import * as Clipboard from 'expo-clipboard';
-import Constants from 'expo-constants';
-import { EncodingType, readAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Linking, Platform } from 'react-native';
+import {
+  shareToInstagramStories,
+  shareToWhatsApp,
+} from 'share-destination';
 import { shareWithTracking } from '@/lib/analytics';
+import { FACEBOOK_APP_ID } from '@/lib/config';
 
 export type ShareDestinationId =
   | 'whatsapp'
@@ -31,7 +34,7 @@ export type SharePayload = {
  * Opens a named destination with the caption, link, and optional media.
  * Prefers deep links into the app (WhatsApp, Messages, X, Instagram Stories).
  * Falls back to the system sheet only when the app is missing or the destination
- * needs a file handoff (Status, overflow, Send clip).
+ * needs a file handoff (Status on iOS, overflow, Send clip).
  */
 export async function openShareDestination(
   destination: ShareDestinationId,
@@ -92,14 +95,6 @@ function buildCaption(payload: SharePayload): string {
   return `${base}\n${url}`;
 }
 
-function appBundleId(): string {
-  return (
-    Constants.expoConfig?.ios?.bundleIdentifier ??
-    Constants.expoConfig?.android?.package ??
-    'com.healthyapp.app'
-  );
-}
-
 async function openWhatsApp(caption: string): Promise<void> {
   const url = `whatsapp://send?text=${encodeURIComponent(caption)}`;
   if (await canOpen(url)) {
@@ -110,14 +105,29 @@ async function openWhatsApp(caption: string): Promise<void> {
 }
 
 /**
- * Status needs a media file so WhatsApp / system share can offer Status.
- * Opens with the short social cut when present.
+ * Status needs a media file.
+ * Android: native WhatsApp ACTION_SEND (Status is in WhatsApp's picker).
+ * iOS: no public Status / `whatsapp://status` deep link exists — system share
+ * sheet is the only honest path; the user picks WhatsApp → Status themselves.
  */
 async function openStatus(payload: SharePayload, caption: string): Promise<void> {
   const fileUri = payload.socialClipUri ?? payload.clipUri ?? payload.posterUri;
-  const mimeType = payload.posterUri && !payload.socialClipUri && !payload.clipUri
-    ? 'image/png'
-    : 'video/mp4';
+  const mimeType =
+    payload.posterUri && !payload.socialClipUri && !payload.clipUri
+      ? 'image/png'
+      : 'video/mp4';
+
+  if (fileUri && Platform.OS === 'android') {
+    const opened = await shareToWhatsApp({
+      fileUri,
+      mimeType,
+      caption,
+    });
+    if (opened) {
+      return;
+    }
+  }
+
   await shareFileOrCaption({
     fileUri,
     caption,
@@ -130,7 +140,7 @@ async function openInstagram(payload: SharePayload, caption: string): Promise<vo
   const imageUri = payload.posterUri;
   const videoUri = payload.socialClipUri ?? payload.clipUri;
 
-  if (imageUri && (await tryInstagramStoriesImage(imageUri))) {
+  if (await tryInstagramStories({ imageUri, videoUri })) {
     return;
   }
 
@@ -143,25 +153,37 @@ async function openInstagram(payload: SharePayload, caption: string): Promise<vo
 }
 
 /**
- * Best-effort Instagram Stories: put the poster on the pasteboard and open the
- * Stories share URL. Falls through when IG is missing or the paste fails.
+ * Instagram Stories via Meta's pasteboard / ADD_TO_STORY handoff.
+ * Requires `EXPO_PUBLIC_FACEBOOK_APP_ID` and a native rebuild that includes
+ * the `share-destination` module.
  */
-async function tryInstagramStoriesImage(imageUri: string): Promise<boolean> {
-  const storiesUrl = `instagram-stories://share?source_application=${encodeURIComponent(appBundleId())}`;
-  if (!(await canOpen(storiesUrl))) {
+async function tryInstagramStories(input: {
+  imageUri?: string | null;
+  videoUri?: string | null;
+}): Promise<boolean> {
+  if (!FACEBOOK_APP_ID) {
     return false;
   }
 
-  try {
-    const base64 = await readAsStringAsync(imageUri, {
-      encoding: EncodingType.Base64,
+  // Prefer the designed poster card; fall back to the short social cut / clip.
+  if (input.imageUri) {
+    const opened = await shareToInstagramStories({
+      appId: FACEBOOK_APP_ID,
+      backgroundImageUri: input.imageUri,
     });
-    await Clipboard.setImageAsync(base64);
-    await Linking.openURL(storiesUrl);
-    return true;
-  } catch {
-    return false;
+    if (opened) {
+      return true;
+    }
   }
+
+  if (input.videoUri) {
+    return shareToInstagramStories({
+      appId: FACEBOOK_APP_ID,
+      backgroundVideoUri: input.videoUri,
+    });
+  }
+
+  return false;
 }
 
 async function openX(caption: string): Promise<void> {

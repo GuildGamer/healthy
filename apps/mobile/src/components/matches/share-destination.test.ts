@@ -1,4 +1,5 @@
 import { Linking, Platform, Share } from 'react-native';
+import { shareToInstagramStories, shareToWhatsApp } from 'share-destination';
 import { openShareDestination } from './share-destination';
 
 jest.mock('expo-clipboard', () => ({
@@ -10,6 +11,18 @@ jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock('@/lib/config', () => ({
+  ...jest.requireActual<typeof import('@/lib/config')>('@/lib/config'),
+  FACEBOOK_APP_ID: '1234567890',
+}));
+
+jest.mock('@/lib/analytics', () => ({
+  shareWithTracking: jest.fn(async (_surface: string, content: unknown) => {
+    const { Share } = require('react-native') as typeof import('react-native');
+    return Share.share(content as never);
+  }),
+}));
+
 const { setStringAsync } = jest.requireMock('expo-clipboard') as {
   setStringAsync: jest.Mock;
 };
@@ -17,6 +30,10 @@ const { shareAsync, isAvailableAsync } = jest.requireMock('expo-sharing') as {
   shareAsync: jest.Mock;
   isAvailableAsync: jest.Mock;
 };
+const shareToInstagramStoriesMock = shareToInstagramStories as jest.MockedFunction<
+  typeof shareToInstagramStories
+>;
+const shareToWhatsAppMock = shareToWhatsApp as jest.MockedFunction<typeof shareToWhatsApp>;
 
 function setPlatformOs(os: typeof Platform.OS) {
   Object.defineProperty(Platform, 'OS', {
@@ -35,6 +52,8 @@ describe('openShareDestination', () => {
     jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
     jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
     isAvailableAsync.mockResolvedValue(true);
+    shareToInstagramStoriesMock.mockResolvedValue(false);
+    shareToWhatsAppMock.mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -94,18 +113,83 @@ describe('openShareDestination', () => {
     expect(shareAsync).toHaveBeenCalledWith('file:///tmp/clip.mp4', expect.any(Object));
   });
 
-  it('opens Status with the social cut file attached', async () => {
+  it('opens Status via the system sheet on iOS with the social cut', async () => {
     await openShareDestination('status', {
       caption: 'I did 40.',
       socialClipUri: 'file:///tmp/social.mp4',
       clipUri: 'file:///tmp/clip.mp4',
     });
 
+    expect(shareToWhatsAppMock).not.toHaveBeenCalled();
     expect(shareAsync).toHaveBeenCalledWith(
       'file:///tmp/social.mp4',
       expect.objectContaining({ mimeType: 'video/mp4' }),
     );
     expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it('hands Status to WhatsApp on Android when the native share succeeds', async () => {
+    setPlatformOs('android');
+    shareToWhatsAppMock.mockResolvedValue(true);
+
+    await openShareDestination('status', {
+      caption: 'I did 40.',
+      socialClipUri: 'file:///tmp/social.mp4',
+      clipUri: 'file:///tmp/clip.mp4',
+    });
+
+    expect(shareToWhatsAppMock).toHaveBeenCalledWith({
+      fileUri: 'file:///tmp/social.mp4',
+      mimeType: 'video/mp4',
+      caption: 'I did 40.',
+    });
+    expect(shareAsync).not.toHaveBeenCalled();
+  });
+
+  it('opens Instagram Stories with the poster via the native handoff', async () => {
+    shareToInstagramStoriesMock.mockResolvedValue(true);
+
+    await openShareDestination('instagram', {
+      caption: 'I did 40.',
+      posterUri: 'file:///tmp/poster.png',
+      socialClipUri: 'file:///tmp/social.mp4',
+    });
+
+    expect(shareToInstagramStoriesMock).toHaveBeenCalledWith({
+      appId: '1234567890',
+      backgroundImageUri: 'file:///tmp/poster.png',
+    });
+    expect(shareAsync).not.toHaveBeenCalled();
+    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it('opens Instagram Stories with the social cut when there is no poster', async () => {
+    shareToInstagramStoriesMock.mockResolvedValue(true);
+
+    await openShareDestination('instagram', {
+      caption: 'I did 40.',
+      socialClipUri: 'file:///tmp/social.mp4',
+    });
+
+    expect(shareToInstagramStoriesMock).toHaveBeenCalledWith({
+      appId: '1234567890',
+      backgroundVideoUri: 'file:///tmp/social.mp4',
+    });
+    expect(shareAsync).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the system sheet when Instagram Stories handoff fails', async () => {
+    shareToInstagramStoriesMock.mockResolvedValue(false);
+
+    await openShareDestination('instagram', {
+      caption: 'I did 40.',
+      posterUri: 'file:///tmp/poster.png',
+    });
+
+    expect(shareAsync).toHaveBeenCalledWith(
+      'file:///tmp/poster.png',
+      expect.objectContaining({ mimeType: 'image/png' }),
+    );
   });
 
   it('opens X via the Twitter deep link when available', async () => {

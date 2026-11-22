@@ -8,7 +8,6 @@ import { shareWithTracking, trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { proofClipLimitsFromQuery } from '@/lib/proof-clip-limits-cache';
 import { getLocalProofClip, markLocalProofClipPendingUpload } from '@/lib/proof-clip-store';
-import { isGroupPostCapError } from '@/lib/proof-clip-errors';
 import {
   discardLocalProofClip,
   queueAnyoneProofClipUpload,
@@ -103,12 +102,8 @@ export function useProofClip(
       setHasUploaded(true);
       await markLocalProofClipPendingUpload(clipId, null);
       return true;
-    } catch (uploadError) {
-      setError(
-        isGroupPostCapError(uploadError)
-          ? POSE_COPY.proofAlreadyPostedToday
-          : POSE_COPY.proofPublishFailed,
-      );
+    } catch {
+      setError(POSE_COPY.proofPublishFailed);
       if (audience === 'anyone' && !postToGroup) {
         setAllowSendWithoutCheck(true);
       }

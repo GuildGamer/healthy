@@ -2,8 +2,13 @@ import type {
   ProgressContestSetItem,
   ProgressDayDetail,
   ProgressDoneItem,
+  ProgressPracticeItem,
 } from '@product/client';
 import { useRouter } from 'expo-router';
+import {
+  dayCompletionShareRoute,
+  dayContestShareRoute,
+} from '@/components/challenges/completion-poster';
 import { ACTIVITY_COPY } from '@/components/challenges/constants/doing-copy';
 import {
   DECK_KIND_BY_METRIC,
@@ -30,30 +35,22 @@ function activityRoute(dayKey: string, itemId: string) {
   } as const;
 }
 
-/** Each challenge finished that day. Tapping one opens it, with its clip when it has one. */
-export function DayDoneRows({
-  dayKey,
-  items,
-}: {
-  dayKey: string;
-  items: readonly ProgressDoneItem[];
-}) {
+/** Each challenge finished that day. Shareable rows open the share screen directly. */
+export function DayDoneRows({ items }: { items: readonly ProgressDoneItem[] }) {
   const router = useRouter();
 
   return (
     <>
       {items.map((item, index) => (
         <DeckListRow
-          accessibilityHint={
-            item.proofClip ? ACTIVITY_COPY.openWithClipHint : ACTIVITY_COPY.openHint
-          }
+          accessibilityHint={ACTIVITY_COPY.openHint}
           isFirst={index === 0}
           key={item.userChallengeId}
           leading={
             <DeckDisc glyph={item.proofClip ? 'play' : undefined} kind={deckCardKindFor(item)} />
           }
           meta={doneMeta(item)}
-          onPress={() => router.push(activityRoute(dayKey, item.userChallengeId))}
+          onPress={() => router.push(dayCompletionShareRoute(item))}
           testID={`history-done-${item.userChallengeId}`}
           title={item.title}
           trailing={<DeckRowAmount text={doneAmount(item)} />}
@@ -95,28 +92,16 @@ export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
         <ContestSetRow
           isFirst={takeFirst()}
           key={set.id}
-          onOpen={() => router.push(activityRoute(detail.dayKey, set.id))}
+          onOpen={() => router.push(dayContestShareRoute(set))}
           set={set}
         />
       ))}
       {detail.practice.map((session) => (
-        <DeckListRow
-          accessibilityHint={
-            session.proofClip ? ACTIVITY_COPY.openWithClipHint : ACTIVITY_COPY.openHint
-          }
+        <PracticeRow
+          dayKey={detail.dayKey}
           isFirst={takeFirst()}
           key={session.id}
-          leading={
-            <DeckDisc
-              glyph={session.proofClip ? 'play' : undefined}
-              kind={DECK_KIND_BY_METRIC[session.metric] ?? null}
-            />
-          }
-          meta={clockTime(session.recordedAt)}
-          onPress={() => router.push(activityRoute(detail.dayKey, session.id))}
-          testID={`history-practice-${session.id}`}
-          title={session.title}
-          trailing={<DeckRowAmount text={practiceAmount(session)} tone="quiet" />}
+          session={session}
         />
       ))}
       {detail.adjustments.map((adjustment) => (
@@ -164,6 +149,39 @@ function ContestSetRow({
       testID={`history-contest-${set.id}`}
       title={set.title}
       trailing={<DeckRowAmount text={contestSetAmount(set)} />}
+    />
+  );
+}
+
+function PracticeRow({
+  dayKey,
+  session,
+  isFirst,
+}: {
+  dayKey: string;
+  session: ProgressPracticeItem;
+  isFirst: boolean;
+}) {
+  const router = useRouter();
+  const hasClip = session.proofClip !== null;
+
+  return (
+    <DeckListRow
+      accessibilityHint={hasClip ? ACTIVITY_COPY.openWithClipHint : undefined}
+      isFirst={isFirst}
+      leading={
+        <DeckDisc
+          glyph={hasClip ? 'play' : undefined}
+          kind={DECK_KIND_BY_METRIC[session.metric] ?? null}
+        />
+      }
+      meta={clockTime(session.recordedAt)}
+      onPress={
+        hasClip ? () => router.push(activityRoute(dayKey, session.id)) : undefined
+      }
+      testID={`history-practice-${session.id}`}
+      title={session.title}
+      trailing={<DeckRowAmount text={practiceAmount(session)} tone="quiet" />}
     />
   );
 }

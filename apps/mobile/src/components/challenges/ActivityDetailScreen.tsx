@@ -128,7 +128,7 @@ function ActivityContent({ detail, onBack }: { detail: ActivityDetail; onBack: (
       </View>
       <View style={styles.actions}>
         {clip.proof.error ? <DeckSheetMessage message={clip.proof.error} /> : null}
-        {clip.canAct ? (
+        {clip.needsPublishActions ? (
           <ProofClipPrimaryRow
             maxDurationSeconds={maxDurationSeconds}
             proof={clip.proof}
@@ -140,7 +140,7 @@ function ActivityContent({ detail, onBack }: { detail: ActivityDetail; onBack: (
             label={ACTIVITY_COPY.shareCard}
             onPress={() => router.push(shareCard)}
             testID="activity-detail-share-card"
-            variant={clip.canAct ? 'quiet' : 'primary'}
+            variant={clip.needsPublishActions ? 'quiet' : 'primary'}
           />
         ) : null}
         {clip.isUploaded && clip.clipId ? (

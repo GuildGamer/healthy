@@ -48,7 +48,7 @@ const BASE_DESTINATIONS: DestinationItem[] = [
   {
     id: 'messages',
     label: SHARE_DEST_COPY.messages,
-    glyph: 'mail',
+    glyph: 'message',
     tint: '#34C759',
     testID: 'share-dest-messages',
   },
@@ -131,13 +131,7 @@ export function ShareDestinationRow({
           testID={item.testID}
         >
           <View style={[styles.disc, { backgroundColor: item.tint }]}>
-            <Glyph
-              color="#FFFFFF"
-              cutoutColor={item.tint}
-              name={item.glyph}
-              size={22}
-              strokeWidth={2.2}
-            />
+            <Glyph color="#FFFFFF" cutoutColor={item.tint} name={item.glyph} size={22} />
           </View>
           <Text numberOfLines={1} style={styles.label}>
             {item.label}

@@ -156,6 +156,20 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     expect(screen.queryByTestId('proof-primary')).toBeNull();
   });
 
+  it('keeps share destinations under the clip — tap does not push the bare viewer', async () => {
+    const { useRouter } = jest.requireMock('expo-router') as {
+      useRouter: () => { push: jest.Mock };
+    };
+    const push = useRouter().push;
+    push.mockClear();
+
+    renderSuccess(clipFinish);
+    fireEvent.press(await screen.findByTestId('proof-clip-watch'));
+
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
+  });
+
   it('defaults the group board switch on for a group set', async () => {
     const { apiClient } = jest.requireMock('@/lib/api') as {
       apiClient: { getMatch: jest.Mock; listMatchProofClips: jest.Mock; me: jest.Mock };
