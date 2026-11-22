@@ -18,17 +18,21 @@ import { type ProofClipState, useProofClip } from './useProofClip';
 const PANEL_POSTER_MAX_HEIGHT = 220;
 
 /**
- * The clip itself: its first frame, a tap to watch it, and the code burned
- * into it. Discard sits with the clip it removes rather than with the buttons.
+ * The clip itself: first frame and a tap to watch. On History, the code and
+ * Discard sit under the player. Finish hides that chrome — the code is already
+ * burned into the video.
  * `fill` grows it into the space it is given; otherwise it stays compact.
  */
 export function ProofClipHero({
   proof,
   fill = false,
+  showMeta = true,
   maxDurationSeconds,
 }: {
   proof: ProofClipState;
   fill?: boolean;
+  /** Code + Discard under the player. Off on the finish screen. */
+  showMeta?: boolean;
   maxDurationSeconds: number;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -56,18 +60,20 @@ export function ProofClipHero({
         ) : null}
         <ProofPlayBadge />
       </Pressable>
-      <View style={styles.caption}>
-        <Text style={styles.code}>{clip.displayCode}</Text>
-        <Pressable
-          accessibilityRole="button"
-          disabled={proof.isBusy}
-          hitSlop={spacing.sm}
-          onPress={proof.confirmDiscard}
-          testID="proof-discard"
-        >
-          <Text style={styles.discard}>{POSE_COPY.proofDiscard}</Text>
-        </Pressable>
-      </View>
+      {showMeta ? (
+        <View style={styles.caption}>
+          <Text style={styles.code}>{clip.displayCode}</Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={proof.isBusy}
+            hitSlop={spacing.sm}
+            onPress={proof.confirmDiscard}
+            testID="proof-discard"
+          >
+            <Text style={styles.discard}>{POSE_COPY.proofDiscard}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

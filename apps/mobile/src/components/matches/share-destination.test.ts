@@ -94,6 +94,31 @@ describe('openShareDestination', () => {
     expect(shareAsync).toHaveBeenCalledWith('file:///tmp/clip.mp4', expect.any(Object));
   });
 
+  it('opens Status with the social cut file attached', async () => {
+    await openShareDestination('status', {
+      caption: 'I did 40.',
+      socialClipUri: 'file:///tmp/social.mp4',
+      clipUri: 'file:///tmp/clip.mp4',
+    });
+
+    expect(shareAsync).toHaveBeenCalledWith(
+      'file:///tmp/social.mp4',
+      expect.objectContaining({ mimeType: 'video/mp4' }),
+    );
+    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it('opens X via the Twitter deep link when available', async () => {
+    await openShareDestination('x', {
+      caption: 'I did 40. Think you can beat me?',
+      inviteUrl: 'https://beatset.tech/match/tok',
+    });
+
+    expect(Linking.openURL).toHaveBeenCalledWith(
+      expect.stringContaining('twitter://post?message='),
+    );
+  });
+
   it('falls back to the system sheet for WhatsApp when the app is missing', async () => {
     (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
 

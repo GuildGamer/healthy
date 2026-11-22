@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
-import { Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Metrics } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
@@ -141,16 +140,20 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     jest.restoreAllMocks();
   });
 
-  it('makes the clip the one job: destinations and no solid Post to group', async () => {
+  it('makes the clip the one job: destinations, X close, no busy chrome', async () => {
     renderSuccess(clipFinish);
 
     expect(await screen.findByTestId('proof-clip-hero')).toBeOnTheScreen();
-    expect(screen.getByText('42BW-A7J4')).toBeOnTheScreen();
+    expect(screen.getByTestId('challenge-success-close')).toBeOnTheScreen();
     expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
     expect(screen.getByTestId('share-dest-whatsapp')).toBeOnTheScreen();
-    expect(screen.getByTestId('proof-save-photos')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-dest-x')).toBeOnTheScreen();
+    expect(screen.queryByText('42BW-A7J4')).toBeNull();
+    expect(screen.queryByTestId('proof-discard')).toBeNull();
+    expect(screen.queryByTestId('proof-save-photos')).toBeNull();
+    expect(screen.queryByTestId('proof-audience')).toBeNull();
+    expect(screen.queryByTestId('challenge-success-done')).toBeNull();
     expect(screen.queryByTestId('proof-primary')).toBeNull();
-    expect(screen.queryByTestId('challenge-success-share')).toBeNull();
   });
 
   it('defaults the group board switch on for a group set', async () => {
@@ -186,21 +189,6 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     expect(await screen.findByTestId('proof-group-board-switch')).toBeOnTheScreen();
     expect(screen.getByTestId('proof-group-board-switch')).toHaveProp('value', true);
     expect(screen.queryByTestId('proof-primary')).toBeNull();
-  });
-
-  it('falls back to the share card once the clip is discarded, without calling it lost', async () => {
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      buttons?.[1]?.onPress?.();
-    });
-    renderSuccess(clipFinish);
-
-    await act(async () => {
-      fireEvent.press(await screen.findByTestId('proof-discard'));
-    });
-
-    expect(await screen.findByTestId('challenge-success-share')).toBeOnTheScreen();
-    expect(screen.queryByTestId('proof-clip-hero')).toBeNull();
-    expect(screen.queryByText('Your proof clip didn’t save.')).toBeNull();
   });
 
   it('says so when recording was on but the clip never landed', () => {

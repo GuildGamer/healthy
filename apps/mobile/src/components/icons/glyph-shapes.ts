@@ -81,7 +81,12 @@ export type GlyphName =
   | 'bookmark'
   | 'link'
   | 'more'
-  | 'alert';
+  | 'alert'
+  /** Destination row marks — recognisable silhouettes, not trademark assets. */
+  | 'brandWhatsapp'
+  | 'brandInstagram'
+  | 'brandX'
+  | 'brandStatus';
 
 const SUN_RAYS =
   'M12 3v1.8M12 19.2V21M3 12h1.8M19.2 12H21M5.6 5.6l1.3 1.3M17.1 17.1l1.3 1.3M5.6 18.4l1.3-1.3M17.1 6.9l1.3-1.3';
@@ -364,5 +369,24 @@ export const GLYPH_SHAPES: Record<GlyphName, readonly GlyphShape[]> = {
   alert: [
     { kind: 'circle', cx: 12, cy: 12, r: 9 },
     { kind: 'path', d: 'M12 8v4.5M12 16h.01' },
+  ],
+  brandWhatsapp: [
+    { kind: 'path', d: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z', fill: 'solid' },
+    {
+      kind: 'path',
+      d: 'M8.8 9.6c.3-.6.6-.6 1-.6h.7c.2 0 .4.1.5.4l.7 1.7c.1.2 0 .4-.1.6l-.4.5c-.1.2-.1.4 0 .5.4.7 1.1 1.4 1.8 1.8.2.1.4.1.5 0l.5-.4c.2-.1.4-.2.6-.1l1.7.7c.3.1.4.3.4.5v.7c0 .4 0 .7-.6 1A5.6 5.6 0 0 1 9.4 12c0-.5.3-.8.6-1.1z',
+      fill: 'cutout',
+    },
+  ],
+  brandInstagram: [
+    { kind: 'rect', x: 3.5, y: 3.5, width: 17, height: 17, rx: 5, fill: 'solid' },
+    { kind: 'circle', cx: 12, cy: 12, r: 4.2, fill: 'cutout' },
+    { kind: 'circle', cx: 17.2, cy: 6.8, r: 1.2, fill: 'cutout' },
+  ],
+  brandX: [{ kind: 'path', d: 'M4.5 4.5 19.5 19.5M19.5 4.5 4.5 19.5' }],
+  brandStatus: [
+    { kind: 'circle', cx: 12, cy: 12, r: 8.2 },
+    { kind: 'path', d: 'M12 3.8a8.2 8.2 0 0 1 7.1 4.1', fill: 'solid' },
+    { kind: 'circle', cx: 12, cy: 12, r: 3.2, fill: 'solid' },
   ],
 };

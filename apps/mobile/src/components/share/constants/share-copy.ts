@@ -3,6 +3,7 @@ export const SHARE_DEST_COPY = {
   whatsapp: 'WhatsApp',
   status: 'Status',
   instagram: 'Instagram',
+  x: 'X',
   messages: 'Messages',
   copy: 'Copy link',
   overflow: 'More',

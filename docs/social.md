@@ -500,15 +500,19 @@ card, or an invite — not only proof finish.
 - **In-place row vs sheet.** When the foot job is sharing, use the destination
   row on the screen. When Share is an icon or a post-create handoff, open
   `ShareDestinationSheet` with the same destinations.
-- **The clip is a second, explicit send.** It uses the file already on the
-  phone. The upload that makes the code checkable runs in the background and
-  never blocks a send.
+- **Clip finish chrome.** Clip → destinations → optional board switch → top X.
+  No audience toggle, Save to Photos, Discard, or Not now on finish. The
+  verification code stays burned into the video; do not repeat it under the
+  player on finish.
+- **The clip is a second, explicit send.** Send clip uses the file already on
+  the phone. The upload that makes the code checkable runs in the background
+  and never blocks a send.
 - **On the group board.** Inside a group contest this is a switch, default on.
-  Leaving the screen with it on posts the clip (`postedToGroupAt`), still under
+  Leaving via X with it on posts the clip (`postedToGroupAt`), still under
   the one-post-per-day cap. It is not a primary button and not a verb the
   person has to learn.
-- **Who can check the code** stays a quiet audience control (Anyone / Only me).
-  It was already chosen when proof recording was turned on.
+- **Who can check the code** is chosen when proof recording is first turned
+  on, and changeable later in History / Settings — not on the finish foot.
 - **A mate's clip** is reached from their standing: open their sets in this
   contest, and play only those posted to the group. The board itself does not
   grow a clip list or a feed.

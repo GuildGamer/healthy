@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
-import { DeckButton, DeckSheetMessage } from '@/components/deck';
+import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
 import { SyncStatusLine } from '@/components/feedback/SyncStatusLine';
 import { inviteShareMessage } from '@/components/matches/invite-message';
 import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
@@ -34,7 +34,6 @@ import { SUCCESS_COPY } from './constants/success-copy';
 import { friendChallengeSpec } from './friend-challenge';
 import { nextGoalLadderOffer, type GoalLadderOffer } from './goal-ladder';
 import { poseShareCopy } from './pose-share-copy';
-import { ProofClipAudienceControl } from './ProofClipAudienceControl';
 import { ProofClipHero } from './ProofClipActions';
 import { posterForSuccess, type SuccessFace } from './success-poster';
 import { defaultShareFillId, type ShareFillId } from './share-fill';
@@ -319,47 +318,22 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
       isMatch || practice ? (me?.currentStreakDays ?? currentStreakDays) : currentStreakDays;
 
     return (
-      <SafeAreaView style={styles.container} testID="challenge-success-screen">
-        {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
-        {showSyncLine ? (
-          <View style={styles.syncLine}>
-            <SyncStatusLine
-              label={isStillSyncing ? SUCCESS_COPY.savedSyncing : SUCCESS_COPY.saved}
-              testID="challenge-success-sync"
-              tone={isStillSyncing ? 'syncing' : 'saved'}
-            />
-          </View>
-        ) : null}
-        <View style={styles.body}>
-          {proof.isLoading ? (
-            <ActivityIndicator />
-          ) : (
-            <ProofClipHero fill maxDurationSeconds={proofMaxDurationSeconds} proof={proof} />
-          )}
-          <View
-            collapsable={false}
-            pointerEvents="none"
-            ref={shareImage.shotRef}
-            style={styles.offscreenPoster}
-          >
-            <SharePosterCard
-              fillId={clipFill}
-              photoUri={photoUri}
-              poster={clipPoster}
-              runLine={posterRunLine(streakForClip)}
-            />
-          </View>
-        </View>
-        <ClipFinishActions
-          completedCount={completedCount}
-          doneLabel={doneLabel}
-          friend={friend}
-          matchId={matchId}
-          onDone={leave}
-          proof={proof}
-          shareImage={shareImage}
-        />
-      </SafeAreaView>
+      <ClipFinishScreen
+        completedCount={completedCount}
+        friend={friend}
+        isDayFinished={isDayFinished}
+        isStillSyncing={isStillSyncing}
+        matchId={matchId}
+        onLeave={leave}
+        photoUri={photoUri}
+        poster={clipPoster}
+        proof={proof}
+        proofMaxDurationSeconds={proofMaxDurationSeconds}
+        selectedFill={clipFill}
+        shareImage={shareImage}
+        showSyncLine={showSyncLine}
+        streakDays={streakForClip}
+      />
     );
   }
 
@@ -450,25 +424,39 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
 }
 
 /**
- * With a clip, the one job is sending the set: destinations open immediately,
- * group board is a default-on switch, and Not now is the quiet way out.
+ * Clip finish: destinations (+ optional board switch). Close is the X in the
+ * nav — no audience toggle, Save to Photos, Discard, or Not now.
  */
-function ClipFinishActions({
+function ClipFinishScreen({
   proof,
   friend,
-  doneLabel,
   matchId,
   completedCount,
   shareImage,
-  onDone,
+  onLeave,
+  photoUri,
+  poster,
+  selectedFill,
+  streakDays,
+  proofMaxDurationSeconds,
+  isDayFinished,
+  showSyncLine,
+  isStillSyncing,
 }: {
   proof: ProofClipState;
   friend: ReturnType<typeof useFriendChallenge>;
-  doneLabel: string;
   matchId?: string;
   completedCount?: number;
   shareImage: ReturnType<typeof useShareCardImage>;
-  onDone: () => void;
+  onLeave: () => void;
+  photoUri?: string;
+  poster: ReturnType<typeof posterForSuccess>;
+  selectedFill: ShareFillId;
+  streakDays: number;
+  proofMaxDurationSeconds: number;
+  isDayFinished: boolean;
+  showSyncLine: boolean;
+  isStillSyncing: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -549,66 +537,94 @@ function ClipFinishActions({
     if (id === 'copy') {
       setStatusNote(SHARE_DEST_COPY.copiedLink);
     }
-
-    if (proof.audience === 'anyone') {
-      setStatusNote((current) => current ?? POSE_COPY.proofCodeCheckingOut);
-    }
   }
 
   function leave() {
     if (isGroup && postToBoard && !alreadyPostedToday) {
       proof.queuePostToGroup();
     }
-    onDone();
+    onLeave();
   }
 
   return (
-    <View style={styles.actions}>
-      {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
-      {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
-      {alreadyPostedToday ? (
-        <Text style={styles.hint}>{POSE_COPY.proofAlreadyPostedToday}</Text>
-      ) : null}
-      <ShareDestinationRow
-        disabled={proof.isBusy}
-        onSelect={(id) => void onDestination(id)}
-        showChallenge={!isGroup && friend.isReady && friend.isOffered}
-        showClip
-      />
-      {isGroup ? (
-        <View style={styles.boardRow} testID="proof-group-board-row">
-          <Text style={styles.boardLabel}>{POSE_COPY.proofOnGroupBoard}</Text>
-          <Switch
-            accessibilityLabel={POSE_COPY.proofOnGroupBoard}
-            disabled={alreadyPostedToday || proof.isBusy}
-            onValueChange={setPostToBoard}
-            testID="proof-group-board-switch"
-            thumbColor={colors.surface}
-            trackColor={{ false: colors.tickIdle, true: colors.accent }}
-            value={postToBoard && !alreadyPostedToday}
+    <SafeAreaView style={styles.container} testID="challenge-success-screen">
+      <View style={styles.clipNav}>
+        <View style={styles.navSpacer} />
+        <DeckNavButton
+          accessibilityLabel={SUCCESS_COPY.close}
+          glyph="close"
+          onPress={leave}
+          testID="challenge-success-close"
+        />
+      </View>
+      {isDayFinished ? <Text style={styles.headline}>{SUCCESS_COPY.dayFinished}</Text> : null}
+      {showSyncLine ? (
+        <View style={styles.syncLine}>
+          <SyncStatusLine
+            label={isStillSyncing ? SUCCESS_COPY.savedSyncing : SUCCESS_COPY.saved}
+            testID="challenge-success-sync"
+            tone={isStillSyncing ? 'syncing' : 'saved'}
           />
         </View>
       ) : null}
-      <ProofClipAudienceControl
-        disabled={proof.isBusy}
-        onChange={(next) => void proof.setAudience(next)}
-        value={proof.audience}
-      />
-      <QuietAction
-        disabled={proof.isBusy}
-        label={POSE_COPY.saveToPhotos}
-        onPress={proof.saveToPhotos}
-        testID="proof-save-photos"
-      />
-      {statusNote || proof.statusLine ? (
-        <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-status-line">
-          {statusNote ?? proof.statusLine}
-        </Text>
-      ) : null}
-      <View style={styles.quietRow}>
-        <QuietAction label={doneLabel} onPress={leave} testID="challenge-success-done" />
+      <View style={styles.body}>
+        {proof.isLoading ? (
+          <ActivityIndicator />
+        ) : (
+          <ProofClipHero
+            fill
+            maxDurationSeconds={proofMaxDurationSeconds}
+            proof={proof}
+            showMeta={false}
+          />
+        )}
+        <View
+          collapsable={false}
+          pointerEvents="none"
+          ref={shareImage.shotRef}
+          style={styles.offscreenPoster}
+        >
+          <SharePosterCard
+            fillId={selectedFill}
+            photoUri={photoUri}
+            poster={poster}
+            runLine={posterRunLine(streakDays)}
+          />
+        </View>
       </View>
-    </View>
+      <View style={styles.actions}>
+        {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
+        {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
+        {alreadyPostedToday ? (
+          <Text style={styles.hint}>{POSE_COPY.proofAlreadyPostedToday}</Text>
+        ) : null}
+        <ShareDestinationRow
+          disabled={proof.isBusy}
+          onSelect={(id) => void onDestination(id)}
+          showChallenge={!isGroup && friend.isReady && friend.isOffered}
+          showClip
+        />
+        {isGroup ? (
+          <View style={styles.boardRow} testID="proof-group-board-row">
+            <Text style={styles.boardLabel}>{POSE_COPY.proofOnGroupBoard}</Text>
+            <Switch
+              accessibilityLabel={POSE_COPY.proofOnGroupBoard}
+              disabled={alreadyPostedToday || proof.isBusy}
+              onValueChange={setPostToBoard}
+              testID="proof-group-board-switch"
+              thumbColor={colors.surface}
+              trackColor={{ false: colors.tickIdle, true: colors.accent }}
+              value={postToBoard && !alreadyPostedToday}
+            />
+          </View>
+        ) : null}
+        {statusNote ? (
+          <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-status-line">
+            {statusNote}
+          </Text>
+        ) : null}
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -862,6 +878,16 @@ const createStyles = (theme: Theme) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    clipNav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.xs,
+    },
+    navSpacer: {
+      flex: 1,
     },
     headline: {
       color: theme.colors.text,

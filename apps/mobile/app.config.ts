@@ -100,6 +100,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // `processing` is required by `expo-background-task` (set sync while closed).
       UIBackgroundModes: ['location', 'processing'],
       BGTaskSchedulerPermittedIdentifiers: ['com.expo.modules.backgroundtask.processing'],
+      // Without these, Linking.canOpenURL returns false and share falls back to
+      // the system sheet instead of opening WhatsApp / Instagram / X.
+      LSApplicationQueriesSchemes: [
+        'whatsapp',
+        'instagram',
+        'instagram-stories',
+        'twitter',
+        'sms',
+      ],
     },
     entitlements: {
       'com.apple.developer.healthkit': true,

@@ -14,6 +14,7 @@ export const SUCCESS_COPY = {
   /** Confirmed on the server (or never needed a sync). */
   saved: 'Saved',
   notNow: 'Not now',
+  close: 'Close',
   backToGroup: 'Back to group',
   seeNext: 'See what’s next',
   unlockMembership: 'Unlock membership',

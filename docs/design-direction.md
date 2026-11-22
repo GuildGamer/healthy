@@ -103,10 +103,11 @@ send it. No orphan card preview without a way to send it.
 | Role | Control | When |
 |---|---|---|
 | Primary | Destination row (WhatsApp, Status, Instagram, Messages, Copy link, More) | Default on finish, day done, history share, activity stats, period reports, group result |
-| Primary (clip finish) | Same row + **Send clip**; group-board switch as specified | Post-set when a proof clip is the hero |
+| Primary (clip finish) | Destination row + **Send clip**; optional group-board switch | Post-set when a proof clip is the hero |
 | Sheet | `ShareDestinationSheet` (caption + same row) | Share glyph / secondary chrome, or post-create invite handoffs (board, create group, run it back, challenge a friend) |
 | Secondary invite | Challenge disc on the destination row | Optional; never a second solid twin of Share |
 | Group board | Default-on switch, applied on leave | Clip finish inside a group; never a solid "Post to group" button |
+| Dismiss (clip finish) | Top-right **X** | Leaves the screen; applies the board switch if on |
 
 Rules:
 
@@ -114,11 +115,14 @@ Rules:
   full-width Share is retired on those feet.
 - When Share is not the screen’s foot job, a Share glyph opens
   **ShareDestinationSheet** with the same destinations.
-- Clip finish keeps Send clip and the group-board switch. Destinations open
-  immediately; uploads never block a send.
+- Clip finish is lean: clip hero, destinations, optional board switch, X to
+  leave. No audience toggle, Save to Photos, Discard, duplicate code, or
+  Not now on that foot. Audience stays a settings / History concern.
+- Destinations prefer deep links into WhatsApp / Messages / X / Instagram
+  Stories. Status attaches media so the system can offer Status. Overflow and
+  Send clip may still use the system sheet.
 - Send clip only when a clip URI exists. Challenge only when friend-challenge
   is offered. Link-only payloads (invite URL + caption) are first-class.
-- Dismiss / Not now stays the quietest control.
 - Report emails use **Open in Beatset** (deep link to `/progress/report`), not
   Share — sharing happens in-app from the report screen.
 - Activity stats and period reports live under You: week card opens the week

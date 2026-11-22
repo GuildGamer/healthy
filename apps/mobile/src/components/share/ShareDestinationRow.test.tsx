@@ -6,6 +6,7 @@ describe('ShareDestinationRow', () => {
     render(<ShareDestinationRow onSelect={jest.fn()} />);
 
     expect(screen.getByTestId('share-dest-whatsapp')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-dest-x')).toBeOnTheScreen();
     expect(screen.getByTestId('share-dest-overflow')).toBeOnTheScreen();
     expect(screen.queryByTestId('share-dest-clip')).toBeNull();
     expect(screen.queryByTestId('share-dest-challenge')).toBeNull();

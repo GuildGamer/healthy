@@ -20,23 +20,30 @@ const BASE_DESTINATIONS: DestinationItem[] = [
   {
     id: 'whatsapp',
     label: SHARE_DEST_COPY.whatsapp,
-    glyph: 'message',
+    glyph: 'brandWhatsapp',
     tint: '#25D366',
     testID: 'share-dest-whatsapp',
   },
   {
     id: 'status',
     label: SHARE_DEST_COPY.status,
-    glyph: 'spark',
+    glyph: 'brandStatus',
     tint: '#128C7E',
     testID: 'share-dest-status',
   },
   {
     id: 'instagram',
     label: SHARE_DEST_COPY.instagram,
-    glyph: 'camera',
+    glyph: 'brandInstagram',
     tint: '#E1306C',
     testID: 'share-dest-instagram',
+  },
+  {
+    id: 'x',
+    label: SHARE_DEST_COPY.x,
+    glyph: 'brandX',
+    tint: '#111111',
+    testID: 'share-dest-x',
   },
   {
     id: 'messages',
@@ -87,7 +94,7 @@ type ShareDestinationRowProps = {
   disabled?: boolean;
 };
 
-/** Spotify-style destination discs: one tap opens the app or the system sheet. */
+/** Destination discs: one tap opens the app or attaches media for Status. */
 export function ShareDestinationRow({
   onSelect,
   showChallenge = false,
@@ -124,7 +131,13 @@ export function ShareDestinationRow({
           testID={item.testID}
         >
           <View style={[styles.disc, { backgroundColor: item.tint }]}>
-            <Glyph color="#FFFFFF" name={item.glyph} size={22} strokeWidth={2.2} />
+            <Glyph
+              color="#FFFFFF"
+              cutoutColor={item.tint}
+              name={item.glyph}
+              size={22}
+              strokeWidth={2.2}
+            />
           </View>
           <Text numberOfLines={1} style={styles.label}>
             {item.label}

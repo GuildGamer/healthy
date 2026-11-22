@@ -33,10 +33,14 @@ shareable moment (set, day, card, invite), not only proof finish. See
   Destinations open immediately. Never block a send on an upload.
 - Foot job is sharing → in-place destination row. Icon / post-create handoff →
   `ShareDestinationSheet` with the same destinations.
+- Clip finish: destinations + optional board switch + top X. No audience
+  toggle, Save to Photos, Discard, or Not now on that foot.
+- Destinations prefer deep links; Status / overflow may attach media via the
+  system sheet when the app cannot take a file URL.
 - Sending the clip uses the file on the phone. Background upload makes the
   code checkable; it does not gate the share sheet.
-- Inside a group, "On the group board" is a default-on switch applied on leave,
-  still under the one-post-per-day cap. Never a solid primary button.
+- Inside a group, "On the group board" is a default-on switch applied on leave
+  (via X), still under the one-post-per-day cap. Never a solid primary button.
 - A mate's posted clip is reached from their standing (play mark on that set).
   Do not put a clip list or media feed on the board.
 - Social encode: 1080×1920, H.264, 30 fps, 4.5 Mbps; Stories/Status cut ≤ 15s.
