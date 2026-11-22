@@ -1,4 +1,9 @@
-import type { ProgressDayDetail, ProgressDoneItem, ProgressPracticeItem } from '@product/client';
+import type {
+  ProgressContestSetItem,
+  ProgressDayDetail,
+  ProgressDoneItem,
+  ProgressPracticeItem,
+} from '@product/client';
 import {
   type ActivityDetail,
   ActivityDetailScreen,
@@ -11,7 +16,7 @@ import { goBackOrHome } from '@/lib/go-back';
 import { clockTime, dayPageTitle, practiceMeasure } from './progress-labels';
 import { useProgressDay } from './useProgressQueries';
 
-/** One row of a day: a finished challenge by its occurrence, or a practice set by its id. */
+/** One row of a day: a finished challenge, contest set, or practice set by its id. */
 export function DayActivityScreen({ dayKey, itemId }: { dayKey: string; itemId: string }) {
   const dayQuery = useProgressDay(dayKey);
 
@@ -31,6 +36,11 @@ function dayActivityDetail(day: ProgressDayDetail, itemId: string): ActivityDeta
     return doneDetail(done, day.dayKey);
   }
 
+  const contest = (day.contestSets ?? []).find((item) => item.id === itemId);
+  if (contest) {
+    return contestDetail(contest, day.dayKey);
+  }
+
   const practice = day.practice.find((item) => item.id === itemId);
   return practice ? practiceDetail(practice, day.dayKey) : undefined;
 }
@@ -46,6 +56,18 @@ function doneDetail(item: ProgressDoneItem, dayKey: string): ActivityDetail {
     proofClip: item.proofClip,
     userChallengeId: item.userChallengeId,
     shareCard: dayCompletionShareRoute(item),
+  };
+}
+
+function contestDetail(item: ProgressContestSetItem, dayKey: string): ActivityDetail {
+  return {
+    title: item.title,
+    amount: item.count === 1 ? '1' : String(item.count),
+    when: `${dayPageTitle(dayKey)} · ${clockTime(item.recordedAt)}`,
+    points: null,
+    proofClip: item.proofClip,
+    userChallengeId: null,
+    shareCard: null,
   };
 }
 

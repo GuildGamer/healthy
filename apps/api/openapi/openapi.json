@@ -8946,6 +8946,10 @@
                   "performedAt": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "proofClipId": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 },
                 "required": [
@@ -10720,13 +10724,66 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "proofClip": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "displayCode": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "status": {
+                                    "enum": [
+                                      "recorded",
+                                      "ready",
+                                      "expired"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "audience": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "anyone",
+                                          "only_me"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "isPostedToGroup": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "displayCode",
+                                  "status",
+                                  "audience",
+                                  "isPostedToGroup"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
                           "attemptId",
                           "count",
                           "performedAt",
-                          "proofClipId"
+                          "proofClipId",
+                          "proofClip"
                         ]
                       }
                     }
@@ -13115,6 +13172,113 @@
                         ]
                       }
                     },
+                    "contestSets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "matchId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "metric": {
+                            "enum": [
+                              "walk",
+                              "run",
+                              "cycle",
+                              "steps",
+                              "sleep",
+                              "weight",
+                              "heart_rate",
+                              "pushups",
+                              "squats",
+                              "plank",
+                              "jumping_jacks",
+                              "burpees",
+                              "sit_ups",
+                              "mountain_climbers",
+                              "lunges"
+                            ],
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "recordedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "proofClip": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "displayCode": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "status": {
+                                    "enum": [
+                                      "recorded",
+                                      "ready",
+                                      "expired"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "audience": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "anyone",
+                                          "only_me"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "isPostedToGroup": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "displayCode",
+                                  "status",
+                                  "audience",
+                                  "isPostedToGroup"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "matchId",
+                          "title",
+                          "metric",
+                          "count",
+                          "recordedAt",
+                          "proofClip"
+                        ]
+                      }
+                    },
                     "practice": {
                       "type": "array",
                       "items": {
@@ -13272,6 +13436,7 @@
                     "dailyDueCount",
                     "done",
                     "missedPhotoChecks",
+                    "contestSets",
                     "practice",
                     "adjustments"
                   ]

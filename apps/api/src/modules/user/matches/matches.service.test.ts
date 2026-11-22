@@ -312,6 +312,10 @@ function createPrismaMock(match = loadedMatch()) {
       findUnique: vi.fn().mockResolvedValue(null),
       upsert: vi.fn().mockResolvedValue({ id: 'log-1' }),
     },
+    proofClip: {
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     analyticsEvent: {
       create: vi.fn().mockResolvedValue({ id: 'evt1' }),
     },
@@ -834,6 +838,7 @@ describe('MatchesService', () => {
 
     expect(board.yourBestCount).toBe(18);
     expect(prisma.matchAttempt.create).toHaveBeenCalled();
+    expect(prisma.proofClip.updateMany).not.toHaveBeenCalled();
     expect(boardMove.notifyParticipants).toHaveBeenCalledWith({
       matchId: 'm1',
       attemptOrEventId: 'a1',
@@ -844,6 +849,55 @@ describe('MatchesService', () => {
       actorRank: 1,
       endsAt: board.endsAt,
       recipients: [{ userId: host.id, score: 0, rank: 2 }],
+    });
+  });
+
+  it('links a proof clip to the attempt and its mirror activity log', async () => {
+    const match = loadedMatch({
+      participants: [
+        {
+          id: 'p1',
+          matchId: 'm1',
+          userId: host.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(host.id, 'Ada'),
+        },
+        {
+          id: 'p2',
+          matchId: 'm1',
+          userId: guest.id,
+          joinedAt: new Date(),
+          acceptedAt: new Date(),
+          user: userWithProfile(guest.id, 'Bee'),
+        },
+      ],
+    });
+    const prisma = createPrismaMock(match);
+    prisma.deviceActivityLog.findUnique.mockResolvedValue({ id: 'log-mirror' });
+    const service = createService(prisma);
+
+    await service.submitAttempt(guest, {
+      matchId: 'm1',
+      count: 18,
+      durationSeconds: 40,
+      source: 'in_app_pose',
+      clientAttemptId: 'attempt-with-clip',
+      proofClipId: 'clip-1',
+    });
+
+    expect(prisma.proofClip.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'clip-1',
+        userId: guest.id,
+        status: { in: ['reserved', 'recorded', 'ready'] },
+        OR: [{ matchAttemptId: null }, { matchAttemptId: 'a1' }],
+      },
+      data: {
+        matchAttemptId: 'a1',
+        matchId: 'm1',
+        deviceActivityLogId: 'log-mirror',
+      },
     });
   });
 
@@ -2265,7 +2319,15 @@ describe('MatchesService', () => {
         count: 40,
         performedAt,
         recordedAt: performedAt,
-        proofClips: [{ id: 'clip-posted', postedToGroupAt: performedAt, status: 'ready' }],
+        proofClips: [
+          {
+            id: 'clip-posted',
+            code: '7KQ4M2XD',
+            postedToGroupAt: performedAt,
+            status: 'ready',
+            audience: 'anyone',
+          },
+        ],
       },
       {
         id: 'a2',
@@ -2279,7 +2341,7 @@ describe('MatchesService', () => {
     ]);
     const service = createService(prisma);
 
-    await expect(service.listMemberActivity(guest, 'm1', host.id)).resolves.toEqual({
+    await expect(service.listMemberActivity(guest, 'm1', host.id)).resolves.toMatchObject({
       userId: host.id,
       displayName: 'Ada',
       attempts: [
@@ -2288,12 +2350,19 @@ describe('MatchesService', () => {
           count: 40,
           performedAt: performedAt.toISOString(),
           proofClipId: 'clip-posted',
+          proofClip: {
+            id: 'clip-posted',
+            status: 'ready',
+            audience: 'anyone',
+            isPostedToGroup: true,
+          },
         },
         {
           attemptId: 'a2',
           count: 12,
           performedAt: performedAt.toISOString(),
           proofClipId: null,
+          proofClip: null,
         },
       ],
     });

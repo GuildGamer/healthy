@@ -18,6 +18,7 @@ import {
   matchWindowSchema,
   resolveMatchLength,
 } from './match-board.js';
+import { activityProofClipSchema } from './proof-clips.js';
 
 // The pure half lives in ./match-board so clients can import the link and
 // label helpers without pulling the oRPC contract runtime in with them.
@@ -408,6 +409,11 @@ export const submitMatchAttemptInputSchema = z.object({
    * when a set syncs later. Optional for older clients.
    */
   performedAt: z.string().datetime().optional(),
+  /**
+   * Clip that filmed this set. Linked to the MatchAttempt (and its mirror
+   * activity log) so History and member activity can open it.
+   */
+  proofClipId: z.string().min(1).optional(),
 });
 
 export const createMatchContract = oc
@@ -486,6 +492,8 @@ export const matchMemberAttemptSchema = z.object({
   performedAt: z.string().datetime(),
   /** Present only when a clip was posted to this group for that set. */
   proofClipId: z.string().min(1).nullable(),
+  /** Same shape History uses so the detail screen can open the clip. */
+  proofClip: activityProofClipSchema.nullable(),
 });
 
 export const listMatchMemberActivityOutputSchema = z.object({

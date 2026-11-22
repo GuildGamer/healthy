@@ -31,6 +31,7 @@ import { ChallengesService } from '../challenges/challenges.service.js';
 import { CrewSeatNotifierService, CrewsService } from '../crews/index.js';
 import { StreakService } from '../streak/index.js';
 import { groupNameFor } from '../../../shared/utils/group-name.js';
+import { activityProofClipFrom } from '../../../shared/utils/activity-proof-clip.js';
 import { BoardMoveNotifierService } from './board-move-notifier.service.js';
 import { InviteAcceptedNotifierService } from './invite-accepted-notifier.service.js';
 import { MatchSettledNotifierService } from './match-settled-notifier.service.js';
@@ -596,20 +597,82 @@ export class MatchesService {
           take: 1,
         },
       },
-      orderBy: [{ performedAt: 'desc' }, { recordedAt: 'desc' }],
     });
+
+    attempts.sort((left, right) => {
+      const leftAt = (left.performedAt ?? left.recordedAt).getTime();
+      const rightAt = (right.performedAt ?? right.recordedAt).getTime();
+      return rightAt - leftAt;
+    });
+
+    const postedByAttempt = new Map(
+      attempts.map((attempt) => [attempt.id, attempt.proofClips[0] ?? null] as const),
+    );
+
+    const needsHeal = attempts.filter((attempt) => !postedByAttempt.get(attempt.id));
+    if (needsHeal.length > 0) {
+      const orphans = await this.prisma.proofClip.findMany({
+        where: {
+          matchId,
+          userId: memberUserId,
+          status: 'ready',
+          postedToGroupAt: { not: null },
+          matchAttemptId: null,
+        },
+        orderBy: { recordedAt: 'desc' },
+      });
+
+      for (const attempt of needsHeal) {
+        const when = (attempt.performedAt ?? attempt.recordedAt).getTime();
+        let best: (typeof orphans)[number] | null = null;
+        let bestDistance = Number.POSITIVE_INFINITY;
+        for (const clip of orphans) {
+          const clipAt = (clip.recordedAt ?? clip.postedToGroupAt ?? clip.createdAt).getTime();
+          const distance = Math.abs(clipAt - when);
+          if (distance < bestDistance) {
+            best = clip;
+            bestDistance = distance;
+          }
+        }
+        if (!best) {
+          continue;
+        }
+
+        await this.prisma.proofClip.updateMany({
+          where: { id: best.id, matchAttemptId: null },
+          data: { matchAttemptId: attempt.id },
+        });
+        postedByAttempt.set(attempt.id, best);
+        const orphanIndex = orphans.findIndex((clip) => clip.id === best.id);
+        if (orphanIndex >= 0) {
+          orphans.splice(orphanIndex, 1);
+        }
+      }
+    }
 
     return {
       userId: memberUserId,
       displayName: groupNameFor(member.user),
       attempts: attempts.map((attempt) => {
         const when = attempt.performedAt ?? attempt.recordedAt;
-        const posted = attempt.proofClips[0] ?? null;
+        const posted = postedByAttempt.get(attempt.id) ?? null;
+        const proofClip = posted
+          ? activityProofClipFrom([
+              {
+                id: posted.id,
+                code: posted.code,
+                status: posted.status,
+                audience: posted.audience,
+                postedToGroupAt: posted.postedToGroupAt,
+              },
+            ])
+          : null;
         return {
           attemptId: attempt.id,
           count: attempt.count,
           performedAt: when.toISOString(),
           proofClipId: posted?.id ?? null,
+          proofClip,
         };
       }),
     };
@@ -721,6 +784,7 @@ export class MatchesService {
       source: SubmitMatchAttemptInput['source'];
       /** Habit/practice session external id — namespaced per match on write. */
       clientAttemptId: string;
+      proofClipId?: string;
     },
   ): Promise<string[]> {
     if (!isPoseMetric(input.metric) || input.count <= 0) {
@@ -749,6 +813,7 @@ export class MatchesService {
             durationSeconds: input.durationSeconds,
             source: input.source,
             clientAttemptId: matchScopedClientAttemptId(input.clientAttemptId, match.id),
+            proofClipId: input.proofClipId,
           },
           { applyTowardPersonalGoals: false },
         );
@@ -807,6 +872,9 @@ export class MatchesService {
       if (applyTowardPersonalGoals) {
         await this.applyAttemptTowardPersonalGoals(user, match.metric, existing.id, attemptInput);
       }
+      if (input.proofClipId) {
+        await this.linkAttemptProofClip(user.id, input.proofClipId, match.id, existing.id);
+      }
       return this.buildBoard(await this.loadById(match.id), user.id);
     }
 
@@ -863,10 +931,52 @@ export class MatchesService {
       await this.applyAttemptTowardPersonalGoals(user, match.metric, attempt.id, attemptInput);
     }
 
+    if (input.proofClipId) {
+      await this.linkAttemptProofClip(user.id, input.proofClipId, match.id, attempt.id);
+    }
+
     const fresh = await this.loadById(match.id);
     const board = await this.buildBoard(fresh, user.id);
     await this.notifyBoardMove(fresh, board, user.id, attempt.id, scoreBefore);
     return board;
+  }
+
+  /**
+   * Ties the clip that filmed this contest set to the attempt and its mirror
+   * activity log, so History and member activity can open it. Quiet when the
+   * clip is missing, not owned, or already bound elsewhere.
+   */
+  private async linkAttemptProofClip(
+    userId: string,
+    clipId: string,
+    matchId: string,
+    attemptId: string,
+  ): Promise<void> {
+    const activityLog = await this.prisma.deviceActivityLog.findUnique({
+      where: {
+        userId_externalId: {
+          userId,
+          externalId: matchAttemptActivityExternalId(attemptId),
+        },
+      },
+      select: { id: true },
+    });
+
+    await this.prisma.proofClip.updateMany({
+      where: {
+        id: clipId,
+        userId,
+        status: { in: ['reserved', 'recorded', 'ready'] },
+        OR: [{ matchAttemptId: null }, { matchAttemptId: attemptId }],
+      },
+      data: {
+        matchAttemptId: attemptId,
+        matchId,
+        ...(activityLog && {
+          deviceActivityLogId: activityLog.id,
+        }),
+      },
+    });
   }
 
   /**

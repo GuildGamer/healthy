@@ -64,7 +64,11 @@ function DayBody({
   }
 
   const hasAlso =
-    detail.missedPhotoChecks.length + detail.practice.length + detail.adjustments.length > 0;
+    detail.missedPhotoChecks.length +
+      (detail.contestSets?.length ?? 0) +
+      detail.practice.length +
+      detail.adjustments.length >
+    0;
 
   return (
     <View>

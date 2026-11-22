@@ -138,6 +138,7 @@ export type {
   ProgressDayDetail,
   ProgressDays,
   ProgressDoneItem,
+  ProgressContestSetItem,
   ProgressMissedPhotoCheck,
   ProgressPracticeItem,
   ProgressShareResult,
@@ -145,6 +146,7 @@ export type {
 
 export { challengeSpecIssue } from './challenge-spec.js';
 export {
+  contestSetActivityReason,
   getPracticeTotalsContract,
   practiceActivityReason,
   practiceSessionSchema,

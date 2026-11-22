@@ -152,6 +152,7 @@ describe('DayDetailScreen', () => {
           at: '2026-10-20T18:40:00.000Z',
         },
       ],
+      contestSets: [],
       practice: [
         {
           id: 'p',
@@ -211,6 +212,7 @@ describe('DayDetailScreen', () => {
         },
       ],
       missedPhotoChecks: [],
+      contestSets: [],
       practice: [],
       adjustments: [],
     };
@@ -280,6 +282,17 @@ describe('DayDetailScreen', () => {
         },
       ],
       missedPhotoChecks: [],
+      contestSets: [
+        {
+          id: 'a1',
+          matchId: 'm1',
+          title: 'Group push-ups',
+          metric: 'pushups',
+          count: 40,
+          recordedAt: '2026-10-20T12:00:00.000Z',
+          proofClip: null,
+        },
+      ],
       practice: [
         {
           id: 'filmed',
@@ -311,15 +324,23 @@ describe('DayDetailScreen', () => {
       params: { dayKey: '2026-10-20', itemId: 'push' },
     });
 
+    fireEvent.press(screen.getByTestId('history-contest-a1'));
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/history/[dayKey]/[itemId]',
+      params: { dayKey: '2026-10-20', itemId: 'a1' },
+    });
+
     fireEvent.press(screen.getByTestId('history-practice-filmed'));
     expect(mockPush).toHaveBeenLastCalledWith({
       pathname: '/history/[dayKey]/[itemId]',
       params: { dayKey: '2026-10-20', itemId: 'filmed' },
     });
 
-    mockPush.mockClear();
     fireEvent.press(screen.getByTestId('history-practice-plain'));
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/history/[dayKey]/[itemId]',
+      params: { dayKey: '2026-10-20', itemId: 'plain' },
+    });
 
     await cleanup();
   });
@@ -349,6 +370,7 @@ describe('DayDetailScreen', () => {
         },
       ],
       missedPhotoChecks: [],
+      contestSets: [],
       practice: [],
       adjustments: [],
     } satisfies ProgressDayDetail);

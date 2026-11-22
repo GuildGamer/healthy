@@ -1,4 +1,8 @@
-import type { ProgressDayDetail, ProgressDoneItem } from '@product/client';
+import type {
+  ProgressContestSetItem,
+  ProgressDayDetail,
+  ProgressDoneItem,
+} from '@product/client';
 import { useRouter } from 'expo-router';
 import { ACTIVITY_COPY } from '@/components/challenges/constants/doing-copy';
 import {
@@ -12,6 +16,7 @@ import { formatPointsDelta } from '@/components/points';
 import { PROGRESS_COPY } from './constants/progress-copy';
 import {
   clockTime,
+  contestSetAmount,
   doneAmount,
   doneMeta,
   missedPhotoReason,
@@ -58,15 +63,25 @@ export function DayDoneRows({
   );
 }
 
-/** A missed photo check with its reason, practice with its reps, and any bonus. */
+/** A missed photo check, group contest sets, practice, and any bonus. */
 export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
   const router = useRouter();
+  const contestSets = detail.contestSets ?? [];
+  let isFirst = true;
+
+  function takeFirst(): boolean {
+    if (!isFirst) {
+      return false;
+    }
+    isFirst = false;
+    return true;
+  }
 
   return (
     <>
-      {detail.missedPhotoChecks.map((check, index) => (
+      {detail.missedPhotoChecks.map((check) => (
         <DeckListRow
-          isFirst={index === 0}
+          isFirst={takeFirst()}
           isTopAligned
           key={check.userChallengeId}
           leading={<DeckDisc glyph="camera" kind={deckCardKindFor(check)} />}
@@ -76,10 +91,20 @@ export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
           trailing={<DeckRowAmount text={formatPointsDelta(-check.pointsLost)} tone="loss" />}
         />
       ))}
-      {detail.practice.map((session, index) => (
+      {contestSets.map((set) => (
+        <ContestSetRow
+          isFirst={takeFirst()}
+          key={set.id}
+          onOpen={() => router.push(activityRoute(detail.dayKey, set.id))}
+          set={set}
+        />
+      ))}
+      {detail.practice.map((session) => (
         <DeckListRow
-          accessibilityHint={session.proofClip ? ACTIVITY_COPY.openWithClipHint : undefined}
-          isFirst={index === 0 && detail.missedPhotoChecks.length === 0}
+          accessibilityHint={
+            session.proofClip ? ACTIVITY_COPY.openWithClipHint : ACTIVITY_COPY.openHint
+          }
+          isFirst={takeFirst()}
           key={session.id}
           leading={
             <DeckDisc
@@ -88,19 +113,15 @@ export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
             />
           }
           meta={clockTime(session.recordedAt)}
-          onPress={
-            session.proofClip
-              ? () => router.push(activityRoute(detail.dayKey, session.id))
-              : undefined
-          }
+          onPress={() => router.push(activityRoute(detail.dayKey, session.id))}
           testID={`history-practice-${session.id}`}
           title={session.title}
           trailing={<DeckRowAmount text={practiceAmount(session)} tone="quiet" />}
         />
       ))}
-      {detail.adjustments.map((adjustment, index) => (
+      {detail.adjustments.map((adjustment) => (
         <DeckListRow
-          isFirst={index === 0 && detail.missedPhotoChecks.length + detail.practice.length === 0}
+          isFirst={takeFirst()}
           key={adjustment.id}
           leading={<DeckDisc glyph="star" />}
           meta={clockTime(adjustment.at)}
@@ -114,5 +135,35 @@ export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
         />
       ))}
     </>
+  );
+}
+
+function ContestSetRow({
+  set,
+  isFirst,
+  onOpen,
+}: {
+  set: ProgressContestSetItem;
+  isFirst: boolean;
+  onOpen: () => void;
+}) {
+  const hasClip = set.proofClip !== null;
+
+  return (
+    <DeckListRow
+      accessibilityHint={hasClip ? ACTIVITY_COPY.openWithClipHint : ACTIVITY_COPY.openHint}
+      isFirst={isFirst}
+      leading={
+        <DeckDisc
+          glyph={hasClip ? 'play' : undefined}
+          kind={DECK_KIND_BY_METRIC[set.metric] ?? null}
+        />
+      }
+      meta={clockTime(set.recordedAt)}
+      onPress={onOpen}
+      testID={`history-contest-${set.id}`}
+      title={set.title}
+      trailing={<DeckRowAmount text={contestSetAmount(set)} />}
+    />
   );
 }

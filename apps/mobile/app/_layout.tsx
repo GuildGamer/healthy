@@ -263,6 +263,10 @@ function RootStack() {
         name="matches/[matchId]/member/[userId]"
         options={{ headerShown: false, title: 'Sets' }}
       />
+      <Stack.Screen
+        name="matches/[matchId]/member/[userId]/[attemptId]"
+        options={{ headerShown: false, title: 'Set' }}
+      />
       <Stack.Screen name="match/[token]" options={{ headerShown: false, title: 'Group invite' }} />
       <Stack.Screen name="proof/index" options={{ headerShown: false, title: 'Proof clips' }} />
       <Stack.Screen name="proof/[clipId]" options={{ headerShown: false, title: 'Proof clip' }} />

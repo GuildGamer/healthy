@@ -34,6 +34,7 @@ import {
   sessionAmount,
 } from './period-window.js';
 import type {
+  ContestSetRow,
   DailyOccurrence,
   LedgerDayRow,
   LedgerDetailRow,
@@ -47,6 +48,7 @@ import {
   type PeriodReportPeriod,
 } from '@product/contract';
 import { matchMetricSchema } from '@product/contract/match-board';
+import { MATCH_ATTEMPT_ACTIVITY_EXTERNAL_PREFIX } from '../matches/constants/match.js';
 
 type InstantRange = { from: Date; to: Date };
 
@@ -97,9 +99,10 @@ export class ProgressService {
     const range = this.instantsAround(dayKey, dayKey);
     const isOnDay = (at: Date) => dayKeyFor(clock.timeZone, at) === dayKey;
 
-    const [ledger, dailyOccurrences, practice] = await Promise.all([
+    const [ledger, dailyOccurrences, contestSets, practice] = await Promise.all([
       this.ledgerDetailRows(user.id, range),
       this.dailyOccurrences(user.id, dayKey, dayKey),
+      this.contestSetRows(user.id, range),
       this.practiceRows(user.id, range),
     ]);
 
@@ -107,6 +110,7 @@ export class ProgressService {
       dayKey,
       ledger: ledger.filter((row) => isOnDay(row.createdAt)),
       dailyOccurrences,
+      contestSets: contestSets.filter((set) => isOnDay(set.createdAt)),
       practice: practice.filter((session) => isOnDay(session.createdAt)),
     });
   }
@@ -464,7 +468,12 @@ export class ProgressService {
   /** Sessions that finished no challenge — the practice feed. */
   private async practiceRows(userId: string, range: InstantRange): Promise<PracticeRow[]> {
     const rows = await this.prisma.deviceActivityLog.findMany({
-      where: { userId, userChallengeId: null, createdAt: { gte: range.from, lt: range.to } },
+      where: {
+        userId,
+        userChallengeId: null,
+        createdAt: { gte: range.from, lt: range.to },
+        NOT: { externalId: { startsWith: MATCH_ATTEMPT_ACTIVITY_EXTERNAL_PREFIX } },
+      },
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
@@ -480,5 +489,49 @@ export class ProgressService {
       ...row,
       proofClip: activityProofClipFrom(proofClips),
     }));
+  }
+
+  /** Contest sets that day — scored on a group board, not personal practice. */
+  private async contestSetRows(userId: string, range: InstantRange): Promise<ContestSetRow[]> {
+    const rows = await this.prisma.matchAttempt.findMany({
+      where: {
+        userId,
+        OR: [
+          { performedAt: { gte: range.from, lt: range.to } },
+          {
+            performedAt: null,
+            recordedAt: { gte: range.from, lt: range.to },
+          },
+        ],
+      },
+      orderBy: [{ performedAt: 'asc' }, { recordedAt: 'asc' }],
+      select: {
+        id: true,
+        matchId: true,
+        count: true,
+        performedAt: true,
+        recordedAt: true,
+        match: { select: { metric: true } },
+        proofClips: ACTIVITY_PROOF_CLIP_ARGS,
+      },
+    });
+
+    const sets: ContestSetRow[] = [];
+    for (const row of rows) {
+      const metric = matchMetricSchema.safeParse(row.match.metric);
+      if (!metric.success) {
+        continue;
+      }
+      sets.push({
+        id: row.id,
+        matchId: row.matchId,
+        metric: metric.data,
+        count: row.count,
+        createdAt: row.performedAt ?? row.recordedAt,
+        proofClip: activityProofClipFrom(row.proofClips),
+      });
+    }
+
+    return sets.sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
   }
 }

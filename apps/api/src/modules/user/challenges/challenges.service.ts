@@ -1042,7 +1042,15 @@ export class ChallengesService {
         take: ACTIVITY_PAGE_SIZE,
       }),
       this.prisma.deviceActivityLog.findMany({
-        where: { userId: user.id, userChallengeId: null },
+        where: {
+          userId: user.id,
+          userChallengeId: null,
+          NOT: {
+            externalId: {
+              startsWith: 'match-attempt:',
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         take: ACTIVITY_PAGE_SIZE,
       }),

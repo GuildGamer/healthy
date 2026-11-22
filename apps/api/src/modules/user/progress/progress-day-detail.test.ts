@@ -169,4 +169,28 @@ describe('buildProgressDayDetail', () => {
     expect(detail.dailyDoneCount).toBe(1);
     expect(detail.dailyDueCount).toBe(2);
   });
+
+  it('lists contest sets as group work, not practice', () => {
+    const detail = buildProgressDayDetail({
+      dayKey: '2026-10-20',
+      ledger: [],
+      practice: [],
+      dailyOccurrences: [],
+      contestSets: [
+        {
+          id: 'a1',
+          matchId: 'm1',
+          metric: 'pushups',
+          count: 40,
+          createdAt: new Date('2026-10-20T11:00:00.000Z'),
+          proofClip: null,
+        },
+      ],
+    });
+
+    expect(detail.contestSets).toMatchObject([
+      { id: 'a1', matchId: 'm1', title: 'Group push-ups', count: 40 },
+    ]);
+    expect(detail.practice).toEqual([]);
+  });
 });

@@ -4,6 +4,7 @@ import type {
   ChallengeCompletionKind,
   DeviceMetric,
   HealthCategory,
+  MatchMetric,
   ProgressShareResult,
 } from '@product/contract';
 
@@ -57,6 +58,15 @@ export type PracticeRow = {
   metric: DeviceMetric;
   count: number | null;
   durationSeconds: number | null;
+  createdAt: Date;
+  proofClip: ActivityProofClip | null;
+};
+
+export type ContestSetRow = {
+  id: string;
+  matchId: string;
+  metric: MatchMetric;
+  count: number;
   createdAt: Date;
   proofClip: ActivityProofClip | null;
 };

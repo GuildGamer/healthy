@@ -1,6 +1,11 @@
-import { practiceActivityReason } from '@product/contract';
+import { contestSetActivityReason, practiceActivityReason } from '@product/contract';
 import type { ProgressDayDetailDto } from './dto/index.js';
-import type { DailyOccurrence, LedgerDetailRow, PracticeRow } from './types/progress.js';
+import type {
+  ContestSetRow,
+  DailyOccurrence,
+  LedgerDetailRow,
+  PracticeRow,
+} from './types/progress.js';
 
 type LinkedRow = LedgerDetailRow & { occurrence: NonNullable<LedgerDetailRow['occurrence']> };
 
@@ -64,6 +69,7 @@ export function buildProgressDayDetail(input: {
   dayKey: string;
   ledger: readonly LedgerDetailRow[];
   dailyOccurrences: readonly DailyOccurrence[];
+  contestSets?: readonly ContestSetRow[];
   practice: readonly PracticeRow[];
 }): ProgressDayDetailDto {
   const linked = input.ledger.filter(isLinked);
@@ -80,6 +86,15 @@ export function buildProgressDayDetail(input: {
     dailyDueCount: input.dailyOccurrences.length,
     done: doneItems(earnedRows),
     missedPhotoChecks: missedPhotoChecks(lostRows),
+    contestSets: (input.contestSets ?? []).map((set) => ({
+      id: set.id,
+      matchId: set.matchId,
+      title: contestSetActivityReason(set.metric),
+      metric: set.metric,
+      count: set.count,
+      recordedAt: set.createdAt.toISOString(),
+      proofClip: set.proofClip,
+    })),
     practice: input.practice.map((session) => ({
       id: session.id,
       title: practiceActivityReason(session.metric),

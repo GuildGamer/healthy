@@ -151,6 +151,7 @@ function useSubmitSet(
             source: 'in_app_pose',
             clientAttemptId: matchAttemptClientId('pose', props.matchId, startedAt),
             performedAt: endedAt,
+            ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
           },
         });
         lastOutboxIdRef.current = queued.outcome === 'saved' ? null : queued.pending.id;

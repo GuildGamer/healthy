@@ -157,6 +157,11 @@ export function practiceAmount(item: Pick<ProgressPracticeItem, 'metric' | 'coun
   return item.count === 1 ? '1 rep' : `${item.count} reps`;
 }
 
+/** Contest sets show the scored count; plank uses the same rep-style figure. */
+export function contestSetAmount(item: { count: number }): string {
+  return item.count === 1 ? '1' : String(item.count);
+}
+
 /** What was measured on a finish; points only when there is nothing to measure. */
 export function doneAmount(item: Pick<ProgressDoneItem, 'share' | 'points'>): string {
   const measured = shareAmount(item.share);

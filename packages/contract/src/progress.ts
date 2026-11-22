@@ -98,6 +98,18 @@ export const progressPracticeItemSchema = z.object({
   proofClip: activityProofClipSchema.nullable(),
 });
 
+/** A set logged for a group contest that day — not practice. */
+export const progressContestSetItemSchema = z.object({
+  id: z.string(),
+  matchId: z.string().min(1),
+  /** "Group push-ups": contest work, not a personal extra set. */
+  title: z.string(),
+  metric: deviceMetricSchema,
+  count: z.number().int().nonnegative(),
+  recordedAt: z.string().datetime(),
+  proofClip: activityProofClipSchema.nullable(),
+});
+
 /** Points moved by the team rather than a challenge, such as a bonus. */
 export const progressAdjustmentSchema = z.object({
   id: z.string(),
@@ -115,6 +127,8 @@ export const progressDayDetailSchema = z.object({
   /** Oldest first, as the day went. */
   done: z.array(progressDoneItemSchema),
   missedPhotoChecks: z.array(progressMissedPhotoCheckSchema),
+  /** Group contest sets that day, oldest first. */
+  contestSets: z.array(progressContestSetItemSchema),
   practice: z.array(progressPracticeItemSchema),
   adjustments: z.array(progressAdjustmentSchema),
 });
@@ -215,6 +229,7 @@ export type ProgressDoneItem = z.infer<typeof progressDoneItemSchema>;
 export type PhotoCheckResolution = z.infer<typeof photoCheckResolutionSchema>;
 export type ProgressMissedPhotoCheck = z.infer<typeof progressMissedPhotoCheckSchema>;
 export type ProgressPracticeItem = z.infer<typeof progressPracticeItemSchema>;
+export type ProgressContestSetItem = z.infer<typeof progressContestSetItemSchema>;
 export type ProgressAdjustment = z.infer<typeof progressAdjustmentSchema>;
 export type ProgressDayDetail = z.infer<typeof progressDayDetailSchema>;
 export type PeriodReportPeriod = z.infer<typeof periodReportPeriodSchema>;

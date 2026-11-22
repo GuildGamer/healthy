@@ -30,6 +30,7 @@ function detail(overrides: Partial<ProgressDayDetail>): ProgressDayDetail {
     dailyDueCount: 0,
     done: [],
     missedPhotoChecks: [],
+    contestSets: [],
     practice: [],
     adjustments: [],
     ...overrides,

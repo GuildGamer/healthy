@@ -82,6 +82,7 @@ export function dayDetail(overrides: Partial<ProgressDayDetail> = {}): ProgressD
         at: '2026-10-20T18:40:00.000Z',
       },
     ],
+    contestSets: [],
     practice: [
       {
         id: 'p1',

@@ -106,6 +106,7 @@ export class PracticeService {
             durationSeconds: input.durationSeconds,
             source: 'in_app_pose',
             clientAttemptId: input.externalId,
+            proofClipId: input.proofClipId,
           })
         : [];
 

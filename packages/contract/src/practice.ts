@@ -127,6 +127,39 @@ export function practiceActivityReason(metric: z.infer<typeof deviceMetricSchema
   return metric === 'walk' ? 'Walk' : 'Practice session';
 }
 
+/** Row label for a set that scored a group contest, not a personal extra. */
+export function contestSetActivityReason(metric: z.infer<typeof deviceMetricSchema>): string {
+  if (metric === 'pushups') {
+    return 'Group push-ups';
+  }
+  if (metric === 'walk') {
+    return 'Group walk';
+  }
+  if (metric === 'squats') {
+    return 'Group squats';
+  }
+  if (metric === 'plank') {
+    return 'Group plank';
+  }
+  if (metric === 'jumping_jacks') {
+    return 'Group jumping jacks';
+  }
+  if (metric === 'burpees') {
+    return 'Group burpees';
+  }
+  if (metric === 'sit_ups') {
+    return 'Group sit-ups';
+  }
+  if (metric === 'mountain_climbers') {
+    return 'Group mountain climbers';
+  }
+  if (metric === 'lunges') {
+    return 'Group lunges';
+  }
+
+  return 'Group set';
+}
+
 export type RecordPracticeSessionInput = z.infer<typeof recordPracticeSessionInputSchema>;
 export type RecordPracticeSessionOutput = z.infer<typeof recordPracticeSessionOutputSchema>;
 export type PracticeSession = z.infer<typeof practiceSessionSchema>;
