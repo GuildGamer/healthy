@@ -67,7 +67,8 @@ describe('MetricStatsScreen', () => {
     expect(await screen.findByTestId('metric-stats-share')).toBeOnTheScreen();
     expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
     expect(screen.getByTestId('share-dest-challenge')).toBeOnTheScreen();
-    expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
+    expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
     expect(mockPush).not.toHaveBeenCalled();
 
     await cleanup();

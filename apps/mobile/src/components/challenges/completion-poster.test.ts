@@ -221,4 +221,20 @@ describe('group contest sets', () => {
       }),
     });
   });
+
+  it('forwards the proof clip id so share opens the video pager', () => {
+    expect(
+      dayContestShareRoute(
+        contestSet({
+          proofClip: {
+            id: 'clip-9',
+            displayCode: 'H7K-29Q',
+            status: 'ready',
+            audience: 'anyone',
+            isPostedToGroup: true,
+          },
+        }),
+      ).params.clipId,
+    ).toBe('clip-9');
+  });
 });

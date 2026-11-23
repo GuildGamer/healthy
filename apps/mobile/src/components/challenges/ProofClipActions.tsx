@@ -236,16 +236,17 @@ const createStyles = (theme: Theme) =>
       minHeight: 0,
     },
     poster: {
+      width: '100%',
       aspectRatio: 9 / 16,
       borderRadius: radii.md,
-      backgroundColor: '#000000',
+      backgroundColor: theme.colors.background,
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
     },
     posterFill: {
-      flex: 1,
       maxWidth: '100%',
+      alignSelf: 'center',
     },
     posterCompact: {
       height: PANEL_POSTER_MAX_HEIGHT,

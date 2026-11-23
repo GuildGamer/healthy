@@ -86,7 +86,10 @@ function assignment(variantKey: 'treatment' | 'control') {
 function renderShare(
   poster: SharePoster,
   friend: ShareFriend,
-  extras: { routePoints?: { latitude: number; longitude: number }[] } = {},
+  extras: {
+    routePoints?: { latitude: number; longitude: number }[];
+    clipId?: string | null;
+  } = {},
 ) {
   const client = new QueryClient({
     defaultOptions: {
@@ -94,10 +97,24 @@ function renderShare(
       mutations: { retry: false, gcTime: 0 },
     },
   });
+  if (extras.clipId) {
+    client.setQueryData(['proof-clip-local', extras.clipId], {
+      clipId: extras.clipId,
+      fileUri: 'file:///clip.mp4',
+      socialFileUri: 'file:///social.mp4',
+      posterUri: 'file:///poster.jpg',
+      displayCode: '42BW-A7J4',
+    });
+  }
   const view = render(
     <QueryClientProvider client={client}>
       <SafeAreaProvider initialMetrics={safeArea}>
-        <ChallengeShareScreen friend={friend} poster={poster} routePoints={extras.routePoints} />
+        <ChallengeShareScreen
+          clipId={extras.clipId}
+          friend={friend}
+          poster={poster}
+          routePoints={extras.routePoints}
+        />
       </SafeAreaProvider>
     </QueryClientProvider>,
   );
@@ -110,6 +127,78 @@ function renderShare(
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+jest.mock('@/components/matches/share-destination', () => ({
+  openShareDestination: jest.fn(async () => undefined),
+}));
+
+jest.mock('@/lib/proof-clip-store', () => ({
+  getLocalProofClip: jest.fn(async (clipId: string) =>
+    clipId === 'clip-1'
+      ? {
+          clipId: 'clip-1',
+          fileUri: 'file:///clip.mp4',
+          socialFileUri: 'file:///social.mp4',
+          posterUri: 'file:///poster.jpg',
+          displayCode: '42BW-A7J4',
+        }
+      : null,
+  ),
+}));
+
+describe('ChallengeShareScreen with a clip', () => {
+  it('pages video then poster; colours only on the poster; destinations match the page', async () => {
+    const { openShareDestination } = jest.requireMock(
+      '@/components/matches/share-destination',
+    ) as { openShareDestination: jest.Mock };
+    const { Dimensions } = require('react-native') as typeof import('react-native');
+    const pageWidth = Dimensions.get('window').width - 32;
+
+    renderShare(pushups, { ...pushupFriend, isEligible: false }, { clipId: 'clip-1' });
+
+    expect(await screen.findByTestId('clip-finish-pager')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
+    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+
+    await waitFor(() => {
+      expect(openShareDestination).toHaveBeenCalledWith(
+        'overflow',
+        expect.objectContaining({
+          artifact: expect.objectContaining({
+            kind: 'video',
+            clipUri: 'file:///clip.mp4',
+          }),
+        }),
+      );
+    });
+
+    fireEvent(screen.getByTestId('clip-finish-list'), 'momentumScrollEnd', {
+      nativeEvent: { contentOffset: { x: pageWidth, y: 0 } },
+    });
+
+    expect(await screen.findByTestId('share-fill-carousel')).toBeOnTheScreen();
+    expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
+    openShareDestination.mockClear();
+    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+
+    await waitFor(() => {
+      expect(openShareDestination).toHaveBeenCalledWith(
+        'overflow',
+        expect.objectContaining({
+          artifact: expect.objectContaining({ kind: 'image' }),
+        }),
+      );
+    });
+  });
+
+  it('stays poster-only when no clipId is passed', async () => {
+    renderShare(pushups, { ...pushupFriend, isEligible: false });
+
+    expect(await screen.findByTestId('share-poster')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
+    expect(screen.queryByTestId('clip-finish-pager')).toBeNull();
+  });
 });
 
 describe('ChallengeShareScreen route poster', () => {

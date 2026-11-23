@@ -15,26 +15,37 @@ export type ShareDestinationId =
   | 'x'
   | 'messages'
   | 'copy'
-  | 'overflow'
-  | 'clip';
+  | 'overflow';
+
+export type ShareArtifact =
+  | {
+      kind: 'video';
+      /** Full proof clip on disk. */
+      clipUri: string;
+      /** Short social cut when present; Status / Instagram prefer it. */
+      socialClipUri?: string | null;
+    }
+  | {
+      kind: 'image';
+      /** Deck poster PNG on disk. */
+      posterUri: string;
+    }
+  | {
+      kind: 'link';
+    };
 
 export type SharePayload = {
   /** Caption line plus optional invite URL. */
   caption: string;
   inviteUrl?: string | null;
-  /** Deck poster image for destinations that take a file. */
-  posterUri?: string | null;
-  /** Full proof clip on disk. */
-  clipUri?: string | null;
-  /** Short social cut when present; falls back to the full clip. */
-  socialClipUri?: string | null;
+  /** What leaves the phone for this tap. Screens pick; destinations do not guess. */
+  artifact: ShareArtifact;
 };
 
 /**
- * Opens a named destination with the caption, link, and optional media.
- * Prefers deep links into the app (WhatsApp, Messages, X, Instagram Stories).
- * Falls back to the system sheet only when the app is missing or the destination
- * needs a file handoff (Status on iOS, overflow, Send clip).
+ * Opens a named destination with the artifact on screen.
+ * Video and image attach the file. Link opens text deep links. A caption may
+ * ride with a file; it never replaces the file.
  */
 export async function openShareDestination(
   destination: ShareDestinationId,
@@ -42,42 +53,40 @@ export async function openShareDestination(
 ): Promise<void> {
   const caption = buildCaption(payload);
 
-  switch (destination) {
-    case 'whatsapp':
-      await openWhatsApp(caption);
-      return;
-    case 'status':
-      await openStatus(payload, caption);
-      return;
-    case 'messages':
-      await openMessages(caption);
-      return;
-    case 'copy':
-      await Clipboard.setStringAsync(payload.inviteUrl?.trim() || caption);
-      return;
-    case 'instagram':
-      await openInstagram(payload, caption);
-      return;
-    case 'x':
-      await openX(caption);
-      return;
-    case 'clip':
-      await shareFileOrCaption({
-        fileUri: payload.clipUri,
-        caption,
-        mimeType: 'video/mp4',
-        surface: 'proof_clip',
-      });
-      return;
-    case 'overflow':
-      await shareFileOrCaption({
-        fileUri: payload.posterUri ?? payload.socialClipUri ?? payload.clipUri,
-        caption,
-        mimeType: payload.posterUri ? 'image/png' : 'video/mp4',
-        surface: 'proof_overflow',
-      });
-      return;
+  if (destination === 'copy') {
+    await Clipboard.setStringAsync(payload.inviteUrl?.trim() || caption);
+    return;
   }
+
+  if (payload.artifact.kind === 'link') {
+    await openLinkDestination(destination, caption);
+    return;
+  }
+
+  if (payload.artifact.kind === 'image') {
+    await openFileDestination({
+      destination,
+      fileUri: payload.artifact.posterUri,
+      mimeType: 'image/png',
+      caption,
+      imageUri: payload.artifact.posterUri,
+    });
+    return;
+  }
+
+  const socialUri = payload.artifact.socialClipUri?.trim() || null;
+  const fullUri = payload.artifact.clipUri;
+  const useSocial =
+    (destination === 'status' || destination === 'instagram') && Boolean(socialUri);
+  const fileUri = useSocial && socialUri ? socialUri : fullUri;
+
+  await openFileDestination({
+    destination,
+    fileUri,
+    mimeType: 'video/mp4',
+    caption,
+    videoUri: fileUri,
+  });
 }
 
 function buildCaption(payload: SharePayload): string {
@@ -95,29 +104,48 @@ function buildCaption(payload: SharePayload): string {
   return `${base}\n${url}`;
 }
 
-async function openWhatsApp(caption: string): Promise<void> {
-  const url = `whatsapp://send?text=${encodeURIComponent(caption)}`;
-  if (await canOpen(url)) {
-    await Linking.openURL(url);
-    return;
+async function openLinkDestination(
+  destination: Exclude<ShareDestinationId, 'copy'>,
+  caption: string,
+): Promise<void> {
+  switch (destination) {
+    case 'whatsapp':
+      await openWhatsAppText(caption);
+      return;
+    case 'messages':
+      await openMessagesText(caption);
+      return;
+    case 'x':
+      await openXText(caption);
+      return;
+    case 'status':
+    case 'instagram':
+    case 'overflow':
+      await shareWithTracking(`proof_${destination}`, textShareContent(caption));
+      return;
   }
-  await shareWithTracking('proof_whatsapp', textShareContent(caption));
 }
 
-/**
- * Status needs a media file.
- * Android: native WhatsApp ACTION_SEND (Status is in WhatsApp's picker).
- * iOS: no public Status / `whatsapp://status` deep link exists — system share
- * sheet is the only honest path; the user picks WhatsApp → Status themselves.
- */
-async function openStatus(payload: SharePayload, caption: string): Promise<void> {
-  const fileUri = payload.socialClipUri ?? payload.clipUri ?? payload.posterUri;
-  const mimeType =
-    payload.posterUri && !payload.socialClipUri && !payload.clipUri
-      ? 'image/png'
-      : 'video/mp4';
+async function openFileDestination(input: {
+  destination: Exclude<ShareDestinationId, 'copy'>;
+  fileUri: string;
+  mimeType: 'image/png' | 'video/mp4';
+  caption: string;
+  imageUri?: string;
+  videoUri?: string;
+}): Promise<void> {
+  const { destination, fileUri, mimeType, caption, imageUri, videoUri } = input;
 
-  if (fileUri && Platform.OS === 'android') {
+  if (destination === 'instagram') {
+    if (await tryInstagramStories({ imageUri, videoUri })) {
+      return;
+    }
+  }
+
+  if (
+    (destination === 'whatsapp' || destination === 'status') &&
+    Platform.OS === 'android'
+  ) {
     const opened = await shareToWhatsApp({
       fileUri,
       mimeType,
@@ -128,28 +156,48 @@ async function openStatus(payload: SharePayload, caption: string): Promise<void>
     }
   }
 
-  await shareFileOrCaption({
+  await shareFile({
     fileUri,
     caption,
     mimeType,
-    surface: 'proof_status',
   });
 }
 
-async function openInstagram(payload: SharePayload, caption: string): Promise<void> {
-  const imageUri = payload.posterUri;
-  const videoUri = payload.socialClipUri ?? payload.clipUri;
+async function openWhatsAppText(caption: string): Promise<void> {
+  const url = `whatsapp://send?text=${encodeURIComponent(caption)}`;
+  if (await canOpen(url)) {
+    await Linking.openURL(url);
+    return;
+  }
+  await shareWithTracking('proof_whatsapp', textShareContent(caption));
+}
 
-  if (await tryInstagramStories({ imageUri, videoUri })) {
+async function openMessagesText(caption: string): Promise<void> {
+  const url =
+    Platform.OS === 'ios'
+      ? `sms:&body=${encodeURIComponent(caption)}`
+      : `sms:?body=${encodeURIComponent(caption)}`;
+  if (await canOpen(url)) {
+    await Linking.openURL(url);
+    return;
+  }
+  await shareWithTracking('proof_messages', textShareContent(caption));
+}
+
+async function openXText(caption: string): Promise<void> {
+  const appUrl = `twitter://post?message=${encodeURIComponent(caption)}`;
+  if (await canOpen(appUrl)) {
+    await Linking.openURL(appUrl);
     return;
   }
 
-  await shareFileOrCaption({
-    fileUri: videoUri ?? imageUri,
-    caption,
-    mimeType: videoUri ? 'video/mp4' : 'image/png',
-    surface: 'proof_instagram',
-  });
+  const webUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
+  if (await canOpen(webUrl)) {
+    await Linking.openURL(webUrl);
+    return;
+  }
+
+  await shareWithTracking('proof_x', textShareContent(caption));
 }
 
 /**
@@ -165,7 +213,6 @@ async function tryInstagramStories(input: {
     return false;
   }
 
-  // Prefer the designed poster card; fall back to the short social cut / clip.
   if (input.imageUri) {
     const opened = await shareToInstagramStories({
       appId: FACEBOOK_APP_ID,
@@ -184,34 +231,6 @@ async function tryInstagramStories(input: {
   }
 
   return false;
-}
-
-async function openX(caption: string): Promise<void> {
-  const appUrl = `twitter://post?message=${encodeURIComponent(caption)}`;
-  if (await canOpen(appUrl)) {
-    await Linking.openURL(appUrl);
-    return;
-  }
-
-  const webUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
-  if (await canOpen(webUrl)) {
-    await Linking.openURL(webUrl);
-    return;
-  }
-
-  await shareWithTracking('proof_x', textShareContent(caption));
-}
-
-async function openMessages(caption: string): Promise<void> {
-  const url =
-    Platform.OS === 'ios'
-      ? `sms:&body=${encodeURIComponent(caption)}`
-      : `sms:?body=${encodeURIComponent(caption)}`;
-  if (await canOpen(url)) {
-    await Linking.openURL(url);
-    return;
-  }
-  await shareWithTracking('proof_messages', textShareContent(caption));
 }
 
 async function canOpen(url: string): Promise<boolean> {
@@ -240,20 +259,18 @@ function textShareContent(caption: string): { message: string } | { message: str
   return { message: text, url: inviteUrl };
 }
 
-async function shareFileOrCaption(input: {
-  fileUri: string | null | undefined;
+async function shareFile(input: {
+  fileUri: string;
   caption: string;
-  mimeType: string;
-  surface: string;
+  mimeType: 'image/png' | 'video/mp4';
 }): Promise<void> {
-  if (input.fileUri && (await Sharing.isAvailableAsync())) {
-    await Sharing.shareAsync(input.fileUri, {
-      mimeType: input.mimeType,
-      UTI: input.mimeType === 'image/png' ? 'public.png' : 'public.mpeg-4',
-      dialogTitle: input.caption.slice(0, 80) || undefined,
-    });
+  if (!(await Sharing.isAvailableAsync())) {
     return;
   }
 
-  await shareWithTracking(input.surface, textShareContent(input.caption));
+  await Sharing.shareAsync(input.fileUri, {
+    mimeType: input.mimeType,
+    UTI: input.mimeType === 'image/png' ? 'public.png' : 'public.mpeg-4',
+    dialogTitle: input.caption.slice(0, 80) || undefined,
+  });
 }

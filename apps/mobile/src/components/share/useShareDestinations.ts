@@ -9,8 +9,16 @@ import {
 import type { ShareDestinationSelectId } from './ShareDestinationRow';
 
 type UseShareDestinationsOptions = {
-  /** Caption and invite; poster is filled from `shotRef` when present. */
-  buildPayload: () => Omit<SharePayload, 'posterUri'> | SharePayload;
+  /**
+   * Caption, invite, and artifact. When the artifact is `image` without a
+   * `posterUri`, the live `shotRef` is captured first.
+   */
+  buildPayload: () => SharePayload | Omit<SharePayload, 'artifact'> & {
+      artifact: Exclude<SharePayload['artifact'], { kind: 'image' }> | {
+        kind: 'image';
+        posterUri?: string | null;
+      };
+    };
   onChallenge?: () => void;
   /** Called after Copy link so the host can show a status line. */
   onCopied?: () => void;
@@ -48,12 +56,14 @@ export function useShareDestinations(options: UseShareDestinationsOptions) {
     setIsBusy(true);
     try {
       const base = options.buildPayload();
-      const existingPoster =
-        'posterUri' in base ? (base.posterUri ?? null) : null;
-      const posterUri = existingPoster ?? (await capturePosterUri());
+      const artifact = await resolveArtifact(base.artifact, capturePosterUri);
+      if (!artifact) {
+        return;
+      }
       await openShareDestination(id as ShareDestinationId, {
-        ...base,
-        posterUri,
+        caption: base.caption,
+        inviteUrl: base.inviteUrl,
+        artifact,
       });
       if (id === 'copy') {
         options.onCopied?.();
@@ -68,4 +78,30 @@ export function useShareDestinations(options: UseShareDestinationsOptions) {
     isBusy,
     select: (id: ShareDestinationSelectId) => void select(id),
   };
+}
+
+async function resolveArtifact(
+  artifact: ReturnType<UseShareDestinationsOptions['buildPayload']>['artifact'],
+  capturePosterUri: () => Promise<string | null>,
+): Promise<SharePayload['artifact'] | null> {
+  if (artifact.kind === 'link') {
+    return { kind: 'link' };
+  }
+  if (artifact.kind === 'video') {
+    if (!artifact.clipUri) {
+      return null;
+    }
+    return {
+      kind: 'video',
+      clipUri: artifact.clipUri,
+      socialClipUri: artifact.socialClipUri,
+    };
+  }
+
+  const existing = artifact.posterUri?.trim() || null;
+  const posterUri = existing ?? (await capturePosterUri());
+  if (!posterUri) {
+    return null;
+  }
+  return { kind: 'image', posterUri };
 }

@@ -21,6 +21,7 @@ export default function ChallengeShareRoute() {
     count?: string;
     userChallengeId?: string;
     eligible?: string;
+    clipId?: string;
   }>();
   const poster = parseSharePoster(params);
 
@@ -38,6 +39,7 @@ export default function ChallengeShareRoute() {
 
   return (
     <ChallengeShareScreen
+      clipId={params.clipId ?? null}
       friend={parseShareFriend(params)}
       photoUri={pendingSharePhotoFor(params.userChallengeId)}
       poster={poster}

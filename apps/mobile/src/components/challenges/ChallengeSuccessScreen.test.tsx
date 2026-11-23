@@ -148,12 +148,68 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
     expect(screen.getByTestId('share-dest-whatsapp')).toBeOnTheScreen();
     expect(screen.getByTestId('share-dest-x')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-dest-clip')).toBeNull();
+    expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
     expect(screen.queryByText('42BW-A7J4')).toBeNull();
     expect(screen.queryByTestId('proof-discard')).toBeNull();
     expect(screen.queryByTestId('proof-save-photos')).toBeNull();
     expect(screen.queryByTestId('proof-audience')).toBeNull();
     expect(screen.queryByTestId('challenge-success-done')).toBeNull();
     expect(screen.queryByTestId('proof-primary')).toBeNull();
+  });
+
+  it('shares the video from the video page, not a poster', async () => {
+    const { openShareDestination } = jest.requireMock(
+      '@/components/matches/share-destination',
+    ) as { openShareDestination: jest.Mock };
+
+    renderSuccess(clipFinish);
+    await screen.findByTestId('proof-clip-hero');
+    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+
+    await waitFor(() => {
+      expect(openShareDestination).toHaveBeenCalledWith(
+        'overflow',
+        expect.objectContaining({
+          artifact: expect.objectContaining({
+            kind: 'video',
+            clipUri: 'file:///clip.mp4',
+          }),
+        }),
+      );
+    });
+  });
+
+  it('shows colour swatches only on the poster page and shares that card', async () => {
+    const { openShareDestination } = jest.requireMock(
+      '@/components/matches/share-destination',
+    ) as { openShareDestination: jest.Mock };
+    const { Dimensions } = require('react-native') as typeof import('react-native');
+    const pageWidth = Dimensions.get('window').width - 32;
+
+    renderSuccess(clipFinish);
+    await screen.findByTestId('clip-finish-list');
+
+    fireEvent(screen.getByTestId('clip-finish-list'), 'momentumScrollEnd', {
+      nativeEvent: { contentOffset: { x: pageWidth, y: 0 } },
+    });
+
+    expect(await screen.findByTestId('share-fill-carousel')).toBeOnTheScreen();
+    expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+
+    await waitFor(() => {
+      expect(openShareDestination).toHaveBeenCalledWith(
+        'overflow',
+        expect.objectContaining({
+          artifact: expect.objectContaining({
+            kind: 'image',
+            posterUri: 'file://share-card.jpg',
+          }),
+        }),
+      );
+    });
   });
 
   it('keeps share destinations under the clip — tap does not push the bare viewer', async () => {
@@ -442,7 +498,9 @@ describe('ChallengeSuccessScreen share card', () => {
       );
       expect(openShareDestination).toHaveBeenCalledWith(
         'overflow',
-        expect.objectContaining({ posterUri: 'file://share-card.jpg' }),
+        expect.objectContaining({
+          artifact: { kind: 'image', posterUri: 'file://share-card.jpg' },
+        }),
       );
     });
   });

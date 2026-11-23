@@ -2,6 +2,7 @@ import { radii } from '@product/brand';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { type Theme, useThemedStyles } from '@/theme';
 import { POSE_COPY } from './constants/doing-copy';
 import { ProofPlayBadge } from './ProofPlayBadge';
 
@@ -12,10 +13,11 @@ type ProofVideoPlayerProps = {
 };
 
 /**
- * A paused video shows nothing until it loads, which reads as a dead black
- * box. Until it is tapped, show the poster with a play mark instead.
+ * A paused video shows nothing until it loads, which reads as empty.
+ * Until it is tapped, show the poster with a play mark instead.
  */
 export function ProofVideoPlayer({ uri, posterUri = null, testID = 'proof-video' }: ProofVideoPlayerProps) {
+  const styles = useThemedStyles(createStyles);
   const [isStarted, setIsStarted] = useState(false);
   const player = useVideoPlayer(uri, (instance) => {
     instance.loop = true;
@@ -43,7 +45,7 @@ export function ProofVideoPlayer({ uri, posterUri = null, testID = 'proof-video'
     <View style={styles.video} testID={testID}>
       <VideoView
         allowsFullscreen
-        contentFit="contain"
+        contentFit="cover"
         nativeControls
         player={player}
         style={StyleSheet.absoluteFill}
@@ -52,20 +54,20 @@ export function ProofVideoPlayer({ uri, posterUri = null, testID = 'proof-video'
   );
 }
 
-const styles = StyleSheet.create({
-  video: {
-    width: '100%',
-    aspectRatio: 9 / 16,
-    maxHeight: 420,
-    borderRadius: radii.md,
-    backgroundColor: '#000',
-    overflow: 'hidden',
-  },
-  cover: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    video: {
+      width: '100%',
+      aspectRatio: 9 / 16,
+      borderRadius: radii.md,
+      backgroundColor: theme.colors.background,
+      overflow: 'hidden',
+    },
+    cover: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+  });

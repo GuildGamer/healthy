@@ -62,7 +62,8 @@ describe('PeriodReportScreen', () => {
 
     expect(await screen.findByTestId('period-report-share')).toBeOnTheScreen();
     expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
-    expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
+    expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
     expect(mockPush).not.toHaveBeenCalled();
 
     await cleanup();

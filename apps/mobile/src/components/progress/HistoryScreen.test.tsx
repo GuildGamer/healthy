@@ -319,31 +319,16 @@ describe('DayDetailScreen', () => {
     const { cleanup } = renderWithQueries(<DayDetailScreen dayKey="2026-10-20" />);
 
     fireEvent.press(await screen.findByTestId('history-done-push'));
-    expect(mockPush).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        pathname: '/challenge/share',
-        params: expect.objectContaining({
-          label: 'Do 20 push-ups',
-          value: '20',
-          unit: 'push-ups',
-          userChallengeId: 'push',
-        }),
-      }),
-    );
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/history/[dayKey]/[itemId]',
+      params: { dayKey: '2026-10-20', itemId: 'push' },
+    });
 
     fireEvent.press(screen.getByTestId('history-contest-a1'));
-    expect(mockPush).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        pathname: '/challenge/share',
-        params: expect.objectContaining({
-          label: 'Group push-ups',
-          value: '40',
-          unit: 'push-ups',
-          userChallengeId: 'a1',
-          eligible: '0',
-        }),
-      }),
-    );
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/history/[dayKey]/[itemId]',
+      params: { dayKey: '2026-10-20', itemId: 'a1' },
+    });
 
     fireEvent.press(screen.getByTestId('history-practice-filmed'));
     expect(mockPush).toHaveBeenLastCalledWith({
@@ -403,6 +388,16 @@ describe('DayDetailScreen', () => {
     expect(screen.getByTestId('activity-detail-amount')).toHaveTextContent('20 push-ups');
     expect(screen.queryByTestId('proof-publish')).toBeNull();
     expect(screen.getByTestId('activity-detail-share-card')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('activity-detail-share-card'));
+    expect(mockPush).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        pathname: '/challenge/share',
+        params: expect.objectContaining({
+          clipId: 'clip-1',
+          userChallengeId: 'push',
+        }),
+      }),
+    );
 
     await cleanup();
   });

@@ -61,14 +61,6 @@ const BASE_DESTINATIONS: DestinationItem[] = [
   },
 ];
 
-const CLIP_DESTINATION: DestinationItem = {
-  id: 'clip',
-  label: SHARE_DEST_COPY.sendClip,
-  glyph: 'play',
-  tint: '#5856D6',
-  testID: 'share-dest-clip',
-};
-
 const OVERFLOW_DESTINATION: DestinationItem = {
   id: 'overflow',
   label: SHARE_DEST_COPY.overflow,
@@ -89,22 +81,24 @@ type ShareDestinationRowProps = {
   onSelect: (id: ShareDestinationSelectId) => void;
   /** When true, inserts a Challenge disc before overflow. */
   showChallenge?: boolean;
-  /** When true, includes Send clip. Default false for card / invite shares. */
-  showClip?: boolean;
+  /** Hide Copy link when there is no invite URL to copy. */
+  showCopy?: boolean;
   disabled?: boolean;
 };
 
-/** Destination discs: one tap opens the app or attaches media for Status. */
+/** Destination discs: one tap opens the app or attaches the artifact on screen. */
 export function ShareDestinationRow({
   onSelect,
   showChallenge = false,
-  showClip = false,
+  showCopy = true,
   disabled = false,
 }: ShareDestinationRowProps) {
   const styles = useThemedStyles(createStyles);
+  const base = showCopy
+    ? BASE_DESTINATIONS
+    : BASE_DESTINATIONS.filter((item) => item.id !== 'copy');
   const items: DestinationItem[] = [
-    ...BASE_DESTINATIONS,
-    ...(showClip ? [CLIP_DESTINATION] : []),
+    ...base,
     ...(showChallenge ? [CHALLENGE_DESTINATION] : []),
     OVERFLOW_DESTINATION,
   ];

@@ -91,7 +91,7 @@ describe('MatchResultScreen', () => {
     await view.cleanup();
   });
 
-  it('falls back to a sentence when the image cannot be made', async () => {
+  it('does not fall through to a sentence when the image cannot be made', async () => {
     (captureRef as jest.Mock).mockRejectedValueOnce(new Error('no surface'));
     const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
     mockedApi.getMatch.mockResolvedValue(wonBoard());
@@ -99,12 +99,9 @@ describe('MatchResultScreen', () => {
 
     fireEvent.press(await screen.findByTestId('share-dest-overflow'));
 
-    await waitFor(() => expect(share).toHaveBeenCalled());
-    expect(share.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        message: expect.stringContaining('I won a 7-day walking group on Beatset.'),
-      }),
-    );
+    await waitFor(() => expect(captureRef).toHaveBeenCalled());
+    expect(share).not.toHaveBeenCalled();
+    expect(Sharing.shareAsync).not.toHaveBeenCalled();
     share.mockRestore();
     await view.cleanup();
   });

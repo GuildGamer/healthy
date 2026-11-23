@@ -100,6 +100,7 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
     buildPayload: () => ({
       caption: shareText,
       inviteUrl: board.inviteUrl,
+      artifact: { kind: 'image' },
     }),
   });
   const [isRerunOpen, setIsRerunOpen] = useState(false);

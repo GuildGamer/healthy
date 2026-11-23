@@ -7,7 +7,6 @@ export const SHARE_DEST_COPY = {
   messages: 'Messages',
   copy: 'Copy link',
   overflow: 'More',
-  sendClip: 'Send clip',
   challenge: 'Challenge',
   sheetTitle: 'Share',
   copiedLink: 'Link copied.',

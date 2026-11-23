@@ -61,10 +61,11 @@ describe('openShareDestination', () => {
     jest.restoreAllMocks();
   });
 
-  it('opens WhatsApp with the caption and invite once', async () => {
+  it('opens WhatsApp with the caption and invite once for a link', async () => {
     await openShareDestination('whatsapp', {
       caption: 'I did 40 push-ups. Think you can beat me?',
       inviteUrl: 'https://beatset.tech/match/tok',
+      artifact: { kind: 'link' },
     });
 
     expect(Linking.openURL).toHaveBeenCalledWith(
@@ -76,10 +77,11 @@ describe('openShareDestination', () => {
     expect(decoded.split('https://beatset.tech/match/tok').length - 1).toBe(1);
   });
 
-  it('opens Messages with the caption on iOS', async () => {
+  it('opens Messages with the caption on iOS for a link', async () => {
     await openShareDestination('messages', {
       caption: 'I did 40 push-ups. Think you can beat me?',
       inviteUrl: 'https://beatset.tech/match/tok',
+      artifact: { kind: 'link' },
     });
 
     expect(Linking.openURL).toHaveBeenCalledWith(
@@ -91,6 +93,7 @@ describe('openShareDestination', () => {
     await openShareDestination('copy', {
       caption: 'I did 40 push-ups. Think you can beat me?',
       inviteUrl: 'https://beatset.tech/match/tok',
+      artifact: { kind: 'link' },
     });
 
     expect(setStringAsync).toHaveBeenCalledWith('https://beatset.tech/match/tok');
@@ -99,25 +102,41 @@ describe('openShareDestination', () => {
   it('copies the caption when there is no invite', async () => {
     await openShareDestination('copy', {
       caption: 'I did 40 push-ups. Think you can beat me?',
+      artifact: { kind: 'image', posterUri: 'file:///tmp/poster.png' },
     });
 
     expect(setStringAsync).toHaveBeenCalledWith('I did 40 push-ups. Think you can beat me?');
   });
 
-  it('shares the local clip file without waiting on anything else', async () => {
-    await openShareDestination('clip', {
-      caption: 'I did 40 push-ups.',
-      clipUri: 'file:///tmp/clip.mp4',
-    });
+  it('shares the full clip as video for WhatsApp, Messages, X, and More', async () => {
+    for (const destination of ['whatsapp', 'messages', 'x', 'overflow'] as const) {
+      jest.clearAllMocks();
+      isAvailableAsync.mockResolvedValue(true);
+      await openShareDestination(destination, {
+        caption: 'I did 40 push-ups.',
+        artifact: {
+          kind: 'video',
+          clipUri: 'file:///tmp/clip.mp4',
+          socialClipUri: 'file:///tmp/social.mp4',
+        },
+      });
 
-    expect(shareAsync).toHaveBeenCalledWith('file:///tmp/clip.mp4', expect.any(Object));
+      expect(Linking.openURL).not.toHaveBeenCalled();
+      expect(shareAsync).toHaveBeenCalledWith(
+        'file:///tmp/clip.mp4',
+        expect.objectContaining({ mimeType: 'video/mp4' }),
+      );
+    }
   });
 
   it('opens Status via the system sheet on iOS with the social cut', async () => {
     await openShareDestination('status', {
       caption: 'I did 40.',
-      socialClipUri: 'file:///tmp/social.mp4',
-      clipUri: 'file:///tmp/clip.mp4',
+      artifact: {
+        kind: 'video',
+        clipUri: 'file:///tmp/clip.mp4',
+        socialClipUri: 'file:///tmp/social.mp4',
+      },
     });
 
     expect(shareToWhatsAppMock).not.toHaveBeenCalled();
@@ -134,8 +153,11 @@ describe('openShareDestination', () => {
 
     await openShareDestination('status', {
       caption: 'I did 40.',
-      socialClipUri: 'file:///tmp/social.mp4',
-      clipUri: 'file:///tmp/clip.mp4',
+      artifact: {
+        kind: 'video',
+        clipUri: 'file:///tmp/clip.mp4',
+        socialClipUri: 'file:///tmp/social.mp4',
+      },
     });
 
     expect(shareToWhatsAppMock).toHaveBeenCalledWith({
@@ -146,13 +168,12 @@ describe('openShareDestination', () => {
     expect(shareAsync).not.toHaveBeenCalled();
   });
 
-  it('opens Instagram Stories with the poster via the native handoff', async () => {
+  it('opens Instagram Stories with the poster for an image artifact', async () => {
     shareToInstagramStoriesMock.mockResolvedValue(true);
 
     await openShareDestination('instagram', {
       caption: 'I did 40.',
-      posterUri: 'file:///tmp/poster.png',
-      socialClipUri: 'file:///tmp/social.mp4',
+      artifact: { kind: 'image', posterUri: 'file:///tmp/poster.png' },
     });
 
     expect(shareToInstagramStoriesMock).toHaveBeenCalledWith({
@@ -163,12 +184,16 @@ describe('openShareDestination', () => {
     expect(Linking.openURL).not.toHaveBeenCalled();
   });
 
-  it('opens Instagram Stories with the social cut when there is no poster', async () => {
+  it('opens Instagram Stories with the social cut for a video artifact', async () => {
     shareToInstagramStoriesMock.mockResolvedValue(true);
 
     await openShareDestination('instagram', {
       caption: 'I did 40.',
-      socialClipUri: 'file:///tmp/social.mp4',
+      artifact: {
+        kind: 'video',
+        clipUri: 'file:///tmp/clip.mp4',
+        socialClipUri: 'file:///tmp/social.mp4',
+      },
     });
 
     expect(shareToInstagramStoriesMock).toHaveBeenCalledWith({
@@ -178,12 +203,12 @@ describe('openShareDestination', () => {
     expect(shareAsync).not.toHaveBeenCalled();
   });
 
-  it('falls back to the system sheet when Instagram Stories handoff fails', async () => {
+  it('falls back to the system sheet when Instagram Stories handoff fails for an image', async () => {
     shareToInstagramStoriesMock.mockResolvedValue(false);
 
     await openShareDestination('instagram', {
       caption: 'I did 40.',
-      posterUri: 'file:///tmp/poster.png',
+      artifact: { kind: 'image', posterUri: 'file:///tmp/poster.png' },
     });
 
     expect(shareAsync).toHaveBeenCalledWith(
@@ -192,10 +217,24 @@ describe('openShareDestination', () => {
     );
   });
 
-  it('opens X via the Twitter deep link when available', async () => {
+  it('shares the poster image for More', async () => {
+    await openShareDestination('overflow', {
+      caption: 'I did 40.',
+      artifact: { kind: 'image', posterUri: 'file:///tmp/poster.png' },
+    });
+
+    expect(shareAsync).toHaveBeenCalledWith(
+      'file:///tmp/poster.png',
+      expect.objectContaining({ mimeType: 'image/png' }),
+    );
+    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it('opens X via the Twitter deep link for a link', async () => {
     await openShareDestination('x', {
       caption: 'I did 40. Think you can beat me?',
       inviteUrl: 'https://beatset.tech/match/tok',
+      artifact: { kind: 'link' },
     });
 
     expect(Linking.openURL).toHaveBeenCalledWith(
@@ -203,12 +242,13 @@ describe('openShareDestination', () => {
     );
   });
 
-  it('falls back to the system sheet for WhatsApp when the app is missing', async () => {
+  it('falls back to the system sheet for WhatsApp when the app is missing on a link', async () => {
     (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
 
     await openShareDestination('whatsapp', {
       caption: 'I did 40. Think you can beat me?',
       inviteUrl: 'https://beatset.tech/match/tok',
+      artifact: { kind: 'link' },
     });
 
     expect(Share.share).toHaveBeenCalledTimes(1);

@@ -29,16 +29,15 @@ The finish screen has one job: send the set. Destinations apply to every
 shareable moment (set, day, card, invite), not only proof finish. See
 `docs/social.md` § Finish and share.
 
-- Default payload: deck poster (when present) + short caption + invite link.
-  Destinations open immediately. Never block a send on an upload.
+- Artifact on screen: `video`, `image`, or `link`. Destinations send that
+  artifact. A caption may ride with a file; it never replaces the file. Text
+  deep links are only for `link`. Never block a send on an upload.
 - Foot job is sharing → in-place destination row. Icon / post-create handoff →
   `ShareDestinationSheet` with the same destinations.
-- Clip finish: destinations + optional board switch + top X. No audience
-  toggle, Save to Photos, Discard, or Not now on that foot.
-- Destinations prefer deep links; Status / overflow may attach media via the
-  system sheet when the app cannot take a file URL.
-- Sending the clip uses the file on the phone. Background upload makes the
-  code checkable; it does not gate the share sheet.
+- Any set share with a clip (finish or `/challenge/share`): video page then
+  poster page → destinations → optional board switch on finish → top X.
+  Colour swatches only while the poster page is in front. No audience toggle,
+  Save to Photos, Discard, Send clip, or Not now.
 - Inside a group, "On the group board" is a default-on switch applied on leave
   (via X). Each set may post its own clip. Never a solid primary button.
 - A mate's posted clip is reached from their standing (play mark on that set).

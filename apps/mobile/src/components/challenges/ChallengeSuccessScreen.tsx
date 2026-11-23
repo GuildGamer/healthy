@@ -1,10 +1,16 @@
 import type { MatchMetric } from '@product/client';
 import { fontSize, fontWeight, radii, spacing } from '@product/brand';
-import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
@@ -15,7 +21,7 @@ import {
   openShareDestination,
   type ShareDestinationId,
 } from '@/components/matches/share-destination';
-import { SHARE_DEST_COPY, ShareDestinationRow } from '@/components/share';
+import { SHARE_DEST_COPY, SetSharePager, ShareDestinationRow } from '@/components/share';
 import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
@@ -131,54 +137,12 @@ function successFace(input: {
   return 'done';
 }
 
-function useShareCardImage(context: {
-  matchId?: string;
-  userChallengeId?: string;
-  practice: boolean;
-}) {
+function useShareCardImage() {
   const shotRef = useRef<View>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function share() {
-    setError(null);
-    setIsSharing(true);
-    try {
-      if (!shotRef.current) {
-        setError(SUCCESS_COPY.prepareFailed);
-        return;
-      }
-
-      // The same card the history Share screen shows. PNG keeps its rounded corners.
-      const uri = await captureRef(shotRef, {
-        format: 'png',
-        quality: 1,
-        result: 'tmpfile',
-      });
-
-      if (!(await Sharing.isAvailableAsync())) {
-        setError(SUCCESS_COPY.sharingUnavailable);
-        return;
-      }
-
-      trackEvent('challenge_shared', {
-        share_channel: 'image_card',
-        match_id: context.matchId,
-        user_challenge_id: context.userChallengeId,
-        practice: context.practice,
-      });
-      await Sharing.shareAsync(uri, {
-        mimeType: 'image/png',
-        dialogTitle: SUCCESS_COPY.shareDialog,
-      });
-    } catch {
-      setError(SUCCESS_COPY.shareFailed);
-    } finally {
-      setIsSharing(false);
-    }
-  }
-
-  return { shotRef, isSharing, error, share: () => void share() };
+  return { shotRef, isSharing, error, setError, setIsSharing };
 }
 
 function useLeaveSuccess(matchId: string | undefined) {
@@ -261,7 +225,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     parentMatchId: matchId,
     practice,
   });
-  const shareImage = useShareCardImage({ matchId, userChallengeId, practice });
+  const shareImage = useShareCardImage();
   const proof = useProofClip(proofClipId ?? null, proofAudience, { isGroup: isMatch });
   const meForProofLimits = useQuery({
     queryKey: ['me'],
@@ -325,12 +289,12 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         isStillSyncing={isStillSyncing}
         matchId={matchId}
         onLeave={leave}
+        onSelectFill={setFillId}
         photoUri={photoUri}
         poster={clipPoster}
         proof={proof}
         proofMaxDurationSeconds={proofMaxDurationSeconds}
         selectedFill={clipFill}
-        shareImage={shareImage}
         showSyncLine={showSyncLine}
         streakDays={streakForClip}
       />
@@ -424,16 +388,16 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
 }
 
 /**
- * Clip finish: destinations (+ optional board switch). Close is the X in the
- * nav — no audience toggle, Save to Photos, Discard, or Not now.
+ * Clip finish: video page then poster page. Destinations send the page in
+ * front. Close is the X — no audience toggle, Save to Photos, Discard, or Not now.
  */
 function ClipFinishScreen({
   proof,
   friend,
   matchId,
   completedCount,
-  shareImage,
   onLeave,
+  onSelectFill,
   photoUri,
   poster,
   selectedFill,
@@ -447,8 +411,8 @@ function ClipFinishScreen({
   friend: ReturnType<typeof useFriendChallenge>;
   matchId?: string;
   completedCount?: number;
-  shareImage: ReturnType<typeof useShareCardImage>;
   onLeave: () => void;
+  onSelectFill: (id: ShareFillId) => void;
   photoUri?: string;
   poster: ReturnType<typeof posterForSuccess>;
   selectedFill: ShareFillId;
@@ -483,41 +447,15 @@ function ClipFinishScreen({
         ? `I did ${completedCount}. Think you can beat me?`
         : 'Think you can beat me?';
 
-  async function capturePosterUri(): Promise<string | null> {
-    if (!shareImage.shotRef.current) {
-      return null;
-    }
-    try {
-      return await captureRef(shareImage.shotRef, {
-        format: 'png',
-        quality: 1,
-        result: 'tmpfile',
-      });
-    } catch {
-      return null;
-    }
-  }
-
-  async function onDestination(id: ShareDestinationId | 'challenge') {
-    if (id === 'challenge') {
-      friend.challengeFriend();
-      return;
-    }
-
-    const posterUri = await capturePosterUri();
-
-    await openShareDestination(id, {
-      caption,
-      inviteUrl,
-      posterUri,
-      clipUri: proof.clip?.fileUri,
-      socialClipUri: proof.clip?.socialFileUri ?? null,
-    });
-
-    if (id === 'copy') {
-      setStatusNote(SHARE_DEST_COPY.copiedLink);
-    }
-  }
+  const clipMedia =
+    proof.clip?.fileUri != null
+      ? {
+          playUri: proof.clip.fileUri,
+          shareUri: proof.clip.fileUri,
+          socialShareUri: proof.clip.socialFileUri ?? null,
+          posterFrameUri: proof.clip.posterUri ?? null,
+        }
+      : null;
 
   function leave() {
     if (isGroup && postToBoard) {
@@ -547,10 +485,47 @@ function ClipFinishScreen({
           />
         </View>
       ) : null}
-      <View style={styles.body}>
-        {proof.isLoading ? (
-          <ActivityIndicator />
-        ) : (
+      <SetSharePager
+        caption={caption}
+        clip={clipMedia}
+        fillId={selectedFill}
+        footer={
+          <>
+            {isGroup ? (
+              <View style={styles.boardRow} testID="proof-group-board-row">
+                <Text style={styles.boardLabel}>{POSE_COPY.proofOnGroupBoard}</Text>
+                <Switch
+                  accessibilityLabel={POSE_COPY.proofOnGroupBoard}
+                  disabled={proof.isBusy}
+                  onValueChange={setPostToBoard}
+                  testID="proof-group-board-switch"
+                  thumbColor={colors.surface}
+                  trackColor={{ false: colors.tickIdle, true: colors.accent }}
+                  value={postToBoard}
+                />
+              </View>
+            ) : null}
+            {statusNote ? (
+              <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-status-line">
+                {statusNote}
+              </Text>
+            ) : null}
+          </>
+        }
+        inviteUrl={inviteUrl}
+        isClipLoading={proof.isLoading}
+        messages={
+          <>
+            {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
+            {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
+          </>
+        }
+        onChallenge={friend.challengeFriend}
+        onCopied={() => setStatusNote(SHARE_DEST_COPY.copiedLink)}
+        onSelectFill={onSelectFill}
+        photoUri={photoUri}
+        poster={poster}
+        renderVideo={() => (
           <ProofClipHero
             fill
             maxDurationSeconds={proofMaxDurationSeconds}
@@ -559,49 +534,11 @@ function ClipFinishScreen({
             showMeta={false}
           />
         )}
-        <View
-          collapsable={false}
-          pointerEvents="none"
-          ref={shareImage.shotRef}
-          style={styles.offscreenPoster}
-        >
-          <SharePosterCard
-            fillId={selectedFill}
-            photoUri={photoUri}
-            poster={poster}
-            runLine={posterRunLine(streakDays)}
-          />
-        </View>
-      </View>
-      <View style={styles.actions}>
-        {proof.error ? <DeckSheetMessage message={proof.error} /> : null}
-        {friend.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
-        <ShareDestinationRow
-          disabled={proof.isBusy}
-          onSelect={(id) => void onDestination(id)}
-          showChallenge={!isGroup && friend.isReady && friend.isOffered}
-          showClip
-        />
-        {isGroup ? (
-          <View style={styles.boardRow} testID="proof-group-board-row">
-            <Text style={styles.boardLabel}>{POSE_COPY.proofOnGroupBoard}</Text>
-            <Switch
-              accessibilityLabel={POSE_COPY.proofOnGroupBoard}
-              disabled={proof.isBusy}
-              onValueChange={setPostToBoard}
-              testID="proof-group-board-switch"
-              thumbColor={colors.surface}
-              trackColor={{ false: colors.tickIdle, true: colors.accent }}
-              value={postToBoard}
-            />
-          </View>
-        ) : null}
-        {statusNote ? (
-          <Text accessibilityLiveRegion="polite" style={styles.hint} testID="proof-status-line">
-            {statusNote}
-          </Text>
-        ) : null}
-      </View>
+        runLine={posterRunLine(streakDays)}
+        showChallenge={!isGroup && friend.isReady && friend.isOffered}
+        showCopy={Boolean(inviteUrl)}
+        destinationsDisabled={proof.isBusy}
+      />
     </SafeAreaView>
   );
 }
@@ -703,26 +640,35 @@ function SuccessActions({
       return;
     }
 
-    const posterUri = shareImage.shotRef.current
-      ? await captureRef(shareImage.shotRef, {
-          format: 'png',
-          quality: 1,
-          result: 'tmpfile',
-        }).catch(() => null)
-      : null;
+    shareImage.setIsSharing(true);
+    try {
+      const posterUri = shareImage.shotRef.current
+        ? await captureRef(shareImage.shotRef, {
+            format: 'png',
+            quality: 1,
+            result: 'tmpfile',
+          }).catch(() => null)
+        : null;
 
-    const caption =
-      completedCount != null && completedCount > 0
-        ? `I did ${completedCount}. Think you can beat me?`
-        : 'Think you can beat me?';
+      if (!posterUri) {
+        return;
+      }
 
-    await openShareDestination(id, {
-      caption,
-      posterUri,
-    });
+      const caption =
+        completedCount != null && completedCount > 0
+          ? `I did ${completedCount}. Think you can beat me?`
+          : 'Think you can beat me?';
 
-    if (id === 'copy') {
-      setStatusNote(SHARE_DEST_COPY.copiedLink);
+      await openShareDestination(id, {
+        caption,
+        artifact: { kind: 'image', posterUri },
+      });
+
+      if (id === 'copy') {
+        setStatusNote(SHARE_DEST_COPY.copiedLink);
+      }
+    } finally {
+      shareImage.setIsSharing(false);
     }
   }
 
@@ -744,6 +690,7 @@ function SuccessActions({
           disabled={shareImage.isSharing || friend.isCreating}
           onSelect={(id) => void onDestination(id)}
           showChallenge={!matchId && friend.isOffered}
+          showCopy={false}
         />
       </View>
       {statusNote ? (
@@ -888,12 +835,6 @@ const createStyles = (theme: Theme) =>
     },
     posterWrap: {
       marginTop: 18,
-    },
-    offscreenPoster: {
-      position: 'absolute',
-      left: -4000,
-      top: 0,
-      opacity: 0,
     },
     actions: {
       paddingHorizontal: spacing.lg,

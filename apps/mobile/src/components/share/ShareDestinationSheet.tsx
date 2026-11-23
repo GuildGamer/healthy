@@ -17,7 +17,6 @@ type ShareDestinationSheetProps = {
   /** After a destination opens (or Challenge is chosen). */
   onChallenge?: () => void;
   showChallenge?: boolean;
-  showClip?: boolean;
   title?: string;
   testID?: string;
 };
@@ -32,11 +31,11 @@ export function ShareDestinationSheet({
   onClose,
   onChallenge,
   showChallenge = false,
-  showClip = false,
   title = SHARE_DEST_COPY.sheetTitle,
   testID = 'share-destination-sheet',
 }: ShareDestinationSheetProps) {
   const styles = useThemedStyles(createStyles);
+  const showCopy = Boolean(payload.inviteUrl?.trim());
 
   async function onSelect(id: ShareDestinationSelectId) {
     if (id === 'challenge') {
@@ -60,7 +59,7 @@ export function ShareDestinationSheet({
         <ShareDestinationRow
           onSelect={(id) => void onSelect(id)}
           showChallenge={showChallenge}
-          showClip={showClip}
+          showCopy={showCopy}
         />
       </View>
     </DeckSheetModal>

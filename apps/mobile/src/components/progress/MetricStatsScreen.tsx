@@ -3,10 +3,12 @@ import { fontSize, fontWeight, spacing } from '@product/brand';
 import { matchMetricSchema } from '@product/contract/match-board';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeckPushedPage, DeckSegmented } from '@/components/deck';
 import { DECK_KIND_BY_METRIC } from '@/components/deck';
-import { defaultShareFillId } from '@/components/challenges/share-fill';
+import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
+import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
 import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
@@ -84,6 +86,7 @@ export function MetricStatsScreen() {
   const period = periodFromParam(params.period);
   const styles = useThemedStyles(createStyles);
   const { colors, deckCards } = useTheme();
+  const [fillId, setFillId] = useState<ShareFillId | null>(null);
 
   const statsQuery = useQuery({
     queryKey: ['progress', 'metric-stats', metric, period],
@@ -96,9 +99,11 @@ export function MetricStatsScreen() {
   const runLine = stats ? metricPeriodRunLine(stats) : null;
   const facts = stats ? metricPeriodFacts(stats) : [];
   const friendRoute = metric ? openFriendChallenge(metric) : null;
+  const selectedFill = fillId ?? (poster ? defaultShareFillId(poster.kind) : 'walk');
   const destinations = useShareDestinations({
     buildPayload: () => ({
       caption: stats ? metricPeriodShareText(stats) : PROGRESS_COPY.shareFallback,
+      artifact: { kind: 'image' },
     }),
     onChallenge: friendRoute ? () => router.push(friendRoute) : undefined,
   });
@@ -140,26 +145,17 @@ export function MetricStatsScreen() {
             <Text style={[styles.unit, { color: colors.muted }]}>{stats.unit}</Text>
           </View>
           <ProgressFactRow facts={facts} testID="metric-stats-facts" />
-          <View testID="metric-stats-share">
+          <View collapsable={false} ref={destinations.shotRef} style={styles.posterWrap}>
+            <SharePosterCard fillId={selectedFill} poster={poster} runLine={runLine} />
+          </View>
+          <View style={styles.shareBlock} testID="metric-stats-share">
+            <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
             <ShareDestinationRow
               disabled={destinations.isBusy}
               onSelect={destinations.select}
               showChallenge={friendRoute != null}
+              showCopy={false}
             />
-          </View>
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            pointerEvents="none"
-            style={styles.offscreen}
-          >
-            <View collapsable={false} ref={destinations.shotRef}>
-              <SharePosterCard
-                fillId={defaultShareFillId(poster.kind)}
-                poster={poster}
-                runLine={runLine}
-              />
-            </View>
           </View>
         </>
       ) : (
@@ -190,14 +186,16 @@ const createStyles = (_theme: Theme) =>
       fontSize: 17,
       fontWeight: fontWeight.medium,
     },
+    posterWrap: {
+      alignSelf: 'center',
+      marginTop: spacing.lg,
+    },
+    shareBlock: {
+      marginTop: spacing.lg,
+      gap: spacing.sm,
+    },
     failed: {
       marginTop: spacing.xl,
       fontSize: fontSize.sm,
-    },
-    offscreen: {
-      position: 'absolute',
-      left: -4000,
-      top: 0,
-      opacity: 0,
     },
   });

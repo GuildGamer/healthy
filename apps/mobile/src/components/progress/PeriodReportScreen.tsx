@@ -1,9 +1,11 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeckPushedPage, DeckSegmented } from '@/components/deck';
-import { defaultShareFillId } from '@/components/challenges/share-fill';
+import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
+import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
 import { ShareDestinationRow, useShareDestinations } from '@/components/share';
@@ -54,6 +56,7 @@ export function PeriodReportScreen() {
   const onDay = onDayFromParam(params.on);
   const styles = useThemedStyles(createStyles);
   const { colors, deckCards } = useTheme();
+  const [fillId, setFillId] = useState<ShareFillId | null>(null);
 
   const reportQuery = useQuery({
     queryKey: ['progress', 'period-report', period, onDay ?? 'today'],
@@ -64,9 +67,11 @@ export function PeriodReportScreen() {
   const poster = report ? periodReportPoster(report) : null;
   const runLine = report ? periodReportRunLine(report) : null;
   const facts = report ? periodReportFacts(report) : [];
+  const selectedFill = fillId ?? (poster ? defaultShareFillId(poster.kind) : 'streak');
   const destinations = useShareDestinations({
     buildPayload: () => ({
       caption: report ? periodReportShareText(report) : PROGRESS_COPY.shareFallback,
+      artifact: { kind: 'image' },
     }),
   });
 
@@ -97,25 +102,16 @@ export function PeriodReportScreen() {
             </Text>
           </View>
           <ProgressFactRow facts={facts} testID="period-report-facts" />
-          <View testID="period-report-share">
+          <View collapsable={false} ref={destinations.shotRef} style={styles.posterWrap}>
+            <SharePosterCard fillId={selectedFill} poster={poster} runLine={runLine} />
+          </View>
+          <View style={styles.shareBlock} testID="period-report-share">
+            <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
             <ShareDestinationRow
               disabled={destinations.isBusy}
               onSelect={destinations.select}
+              showCopy={false}
             />
-          </View>
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            pointerEvents="none"
-            style={styles.offscreen}
-          >
-            <View collapsable={false} ref={destinations.shotRef}>
-              <SharePosterCard
-                fillId={defaultShareFillId(poster.kind)}
-                poster={poster}
-                runLine={runLine}
-              />
-            </View>
           </View>
         </>
       ) : (
@@ -146,14 +142,16 @@ const createStyles = (_theme: Theme) =>
       fontSize: 17,
       fontWeight: fontWeight.medium,
     },
+    posterWrap: {
+      alignSelf: 'center',
+      marginTop: spacing.lg,
+    },
+    shareBlock: {
+      marginTop: spacing.lg,
+      gap: spacing.sm,
+    },
     failed: {
       marginTop: spacing.xl,
       fontSize: fontSize.sm,
-    },
-    offscreen: {
-      position: 'absolute',
-      left: -4000,
-      top: 0,
-      opacity: 0,
     },
   });

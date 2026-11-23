@@ -42,6 +42,7 @@ describe('ShareDestinationSheet', () => {
         payload={{
           caption: 'I did 40 push-ups. Think you can beat me?',
           inviteUrl: 'https://beatset.tech/match/tok',
+          artifact: { kind: 'link' },
         }}
         visible
       />,
@@ -54,6 +55,7 @@ describe('ShareDestinationSheet', () => {
         'whatsapp',
         expect.objectContaining({
           inviteUrl: 'https://beatset.tech/match/tok',
+          artifact: { kind: 'link' },
         }),
       );
       expect(onClose).toHaveBeenCalled();
@@ -67,7 +69,7 @@ describe('ShareDestinationSheet', () => {
       <ShareDestinationSheet
         onChallenge={onChallenge}
         onClose={onClose}
-        payload={{ caption: 'Think you can beat me?' }}
+        payload={{ caption: 'Think you can beat me?', artifact: { kind: 'link' } }}
         showChallenge
         visible
       />,

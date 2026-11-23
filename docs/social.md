@@ -493,20 +493,20 @@ the count lands; every control that is not sending gets out of the way. The
 same destination language applies to every shareable moment — a set, a day, a
 card, or an invite — not only proof finish.
 
-- **Default payload.** The deck poster (when there is one), a short caption
-  ("Think you can beat me?" on finishes), and the invite link when present.
-  Destinations (WhatsApp, Status, Instagram, Messages, Copy link, More) open
-  immediately. Never wait on an upload before the sheet or deep link.
+- **Artifact on screen.** Every destination sends the thing in front:
+  `video` (full clip; Status / Instagram prefer the ≤15s social cut),
+  `image` (the visible deck poster), or `link` (caption + invite URL). A
+  caption may ride with a file; it never replaces the file. Text deep links
+  (`whatsapp://`, `sms:`, `twitter://`) are only for `link`. Never wait on an
+  upload before the sheet or file handoff.
 - **In-place row vs sheet.** When the foot job is sharing, use the destination
   row on the screen. When Share is an icon or a post-create handoff, open
   `ShareDestinationSheet` with the same destinations.
-- **Clip finish chrome.** Clip → destinations → optional board switch → top X.
-  No audience toggle, Save to Photos, Discard, or Not now on finish. The
-  verification code stays burned into the video; do not repeat it under the
-  player on finish.
-- **The clip is a second, explicit send.** Send clip uses the file already on
-  the phone. The upload that makes the code checkable runs in the background
-  and never blocks a send.
+- **Set share with a clip.** Any set share that has a clip (clip finish and
+  `/challenge/share`) uses the same video ↔ poster pager. Destinations →
+  optional board switch on finish → top X. Colour swatches only on the poster
+  page. No audience toggle, Save to Photos, Discard, Send clip, or Not now on
+  finish. The verification code stays burned into the video.
 - **On the group board.** Inside a group contest this is a switch, default on.
   Leaving via X with it on posts the clip (`postedToGroupAt`). Each set may
   post its own clip. It is not a primary button and not a verb the person has

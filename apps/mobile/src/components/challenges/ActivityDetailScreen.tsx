@@ -138,7 +138,16 @@ function ActivityContent({ detail, onBack }: { detail: ActivityDetail; onBack: (
         {shareCard ? (
           <DeckButton
             label={ACTIVITY_COPY.shareCard}
-            onPress={() => router.push(shareCard)}
+            onPress={() =>
+              router.push(
+                clip.clipId
+                  ? {
+                      ...shareCard,
+                      params: { ...shareCard.params, clipId: clip.clipId },
+                    }
+                  : shareCard,
+              )
+            }
             testID="activity-detail-share-card"
             variant={clip.needsPublishActions ? 'quiet' : 'primary'}
           />

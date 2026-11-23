@@ -20,7 +20,10 @@ export function DayShareScreen({ content }: { content: DayShareContent }) {
   const [fillId, setFillId] = useState<ShareFillId>(() => defaultShareFillId('streak'));
   const caption = shareDayMessage(content.completedCount, content.streakDays);
   const destinations = useShareDestinations({
-    buildPayload: () => ({ caption }),
+    buildPayload: () => ({
+      caption,
+      artifact: { kind: 'image' },
+    }),
   });
 
   return (
@@ -49,6 +52,7 @@ export function DayShareScreen({ content }: { content: DayShareContent }) {
         <ShareDestinationRow
           disabled={destinations.isBusy}
           onSelect={destinations.select}
+          showCopy={false}
         />
       </View>
     </View>

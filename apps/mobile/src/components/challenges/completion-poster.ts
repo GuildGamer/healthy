@@ -86,12 +86,15 @@ export function completionShareRoute(input: {
   source: ReturnType<typeof friendSourceForCompletion>;
   userChallengeId: string;
   isEligible: boolean;
+  /** Opens the video ↔ poster pager when the set was filmed. */
+  clipId?: string | null;
 }): { pathname: '/challenge/share'; params: Record<string, string> } {
   return {
     pathname: '/challenge/share',
     params: {
       ...sharePosterParams(input.poster),
       ...shareFriendParams(input),
+      ...(input.clipId ? { clipId: input.clipId } : {}),
     },
   };
 }
@@ -103,6 +106,7 @@ export function dayCompletionShareRoute(item: ProgressDoneItem) {
     source: friendSourceForCompletion({ share: item.share, metric: item.capture.metric }),
     userChallengeId: item.userChallengeId,
     isEligible: true,
+    clipId: item.proofClip?.id ?? null,
   });
 }
 
@@ -135,12 +139,13 @@ export function dayContestShareRoute(item: ProgressContestSetItem) {
     }),
     userChallengeId: item.id,
     isEligible: false,
+    clipId: item.proofClip?.id ?? null,
   });
 }
 
 /** One row of a challenge's own history. A penalty skips the invite, as a penalised finish does. */
 export function historyCompletionShareRoute(
-  entry: Pick<ChallengeHistoryEntry, 'id' | 'completedAt' | 'log' | 'outcome'>,
+  entry: Pick<ChallengeHistoryEntry, 'id' | 'completedAt' | 'log' | 'outcome' | 'proofClip'>,
   challenge: CompletionChallenge | null,
 ) {
   const metric =
@@ -151,6 +156,7 @@ export function historyCompletionShareRoute(
     source: friendSourceForCompletion({ share: shareFromHistoryLog(entry.log), metric }),
     userChallengeId: entry.id,
     isEligible: entry.outcome !== 'penalized',
+    clipId: entry.proofClip?.id ?? null,
   });
 }
 

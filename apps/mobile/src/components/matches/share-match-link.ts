@@ -19,6 +19,7 @@ export function inviteSharePayload(options: ShareMatchLinkOptions): SharePayload
   return {
     caption: inviteShareMessage(options),
     inviteUrl: options.url,
+    artifact: { kind: 'link' },
   };
 }
 

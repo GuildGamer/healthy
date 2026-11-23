@@ -102,8 +102,9 @@ send it. No orphan card preview without a way to send it.
 
 | Role | Control | When |
 |---|---|---|
-| Primary | Destination row (WhatsApp, Status, Instagram, Messages, Copy link, More) | Default on finish, day done, history share, activity stats, period reports, group result |
-| Primary (clip finish) | Destination row + **Send clip**; optional group-board switch | Post-set when a proof clip is the hero |
+| Primary | Destination row (WhatsApp, Status, Instagram, Messages, Copy link, More) | Default on finish (poster), history share, day share, activity stats, period reports, group result |
+| Primary (set with clip) | Destination row for the page in front; optional group-board switch on finish | Video ↔ poster pager (finish and `/challenge/share`) |
+| Entry to day share | Share the day on Home day-done | Opens `/share/day` (poster + colour + destinations) |
 | Sheet | `ShareDestinationSheet` (caption + same row) | Share glyph / secondary chrome, or post-create invite handoffs (board, create group, run it back, challenge a friend) |
 | Secondary invite | Challenge disc on the destination row | Optional; never a second solid twin of Share |
 | Group board | Default-on switch, applied on leave | Clip finish inside a group; never a solid "Post to group" button |
@@ -112,17 +113,19 @@ send it. No orphan card preview without a way to send it.
 Rules:
 
 - The **destination row** is the default primary for shareable moments. Solid
-  full-width Share is retired on those feet.
+  full-width Share is retired on those feet (Home day-done is the entry to the
+  day share screen).
 - When Share is not the screen’s foot job, a Share glyph opens
   **ShareDestinationSheet** with the same destinations.
-- Clip finish is lean: clip hero, destinations, optional board switch, X to
-  leave. No audience toggle, Save to Photos, Discard, duplicate code, or
-  Not now on that foot. Audience stays a settings / History concern.
-- Destinations prefer deep links into WhatsApp / Messages / X / Instagram
-  Stories. Status attaches media so the system can offer Status. Overflow and
-  Send clip may still use the system sheet.
-- Send clip only when a clip URI exists. Challenge only when friend-challenge
-  is offered. Link-only payloads (invite URL + caption) are first-class.
+- Every destination sends the artifact on screen (`video`, `image`, or
+  `link`). Colour swatches recolour a poster and render only while that poster
+  is the visible share page.
+- Any set share with a clip uses the video/poster pager (finish and history
+  share). Finish adds optional board switch and X. No audience toggle, Save to
+  Photos, Discard, Send clip, duplicate code, or Not now on that foot.
+  Audience stays a settings / History concern.
+- Challenge only when friend-challenge is offered. Link-only payloads (invite
+  URL + caption) are first-class.
 - Report emails use **Open in Beatset** (deep link to `/progress/report`), not
   Share — sharing happens in-app from the report screen.
 - Activity stats and period reports live under You: week card opens the week
