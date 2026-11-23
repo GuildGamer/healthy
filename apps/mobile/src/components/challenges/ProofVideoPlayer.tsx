@@ -83,6 +83,8 @@ const createStyles = (theme: Theme) =>
     videoFill: {
       aspectRatio: undefined,
       flex: 1,
+      alignSelf: 'stretch',
+      width: '100%',
       height: '100%',
     },
     cover: {

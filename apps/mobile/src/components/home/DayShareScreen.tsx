@@ -5,19 +5,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
-import { DeckNavButton } from '@/components/deck';
-import { ShareCapture, ShareDestinationRow, useShareDestinations } from '@/components/share';
+import { DeckButton, DeckNavButton } from '@/components/deck';
+import type { SharePayload } from '@/components/matches/share-destination';
+import {
+  ShareCapture,
+  ShareDestinationSheet,
+  useShareDestinations,
+} from '@/components/share';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useThemedStyles } from '@/theme';
 import { DayShareCard } from './DayShareCard';
 import { shareDayMessage } from './today-labels';
 import type { DayShareContent } from './types/day-share';
 
-/** Preview the day’s share card, pick a colour, then send it to a destination. */
+/** Preview the day’s share card, pick a colour, then Share opens destinations. */
 export function DayShareScreen({ content }: { content: DayShareContent }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [fillId, setFillId] = useState<ShareFillId>(() => defaultShareFillId('streak'));
+  const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
   const caption = shareDayMessage(content.completedCount, content.streakDays);
   const destinations = useShareDestinations({
     buildPayload: () => ({
@@ -25,6 +31,17 @@ export function DayShareScreen({ content }: { content: DayShareContent }) {
       artifact: { kind: 'image' },
     }),
   });
+
+  async function onSharePress() {
+    if (destinations.isBusy) {
+      return;
+    }
+    const payload = await destinations.preparePayload();
+    if (!payload) {
+      return;
+    }
+    setSheetPayload(payload);
+  }
 
   return (
     <View
@@ -57,12 +74,21 @@ export function DayShareScreen({ content }: { content: DayShareContent }) {
       </ShareCapture>
       <View style={styles.actions}>
         <ShareFillCarousel onSelect={setFillId} selected={fillId} />
-        <ShareDestinationRow
+        <DeckButton
           disabled={destinations.isBusy}
-          onSelect={destinations.select}
-          showCopy={false}
+          label={SHARE_COPY.share}
+          onPress={() => void onSharePress()}
+          testID="day-share-open"
         />
       </View>
+      {sheetPayload ? (
+        <ShareDestinationSheet
+          onClose={() => setSheetPayload(null)}
+          payload={sheetPayload}
+          showCopy={false}
+          visible
+        />
+      ) : null}
     </View>
   );
 }

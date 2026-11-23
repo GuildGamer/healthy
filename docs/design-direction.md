@@ -107,25 +107,28 @@ send it. No orphan card preview without a way to send it.
 
 | Role | Control | When |
 |---|---|---|
-| Primary | Destination row (WhatsApp, Status, Instagram, Messages, Copy link, More) | Default on finish (poster), history share, day share, metric share, period share, group result |
-| Primary (set with clip) | Destination row for the page in front; optional group-board switch on finish | Video ↔ poster pager (finish and `/challenge/share`) |
-| Entry to day share | Share the day on Home day-done | Opens `/share/day` (poster + colour + destinations) |
+| Primary (poster + colour) | Colour carousel, then solid **Share** → sheet | Day, metric, period, history/set poster pages |
+| Primary (set with clip) | Colour on poster page; solid **Share** opens the sheet for the page in front | Video ↔ poster pager (finish and `/challenge/share`) |
+| Primary (group result) | Destination row | Match / group result foot |
+| Entry to day share | Share the day on Home day-done | Opens `/share/day` |
 | Entry to metric / period share | Share on activity stats or period report | Opens `/share/metric` or `/share/report` |
-| Sheet | `ShareDestinationSheet` (caption + same row) | Share glyph / secondary chrome, or post-create invite handoffs (board, create group, run it back, challenge a friend) |
-| Secondary invite | Challenge disc on the destination row | Optional; never a second solid twin of Share |
+| Sheet | `ShareDestinationSheet` (caption + destination row) | After Share on poster pages; Share glyph / invite handoffs |
+| Secondary invite | Challenge disc on the destination row (in the sheet) | Optional; never a second solid twin of Share |
 | Group board | Default-on switch, applied on leave | Clip finish inside a group; never a solid "Post to group" button |
 | Dismiss (clip finish) | Top-right **X** | Leaves the screen; applies the board switch if on |
 
 Rules:
 
-- The **destination row** is the default primary for shareable moments. Solid
-  full-width Share is the entry to a share page (Home day-done, activity
-  stats, period report), not a twin of the destination row on those feet.
+- Poster share pages with a colour carousel use **Share → sheet**, not an
+  inline destination row under the swatches.
+- Solid full-width Share on Home day-done / stats / report is the **entry** to
+  the share page; on the share page itself it opens the destination sheet.
 - When Share is not the screen’s foot job, a Share glyph opens
   **ShareDestinationSheet** with the same destinations.
 - Every destination sends the artifact on screen (`video`, `image`, or
   `link`). Colour swatches recolour a poster and render only while that poster
-  is the visible share page.
+  is the visible share page. In-app previews are **rounded**; exported PNGs are
+  **square** via `ShareCapture`.
 - Any set share with a clip uses the video/poster pager (finish and history
   share). Finish adds optional board switch and X. No audience toggle, Save to
   Photos, Discard, Send clip, duplicate code, or Not now on that foot.

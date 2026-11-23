@@ -9,9 +9,14 @@ import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import { SharePosterCard } from '@/components/challenges/SharePosterCard';
-import { DeckNavButton } from '@/components/deck';
+import { DeckButton, DeckNavButton } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
-import { ShareCapture, ShareDestinationRow, useShareDestinations } from '@/components/share';
+import type { SharePayload } from '@/components/matches/share-destination';
+import {
+  ShareCapture,
+  ShareDestinationSheet,
+  useShareDestinations,
+} from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useThemedStyles } from '@/theme';
@@ -23,7 +28,7 @@ import {
   metricPeriodShareText,
 } from './period-posters';
 
-/** Poster + colour + destinations for one metric period total. */
+/** Poster + colour + Share → destination sheet for one metric period total. */
 export function MetricShareScreen({
   metric,
   period,
@@ -35,6 +40,7 @@ export function MetricShareScreen({
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [fillId, setFillId] = useState<ShareFillId | null>(null);
+  const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
 
   const statsQuery = useQuery({
     queryKey: ['progress', 'metric-stats', metric, period],
@@ -53,6 +59,17 @@ export function MetricShareScreen({
     }),
     onChallenge: friendRoute ? () => router.push(friendRoute) : undefined,
   });
+
+  async function onSharePress() {
+    if (destinations.isBusy) {
+      return;
+    }
+    const payload = await destinations.preparePayload();
+    if (!payload) {
+      return;
+    }
+    setSheetPayload(payload);
+  }
 
   return (
     <View
@@ -100,13 +117,23 @@ export function MetricShareScreen({
           </ShareCapture>
           <View style={styles.actions}>
             <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
-            <ShareDestinationRow
+            <DeckButton
               disabled={destinations.isBusy}
-              onSelect={destinations.select}
-              showChallenge={friendRoute != null}
-              showCopy={false}
+              label={SHARE_COPY.share}
+              onPress={() => void onSharePress()}
+              testID="metric-share-open"
             />
           </View>
+          {sheetPayload ? (
+            <ShareDestinationSheet
+              onChallenge={friendRoute ? () => router.push(friendRoute) : undefined}
+              onClose={() => setSheetPayload(null)}
+              payload={sheetPayload}
+              showChallenge={friendRoute != null}
+              showCopy={false}
+              visible
+            />
+          ) : null}
         </>
       ) : (
         <Text style={styles.failed}>{PROGRESS_COPY.statsFailed}</Text>

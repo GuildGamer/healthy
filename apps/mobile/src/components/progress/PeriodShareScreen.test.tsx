@@ -54,14 +54,14 @@ beforeEach(() => {
 });
 
 describe('PeriodShareScreen', () => {
-  it('shows the poster, colour carousel, and destinations without Challenge', async () => {
+  it('shows the poster, colour carousel, and Share (destinations stay in the sheet)', async () => {
     const { cleanup } = renderShare();
 
     expect(await screen.findByTestId('period-share-screen')).toBeOnTheScreen();
     expect(await screen.findByTestId('share-poster-image')).toBeOnTheScreen();
     expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
-    expect(screen.queryByTestId('share-dest-challenge')).toBeNull();
+    expect(screen.getByTestId('period-share-open')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-destination-row')).toBeNull();
 
     await cleanup();
   });

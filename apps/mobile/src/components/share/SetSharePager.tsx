@@ -206,23 +206,23 @@ export function SetSharePager({
                 <View
                   style={[
                     styles.mediaFrame,
-                    item === 'poster' || item === 'photo'
-                      ? { width: mediaSize.width, height: mediaSize.height }
-                      : mediaSize,
-                    item === 'video' ? styles.mediaFrameClip : null,
+                    { width: mediaSize.width, height: mediaSize.height },
+                    item === 'video' ? styles.mediaFrameVideo : null,
                   ]}
                 >
                   {item === 'video' && clip ? (
-                    renderVideo ? (
-                      renderVideo(clip)
-                    ) : (
-                      <ProofVideoPlayer
-                        contentFit="contain"
-                        fillParent
-                        posterUri={clip.posterFrameUri}
-                        uri={clip.playUri}
-                      />
-                    )
+                    <View style={styles.videoFill}>
+                      {renderVideo ? (
+                        renderVideo(clip)
+                      ) : (
+                        <ProofVideoPlayer
+                          contentFit="contain"
+                          fillParent
+                          posterUri={clip.posterFrameUri}
+                          uri={clip.playUri}
+                        />
+                      )}
+                    </View>
                   ) : null}
                   {item === 'photo' && photoUri ? (
                     <ShareCapture shotRef={photoShotRef}>
@@ -373,10 +373,19 @@ const createStyles = (theme: Theme) =>
     mediaFrame: {
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    mediaFrameClip: {
       overflow: 'hidden',
+    },
+    mediaFrameVideo: {
+      // Stretch the player to the fitted 9:16 box — `alignItems: center` alone
+      // collapses a flex-fill video down to the play badge.
+      alignItems: 'stretch',
+      justifyContent: 'flex-start',
       borderRadius: 12,
+    },
+    videoFill: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
     },
     dots: {
       flexDirection: 'row',

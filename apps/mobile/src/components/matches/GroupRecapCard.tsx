@@ -48,7 +48,10 @@ export function GroupRecapCard({
   const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
-    <View style={styles.shell} testID={testID}>
+    <View
+      style={[styles.shell, corners === 'round' ? styles.shellRound : null]}
+      testID={testID}
+    >
       <View style={[styles.fill, { backgroundColor: tone.fill, borderRadius: radius }]} />
       <View style={styles.type}>
         {you ? (
@@ -106,6 +109,9 @@ const styles = StyleSheet.create({
   shell: {
     width: SHARE_POSTER_WIDTH,
     height: SHARE_POSTER_HEIGHT,
+  },
+  shellRound: {
+    borderRadius: SHARE_POSTER_RADIUS,
   },
   fill: {
     ...StyleSheet.absoluteFillObject,

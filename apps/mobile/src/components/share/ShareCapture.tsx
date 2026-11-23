@@ -4,8 +4,10 @@ import { SHARE_POSTER_WIDTH } from '@/components/challenges/SharePosterCard';
 import type { ShareCorners } from '@/components/challenges/GymPhotoShareCard';
 
 /**
- * Rounded preview on screen; square twin off-screen for `captureRef`. The twin
- * must not sit inside a clipped rounded parent, or the PNG stays rounded.
+ * Rounded preview on screen; square twin parked off-screen for `captureRef`.
+ * The twin must not sit inside a clipped rounded parent, or the PNG stays
+ * rounded. `overflow: hidden` on the root keeps a mis-parked twin from
+ * stacking on the preview (sharp corners + "two cards").
  */
 export function ShareCapture({
   shotRef,
@@ -24,6 +26,7 @@ export function ShareCapture({
         pointerEvents="none"
         ref={shotRef}
         style={styles.offscreen}
+        testID="share-capture-twin"
       >
         {children('square')}
       </View>
@@ -35,11 +38,14 @@ const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   offscreen: {
     position: 'absolute',
     top: 0,
-    left: -SHARE_POSTER_WIDTH * 4,
+    left: 0,
     width: SHARE_POSTER_WIDTH,
+    // translateX survives nested scales better than a raw negative `left`.
+    transform: [{ translateX: -SHARE_POSTER_WIDTH * 4 }],
   },
 });

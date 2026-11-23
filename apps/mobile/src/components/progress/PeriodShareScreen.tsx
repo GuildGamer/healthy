@@ -7,9 +7,14 @@ import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import { SharePosterCard } from '@/components/challenges/SharePosterCard';
-import { DeckNavButton } from '@/components/deck';
+import { DeckButton, DeckNavButton } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
-import { ShareCapture, ShareDestinationRow, useShareDestinations } from '@/components/share';
+import type { SharePayload } from '@/components/matches/share-destination';
+import {
+  ShareCapture,
+  ShareDestinationSheet,
+  useShareDestinations,
+} from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useThemedStyles } from '@/theme';
@@ -21,7 +26,7 @@ import {
   periodReportShareText,
 } from './period-posters';
 
-/** Poster + colour + destinations for a week / month / year recap. */
+/** Poster + colour + Share → destination sheet for a week / month / year recap. */
 export function PeriodShareScreen({
   period,
   onDay,
@@ -32,6 +37,7 @@ export function PeriodShareScreen({
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [fillId, setFillId] = useState<ShareFillId | null>(null);
+  const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
 
   const reportQuery = useQuery({
     queryKey: ['progress', 'period-report', period, onDay ?? 'today'],
@@ -48,6 +54,17 @@ export function PeriodShareScreen({
       artifact: { kind: 'image' },
     }),
   });
+
+  async function onSharePress() {
+    if (destinations.isBusy) {
+      return;
+    }
+    const payload = await destinations.preparePayload();
+    if (!payload) {
+      return;
+    }
+    setSheetPayload(payload);
+  }
 
   return (
     <View
@@ -95,12 +112,21 @@ export function PeriodShareScreen({
           </ShareCapture>
           <View style={styles.actions}>
             <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
-            <ShareDestinationRow
+            <DeckButton
               disabled={destinations.isBusy}
-              onSelect={destinations.select}
-              showCopy={false}
+              label={SHARE_COPY.share}
+              onPress={() => void onSharePress()}
+              testID="period-share-open"
             />
           </View>
+          {sheetPayload ? (
+            <ShareDestinationSheet
+              onClose={() => setSheetPayload(null)}
+              payload={sheetPayload}
+              showCopy={false}
+              visible
+            />
+          ) : null}
         </>
       ) : (
         <Text style={styles.failed}>{PROGRESS_COPY.reportFailed}</Text>

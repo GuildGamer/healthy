@@ -47,7 +47,10 @@ export function DayShareCard({
   const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
-    <View style={styles.shell} testID="home-day-share-card">
+    <View
+      style={[styles.shell, corners === 'round' ? styles.shellRound : null]}
+      testID="home-day-share-card"
+    >
       <View style={[styles.fill, { backgroundColor: fill, borderRadius: radius }]} />
       <View style={styles.type}>
         <View style={styles.top}>
@@ -83,6 +86,9 @@ const styles = StyleSheet.create({
   shell: {
     width: SHARE_POSTER_WIDTH,
     height: SHARE_POSTER_HEIGHT,
+  },
+  shellRound: {
+    borderRadius: SHARE_POSTER_RADIUS,
   },
   fill: {
     ...StyleSheet.absoluteFillObject,

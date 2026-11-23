@@ -53,7 +53,10 @@ export function SharePosterCard({
   const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
-    <View style={styles.shell} testID={testID}>
+    <View
+      style={[styles.shell, corners === 'round' ? styles.shellRound : null]}
+      testID={testID}
+    >
       <View style={[styles.fill, { backgroundColor: fill, borderRadius: radius }]}>
         {hasRoute && routePoints ? (
           <PosterRoute pathStroke={pathStroke} points={routePoints} />
@@ -131,10 +134,16 @@ function PosterRoute({
 }
 
 const styles = StyleSheet.create({
-  /** Outer shell keeps type outside the clipped fill so emoji paint on iOS. */
+  /**
+   * Outer shell keeps type outside a hard clip so emoji paint on iOS. Round
+   * preview still gets a soft silhouette via fill radius + shell radius.
+   */
   shell: {
     width: SHARE_POSTER_WIDTH,
     height: SHARE_POSTER_HEIGHT,
+  },
+  shellRound: {
+    borderRadius: SHARE_POSTER_RADIUS,
   },
   fill: {
     ...StyleSheet.absoluteFillObject,

@@ -34,7 +34,10 @@ export function HonorShareCard({
   const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
-    <View style={styles.shell} testID={`honor-share-card-${honor.kind}`}>
+    <View
+      style={[styles.shell, corners === 'round' ? styles.shellRound : null]}
+      testID={`honor-share-card-${honor.kind}`}
+    >
       <View
         style={[styles.fill, { backgroundColor: honorFillFor(honor.palette), borderRadius: radius }]}
       />
@@ -79,6 +82,9 @@ const styles = StyleSheet.create({
   shell: {
     width: SHARE_POSTER_WIDTH,
     height: SHARE_POSTER_HEIGHT,
+  },
+  shellRound: {
+    borderRadius: SHARE_POSTER_RADIUS,
   },
   fill: {
     ...StyleSheet.absoluteFillObject,

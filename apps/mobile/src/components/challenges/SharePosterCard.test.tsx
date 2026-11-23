@@ -59,11 +59,19 @@ describe('SharePosterCard', () => {
     render(<SharePosterCard corners="square" poster={walkPoster} runLine={null} />);
 
     const root = screen.getByTestId('share-poster-image');
+    expect(StyleSheet.flatten(root.props.style).borderRadius).toBeUndefined();
     const fillChild = root.children.find(
       (child: unknown): child is { props: { style?: unknown } } =>
         typeof child !== 'string' && child != null && typeof child === 'object',
     );
     expect(StyleSheet.flatten(fillChild?.props.style)?.borderRadius).toBe(0);
+  });
+
+  it('rounds the in-app preview shell', () => {
+    render(<SharePosterCard corners="round" poster={walkPoster} runLine={null} />);
+
+    const root = screen.getByTestId('share-poster-image');
+    expect(StyleSheet.flatten(root.props.style).borderRadius).toBe(26);
   });
 
   it('overrides the kind fill when fillId is set', () => {

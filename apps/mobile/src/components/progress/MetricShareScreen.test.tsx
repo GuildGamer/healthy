@@ -65,14 +65,14 @@ beforeEach(() => {
 });
 
 describe('MetricShareScreen', () => {
-  it('shows the poster, colour carousel, destinations, and Challenge', async () => {
+  it('shows the poster, colour carousel, and Share (Challenge lives in the sheet)', async () => {
     const { cleanup } = renderShare();
 
     expect(await screen.findByTestId('metric-share-screen')).toBeOnTheScreen();
     expect(await screen.findByTestId('share-poster-image')).toBeOnTheScreen();
     expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-dest-challenge')).toBeOnTheScreen();
+    expect(screen.getByTestId('metric-share-open')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-destination-row')).toBeNull();
 
     await cleanup();
   });
