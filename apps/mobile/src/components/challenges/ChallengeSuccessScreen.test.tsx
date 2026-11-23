@@ -140,15 +140,13 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     jest.restoreAllMocks();
   });
 
-  it('makes the clip the one job: destinations, X close, no busy chrome', async () => {
+  it('makes the clip the one job: Share button, X close, no busy chrome', async () => {
     renderSuccess(clipFinish);
 
     expect(await screen.findByTestId('proof-clip-hero')).toBeOnTheScreen();
     expect(screen.getByTestId('challenge-success-close')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-dest-whatsapp')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-dest-x')).toBeOnTheScreen();
-    expect(screen.queryByTestId('share-dest-clip')).toBeNull();
+    expect(screen.getByTestId('set-share-open')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-destination-row')).toBeNull();
     expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
     expect(screen.queryByText('42BW-A7J4')).toBeNull();
     expect(screen.queryByTestId('proof-discard')).toBeNull();
@@ -165,7 +163,8 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
 
     renderSuccess(clipFinish);
     await screen.findByTestId('proof-clip-hero');
-    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    fireEvent.press(await screen.findByTestId('share-dest-overflow'));
 
     await waitFor(() => {
       expect(openShareDestination).toHaveBeenCalledWith(
@@ -197,7 +196,8 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     expect(await screen.findByTestId('share-fill-carousel')).toBeOnTheScreen();
     expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    fireEvent.press(await screen.findByTestId('share-dest-overflow'));
 
     await waitFor(() => {
       expect(openShareDestination).toHaveBeenCalledWith(
@@ -212,7 +212,7 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     });
   });
 
-  it('keeps share destinations under the clip — tap does not push the bare viewer', async () => {
+  it('keeps Share under the clip — tap does not push the bare viewer', async () => {
     const { useRouter } = jest.requireMock('expo-router') as {
       useRouter: () => { push: jest.Mock };
     };
@@ -223,7 +223,7 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     fireEvent.press(await screen.findByTestId('proof-clip-watch'));
 
     expect(push).not.toHaveBeenCalled();
-    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
+    expect(screen.getByTestId('set-share-open')).toBeOnTheScreen();
   });
 
   it('defaults the group board switch on for a group set', async () => {
@@ -363,6 +363,7 @@ describe('ChallengeSuccessScreen share card', () => {
     await waitFor(() => {
       expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
     });
+    fireEvent.press(screen.getByTestId('set-share-open'));
     expect(screen.queryByTestId('share-dest-challenge')).toBeNull();
     expect(screen.getByText('Not now')).toBeOnTheScreen();
 
@@ -402,9 +403,11 @@ describe('ChallengeSuccessScreen share card', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('share-dest-challenge')).toBeOnTheScreen();
+      expect(screen.getByTestId('set-share-open')).toBeOnTheScreen();
     });
     expect(screen.getByText('Think a friend can beat you?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    expect(await screen.findByTestId('share-dest-challenge')).toBeOnTheScreen();
     expect(screen.getByLabelText('Challenge')).toBeOnTheScreen();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
     expect(screen.getByText('Not now')).toBeOnTheScreen();
@@ -414,8 +417,10 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess({ completedCount: 20, title: 'Do 20 push-ups' });
 
     await waitFor(() => {
-      expect(screen.getByTestId('share-dest-challenge')).toBeOnTheScreen();
+      expect(screen.getByTestId('set-share-open')).toBeOnTheScreen();
     });
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    expect(await screen.findByTestId('share-dest-challenge')).toBeOnTheScreen();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
     expect(screen.getByText('Not now')).toBeOnTheScreen();
   });
@@ -462,8 +467,10 @@ describe('ChallengeSuccessScreen share card', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('share-dest-challenge')).toBeOnTheScreen();
+      expect(screen.getByTestId('set-share-open')).toBeOnTheScreen();
     });
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    expect(await screen.findByTestId('share-dest-challenge')).toBeOnTheScreen();
   });
 
   it('hides share after a missed photo check', () => {
@@ -486,7 +493,8 @@ describe('ChallengeSuccessScreen share card', () => {
       expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
     });
 
-    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    fireEvent.press(await screen.findByTestId('share-dest-overflow'));
 
     await waitFor(() => {
       expect(captureRef).toHaveBeenCalledWith(

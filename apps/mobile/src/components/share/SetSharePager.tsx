@@ -10,7 +10,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { DeckButton } from '@/components/deck';
 import type { ShareDestinationId } from '@/components/matches/share-destination';
+import type { SharePayload } from '@/components/matches/share-destination';
 import type { ShareRoutePoint } from '@/lib/share-route-path';
 import { type Theme, useThemedStyles } from '@/theme';
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
@@ -21,8 +23,8 @@ import {
 import type { ShareFillId } from '@/components/challenges/share-fill';
 import type { SharePoster } from '@/components/challenges/types/share-poster';
 import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
-import { SHARE_DEST_COPY } from './constants/share-copy';
-import { ShareDestinationRow } from './ShareDestinationRow';
+import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
+import { ShareDestinationSheet } from './ShareDestinationSheet';
 import { useShareDestinations } from './useShareDestinations';
 
 export type SetSharePage = 'video' | 'poster';
@@ -55,11 +57,11 @@ type SetSharePagerProps = {
   onChallenge?: () => void;
   onCopied?: () => void;
   onShared?: (id: ShareDestinationId) => void;
-  /** Errors / notes above the destination row. */
+  /** Errors / notes above the Share button. */
   messages?: ReactNode;
-  /** Board switch and status lines under destinations. */
+  /** Board switch and status lines under Share. */
   footer?: ReactNode;
-  /** Horizontal inset for the destination foot. Default matches clip finish. */
+  /** Horizontal inset for the foot. Default matches clip finish. */
   actionsInset?: number;
   pagerTestID?: string;
   listTestID?: string;
@@ -67,10 +69,11 @@ type SetSharePagerProps = {
 };
 
 const PAGES_WITH_CLIP: SetSharePage[] = ['video', 'poster'];
+const MEDIA_ASPECT = 9 / 16;
 
 /**
  * Video ↔ poster pager for any set share. Colour swatches only on the poster
- * page. Destinations send the artifact for the page in front.
+ * page. One Share button opens the destination sheet for the page in front.
  */
 export function SetSharePager({
   clip,
@@ -100,8 +103,8 @@ export function SetSharePager({
   const styles = useThemedStyles(createStyles);
   const { width: windowWidth } = useWindowDimensions();
   const [activePage, setActivePage] = useState<SetSharePage>('video');
-  const [measuredWidth, setMeasuredWidth] = useState(0);
-  const pageWidth = measuredWidth > 0 ? measuredWidth : Math.max(windowWidth - spacing.lg * 2, 1);
+  const [slot, setSlot] = useState({ width: 0, height: 0 });
+  const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
 
   const pages: SetSharePage[] = clip
     ? PAGES_WITH_CLIP
@@ -109,8 +112,12 @@ export function SetSharePager({
       ? (['video'] as SetSharePage[])
       : (['poster'] as SetSharePage[]);
   const showPosterPage = !clip ? !isClipLoading : activePage === 'poster';
+  const pageWidth = slot.width > 0 ? slot.width : Math.max(windowWidth - spacing.lg * 2, 1);
+  const mediaSize = fitPortraitMedia(pageWidth, slot.height);
   const posterScale =
-    pageWidth === 0 || pageWidth > SHARE_POSTER_WIDTH ? 1 : pageWidth / SHARE_POSTER_WIDTH;
+    mediaSize.width === 0 || mediaSize.width > SHARE_POSTER_WIDTH
+      ? 1
+      : mediaSize.width / SHARE_POSTER_WIDTH;
 
   const destinations = useShareDestinations({
     buildPayload: () => {
@@ -137,12 +144,14 @@ export function SetSharePager({
     },
   });
 
-  function onCarouselLayout(event: LayoutChangeEvent) {
-    const nextWidth = event.nativeEvent.layout.width;
-    if (nextWidth <= 0) {
+  function onSlotLayout(event: LayoutChangeEvent) {
+    const { width, height } = event.nativeEvent.layout;
+    if (width <= 0 || height <= 0) {
       return;
     }
-    setMeasuredWidth((current) => (current > 0 ? current : nextWidth));
+    setSlot((current) =>
+      current.width === width && current.height === height ? current : { width, height },
+    );
   }
 
   function onScrollEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -156,22 +165,26 @@ export function SetSharePager({
     }
   }
 
-  function onSelectDestination(id: Parameters<typeof destinations.select>[0]) {
-    if (id !== 'challenge') {
-      onShared?.(id);
+  async function onSharePress() {
+    if (destinationsDisabled || destinations.isBusy) {
+      return;
     }
-    destinations.select(id);
+    const payload = await destinations.preparePayload();
+    if (!payload) {
+      return;
+    }
+    setSheetPayload(payload);
   }
 
   return (
-    <>
-      <View onLayout={onCarouselLayout} style={styles.pager} testID={pagerTestID}>
+    <View style={styles.root} testID={pagerTestID}>
+      <View onLayout={onSlotLayout} style={styles.mediaSlot}>
         {isClipLoading ? (
           <ActivityIndicator />
         ) : (
           <FlatList
             data={pages}
-            extraData={pageWidth}
+            extraData={`${pageWidth}:${mediaSize.width}:${mediaSize.height}`}
             getItemLayout={(_, index) => ({
               length: pageWidth,
               offset: pageWidth * index,
@@ -185,80 +198,121 @@ export function SetSharePager({
             testID={listTestID}
             renderItem={({ item }) => (
               <View style={[styles.page, { width: pageWidth }]}>
-                {item === 'video' && clip ? (
-                  renderVideo ? (
-                    renderVideo(clip)
-                  ) : (
-                    <ProofVideoPlayer
-                      posterUri={clip.posterFrameUri}
-                      uri={clip.playUri}
-                    />
-                  )
-                ) : null}
-                {item === 'poster' ? (
-                  <View
-                    collapsable={false}
-                    ref={destinations.shotRef}
-                    style={[styles.posterCapture, { transform: [{ scale: posterScale }] }]}
-                    testID={posterTestID}
-                  >
-                    <SharePosterCard
-                      fillId={fillId}
-                      photoUri={photoUri ?? undefined}
-                      poster={poster}
-                      routePoints={routePoints}
-                      runLine={runLine}
-                    />
-                  </View>
-                ) : null}
+                <View style={[styles.mediaFrame, mediaSize]}>
+                  {item === 'video' && clip ? (
+                    renderVideo ? (
+                      renderVideo(clip)
+                    ) : (
+                      <ProofVideoPlayer
+                        contentFit="contain"
+                        fillParent
+                        posterUri={clip.posterFrameUri}
+                        uri={clip.playUri}
+                      />
+                    )
+                  ) : null}
+                  {item === 'poster' ? (
+                    <View
+                      collapsable={false}
+                      ref={destinations.shotRef}
+                      style={[styles.posterCapture, { transform: [{ scale: posterScale }] }]}
+                      testID={posterTestID}
+                    >
+                      <SharePosterCard
+                        fillId={fillId}
+                        photoUri={photoUri ?? undefined}
+                        poster={poster}
+                        routePoints={routePoints}
+                        runLine={runLine}
+                      />
+                    </View>
+                  ) : null}
+                </View>
               </View>
             )}
             showsHorizontalScrollIndicator={false}
             style={{ width: pageWidth }}
           />
         )}
-        {pages.length > 1 ? (
-          <View style={styles.dots}>
-            {pages.map((page) => (
-              <View
-                key={page}
-                style={[styles.dot, page === activePage ? styles.dotOn : null]}
-              />
-            ))}
-          </View>
-        ) : null}
       </View>
+      {pages.length > 1 ? (
+        <View style={styles.dots}>
+          {pages.map((page) => (
+            <View
+              key={page}
+              style={[styles.dot, page === activePage ? styles.dotOn : null]}
+            />
+          ))}
+        </View>
+      ) : null}
       <View style={[styles.actions, { paddingHorizontal: actionsInset }]}>
         {messages}
         {showPosterPage ? (
           <ShareFillCarousel onSelect={onSelectFill} selected={fillId} />
         ) : null}
-        <ShareDestinationRow
+        <DeckButton
           disabled={destinationsDisabled || destinations.isBusy}
-          onSelect={onSelectDestination}
-          showChallenge={showChallenge}
-          showCopy={showCopy}
+          label={SHARE_COPY.share}
+          onPress={() => void onSharePress()}
+          testID="set-share-open"
         />
         {footer}
       </View>
-    </>
+      {sheetPayload ? (
+        <ShareDestinationSheet
+          onChallenge={onChallenge}
+          onClose={() => setSheetPayload(null)}
+          onShared={(id) => {
+            onShared?.(id);
+            if (id === 'copy') {
+              onCopied?.();
+            }
+          }}
+          payload={sheetPayload}
+          showChallenge={showChallenge}
+          showCopy={showCopy}
+          visible
+        />
+      ) : null}
+    </View>
   );
+}
+
+/** Largest 9:16 box that fits inside the measured media slot. */
+function fitPortraitMedia(maxWidth: number, maxHeight: number): { width: number; height: number } {
+  if (maxWidth <= 0 || maxHeight <= 0) {
+    return { width: 0, height: 0 };
+  }
+  const heightFromWidth = maxWidth / MEDIA_ASPECT;
+  if (heightFromWidth <= maxHeight) {
+    return { width: maxWidth, height: heightFromWidth };
+  }
+  return { width: maxHeight * MEDIA_ASPECT, height: maxHeight };
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    pager: {
+    root: {
       flex: 1,
       minHeight: 0,
-      paddingTop: spacing.md,
+    },
+    mediaSlot: {
+      flex: 1,
+      minHeight: 0,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     page: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: spacing.lg,
       minHeight: 0,
+    },
+    mediaFrame: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      borderRadius: 12,
     },
     posterCapture: {
       alignItems: 'center',
@@ -280,7 +334,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.text,
     },
     actions: {
-      paddingTop: spacing.lg,
+      paddingTop: spacing.md,
       paddingBottom: spacing.sm,
       gap: spacing.md,
     },

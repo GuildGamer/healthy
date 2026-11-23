@@ -17,11 +17,8 @@ import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
 import { SyncStatusLine } from '@/components/feedback/SyncStatusLine';
 import { inviteShareMessage } from '@/components/matches/invite-message';
 import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
-import {
-  openShareDestination,
-  type ShareDestinationId,
-} from '@/components/matches/share-destination';
-import { SHARE_DEST_COPY, SetSharePager, ShareDestinationRow } from '@/components/share';
+import type { SharePayload } from '@/components/matches/share-destination';
+import { SHARE_DEST_COPY, SetSharePager, ShareDestinationSheet } from '@/components/share';
 import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
@@ -34,7 +31,7 @@ import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 import { clearPendingSharePhoto, pendingSharePhotoFor } from '@/lib/share-card-session';
 import { trackEvent } from '@/lib/track-event';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
-import { POSE_COPY } from './constants/doing-copy';
+import { POSE_COPY, SHARE_COPY } from './constants/doing-copy';
 import { FRIEND_CHALLENGE_COPY } from './constants/friend-challenge';
 import { SUCCESS_COPY } from './constants/success-copy';
 import { friendChallengeSpec } from './friend-challenge';
@@ -388,8 +385,8 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
 }
 
 /**
- * Clip finish: video page then poster page. Destinations send the page in
- * front. Close is the X — no audience toggle, Save to Photos, Discard, or Not now.
+ * Clip finish: video ↔ poster, colour on the card, one Share button → sheet.
+ * Close is the X — no audience toggle, Save to Photos, Discard, or Not now.
  */
 function ClipFinishScreen({
   proof,
@@ -633,10 +630,10 @@ function SuccessActions({
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [statusNote, setStatusNote] = useState<string | null>(null);
+  const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
 
-  async function onDestination(id: ShareDestinationId | 'challenge') {
-    if (id === 'challenge') {
-      friend.challengeFriend();
+  async function onSharePress() {
+    if (shareImage.isSharing || friend.isCreating) {
       return;
     }
 
@@ -659,14 +656,10 @@ function SuccessActions({
           ? `I did ${completedCount}. Think you can beat me?`
           : 'Think you can beat me?';
 
-      await openShareDestination(id, {
+      setSheetPayload({
         caption,
         artifact: { kind: 'image', posterUri },
       });
-
-      if (id === 'copy') {
-        setStatusNote(SHARE_DEST_COPY.copiedLink);
-      }
     } finally {
       shareImage.setIsSharing(false);
     }
@@ -686,17 +679,32 @@ function SuccessActions({
         {friend.isOffered ? FRIEND_CHALLENGE_COPY.prompt : SUCCESS_COPY.sharePrompt}
       </Text>
       <View testID="challenge-success-share">
-        <ShareDestinationRow
+        <DeckButton
           disabled={shareImage.isSharing || friend.isCreating}
-          onSelect={(id) => void onDestination(id)}
-          showChallenge={!matchId && friend.isOffered}
-          showCopy={false}
+          label={SHARE_COPY.share}
+          onPress={() => void onSharePress()}
+          testID="set-share-open"
         />
       </View>
       {statusNote ? (
         <Text accessibilityLiveRegion="polite" style={styles.hint}>
           {statusNote}
         </Text>
+      ) : null}
+      {sheetPayload ? (
+        <ShareDestinationSheet
+          onChallenge={friend.challengeFriend}
+          onClose={() => setSheetPayload(null)}
+          onShared={(id) => {
+            if (id === 'copy') {
+              setStatusNote(SHARE_DEST_COPY.copiedLink);
+            }
+          }}
+          payload={sheetPayload}
+          showChallenge={!matchId && friend.isOffered}
+          showCopy={false}
+          visible
+        />
       ) : null}
     </>
   );

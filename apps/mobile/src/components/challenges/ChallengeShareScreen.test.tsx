@@ -148,7 +148,7 @@ jest.mock('@/lib/proof-clip-store', () => ({
 }));
 
 describe('ChallengeShareScreen with a clip', () => {
-  it('pages video then poster; colours only on the poster; destinations match the page', async () => {
+  it('pages video then poster; colours only on the poster; Share sheet matches the page', async () => {
     const { openShareDestination } = jest.requireMock(
       '@/components/matches/share-destination',
     ) as { openShareDestination: jest.Mock };
@@ -159,7 +159,8 @@ describe('ChallengeShareScreen with a clip', () => {
 
     expect(await screen.findByTestId('clip-finish-pager')).toBeOnTheScreen();
     expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
-    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    fireEvent.press(await screen.findByTestId('share-dest-overflow'));
 
     await waitFor(() => {
       expect(openShareDestination).toHaveBeenCalledWith(
@@ -180,7 +181,8 @@ describe('ChallengeShareScreen with a clip', () => {
     expect(await screen.findByTestId('share-fill-carousel')).toBeOnTheScreen();
     expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
     openShareDestination.mockClear();
-    fireEvent.press(screen.getByTestId('share-dest-overflow'));
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    fireEvent.press(await screen.findByTestId('share-dest-overflow'));
 
     await waitFor(() => {
       expect(openShareDestination).toHaveBeenCalledWith(
@@ -197,6 +199,7 @@ describe('ChallengeShareScreen with a clip', () => {
 
     expect(await screen.findByTestId('share-poster')).toBeOnTheScreen();
     expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
+    expect(screen.getByTestId('set-share-open')).toBeOnTheScreen();
     expect(screen.queryByTestId('clip-finish-pager')).toBeNull();
   });
 });
@@ -248,6 +251,7 @@ describe('ChallengeShareScreen friend invite', () => {
     const view = renderShare(pushups, pushupFriend);
 
     expect(await screen.findByTestId('share-poster')).toBeOnTheScreen();
+    fireEvent.press(await screen.findByTestId('set-share-open'));
     fireEvent.press(await screen.findByTestId('share-dest-challenge'));
 
     await waitFor(() => {
@@ -289,6 +293,7 @@ describe('ChallengeShareScreen friend invite', () => {
     const view = renderShare(pushups, pushupFriend);
 
     expect(await screen.findByTestId('share-poster')).toBeOnTheScreen();
+    fireEvent.press(await screen.findByTestId('set-share-open'));
     expect(await screen.findByTestId('share-dest-challenge')).toBeOnTheScreen();
     await view.settle();
   });
@@ -301,6 +306,7 @@ describe('ChallengeShareScreen friend invite', () => {
     });
     const view = renderShare(reading, readingFriend);
 
+    fireEvent.press(await screen.findByTestId('set-share-open'));
     fireEvent.press(await screen.findByTestId('share-dest-challenge'));
 
     await waitFor(() => {

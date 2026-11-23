@@ -70,11 +70,20 @@ export function ProofClipHero({
       ) : (
         <View style={posterStyle} testID="proof-clip-watch">
           {clip.fileUri ? (
-            <ProofVideoPlayer posterUri={clip.posterUri} uri={clip.fileUri} />
+            <ProofVideoPlayer
+              contentFit={fill ? 'contain' : 'cover'}
+              fillParent={fill}
+              posterUri={clip.posterUri}
+              uri={clip.fileUri}
+            />
           ) : (
             <>
               {clip.posterUri ? (
-                <Image source={{ uri: clip.posterUri }} style={StyleSheet.absoluteFill} />
+                <Image
+                  resizeMode={fill ? 'contain' : 'cover'}
+                  source={{ uri: clip.posterUri }}
+                  style={StyleSheet.absoluteFill}
+                />
               ) : null}
               <ProofPlayBadge />
             </>
@@ -245,8 +254,12 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     posterFill: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
+      aspectRatio: undefined,
       maxWidth: '100%',
-      alignSelf: 'center',
+      alignSelf: 'stretch',
     },
     posterCompact: {
       height: PANEL_POSTER_MAX_HEIGHT,

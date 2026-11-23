@@ -47,35 +47,44 @@ export function useShareDestinations(options: UseShareDestinationsOptions) {
     }
   }
 
+  async function preparePayload(): Promise<SharePayload | null> {
+    setIsBusy(true);
+    try {
+      const base = options.buildPayload();
+      const artifact = await resolveArtifact(base.artifact, capturePosterUri);
+      if (!artifact) {
+        return null;
+      }
+      return {
+        caption: base.caption,
+        inviteUrl: base.inviteUrl,
+        artifact,
+      };
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function select(id: ShareDestinationSelectId) {
     if (id === 'challenge') {
       options.onChallenge?.();
       return;
     }
 
-    setIsBusy(true);
-    try {
-      const base = options.buildPayload();
-      const artifact = await resolveArtifact(base.artifact, capturePosterUri);
-      if (!artifact) {
-        return;
-      }
-      await openShareDestination(id as ShareDestinationId, {
-        caption: base.caption,
-        inviteUrl: base.inviteUrl,
-        artifact,
-      });
-      if (id === 'copy') {
-        options.onCopied?.();
-      }
-    } finally {
-      setIsBusy(false);
+    const payload = await preparePayload();
+    if (!payload) {
+      return;
+    }
+    await openShareDestination(id as ShareDestinationId, payload);
+    if (id === 'copy') {
+      options.onCopied?.();
     }
   }
 
   return {
     shotRef,
     isBusy,
+    preparePayload,
     select: (id: ShareDestinationSelectId) => void select(id),
   };
 }

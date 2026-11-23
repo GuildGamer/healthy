@@ -16,26 +16,33 @@ type ShareDestinationSheetProps = {
   onClose: () => void;
   /** After a destination opens (or Challenge is chosen). */
   onChallenge?: () => void;
+  /** Fired after a social destination opens (not Challenge). */
+  onShared?: (id: ShareDestinationId) => void;
   showChallenge?: boolean;
+  /** Override invite-based Copy visibility. */
+  showCopy?: boolean;
   title?: string;
   testID?: string;
 };
 
 /**
- * Destinations for chrome that cannot host a permanent row: board share link,
- * post-create invite handoffs, and similar.
+ * Destinations behind a single Share action: finish/share screens, board
+ * invite handoffs, and similar.
  */
 export function ShareDestinationSheet({
   visible,
   payload,
   onClose,
   onChallenge,
+  onShared,
   showChallenge = false,
+  showCopy,
   title = SHARE_DEST_COPY.sheetTitle,
   testID = 'share-destination-sheet',
 }: ShareDestinationSheetProps) {
   const styles = useThemedStyles(createStyles);
-  const showCopy = Boolean(payload.inviteUrl?.trim());
+  const copyVisible =
+    showCopy === undefined ? Boolean(payload.inviteUrl?.trim()) : showCopy;
 
   async function onSelect(id: ShareDestinationSelectId) {
     if (id === 'challenge') {
@@ -45,6 +52,7 @@ export function ShareDestinationSheet({
     }
 
     await openShareDestination(id as ShareDestinationId, payload);
+    onShared?.(id as ShareDestinationId);
     onClose();
   }
 
@@ -59,7 +67,7 @@ export function ShareDestinationSheet({
         <ShareDestinationRow
           onSelect={(id) => void onSelect(id)}
           showChallenge={showChallenge}
-          showCopy={showCopy}
+          showCopy={copyVisible}
         />
       </View>
     </DeckSheetModal>

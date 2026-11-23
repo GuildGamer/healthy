@@ -5,7 +5,10 @@ import type {
   ProgressPracticeItem,
 } from '@product/client';
 import { useRouter } from 'expo-router';
-import { dayCompletionShareRoute } from '@/components/challenges/completion-poster';
+import {
+  dayCompletionShareRoute,
+  dayContestShareRoute,
+} from '@/components/challenges/completion-poster';
 import { ACTIVITY_COPY } from '@/components/challenges/constants/doing-copy';
 import {
   DECK_KIND_BY_METRIC,
@@ -33,16 +36,10 @@ function activityRoute(dayKey: string, itemId: string) {
 }
 
 /**
- * Each challenge finished that day. A filmed set opens activity detail (clip
- * first); an unfilmed set opens the poster share screen.
+ * Each challenge finished that day. Opens the share screen directly (video ↔
+ * card when a clip exists). No intermediate detail page.
  */
-export function DayDoneRows({
-  dayKey,
-  items,
-}: {
-  dayKey: string;
-  items: readonly ProgressDoneItem[];
-}) {
+export function DayDoneRows({ items }: { items: readonly ProgressDoneItem[] }) {
   const router = useRouter();
 
   return (
@@ -58,13 +55,7 @@ export function DayDoneRows({
               <DeckDisc glyph={hasClip ? 'play' : undefined} kind={deckCardKindFor(item)} />
             }
             meta={doneMeta(item)}
-            onPress={() =>
-              router.push(
-                hasClip
-                  ? activityRoute(dayKey, item.userChallengeId)
-                  : dayCompletionShareRoute(item),
-              )
-            }
+            onPress={() => router.push(dayCompletionShareRoute(item))}
             testID={`history-done-${item.userChallengeId}`}
             title={item.title}
             trailing={<DeckRowAmount text={doneAmount(item)} />}
@@ -103,12 +94,7 @@ export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
         />
       ))}
       {contestSets.map((set) => (
-        <ContestSetRow
-          dayKey={detail.dayKey}
-          isFirst={takeFirst()}
-          key={set.id}
-          set={set}
-        />
+        <ContestSetRow isFirst={takeFirst()} key={set.id} set={set} />
       ))}
       {detail.practice.map((session) => (
         <PracticeRow
@@ -138,11 +124,9 @@ export function DayAlsoRows({ detail }: { detail: ProgressDayDetail }) {
 }
 
 function ContestSetRow({
-  dayKey,
   set,
   isFirst,
 }: {
-  dayKey: string;
   set: ProgressContestSetItem;
   isFirst: boolean;
 }) {
@@ -160,7 +144,7 @@ function ContestSetRow({
         />
       }
       meta={clockTime(set.recordedAt)}
-      onPress={() => router.push(activityRoute(dayKey, set.id))}
+      onPress={() => router.push(dayContestShareRoute(set))}
       testID={`history-contest-${set.id}`}
       title={set.title}
       trailing={<DeckRowAmount text={contestSetAmount(set)} />}

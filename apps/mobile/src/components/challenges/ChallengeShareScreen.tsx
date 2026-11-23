@@ -3,15 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DeckNavButton, DeckSheetMessage } from '@/components/deck';
+import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
 import { trackEvent } from '@/lib/analytics';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { clearPendingShareRoute } from '@/lib/share-card-session';
 import type { ShareRoutePoint } from '@/lib/share-route-path';
+import type { SharePayload } from '@/components/matches/share-destination';
 import {
   SetSharePager,
-  ShareDestinationRow,
+  ShareDestinationSheet,
   useShareDestinations,
 } from '@/components/share';
 import { type Theme, useThemedStyles } from '@/theme';
@@ -27,7 +28,7 @@ import type { ShareFriend } from './types/friend-challenge';
 import type { SharePoster } from './types/share-poster';
 import { useShareClipMedia } from './useShareClipMedia';
 
-/** Exactly the image that will be posted, then one-tap destinations to send it. */
+/** Share surface: media (and colour on the card), then one Share button → sheet. */
 export function ChallengeShareScreen({
   poster,
   friend = null,
@@ -162,6 +163,7 @@ function PosterOnlyShare({
   onChallenge: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
+  const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
   const destinations = useShareDestinations({
     buildPayload: () => ({
       caption: posterShareText(poster),
@@ -170,40 +172,63 @@ function PosterOnlyShare({
     onChallenge,
   });
 
+  async function onSharePress() {
+    if (destinationsDisabled || destinations.isBusy) {
+      return;
+    }
+    const payload = await destinations.preparePayload();
+    if (!payload) {
+      return;
+    }
+    setSheetPayload(payload);
+  }
+
   return (
-    <>
-      <View
-        collapsable={false}
-        ref={destinations.shotRef}
-        style={styles.posterWrap}
-        testID="share-poster"
-      >
-        <SharePosterCard
-          fillId={fillId}
-          photoUri={photoUri}
-          poster={poster}
-          routePoints={routePoints}
-          runLine={runLine}
-        />
+    <View style={styles.posterOnly}>
+      <View style={styles.posterSlot}>
+        <View
+          collapsable={false}
+          ref={destinations.shotRef}
+          style={styles.posterWrap}
+          testID="share-poster"
+        >
+          <SharePosterCard
+            fillId={fillId}
+            photoUri={photoUri}
+            poster={poster}
+            routePoints={routePoints}
+            runLine={runLine}
+          />
+        </View>
       </View>
       {inviteFailed ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
       <View style={styles.actions}>
         <ShareFillCarousel onSelect={onSelectFill} selected={fillId} />
-        <ShareDestinationRow
+        <DeckButton
           disabled={destinationsDisabled || destinations.isBusy}
-          onSelect={(id) => {
+          label={SHARE_COPY.share}
+          onPress={() => void onSharePress()}
+          testID="set-share-open"
+        />
+      </View>
+      {sheetPayload ? (
+        <ShareDestinationSheet
+          onChallenge={onChallenge}
+          onClose={() => setSheetPayload(null)}
+          onShared={(id) => {
             trackEvent('share_completed', {
               surface: 'challenge_poster',
               completed: true,
               destination: id,
             });
-            destinations.select(id);
           }}
+          payload={sheetPayload}
           showChallenge={showChallenge}
           showCopy={false}
+          visible
         />
-      </View>
-    </>
+      ) : null}
+    </View>
   );
 }
 
@@ -233,12 +258,21 @@ const createStyles = (theme: Theme) =>
     navSpacer: {
       width: 40,
     },
+    posterOnly: {
+      flex: 1,
+      minHeight: 0,
+    },
+    posterSlot: {
+      flex: 1,
+      minHeight: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     posterWrap: {
       alignSelf: 'center',
-      marginTop: 18,
     },
     actions: {
-      marginTop: 'auto',
       gap: spacing.sm,
+      paddingBottom: spacing.sm,
     },
   });
