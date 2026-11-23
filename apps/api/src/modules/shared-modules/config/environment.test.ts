@@ -18,7 +18,7 @@ describe('readEnvironment', () => {
     expect(environment.adminBootstrapEmail).toBeNull();
     expect(environment.testingMembership).toBe(true);
     expect(environment.proofClipEncoding).toEqual({
-      bitRate: 4_500_000,
+      bitRate: 8_000_000,
       frameRate: 30,
       width: 1080,
       height: 1920,

@@ -82,6 +82,9 @@ final class HealthyQuickPoseView: ExpoView {
   private var hasStarted = false
   private var currentFeatures: [(String, QuickPose.Feature)] = []
   private var proofRecorder: ProofRecorder?
+  /// Samples the camera at the encode rate. Pose callbacks are slower than 30 fps.
+  private var proofCaptureTimer: DispatchSourceTimer?
+  private static let proofCaptureMaxFrameRate = 30.0
   private let countEngine = PoseCountEngine()
   private let countQueue = DispatchQueue(label: "healthy.quickpose.count")
   private static let sessionTeardownQueue = DispatchQueue(label: "healthy.quickpose.session-teardown")
@@ -155,12 +158,9 @@ final class HealthyQuickPoseView: ExpoView {
     attachPreview(from: cam)
 
     qp.start(features: mapped.map(\.1), onFrame: { [weak self] status, image, featureResults, feedback, landmarks in
-      // Overlay + proof append on main; counting stays off the JS bridge.
+      // Overlay on main; counting stays off the JS bridge. Proof frames come from the capture timer.
       DispatchQueue.main.async {
         self?.overlayView.image = image
-        if let recorder = self?.proofRecorder, recorder.isRecording {
-          recorder.append(cameraFrame: self?.frameTap?.newestFrame())
-        }
       }
       self?.publishFrame(
         status: status,
@@ -319,6 +319,7 @@ final class HealthyQuickPoseView: ExpoView {
           !code.isEmpty,
           let maxDurationSeconds = config["maxDurationSeconds"] as? Double
     else {
+      stopProofCaptureLoop()
       if proofRecorder?.isRecording == true {
         proofRecorder?.cancel()
       }
@@ -338,6 +339,7 @@ final class HealthyQuickPoseView: ExpoView {
       return
     }
 
+    let frameRate = Self.doubleValue(config["frameRate"], fallback: 30)
     let recorder = ProofRecorder()
     do {
       overlayFromNative = true
@@ -350,14 +352,15 @@ final class HealthyQuickPoseView: ExpoView {
         mirrorsCamera: useFrontCamera,
         maxDurationSeconds: maxDurationSeconds,
         encoding: ProofRecorder.Encoding(
-          bitRate: Self.intValue(config["bitRate"], fallback: 1_500_000),
-          frameRate: Self.doubleValue(config["frameRate"], fallback: 24),
-          width: Self.intValue(config["width"], fallback: 720),
-          height: Self.intValue(config["height"], fallback: 1280)
+          bitRate: Self.intValue(config["bitRate"], fallback: 8_000_000),
+          frameRate: frameRate,
+          width: Self.intValue(config["width"], fallback: 1080),
+          height: Self.intValue(config["height"], fallback: 1920)
         )
       )
       proofRecorder = recorder
       frameTap?.setKeepingFrames(true)
+      startProofCaptureLoop(frameRate: frameRate)
     } catch {
       onProofRecordingError(["message": "Could not start proof recording."])
       proofRecorder = nil
@@ -378,9 +381,34 @@ final class HealthyQuickPoseView: ExpoView {
     return fallback
   }
 
+  /// Pulls the newest camera buffer at the encode rate, capped at 30 fps.
+  private func startProofCaptureLoop(frameRate: Double) {
+    stopProofCaptureLoop()
+    let framesPerSecond = min(Self.proofCaptureMaxFrameRate, max(1, frameRate))
+    let timer = DispatchSource.makeTimerSource(queue: .main)
+    timer.schedule(deadline: .now(), repeating: 1.0 / framesPerSecond, leeway: .milliseconds(2))
+    timer.setEventHandler { [weak self] in
+      guard let self else { return }
+      guard let recorder = self.proofRecorder, recorder.isRecording else {
+        self.stopProofCaptureLoop()
+        return
+      }
+      recorder.append(cameraFrame: self.frameTap?.newestFrame())
+    }
+    proofCaptureTimer = timer
+    timer.resume()
+  }
+
+  private func stopProofCaptureLoop() {
+    proofCaptureTimer?.setEventHandler {}
+    proofCaptureTimer?.cancel()
+    proofCaptureTimer = nil
+  }
+
   /// Ends the clip and emits `onProofRecorded` with file URIs and the hash.
   func finishProofRecording() {
     guard let recorder = proofRecorder, recorder.isRecording else { return }
+    stopProofCaptureLoop()
     frameTap?.setKeepingFrames(false)
     let endAt = finishProofEndAtMs > 0 ? finishProofEndAtMs : nil
     recorder.finish(endAtWallMs: endAt) { [weak self] result in
@@ -436,6 +464,7 @@ final class HealthyQuickPoseView: ExpoView {
   }
 
   private func stop() {
+    stopProofCaptureLoop()
     if proofRecorder?.isRecording == true {
       proofRecorder?.cancel()
     }

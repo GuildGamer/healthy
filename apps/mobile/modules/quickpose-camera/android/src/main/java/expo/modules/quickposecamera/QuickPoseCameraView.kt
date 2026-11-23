@@ -538,10 +538,10 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     const val LANDMARK_MIN_VISIBILITY = 0.2f
     const val START_FAILED = "Could not start proof recording."
     const val FINISH_FAILED = "Could not finish proof recording."
-    const val DEFAULT_BIT_RATE = 1_500_000
-    const val DEFAULT_FRAME_RATE = 24
-    const val DEFAULT_WIDTH = 720
-    const val DEFAULT_HEIGHT = 1280
+    const val DEFAULT_BIT_RATE = 8_000_000
+    const val DEFAULT_FRAME_RATE = 30
+    const val DEFAULT_WIDTH = 1080
+    const val DEFAULT_HEIGHT = 1920
     /** Cap proof capture at ~30 fps even when encoding asks for more. */
     const val PROOF_CAPTURE_MIN_INTERVAL_MS = 33L
     /** Coalesce JS onUpdate to ~30 Hz unless count changes. */

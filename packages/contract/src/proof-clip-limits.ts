@@ -31,10 +31,10 @@ export const PROOF_CLIP_HARD_RETENTION_DAYS = 90;
 
 /**
  * Default encoder profile when the server omits `encoding` (older API) or the
- * device is offline — 1080×1920 at 30 fps, ~4.5 Mbps. That bitrate still looks
- * sharp after Instagram / WhatsApp / X re-encode without inflating the file.
+ * device is offline — 1080×1920 H.264 at 30 fps, ~8 Mbps. Headroom so the
+ * picture still looks sharp after Instagram / WhatsApp / X re-encode.
  */
-export const PROOF_CLIP_DEFAULT_BIT_RATE = 4_500_000;
+export const PROOF_CLIP_DEFAULT_BIT_RATE = 8_000_000;
 export const PROOF_CLIP_DEFAULT_FRAME_RATE = 30;
 export const PROOF_CLIP_DEFAULT_WIDTH = 1080;
 export const PROOF_CLIP_DEFAULT_HEIGHT = 1920;

@@ -315,7 +315,7 @@ internal class ProofRecorder(private val context: Context) {
     private const val PROOF_CLIPS_FOLDER = "proof-clips"
     private const val DEFAULT_WIDTH = 1080
     private const val DEFAULT_HEIGHT = 1920
-    private const val DEFAULT_BIT_RATE = 4_500_000
+    private const val DEFAULT_BIT_RATE = 8_000_000
     private const val SOCIAL_CUT_MAX_SECONDS = 15
     private const val DEFAULT_FRAME_RATE = 30
     private const val BIT_RATE_MIN = 50_000

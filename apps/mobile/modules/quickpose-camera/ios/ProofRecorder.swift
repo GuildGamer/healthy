@@ -49,7 +49,7 @@ final class ProofRecorder {
   /// Defaults when JS sends an unusable value (social-safe vertical).
   private static let defaultWidth = 1080
   private static let defaultHeight = 1920
-  private static let defaultBitRate = 4_500_000
+  private static let defaultBitRate = 8_000_000
   private static let defaultFrameRate = 30.0
   private static let socialCutMaxSeconds: Double = 15
   private static let timescale: CMTimeScale = 600
@@ -236,11 +236,14 @@ final class ProofRecorder {
     inFlightLock.unlock()
   }
 
-  /// Real elapsed time keeps playback at the speed it happened; the gap caps the clip to the target fps.
+  /// Real elapsed time keeps playback at the speed it happened. The gap caps the
+  /// clip to the target fps, with slack so a timer firing a few milliseconds early
+  /// is not dropped (that would cut the clip to about half the target rate).
   private func isDueForFrame(at elapsedSeconds: Double) -> Bool {
     guard elapsedSeconds <= maxDurationSeconds else { return false }
     guard let lastFrameSeconds else { return true }
-    return elapsedSeconds - lastFrameSeconds >= minimumFrameGapSeconds
+    let slack = minimumFrameGapSeconds * 0.2
+    return elapsedSeconds - lastFrameSeconds + slack >= minimumFrameGapSeconds
   }
 
   private func cameraImage(from frame: CVPixelBuffer) -> UIImage? {
@@ -327,6 +330,8 @@ final class ProofRecorder {
 
   /**
    * Last `socialCutMaxSeconds` of the finished clip for Stories / Status.
+   * Remuxes the master so frame rate and bitrate stay intact. A high-quality
+   * re-encode is only the fallback when passthrough cannot trim.
    * Returns nil when the full clip is already within that length, or when
    * export fails — callers then share the full file.
    */
@@ -335,15 +340,31 @@ final class ProofRecorder {
       return nil
     }
 
+    let start = max(0, durationSeconds - socialCutMaxSeconds)
+    let timeRange = CMTimeRange(
+      start: CMTime(seconds: start, preferredTimescale: timescale),
+      duration: CMTime(seconds: socialCutMaxSeconds, preferredTimescale: timescale)
+    )
+    if let remuxed = writeSocialCut(
+      from: source,
+      timeRange: timeRange,
+      presetName: AVAssetExportPresetPassthrough
+    ) {
+      return remuxed
+    }
+    return writeSocialCut(
+      from: source,
+      timeRange: timeRange,
+      presetName: AVAssetExportPresetHighestQuality
+    )
+  }
+
+  /// Trims `source` to `timeRange` with the given preset. Nil when export does not finish.
+  private static func writeSocialCut(from source: URL, timeRange: CMTimeRange, presetName: String) -> URL? {
     let asset = AVURLAsset(url: source)
-    guard let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetMediumQuality) else {
+    guard let export = AVAssetExportSession(asset: asset, presetName: presetName) else {
       return nil
     }
-
-    let start = max(0, durationSeconds - socialCutMaxSeconds)
-    let startTime = CMTime(seconds: start, preferredTimescale: timescale)
-    let cutDuration = CMTime(seconds: socialCutMaxSeconds, preferredTimescale: timescale)
-    export.timeRange = CMTimeRange(start: startTime, duration: cutDuration)
 
     let stamp = Int(Date().timeIntervalSince1970 * 1000)
     guard let directory = try? durableDirectory() else {
@@ -355,6 +376,7 @@ final class ProofRecorder {
     }
     export.outputURL = destination
     export.outputFileType = .mp4
+    export.timeRange = timeRange
 
     let gate = DispatchSemaphore(value: 0)
     export.exportAsynchronously {
