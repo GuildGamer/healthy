@@ -20,19 +20,24 @@ export function HonorShareCard({
   board,
   honor,
   isHolder,
+  corners = 'round',
 }: {
   board: MatchBoard;
   honor: MatchHonor;
   isHolder: boolean;
+  corners?: 'round' | 'square';
 }) {
   const challenge = honorChallengeTitle(board);
   const title = honorCardTitle(honor, isHolder);
   const standing = board.standings.find((row) => row.userId === honor.userId);
   const ink = honorInkFor(honor.palette);
+  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
     <View style={styles.shell} testID={`honor-share-card-${honor.kind}`}>
-      <View style={[styles.fill, { backgroundColor: honorFillFor(honor.palette) }]} />
+      <View
+        style={[styles.fill, { backgroundColor: honorFillFor(honor.palette), borderRadius: radius }]}
+      />
       <View style={styles.type}>
         <View style={styles.identity}>
           <GroupFace
@@ -79,7 +84,6 @@ const styles = StyleSheet.create({
   },
   fill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: SHARE_POSTER_RADIUS,
     overflow: 'hidden',
   },
   type: {

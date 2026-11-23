@@ -7,25 +7,48 @@ import type { ObjectHead, ObjectStorage, PresignedPut } from './object-storage.j
  * do not pull the AWS SDK into the API process. Provider types stay here.
  */
 export function createS3CompatibleObjectStorage(config: S3StorageConfig): ObjectStorage {
+  async function presignPut(input: {
+    key: string;
+    contentType: string;
+    byteSize: number;
+    checksumSha256Base64?: string;
+  }): Promise<PresignedPut> {
+    const headers: Record<string, string> = {
+      'Content-Type': input.contentType,
+    };
+    if (input.checksumSha256Base64) {
+      headers['x-amz-checksum-sha256'] = input.checksumSha256Base64;
+    }
+
+    const url = await signUrl({
+      config,
+      method: 'PUT',
+      key: input.key,
+      expiresInSeconds: 15 * 60,
+      headers,
+      unsignedPayload: true,
+    });
+
+    return { url, headers };
+  }
+
   return {
-    async presignPut(input): Promise<PresignedPut> {
-      const headers: Record<string, string> = {
-        'Content-Type': input.contentType,
-      };
-      if (input.checksumSha256Base64) {
-        headers['x-amz-checksum-sha256'] = input.checksumSha256Base64;
-      }
+    presignPut,
 
-      const url = await signUrl({
-        config,
-        method: 'PUT',
+    async put(input): Promise<void> {
+      const signed = await presignPut({
         key: input.key,
-        expiresInSeconds: 15 * 60,
-        headers,
-        unsignedPayload: true,
+        contentType: input.contentType,
+        byteSize: input.body.byteLength,
       });
-
-      return { url, headers };
+      const response = await fetch(signed.url, {
+        method: 'PUT',
+        headers: signed.headers,
+        body: new Uint8Array(input.body),
+      });
+      if (!response.ok) {
+        throw new Error(`Object put failed with status ${response.status}`);
+      }
     },
 
     async presignGet(key, ttlSeconds): Promise<string> {

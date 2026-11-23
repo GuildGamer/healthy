@@ -37,6 +37,8 @@ import {
   challengeAccessFilter,
 } from '../../../shared/membership/entitlements.js';
 import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { ENVIRONMENT } from '../../shared-modules/config/config.tokens.js';
+import type { Environment } from '../../shared-modules/config/environment.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import {
   createAcceptEvidenceValidator,
@@ -44,6 +46,10 @@ import {
   type EvidenceValidator,
 } from '../../shared-modules/evidence/index.js';
 import { EngagementDeliveryService } from '../../shared-modules/engagement/index.js';
+import {
+  OBJECT_STORAGE,
+  type ObjectStorage,
+} from '../../shared-modules/storage/index.js';
 import {
   MATCHES_SERVICE,
   type PoseContestCreditor,
@@ -59,7 +65,15 @@ import type {
   SurpriseEvidenceRequestDto,
   TodayChallengeDto,
 } from './dto/index.js';
+import {
+  GYM_PHOTO_CONTENT_TYPE,
+  GYM_PHOTO_SIGNED_URL_TTL_SECONDS,
+} from './constants/gym-photo.js';
 import { requireEvidenceFor, type ChallengeEvidenceInput } from './evidence.js';
+import {
+  computeGymPhotoExpiry,
+  gymPhotoObjectKey,
+} from './gym-photo-expiry.js';
 import {
   clampedPenalty,
   requireSurprisePhoto,
@@ -211,6 +225,12 @@ export class ChallengesService {
     surpriseRoll?: () => number,
     @Optional()
     private readonly delivery?: EngagementDeliveryService,
+    @Optional()
+    @Inject(OBJECT_STORAGE)
+    private readonly storage?: ObjectStorage,
+    @Optional()
+    @Inject(ENVIRONMENT)
+    private readonly environment?: Environment,
   ) {
     this.surpriseRoll = surpriseRoll ?? Math.random;
   }
@@ -402,7 +422,48 @@ export class ChallengesService {
       return this.openSurpriseRequest(user, assignment, reading);
     }
 
-    return this.rewardCompletion(user, assignment, reading, log, activity, { creditContests });
+    const gymPhoto = photo
+      ? await this.storeGymSharePhoto(user.id, assignment.id, photo)
+      : null;
+
+    return this.rewardCompletion(user, assignment, reading, log, activity, {
+      creditContests,
+      gymPhoto,
+    });
+  }
+
+  /**
+   * Owner-only signed URL for a gym finish selfie that is still within retention.
+   * Never throws for a missing or foreign id — returns null so History stays card-only.
+   */
+  async getGymSharePhoto(
+    currentUser: AuthenticatedUser | null | undefined,
+    userChallengeId: string,
+  ): Promise<{ photoUrl: string | null }> {
+    const user = requireUser(currentUser);
+    const row = await this.prisma.userChallenge.findFirst({
+      where: { id: userChallengeId, userId: user.id },
+      select: { photoKey: true, photoExpiresAt: true },
+    });
+
+    if (!row?.photoKey || !row.photoExpiresAt || row.photoExpiresAt.getTime() <= Date.now()) {
+      return { photoUrl: null };
+    }
+
+    if (!this.storage || this.environment?.storage.mode === 'disabled') {
+      return { photoUrl: null };
+    }
+
+    try {
+      const photoUrl = await this.storage.presignGet(
+        row.photoKey,
+        GYM_PHOTO_SIGNED_URL_TTL_SECONDS,
+      );
+      return { photoUrl };
+    } catch (error) {
+      this.logger.warn(`Failed to sign gym photo for ${userChallengeId}`, error);
+      return { photoUrl: null };
+    }
   }
 
   /**
@@ -578,9 +639,13 @@ export class ChallengesService {
     reading: ChallengeVitalsInput | null,
     log: ChallengeLogPayload | null = null,
     activity: DeviceActivity | null = null,
-    options: { creditContests?: boolean } = {},
+    options: {
+      creditContests?: boolean;
+      gymPhoto?: { photoKey: string; photoExpiresAt: Date } | null;
+    } = {},
   ): Promise<CompleteChallengeDto> {
     const creditContests = options.creditContests !== false;
+    const gymPhoto = options.gymPhoto ?? null;
     const idempotencyKey = `challenge_complete:${assignment.id}`;
     const rewardPoints = assignment.challenge.rewardPoints;
     const displayTitle = challengeDisplayTitle(assignment);
@@ -593,6 +658,15 @@ export class ChallengesService {
       });
 
       if (existingLedger) {
+        if (gymPhoto) {
+          await tx.userChallenge.update({
+            where: { id: assignment.id },
+            data: {
+              photoKey: gymPhoto.photoKey,
+              photoExpiresAt: gymPhoto.photoExpiresAt,
+            },
+          });
+        }
         const profile = await tx.userProfile.findUniqueOrThrow({
           where: { userId: user.id },
         });
@@ -615,6 +689,9 @@ export class ChallengesService {
           completedAt: new Date(),
           draft: Prisma.DbNull,
           draftUpdatedAt: null,
+          ...(gymPhoto
+            ? { photoKey: gymPhoto.photoKey, photoExpiresAt: gymPhoto.photoExpiresAt }
+            : {}),
         },
         include: ASSIGNMENT_INCLUDE,
       });
@@ -1246,6 +1323,39 @@ export class ChallengesService {
     });
 
     return effectiveMembershipActive(profile?.membershipActive);
+  }
+
+  /**
+   * Persists a validated gym selfie for History share. Storage failure is
+   * logged and the finish still rewards without a photoKey.
+   */
+  private async storeGymSharePhoto(
+    userId: string,
+    userChallengeId: string,
+    photo: ChallengeEvidenceInput,
+  ): Promise<{ photoKey: string; photoExpiresAt: Date } | null> {
+    if (!this.storage || this.environment?.storage.mode === 'disabled') {
+      return null;
+    }
+
+    const photoKey = gymPhotoObjectKey(userId, userChallengeId);
+    const membershipActive = await this.membershipActiveFor(userId);
+    const photoExpiresAt = computeGymPhotoExpiry({
+      completedAt: new Date(),
+      membershipActive,
+    });
+
+    try {
+      await this.storage.put({
+        key: photoKey,
+        body: Buffer.from(photo.imageBase64, 'base64'),
+        contentType: photo.mimeType === 'image/png' ? 'image/png' : GYM_PHOTO_CONTENT_TYPE,
+      });
+      return { photoKey, photoExpiresAt };
+    } catch (error) {
+      this.logger.warn(`Failed to store gym photo for ${userChallengeId}`, error);
+      return null;
+    }
   }
 
   private async ensureProfile(userId: string) {

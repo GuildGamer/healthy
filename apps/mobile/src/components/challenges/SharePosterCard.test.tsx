@@ -46,27 +46,15 @@ describe('SharePosterCard', () => {
     expect(screen.getByText('minutes walked')).toBeTruthy();
   });
 
-  it('prefers the gym selfie over a route when both are passed', () => {
-    render(
-      <SharePosterCard
-        photoUri="file://gym.jpg"
-        poster={{
-          kind: 'gym',
-          label: 'Gym check-in',
-          value: '08:00',
-          unit: 'at the gym',
-          when: '2026-10-23T08:00:00.000Z',
-        }}
-        routePoints={[
-          { latitude: 51.5, longitude: -0.13 },
-          { latitude: 51.51, longitude: -0.12 },
-        ]}
-        runLine={null}
-      />,
-    );
+  it('keeps square corners when asked for a capture twin', () => {
+    render(<SharePosterCard corners="square" poster={walkPoster} runLine={null} />);
 
-    expect(screen.getByTestId('share-poster-photo')).toBeTruthy();
-    expect(screen.queryByTestId('share-poster-route')).toBeNull();
+    const root = screen.getByTestId('share-poster-image');
+    const fillChild = root.children.find(
+      (child: unknown): child is { props: { style?: unknown } } =>
+        typeof child !== 'string' && child != null && typeof child === 'object',
+    );
+    expect(StyleSheet.flatten(fillChild?.props.style)?.borderRadius).toBe(0);
   });
 
   it('overrides the kind fill when fillId is set', () => {

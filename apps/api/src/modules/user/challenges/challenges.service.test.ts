@@ -17,6 +17,8 @@ function createService(
   evidenceValidator?: unknown,
   delivery?: { send: ReturnType<typeof vi.fn> },
   matches: { creditPosePractice: ReturnType<typeof vi.fn> } = createMatchesSpy(),
+  storage?: { put: ReturnType<typeof vi.fn>; presignGet: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> },
+  environment?: { storage: { mode: 'disabled' | 's3' } },
 ): ChallengesService {
   return new ChallengesService(
     prisma as never,
@@ -25,6 +27,8 @@ function createService(
     evidenceValidator as never,
     undefined,
     delivery as never,
+    storage as never,
+    environment as never,
   );
 }
 
@@ -778,6 +782,180 @@ describe('ChallengesService.complete', () => {
     });
     expect(matches.creditPosePractice).not.toHaveBeenCalled();
   });
+
+  it('stores an accepted gym photo with a 1-day expiry when membership is off', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+        surpriseEvidenceChancePercent: 0,
+      },
+    });
+    const { prisma, tx } = createCompletePrismaMock(assignment);
+    const put = vi.fn().mockResolvedValue(undefined);
+    const service = createService(
+      prisma,
+      { validateGymPhoto: async () => ({ accepted: true }), validatePhoto: async () => ({ accepted: true }) },
+      undefined,
+      undefined,
+      { put, presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(
+      service.complete(user, 'uc1', undefined, {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    expect(put).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'gym-photos/u1/uc1.jpg', contentType: 'image/jpeg' }),
+    );
+    expect(tx.userChallenge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          photoKey: 'gym-photos/u1/uc1.jpg',
+          photoExpiresAt: expect.any(Date),
+        }),
+      }),
+    );
+    const updateCall = tx.userChallenge.update.mock.calls[0]?.[0] as {
+      data: { photoExpiresAt: Date };
+    };
+    const expiresAt = updateCall.data.photoExpiresAt.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    expect(expiresAt).toBeGreaterThan(Date.now() + dayMs * 0.9);
+    expect(expiresAt).toBeLessThan(Date.now() + dayMs * 1.1);
+  });
+
+  it('stores an accepted gym photo with a 30-day expiry when membership is on', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+        surpriseEvidenceChancePercent: 0,
+      },
+    });
+    const { prisma, tx } = createCompletePrismaMock(assignment, { membershipActive: true });
+    const put = vi.fn().mockResolvedValue(undefined);
+    const service = createService(
+      prisma,
+      { validateGymPhoto: async () => ({ accepted: true }), validatePhoto: async () => ({ accepted: true }) },
+      undefined,
+      undefined,
+      { put, presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(
+      service.complete(user, 'uc1', undefined, {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    const updateCall = tx.userChallenge.update.mock.calls[0]?.[0] as {
+      data: { photoExpiresAt: Date };
+    };
+    const expiresAt = updateCall.data.photoExpiresAt.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    expect(expiresAt).toBeGreaterThan(Date.now() + dayMs * 29);
+    expect(expiresAt).toBeLessThan(Date.now() + dayMs * 31);
+  });
+
+  it('still rewards when gym photo storage fails', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+        surpriseEvidenceChancePercent: 0,
+      },
+    });
+    const { prisma, tx } = createCompletePrismaMock(assignment);
+    const service = createService(
+      prisma,
+      { validateGymPhoto: async () => ({ accepted: true }), validatePhoto: async () => ({ accepted: true }) },
+      undefined,
+      undefined,
+      { put: vi.fn().mockRejectedValue(new Error('bucket down')), presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(
+      service.complete(user, 'uc1', undefined, {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    expect(tx.userChallenge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ photoKey: expect.anything() }),
+      }),
+    );
+  });
+});
+
+describe('ChallengesService.getGymSharePhoto', () => {
+  it('returns a signed URL for the owner while the photo is live', async () => {
+    const prisma = {
+      userChallenge: {
+        findFirst: vi.fn().mockResolvedValue({
+          photoKey: 'gym-photos/u1/uc1.jpg',
+          photoExpiresAt: new Date(Date.now() + 60_000),
+        }),
+      },
+    };
+    const presignGet = vi.fn().mockResolvedValue('https://cdn.example/gym.jpg');
+    const service = createService(
+      prisma,
+      undefined,
+      undefined,
+      undefined,
+      { put: vi.fn(), presignGet, delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(service.getGymSharePhoto(user, 'uc1')).resolves.toEqual({
+      photoUrl: 'https://cdn.example/gym.jpg',
+    });
+  });
+
+  it('returns null when the photo has expired', async () => {
+    const prisma = {
+      userChallenge: {
+        findFirst: vi.fn().mockResolvedValue({
+          photoKey: 'gym-photos/u1/uc1.jpg',
+          photoExpiresAt: new Date(Date.now() - 1_000),
+        }),
+      },
+    };
+    const service = createService(
+      prisma,
+      undefined,
+      undefined,
+      undefined,
+      { put: vi.fn(), presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(service.getGymSharePhoto(user, 'uc1')).resolves.toEqual({ photoUrl: null });
+  });
+
+  it('returns null for another member’s occurrence', async () => {
+    const prisma = {
+      userChallenge: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    };
+    const service = createService(prisma);
+
+    await expect(service.getGymSharePhoto(user, 'uc-other')).resolves.toEqual({ photoUrl: null });
+  });
 });
 
 function sleepAssignment() {
@@ -811,7 +989,7 @@ function pushupHabitAssignment() {
 
 function createCompletePrismaMock(
   assignment: ReturnType<typeof createAssignment>,
-  options: { alreadyLedgered?: boolean } = {},
+  options: { alreadyLedgered?: boolean; membershipActive?: boolean } = {},
 ) {
   const completed = {
     ...assignment,
@@ -825,7 +1003,7 @@ function createCompletePrismaMock(
     bestStreakDays: 1,
     lastActiveDayKey: null,
     timeZone: TIME_ZONE,
-    membershipActive: false,
+    membershipActive: options.membershipActive ?? false,
   };
   const challengeLogUpsert = vi.fn().mockResolvedValue({});
   const tx = {
@@ -858,8 +1036,17 @@ function createCompletePrismaMock(
       upsert: vi.fn().mockResolvedValue({}),
     },
   };
+  const base = createPrismaMock(assignment, options.membershipActive ?? false);
   const prisma = {
-    ...createPrismaMock(assignment),
+    ...base,
+    userProfile: {
+      ...base.userProfile,
+      findUnique: vi.fn().mockResolvedValue({
+        timeZone: TIME_ZONE,
+        membershipActive: options.membershipActive ?? false,
+      }),
+      upsert: vi.fn().mockResolvedValue(profile),
+    },
     $transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
       callback(tx),
     ),
@@ -868,5 +1055,5 @@ function createCompletePrismaMock(
     },
   };
 
-  return { prisma, challengeLogUpsert };
+  return { prisma, challengeLogUpsert, tx };
 }

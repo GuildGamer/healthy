@@ -21,6 +21,14 @@ export type ObjectStorage = {
     /** Raw SHA-256 digest, base64-encoded, when the store enforces it. */
     checksumSha256Base64?: string;
   }): Promise<PresignedPut>;
+  /**
+   * Server-side write (gym selfies). Implementations may presign then PUT.
+   */
+  put(input: {
+    key: string;
+    body: Buffer;
+    contentType: string;
+  }): Promise<void>;
   presignGet(key: string, ttlSeconds: number): Promise<string>;
   head(key: string): Promise<ObjectHead | null>;
   delete(key: string): Promise<void>;

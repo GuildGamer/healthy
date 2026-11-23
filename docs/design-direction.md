@@ -77,11 +77,16 @@ week/month/year recaps all read as the **deck card** you played
 
 - Filled with the activity's deep colour from `deckCardPalettes` (day done uses
   streak; group results use the contest tone). Plain posters follow the
-  sender's mode; photo overlays use night ink.
-- Soft radius (~26).
+  sender's mode.
+- Soft radius (~26) on the in-app preview; the PNG that destinations send has
+  square corners.
 - Label and period on top; one big numeral and unit; hairline brand row
   (`Beatset` + a short meta line). No mint band.
-- Optional full-bleed gym selfie or walk GPS path on a finish.
+- Optional walk GPS path on a finish poster. A gym selfie is its own share
+  page (`GymPhotoShareCard`): photo at its own aspect, caption in a footer
+  under the image — not a full-bleed overlay on the deck poster. Stored for
+  30 days with membership, 1 day without; History falls back to the card
+  after expiry.
 
 ### 2. Invite link preview
 

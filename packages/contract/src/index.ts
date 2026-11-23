@@ -699,10 +699,19 @@ export const startChallengeOutputSchema = z.object({
   challenge: todayChallengeSchema,
 });
 
-/** JPEG or PNG, base64 only. The API validates and does not store the bytes. */
+/** JPEG or PNG, base64. The API validates; gym finishes also store the image for share. */
 export const challengeEvidenceSchema = z.object({
   mimeType: z.enum(['image/jpeg', 'image/png']),
   imageBase64: z.string().min(32).max(2_000_000),
+});
+
+export const getGymSharePhotoInputSchema = z.object({
+  userChallengeId: z.string().min(1),
+});
+
+export const getGymSharePhotoOutputSchema = z.object({
+  /** Short-lived owner URL, or null when missing, expired, or not yours. */
+  photoUrl: z.string().url().nullable(),
 });
 
 export const completeChallengeInputSchema = z.object({
@@ -956,6 +965,11 @@ export const listChallengeHistoryContract = oc
   .input(listChallengeHistoryInputSchema)
   .output(listChallengeHistoryOutputSchema);
 
+export const getGymSharePhotoContract = oc
+  .route({ method: 'GET', path: '/challenges/gym-photo' })
+  .input(getGymSharePhotoInputSchema)
+  .output(getGymSharePhotoOutputSchema);
+
 export const waitlistInputSchema = z.object({
   email: z.string().email(),
   source: z.string().max(100).optional(),
@@ -1000,6 +1014,7 @@ export const appContract = {
   saveChallengeDraft: saveChallengeDraftContract,
   listActivity: listActivityContract,
   listChallengeHistory: listChallengeHistoryContract,
+  getGymSharePhoto: getGymSharePhotoContract,
   waitlist: waitlistContract,
   listTips: listTipsContract,
   getMembershipOffer: getMembershipOfferContract,
@@ -1089,6 +1104,8 @@ export type ChallengeHistoryLog = z.infer<typeof challengeHistoryLogSchema>;
 export type ChallengeHistoryEntry = z.infer<typeof challengeHistoryEntrySchema>;
 export type ListChallengeHistoryInput = z.input<typeof listChallengeHistoryInputSchema>;
 export type ListChallengeHistoryOutput = z.infer<typeof listChallengeHistoryOutputSchema>;
+export type GetGymSharePhotoInput = z.input<typeof getGymSharePhotoInputSchema>;
+export type GetGymSharePhotoOutput = z.infer<typeof getGymSharePhotoOutputSchema>;
 export type WaitlistInput = z.infer<typeof waitlistInputSchema>;
 export type WaitlistOutput = z.infer<typeof waitlistOutputSchema>;
 export type ChallengeReminder = z.infer<typeof challengeReminderSchema>;

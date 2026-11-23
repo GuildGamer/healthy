@@ -134,6 +134,8 @@ export type {
   ChallengeHistoryEntry,
   ChallengeHistoryLog,
   ListActivityOutput,
+  GetGymSharePhotoInput,
+  GetGymSharePhotoOutput,
   ListChallengeHistoryInput,
   ListChallengeHistoryOutput,
   ListNotificationsOutput,

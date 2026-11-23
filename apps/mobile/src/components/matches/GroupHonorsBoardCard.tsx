@@ -13,14 +13,26 @@ import { honorBoardLine, honorChallengeTitle, honorMetaLine } from './honor-copy
 import { honorFillFor, honorInkFor } from './honor-palettes';
 
 /** Summary poster listing who earned which honor. */
-export function GroupHonorsBoardCard({ board }: { board: MatchBoard }) {
+export function GroupHonorsBoardCard({
+  board,
+  corners = 'round',
+}: {
+  board: MatchBoard;
+  corners?: 'round' | 'square';
+}) {
   const honors = board.honors ?? [];
   const challenge = honorChallengeTitle(board);
   const ink = honorInkFor('honors_board');
+  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
     <View style={styles.shell} testID="match-honors-board-card">
-      <View style={[styles.fill, { backgroundColor: honorFillFor('honors_board') }]} />
+      <View
+        style={[
+          styles.fill,
+          { backgroundColor: honorFillFor('honors_board'), borderRadius: radius },
+        ]}
+      />
       <View style={styles.type}>
         <SharePosterText style={[styles.eyebrow, { color: ink.sub }]}>
           {challenge ?? honorMetaLine(board)}
@@ -56,7 +68,6 @@ const styles = StyleSheet.create({
   },
   fill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: SHARE_POSTER_RADIUS,
     overflow: 'hidden',
   },
   type: {

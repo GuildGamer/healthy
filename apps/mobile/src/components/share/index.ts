@@ -1,4 +1,5 @@
 export { SHARE_DEST_COPY } from './constants/share-copy';
+export { ShareCapture } from './ShareCapture';
 export { ShareDestinationRow } from './ShareDestinationRow';
 export type { ShareDestinationSelectId } from './ShareDestinationRow';
 export { ShareDestinationSheet } from './ShareDestinationSheet';

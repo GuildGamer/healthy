@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import type { View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import {
@@ -11,7 +11,7 @@ import type { ShareDestinationSelectId } from './ShareDestinationRow';
 type UseShareDestinationsOptions = {
   /**
    * Caption, invite, and artifact. When the artifact is `image` without a
-   * `posterUri`, the live `shotRef` is captured first.
+   * `posterUri`, the live shot ref is captured first.
    */
   buildPayload: () => SharePayload | Omit<SharePayload, 'artifact'> & {
       artifact: Exclude<SharePayload['artifact'], { kind: 'image' }> | {
@@ -19,6 +19,11 @@ type UseShareDestinationsOptions = {
         posterUri?: string | null;
       };
     };
+  /**
+   * Which view to snapshot for an image artifact. Defaults to `shotRef`.
+   * Set shares use this to pick the photo page or the poster page.
+   */
+  getShotRef?: () => RefObject<View | null>;
   onChallenge?: () => void;
   /** Called after Copy link so the host can show a status line. */
   onCopied?: () => void;
@@ -33,11 +38,12 @@ export function useShareDestinations(options: UseShareDestinationsOptions) {
   const [isBusy, setIsBusy] = useState(false);
 
   async function capturePosterUri(): Promise<string | null> {
-    if (!shotRef.current) {
+    const ref = options.getShotRef?.() ?? shotRef;
+    if (!ref.current) {
       return null;
     }
     try {
-      return await captureRef(shotRef, {
+      return await captureRef(ref, {
         format: 'png',
         quality: 1,
         result: 'tmpfile',

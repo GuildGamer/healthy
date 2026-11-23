@@ -6,7 +6,7 @@ import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import { DeckNavButton } from '@/components/deck';
-import { ShareDestinationRow, useShareDestinations } from '@/components/share';
+import { ShareCapture, ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useThemedStyles } from '@/theme';
 import { DayShareCard } from './DayShareCard';
@@ -44,9 +44,17 @@ export function DayShareScreen({ content }: { content: DayShareContent }) {
         <Text style={styles.navTitle}>{SHARE_COPY.title}</Text>
         <View style={styles.navSpacer} />
       </View>
-      <View collapsable={false} ref={destinations.shotRef} style={styles.posterWrap}>
-        <DayShareCard content={content} fillId={fillId} />
-      </View>
+      <ShareCapture shotRef={destinations.shotRef}>
+        {(corners) =>
+          corners === 'round' ? (
+            <View style={styles.posterWrap}>
+              <DayShareCard content={content} corners={corners} fillId={fillId} />
+            </View>
+          ) : (
+            <DayShareCard content={content} corners={corners} fillId={fillId} />
+          )
+        }
+      </ShareCapture>
       <View style={styles.actions}>
         <ShareFillCarousel onSelect={setFillId} selected={fillId} />
         <ShareDestinationRow

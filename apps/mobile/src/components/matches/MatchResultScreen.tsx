@@ -287,15 +287,24 @@ function HonorSlidePreview({
   slide: HonorCarouselSlide;
   forCapture?: boolean;
 }) {
+  const corners = forCapture ? 'square' : 'round';
   if (slide.type === 'honor') {
-    return <HonorShareCard board={board} honor={slide.honor} isHolder={slide.isYours} />;
+    return (
+      <HonorShareCard
+        board={board}
+        corners={corners}
+        honor={slide.honor}
+        isHolder={slide.isYours}
+      />
+    );
   }
   if (slide.type === 'board') {
-    return <GroupHonorsBoardCard board={board} />;
+    return <GroupHonorsBoardCard board={board} corners={corners} />;
   }
   return (
     <GroupRecapCard
       board={board}
+      corners={corners}
       testID={forCapture ? 'match-recap-card' : 'match-recap-card-preview'}
     />
   );

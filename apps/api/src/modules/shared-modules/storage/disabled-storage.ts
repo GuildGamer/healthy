@@ -12,6 +12,9 @@ export function createDisabledObjectStorage(): ObjectStorage {
     async presignPut() {
       throw new Error(MESSAGE);
     },
+    async put() {
+      throw new Error(MESSAGE);
+    },
     async presignGet() {
       throw new Error(MESSAGE);
     },

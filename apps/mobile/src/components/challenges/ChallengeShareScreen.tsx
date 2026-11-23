@@ -1,7 +1,7 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
 import { trackEvent } from '@/lib/analytics';
@@ -12,6 +12,7 @@ import type { ShareRoutePoint } from '@/lib/share-route-path';
 import type { SharePayload } from '@/components/matches/share-destination';
 import {
   SetSharePager,
+  ShareCapture,
   ShareDestinationSheet,
   useShareDestinations,
 } from '@/components/share';
@@ -26,16 +27,18 @@ import { ShareFillCarousel } from './ShareFillCarousel';
 import { SharePosterCard } from './SharePosterCard';
 import type { ShareFriend } from './types/friend-challenge';
 import type { SharePoster } from './types/share-poster';
+import { useGymSharePhoto } from './useGymSharePhoto';
 import { useShareClipMedia } from './useShareClipMedia';
 
 /** Share surface: media (and colour on the card), then one Share button → sheet. */
 export function ChallengeShareScreen({
   poster,
   friend = null,
-  photoUri,
+  photoUri: photoUriProp,
   routePoints,
   runLine = null,
   clipId = null,
+  userChallengeId,
 }: {
   poster: SharePoster;
   /** Set when history opened this screen. Absent for a share that just finished. */
@@ -51,6 +54,7 @@ export function ChallengeShareScreen({
   runLine?: string | null;
   /** When present, video ↔ poster pager — same as clip finish. */
   clipId?: string | null;
+  userChallengeId?: string;
 }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -59,6 +63,11 @@ export function ChallengeShareScreen({
   // history share for another finish never paints this path.
   const [heldRoutePoints] = useState(() => routePoints);
   const clipMedia = useShareClipMedia(clipId);
+  const gymPhoto = useGymSharePhoto({
+    userChallengeId: userChallengeId ?? friend?.userChallengeId,
+    enabled: poster.kind === 'gym' && !photoUriProp,
+  });
+  const photoUri = photoUriProp ?? gymPhoto.photoUri;
 
   useEffect(
     () => () => {
@@ -73,18 +82,18 @@ export function ChallengeShareScreen({
     userChallengeId: friend?.userChallengeId,
   });
   const resolvedRunLine = runLine ?? posterRunLine(meQuery.data?.currentStreakDays ?? 0);
-  const showClipPager = Boolean(clipId);
+  const showPager = Boolean(clipId) || Boolean(photoUri) || gymPhoto.isLoading;
 
   return (
     <View
       style={[
         styles.screen,
         { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.md },
-        showClipPager ? styles.screenPager : null,
+        showPager ? styles.screenPager : null,
       ]}
       testID="challenge-share-screen"
     >
-      <View style={[styles.nav, showClipPager ? styles.navInset : null]}>
+      <View style={[styles.nav, showPager ? styles.navInset : null]}>
         <DeckNavButton
           accessibilityLabel={SHARE_COPY.close}
           glyph="close"
@@ -94,33 +103,39 @@ export function ChallengeShareScreen({
         <Text style={styles.navTitle}>{SHARE_COPY.title}</Text>
         <View style={styles.navSpacer} />
       </View>
-      {showClipPager ? (
-        <SetSharePager
-          actionsInset={spacing.lg}
-          caption={posterShareText(poster)}
-          clip={clipMedia.clip}
-          destinationsDisabled={invite.isCreating}
-          fillId={fillId}
-          isClipLoading={clipMedia.isLoading}
-          messages={
-            invite.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null
-          }
-          onChallenge={invite.challengeFriend}
-          onSelectFill={setFillId}
-          onShared={(id) => {
-            trackEvent('share_completed', {
-              surface: 'challenge_poster',
-              completed: true,
-              destination: id,
-            });
-          }}
-          photoUri={photoUri}
-          poster={poster}
-          routePoints={heldRoutePoints}
-          runLine={resolvedRunLine}
-          showChallenge={invite.isOffered}
-          showCopy={false}
-        />
+      {showPager ? (
+        gymPhoto.isLoading && !photoUri && !clipId ? (
+          <View style={styles.loading}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <SetSharePager
+            actionsInset={spacing.lg}
+            caption={posterShareText(poster)}
+            clip={clipMedia.clip}
+            destinationsDisabled={invite.isCreating}
+            fillId={fillId}
+            isClipLoading={clipMedia.isLoading}
+            messages={
+              invite.didFail ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null
+            }
+            onChallenge={invite.challengeFriend}
+            onSelectFill={setFillId}
+            onShared={(id) => {
+              trackEvent('share_completed', {
+                surface: 'challenge_poster',
+                completed: true,
+                destination: id,
+              });
+            }}
+            photoUri={photoUri}
+            poster={poster}
+            routePoints={heldRoutePoints}
+            runLine={resolvedRunLine}
+            showChallenge={invite.isOffered}
+            showCopy={false}
+          />
+        )
       ) : (
         <PosterOnlyShare
           destinationsDisabled={invite.isCreating}
@@ -128,7 +143,6 @@ export function ChallengeShareScreen({
           inviteFailed={invite.didFail}
           onChallenge={invite.challengeFriend}
           onSelectFill={setFillId}
-          photoUri={photoUri}
           poster={poster}
           routePoints={heldRoutePoints}
           runLine={resolvedRunLine}
@@ -141,7 +155,6 @@ export function ChallengeShareScreen({
 
 function PosterOnlyShare({
   poster,
-  photoUri,
   routePoints,
   runLine,
   fillId,
@@ -152,7 +165,6 @@ function PosterOnlyShare({
   onChallenge,
 }: {
   poster: SharePoster;
-  photoUri?: string;
   routePoints?: ShareRoutePoint[];
   runLine: string | null;
   fillId: ShareFillId;
@@ -186,20 +198,23 @@ function PosterOnlyShare({
   return (
     <View style={styles.posterOnly}>
       <View style={styles.posterSlot}>
-        <View
-          collapsable={false}
-          ref={destinations.shotRef}
-          style={styles.posterWrap}
-          testID="share-poster"
-        >
-          <SharePosterCard
-            fillId={fillId}
-            photoUri={photoUri}
-            poster={poster}
-            routePoints={routePoints}
-            runLine={runLine}
-          />
-        </View>
+        <ShareCapture shotRef={destinations.shotRef}>
+          {(corners) => (
+            <View
+              style={styles.posterWrap}
+              testID={corners === 'round' ? 'share-poster' : undefined}
+            >
+              <SharePosterCard
+                corners={corners}
+                fillId={fillId}
+                poster={poster}
+                routePoints={routePoints}
+                runLine={runLine}
+                testID={corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'}
+              />
+            </View>
+          )}
+        </ShareCapture>
       </View>
       {inviteFailed ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
       <View style={styles.actions}>
@@ -257,6 +272,11 @@ const createStyles = (theme: Theme) =>
     },
     navSpacer: {
       width: 40,
+    },
+    loading: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     posterOnly: {
       flex: 1,

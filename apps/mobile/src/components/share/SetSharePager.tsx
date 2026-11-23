@@ -1,5 +1,5 @@
 import { spacing } from '@product/brand';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,8 +15,10 @@ import type { ShareDestinationId } from '@/components/matches/share-destination'
 import type { SharePayload } from '@/components/matches/share-destination';
 import type { ShareRoutePoint } from '@/lib/share-route-path';
 import { type Theme, useThemedStyles } from '@/theme';
+import { GymPhotoShareCard } from '@/components/challenges/GymPhotoShareCard';
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import {
+  SHARE_POSTER_HEIGHT,
   SHARE_POSTER_WIDTH,
   SharePosterCard,
 } from '@/components/challenges/SharePosterCard';
@@ -24,10 +26,11 @@ import type { ShareFillId } from '@/components/challenges/share-fill';
 import type { SharePoster } from '@/components/challenges/types/share-poster';
 import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
+import { ShareCapture } from './ShareCapture';
 import { ShareDestinationSheet } from './ShareDestinationSheet';
 import { useShareDestinations } from './useShareDestinations';
 
-export type SetSharePage = 'video' | 'poster';
+export type SetSharePage = 'video' | 'photo' | 'poster';
 
 export type SetShareClipMedia = {
   /** URI shown on the video page (local file or remote). */
@@ -68,12 +71,12 @@ type SetSharePagerProps = {
   posterTestID?: string;
 };
 
-const PAGES_WITH_CLIP: SetSharePage[] = ['video', 'poster'];
 const MEDIA_ASPECT = 9 / 16;
+const POSTER_ASPECT = SHARE_POSTER_WIDTH / SHARE_POSTER_HEIGHT;
 
 /**
- * Video ↔ poster pager for any set share. Colour swatches only on the poster
- * page. One Share button opens the destination sheet for the page in front.
+ * Video / photo ↔ poster pager for any set share. Colour swatches only on the
+ * poster page. One Share button opens the destination sheet for the page in front.
  */
 export function SetSharePager({
   clip,
@@ -102,18 +105,18 @@ export function SetSharePager({
 }: SetSharePagerProps) {
   const styles = useThemedStyles(createStyles);
   const { width: windowWidth } = useWindowDimensions();
-  const [activePage, setActivePage] = useState<SetSharePage>('video');
+  const photoShotRef = useRef<View>(null);
+  const posterShotRef = useRef<View>(null);
+  const pages = sharePages({ clip, isClipLoading, photoUri });
+  const [activePage, setActivePage] = useState<SetSharePage>(() => pages[0] ?? 'poster');
   const [slot, setSlot] = useState({ width: 0, height: 0 });
   const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
 
-  const pages: SetSharePage[] = clip
-    ? PAGES_WITH_CLIP
-    : isClipLoading
-      ? (['video'] as SetSharePage[])
-      : (['poster'] as SetSharePage[]);
-  const showPosterPage = !clip ? !isClipLoading : activePage === 'poster';
+  const showPosterPage = activePage === 'poster';
+  const showPhotoPage = activePage === 'photo';
   const pageWidth = slot.width > 0 ? slot.width : Math.max(windowWidth - spacing.lg * 2, 1);
-  const mediaSize = fitPortraitMedia(pageWidth, slot.height);
+  const mediaAspect = showPhotoPage ? POSTER_ASPECT : MEDIA_ASPECT;
+  const mediaSize = fitPortraitMedia(pageWidth, slot.height, mediaAspect);
   const posterScale =
     mediaSize.width === 0 || mediaSize.width > SHARE_POSTER_WIDTH
       ? 1
@@ -121,23 +124,25 @@ export function SetSharePager({
 
   const destinations = useShareDestinations({
     buildPayload: () => {
-      if (showPosterPage || !clip) {
+      if (activePage === 'video' && clip) {
         return {
           caption,
           inviteUrl,
-          artifact: { kind: 'image' as const },
+          artifact: {
+            kind: 'video' as const,
+            clipUri: clip.shareUri,
+            socialClipUri: clip.socialShareUri ?? null,
+          },
         };
       }
       return {
         caption,
         inviteUrl,
-        artifact: {
-          kind: 'video' as const,
-          clipUri: clip.shareUri,
-          socialClipUri: clip.socialShareUri ?? null,
-        },
+        artifact: { kind: 'image' as const },
       };
     },
+    getShotRef: () =>
+      (activePage === 'photo' ? photoShotRef : posterShotRef) as RefObject<View | null>,
     onChallenge,
     onCopied: () => {
       onCopied?.();
@@ -184,7 +189,7 @@ export function SetSharePager({
         ) : (
           <FlatList
             data={pages}
-            extraData={`${pageWidth}:${mediaSize.width}:${mediaSize.height}`}
+            extraData={`${pageWidth}:${mediaSize.width}:${mediaSize.height}:${activePage}`}
             getItemLayout={(_, index) => ({
               length: pageWidth,
               offset: pageWidth * index,
@@ -198,7 +203,15 @@ export function SetSharePager({
             testID={listTestID}
             renderItem={({ item }) => (
               <View style={[styles.page, { width: pageWidth }]}>
-                <View style={[styles.mediaFrame, mediaSize]}>
+                <View
+                  style={[
+                    styles.mediaFrame,
+                    item === 'poster' || item === 'photo'
+                      ? { width: mediaSize.width, height: mediaSize.height }
+                      : mediaSize,
+                    item === 'video' ? styles.mediaFrameClip : null,
+                  ]}
+                >
                   {item === 'video' && clip ? (
                     renderVideo ? (
                       renderVideo(clip)
@@ -211,21 +224,49 @@ export function SetSharePager({
                       />
                     )
                   ) : null}
+                  {item === 'photo' && photoUri ? (
+                    <ShareCapture shotRef={photoShotRef}>
+                      {(corners) => (
+                        <View
+                          style={{ transform: [{ scale: posterScale }] }}
+                          testID={corners === 'round' ? 'clip-finish-photo' : undefined}
+                        >
+                          <GymPhotoShareCard
+                            corners={corners}
+                            photoUri={photoUri}
+                            poster={poster}
+                            testID={
+                              corners === 'round'
+                                ? 'gym-photo-share-card'
+                                : 'gym-photo-share-card-capture'
+                            }
+                          />
+                        </View>
+                      )}
+                    </ShareCapture>
+                  ) : null}
                   {item === 'poster' ? (
-                    <View
-                      collapsable={false}
-                      ref={destinations.shotRef}
-                      style={[styles.posterCapture, { transform: [{ scale: posterScale }] }]}
-                      testID={posterTestID}
-                    >
-                      <SharePosterCard
-                        fillId={fillId}
-                        photoUri={photoUri ?? undefined}
-                        poster={poster}
-                        routePoints={routePoints}
-                        runLine={runLine}
-                      />
-                    </View>
+                    <ShareCapture shotRef={posterShotRef}>
+                      {(corners) => (
+                        <View
+                          style={{ transform: [{ scale: posterScale }] }}
+                          testID={corners === 'round' ? posterTestID : undefined}
+                        >
+                          <SharePosterCard
+                            corners={corners}
+                            fillId={fillId}
+                            poster={poster}
+                            routePoints={routePoints}
+                            runLine={runLine}
+                            testID={
+                              corners === 'round'
+                                ? 'share-poster-image'
+                                : 'share-poster-image-capture'
+                            }
+                          />
+                        </View>
+                      )}
+                    </ShareCapture>
                   ) : null}
                 </View>
               </View>
@@ -278,16 +319,37 @@ export function SetSharePager({
   );
 }
 
-/** Largest 9:16 box that fits inside the measured media slot. */
-function fitPortraitMedia(maxWidth: number, maxHeight: number): { width: number; height: number } {
+function sharePages(input: {
+  clip: SetShareClipMedia | null;
+  isClipLoading: boolean;
+  photoUri?: string | null;
+}): SetSharePage[] {
+  if (input.clip) {
+    return ['video', 'poster'];
+  }
+  if (input.isClipLoading) {
+    return ['video'];
+  }
+  if (input.photoUri) {
+    return ['photo', 'poster'];
+  }
+  return ['poster'];
+}
+
+/** Largest box of the given aspect that fits inside the measured media slot. */
+function fitPortraitMedia(
+  maxWidth: number,
+  maxHeight: number,
+  aspect: number = MEDIA_ASPECT,
+): { width: number; height: number } {
   if (maxWidth <= 0 || maxHeight <= 0) {
     return { width: 0, height: 0 };
   }
-  const heightFromWidth = maxWidth / MEDIA_ASPECT;
+  const heightFromWidth = maxWidth / aspect;
   if (heightFromWidth <= maxHeight) {
     return { width: maxWidth, height: heightFromWidth };
   }
-  return { width: maxHeight * MEDIA_ASPECT, height: maxHeight };
+  return { width: maxHeight * aspect, height: maxHeight };
 }
 
 const createStyles = (theme: Theme) =>
@@ -311,12 +373,10 @@ const createStyles = (theme: Theme) =>
     mediaFrame: {
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    mediaFrameClip: {
       overflow: 'hidden',
       borderRadius: 12,
-    },
-    posterCapture: {
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     dots: {
       flexDirection: 'row',

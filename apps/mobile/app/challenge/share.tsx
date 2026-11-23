@@ -45,6 +45,7 @@ export default function ChallengeShareRoute() {
       poster={poster}
       routePoints={pendingShareRouteFor(params.userChallengeId)}
       runLine={params.runLine ?? null}
+      userChallengeId={params.userChallengeId}
     />
   );
 }

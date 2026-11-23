@@ -18,7 +18,12 @@ import { SyncStatusLine } from '@/components/feedback/SyncStatusLine';
 import { inviteShareMessage } from '@/components/matches/invite-message';
 import { MATCH_DEFAULT_METRIC } from '@/components/matches/match-metric';
 import type { SharePayload } from '@/components/matches/share-destination';
-import { SHARE_DEST_COPY, SetSharePager, ShareDestinationSheet } from '@/components/share';
+import {
+  SHARE_DEST_COPY,
+  SetSharePager,
+  ShareCapture,
+  ShareDestinationSheet,
+} from '@/components/share';
 import { findBenefitTip, WhyItMatters } from '@/components/tips';
 import { apiClient } from '@/lib/api';
 import { proofClipMaxDurationSeconds } from '@/lib/proof-clip-max-duration';
@@ -264,7 +269,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
     );
   }
 
-  if (proof.isLoading || proof.clip) {
+  if (proof.isLoading || proof.clip || Boolean(photoUri)) {
     const clipPose = poseShareCopy(activityKey ?? matchMetric);
     const clipPoster = posterForSuccess({
       title,
@@ -335,14 +340,21 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         </View>
       ) : null}
       <View style={styles.body}>
-        <View collapsable={false} ref={shareImage.shotRef} style={styles.posterWrap}>
-          <SharePosterCard
-            fillId={selectedFill}
-            photoUri={photoUri}
-            poster={poster}
-            runLine={posterRunLine(streakDays)}
-          />
-        </View>
+        <ShareCapture shotRef={shareImage.shotRef}>
+          {(corners) => (
+            <View style={styles.posterWrap}>
+              <SharePosterCard
+                corners={corners}
+                fillId={selectedFill}
+                poster={poster}
+                runLine={posterRunLine(streakDays)}
+                testID={
+                  corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'
+                }
+              />
+            </View>
+          )}
+        </ShareCapture>
         <WhyItMatters tip={benefitTip} />
       </View>
       <View style={styles.actions}>

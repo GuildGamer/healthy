@@ -370,6 +370,10 @@ model UserChallenge {
   completionOutcome       UserChallengeCompletionOutcome?
   startedAt               DateTime?
   completedAt             DateTime?
+  /// Object-storage key for the gym selfie when this finish was an evidence photo.
+  photoKey                String?
+  /// When the gym selfie object may be deleted. Null when no photo was stored.
+  photoExpiresAt          DateTime?
   /// Partial log, written as fields change. Cleared on a successful complete.
   draft                   Json?
   draftUpdatedAt          DateTime?
@@ -391,6 +395,7 @@ model UserChallenge {
   /// Serves `days_completed` group scoring, which counts the distinct days a
   /// member finished any daily occurrence inside a contest window.
   @@index([userId, frequency, status, completedAt])
+  @@index([photoExpiresAt])
   @@map("user_challenges")
 }
 

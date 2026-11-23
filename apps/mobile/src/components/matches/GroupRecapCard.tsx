@@ -26,9 +26,11 @@ export const GROUP_RECAP_CARD_WIDTH = SHARE_POSTER_WIDTH;
  */
 export function GroupRecapCard({
   board,
+  corners = 'round',
   testID = 'match-recap-card',
 }: {
   board: MatchBoard;
+  corners?: 'round' | 'square';
   testID?: string;
 }) {
   const theme = useTheme();
@@ -43,10 +45,11 @@ export function GroupRecapCard({
     subtext: theme.deckCards.subtext,
     track: theme.deckCards.track,
   };
+  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
     <View style={styles.shell} testID={testID}>
-      <View style={[styles.fill, { backgroundColor: tone.fill }]} />
+      <View style={[styles.fill, { backgroundColor: tone.fill, borderRadius: radius }]} />
       <View style={styles.type}>
         {you ? (
           <View style={styles.identity}>
@@ -108,7 +111,6 @@ const styles = StyleSheet.create({
   },
   fill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: SHARE_POSTER_RADIUS,
     overflow: 'hidden',
   },
   type: {

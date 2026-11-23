@@ -8,7 +8,7 @@ import { defaultShareFillId, type ShareFillId } from '@/components/challenges/sh
 import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
-import { ShareDestinationRow, useShareDestinations } from '@/components/share';
+import { ShareCapture, ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
@@ -102,9 +102,21 @@ export function PeriodReportScreen() {
             </Text>
           </View>
           <ProgressFactRow facts={facts} testID="period-report-facts" />
-          <View collapsable={false} ref={destinations.shotRef} style={styles.posterWrap}>
-            <SharePosterCard fillId={selectedFill} poster={poster} runLine={runLine} />
-          </View>
+          <ShareCapture shotRef={destinations.shotRef}>
+            {(corners) => (
+              <View style={styles.posterWrap}>
+                <SharePosterCard
+                  corners={corners}
+                  fillId={selectedFill}
+                  poster={poster}
+                  runLine={runLine}
+                  testID={
+                    corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'
+                  }
+                />
+              </View>
+            )}
+          </ShareCapture>
           <View style={styles.shareBlock} testID="period-report-share">
             <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
             <ShareDestinationRow

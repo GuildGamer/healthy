@@ -25,10 +25,12 @@ export const DAY_SHARE_CARD_WIDTH = SHARE_POSTER_WIDTH;
 export function DayShareCard({
   content,
   fillId,
+  corners = 'round',
 }: {
   content: DayShareContent;
   /** Optional colour override from the share fill carousel. */
   fillId?: ShareFillId;
+  corners?: 'round' | 'square';
 }) {
   const { deckCards } = useTheme();
   const chosen = fillId ? shareFillStyle(fillId) : null;
@@ -42,10 +44,11 @@ export function DayShareCard({
     content.streakDays > 1
       ? `${content.completedCount} of ${content.totalCount}`
       : `+${content.pointsToday}`;
+  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
     <View style={styles.shell} testID="home-day-share-card">
-      <View style={[styles.fill, { backgroundColor: fill }]} />
+      <View style={[styles.fill, { backgroundColor: fill, borderRadius: radius }]} />
       <View style={styles.type}>
         <View style={styles.top}>
           <SharePosterText style={[styles.label, { color: ink.subtext }]}>
@@ -85,7 +88,6 @@ const styles = StyleSheet.create({
   },
   fill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: SHARE_POSTER_RADIUS,
     overflow: 'hidden',
   },
   type: {

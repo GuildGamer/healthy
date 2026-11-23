@@ -38,6 +38,7 @@ jest.mock('@/lib/api', () => ({
       maxRemindersPerChallenge: 3,
     })),
     trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
+    getGymSharePhoto: jest.fn(async () => ({ photoUrl: null })),
   },
   apiQuery: {},
 }));
@@ -283,21 +284,21 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
   });
 
-  it('puts the gym selfie behind the card, branded in the footer, without a points poster', async () => {
+  it('pages the gym selfie then the card, without a points poster', async () => {
     setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
 
     renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
 
-    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-poster-photo')).toHaveProp('source', {
+    expect(screen.getByTestId('clip-finish-pager')).toBeOnTheScreen();
+    expect(screen.getByTestId('gym-photo-share-image')).toHaveProp('source', {
       uri: 'file://gym.jpg',
     });
-    expect(screen.getByText('Gym session')).toBeOnTheScreen();
-    expect(screen.getByText('at the gym')).toBeOnTheScreen();
-    expect(screen.getByText('Beatset')).toBeOnTheScreen();
-    expect(screen.getByText('12 days running')).toBeOnTheScreen();
+    expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
+    expect(screen.getAllByText('Gym session').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('at the gym').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Beatset').length).toBeGreaterThan(0);
     expect(screen.queryByText('+40')).toBeNull();
-    expect(await screen.findByTestId('challenge-success-share')).toBeOnTheScreen();
+    expect(await screen.findByTestId('set-share-open')).toBeOnTheScreen();
   });
 
   it('keeps the plain card when the selfie belongs to a different finish', () => {
@@ -306,7 +307,7 @@ describe('ChallengeSuccessScreen share card', () => {
     renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
 
     expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
-    expect(screen.queryByTestId('share-poster-photo')).toBeNull();
+    expect(screen.queryByTestId('gym-photo-share-image')).toBeNull();
     expect(screen.getByText('at the gym')).toBeOnTheScreen();
   });
 

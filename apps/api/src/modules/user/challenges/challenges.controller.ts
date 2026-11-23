@@ -82,4 +82,12 @@ export class ChallengesController {
       return this.challengesService.listHistory(user, input.challengeId);
     });
   }
+
+  @Implement(appContract.getGymSharePhoto)
+  getGymSharePhoto(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.getGymSharePhoto).handler(async ({ input }) => {
+      return this.challengesService.getGymSharePhoto(user, input.userChallengeId);
+    });
+  }
 }

@@ -17,6 +17,7 @@ jest.mock('@/lib/api', () => ({
     getExperimentAssignment: jest.fn(async () => null),
     createMatch: jest.fn(),
     trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
+    getGymSharePhoto: jest.fn(async () => ({ photoUrl: null })),
   },
   apiQuery: {},
 }));
@@ -89,6 +90,7 @@ function renderShare(
   extras: {
     routePoints?: { latitude: number; longitude: number }[];
     clipId?: string | null;
+    photoUri?: string;
   } = {},
 ) {
   const client = new QueryClient({
@@ -112,8 +114,10 @@ function renderShare(
         <ChallengeShareScreen
           clipId={extras.clipId}
           friend={friend}
+          photoUri={extras.photoUri}
           poster={poster}
           routePoints={extras.routePoints}
+          userChallengeId={friend.userChallengeId}
         />
       </SafeAreaProvider>
     </QueryClientProvider>,
@@ -201,6 +205,27 @@ describe('ChallengeShareScreen with a clip', () => {
     expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
     expect(screen.getByTestId('set-share-open')).toBeOnTheScreen();
     expect(screen.queryByTestId('clip-finish-pager')).toBeNull();
+  });
+
+  it('pages gym photo then poster when a selfie is present', async () => {
+    const gym: SharePoster = {
+      kind: 'gym',
+      label: 'Gym session',
+      value: '08:00',
+      unit: 'at the gym',
+      when: '2026-10-23T08:00:00.000Z',
+    };
+    renderShare(
+      gym,
+      { source: { kind: 'day' }, userChallengeId: 'uc-gym', isEligible: false },
+      { photoUri: 'file://gym.jpg' },
+    );
+
+    expect(await screen.findByTestId('clip-finish-pager')).toBeOnTheScreen();
+    expect(screen.getByTestId('gym-photo-share-image')).toHaveProp('source', {
+      uri: 'file://gym.jpg',
+    });
+    expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
   });
 });
 
