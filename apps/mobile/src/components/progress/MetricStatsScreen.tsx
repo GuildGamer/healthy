@@ -1,31 +1,23 @@
-import type { DeviceMetric, MatchMetric } from '@product/client';
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { matchMetricSchema } from '@product/contract/match-board';
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckPushedPage, DeckSegmented } from '@/components/deck';
+import { DeckButton, DeckPushedPage, DeckSegmented } from '@/components/deck';
 import { DECK_KIND_BY_METRIC } from '@/components/deck';
-import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
-import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
-import { SharePosterCard } from '@/components/challenges/SharePosterCard';
 import { ScreenLoader } from '@/components/feedback';
-import { MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
-import { ShareCapture, ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
-import { ProgressFactRow } from './ProgressFactRow';
 import {
-  metricPeriodFacts,
-  metricPeriodPoster,
-  metricPeriodRunLine,
-  metricPeriodShareText,
-} from './period-posters';
-
-type StatsPeriod = 'week' | 'month' | 'all';
+  metricFromParam,
+  metricShareHref,
+  statsPeriodFromParam,
+  titleForMetric,
+  type StatsPeriod,
+} from './metric-stats-route';
+import { ProgressFactRow } from './ProgressFactRow';
+import { metricPeriodFacts, metricPeriodPoster } from './period-posters';
 
 const PERIODS: { id: StatsPeriod; label: string }[] = [
   { id: 'week', label: 'Week' },
@@ -33,60 +25,14 @@ const PERIODS: { id: StatsPeriod; label: string }[] = [
   { id: 'all', label: 'All time' },
 ];
 
-const STATS_METRICS = new Set<string>([
-  'pushups',
-  'squats',
-  'plank',
-  'jumping_jacks',
-  'burpees',
-  'sit_ups',
-  'mountain_climbers',
-  'lunges',
-  'walk',
-]);
-
-function metricFromParam(value: string | string[] | undefined): DeviceMetric | null {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (!raw || !STATS_METRICS.has(raw)) {
-    return null;
-  }
-  return raw as DeviceMetric;
-}
-
-function periodFromParam(value: string | string[] | undefined): StatsPeriod {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === 'month' || raw === 'all') {
-    return raw;
-  }
-  return 'week';
-}
-
-function titleFor(metric: DeviceMetric): string {
-  return metric in MATCH_METRIC_LABEL
-    ? MATCH_METRIC_LABEL[metric as MatchMetric]
-    : metric;
-}
-
-function openFriendChallenge(metric: DeviceMetric): { pathname: '/matches/create'; params: { metric: string } } | null {
-  const parsed = matchMetricSchema.safeParse(metric);
-  if (!parsed.success) {
-    return null;
-  }
-  return {
-    pathname: '/matches/create',
-    params: { metric: parsed.data },
-  };
-}
-
-/** One metric's week / month / all-time total with destinations to send the poster. */
+/** One metric's week / month / all-time total. Share opens a dedicated page. */
 export function MetricStatsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ metric?: string; period?: string }>();
   const metric = metricFromParam(params.metric);
-  const period = periodFromParam(params.period);
+  const period = statsPeriodFromParam(params.period);
   const styles = useThemedStyles(createStyles);
   const { colors, deckCards } = useTheme();
-  const [fillId, setFillId] = useState<ShareFillId | null>(null);
 
   const statsQuery = useQuery({
     queryKey: ['progress', 'metric-stats', metric, period],
@@ -96,17 +42,7 @@ export function MetricStatsScreen() {
 
   const stats = statsQuery.data;
   const poster = stats ? metricPeriodPoster(stats) : null;
-  const runLine = stats ? metricPeriodRunLine(stats) : null;
   const facts = stats ? metricPeriodFacts(stats) : [];
-  const friendRoute = metric ? openFriendChallenge(metric) : null;
-  const selectedFill = fillId ?? (poster ? defaultShareFillId(poster.kind) : 'walk');
-  const destinations = useShareDestinations({
-    buildPayload: () => ({
-      caption: stats ? metricPeriodShareText(stats) : PROGRESS_COPY.shareFallback,
-      artifact: { kind: 'image' },
-    }),
-    onChallenge: friendRoute ? () => router.push(friendRoute) : undefined,
-  });
 
   if (!metric) {
     return (
@@ -127,7 +63,7 @@ export function MetricStatsScreen() {
       onBack={() => goBackOrHome('/progress/reports')}
       onPullRefresh={() => statsQuery.refetch()}
       testID="metric-stats-screen"
-      title={titleFor(metric)}
+      title={titleForMetric(metric)}
     >
       <DeckSegmented
         onSelect={(id) => router.setParams({ period: id })}
@@ -145,28 +81,12 @@ export function MetricStatsScreen() {
             <Text style={[styles.unit, { color: colors.muted }]}>{stats.unit}</Text>
           </View>
           <ProgressFactRow facts={facts} testID="metric-stats-facts" />
-          <ShareCapture shotRef={destinations.shotRef}>
-            {(corners) => (
-              <View style={styles.posterWrap}>
-                <SharePosterCard
-                  corners={corners}
-                  fillId={selectedFill}
-                  poster={poster}
-                  runLine={runLine}
-                  testID={
-                    corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'
-                  }
-                />
-              </View>
-            )}
-          </ShareCapture>
-          <View style={styles.shareBlock} testID="metric-stats-share">
-            <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
-            <ShareDestinationRow
-              disabled={destinations.isBusy}
-              onSelect={destinations.select}
-              showChallenge={friendRoute != null}
-              showCopy={false}
+          <View style={styles.shareFoot}>
+            <DeckButton
+              glyph="share"
+              label={PROGRESS_COPY.share}
+              onPress={() => router.push(metricShareHref({ metric, period }) as Href)}
+              testID="metric-stats-share"
             />
           </View>
         </>
@@ -198,13 +118,8 @@ const createStyles = (_theme: Theme) =>
       fontSize: 17,
       fontWeight: fontWeight.medium,
     },
-    posterWrap: {
-      alignSelf: 'center',
-      marginTop: spacing.lg,
-    },
-    shareBlock: {
-      marginTop: spacing.lg,
-      gap: spacing.sm,
+    shareFoot: {
+      marginTop: spacing.xl,
     },
     failed: {
       marginTop: spacing.xl,

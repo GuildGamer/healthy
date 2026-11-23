@@ -9,6 +9,7 @@ import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import type { Mailer } from '../../shared-modules/mail/mailer.js';
 import { MAILER } from '../../shared-modules/mail/mail.tokens.js';
 import { periodRecapMail } from '../../shared-modules/mail/period-recap-mail-content.js';
+import { periodHomeOpenUrl } from './period-home-open-url.js';
 import { periodReportOpenUrl } from './period-report-link.js';
 import { ProgressService } from './progress.service.js';
 
@@ -119,17 +120,19 @@ export class PeriodRecapDispatcherService {
       ? `${report.highlight.count.toLocaleString('en-US')} ${report.highlight.unit}`
       : null;
 
-    const openUrl = periodReportOpenUrl(
+    const reportUrl = periodReportOpenUrl(
       this.environment.websiteUrl,
       candidate.period,
       this.windowEnd(candidate),
     );
+    const homeUrl = periodHomeOpenUrl(this.environment.websiteUrl);
     const content = periodRecapMail({
       period: candidate.period,
       periodLabel: report.periodLabel,
       activeDays: report.activeDays,
       highlightLine,
-      openUrl,
+      reportUrl,
+      homeUrl,
     });
 
     try {

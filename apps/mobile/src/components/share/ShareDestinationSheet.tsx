@@ -1,5 +1,6 @@
 import { fontSize, spacing } from '@product/brand';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRef } from 'react';
+import { InteractionManager, StyleSheet, Text, View } from 'react-native';
 import { DeckSheetModal } from '@/components/deck';
 import {
   openShareDestination,
@@ -28,6 +29,10 @@ type ShareDestinationSheetProps = {
 /**
  * Destinations behind a single Share action: finish/share screens, board
  * invite handoffs, and similar.
+ *
+ * The sheet closes before any system share UI so the RN Modal is not stacked
+ * under WhatsApp / the activity sheet. Canceling that UI used to leave an
+ * invisible modal layer that ate every touch on the share screen.
  */
 export function ShareDestinationSheet({
   visible,
@@ -43,6 +48,8 @@ export function ShareDestinationSheet({
   const styles = useThemedStyles(createStyles);
   const copyVisible =
     showCopy === undefined ? Boolean(payload.inviteUrl?.trim()) : showCopy;
+  /** Ignore a second tap while the first destination is still opening. */
+  const isOpening = useRef(false);
 
   async function onSelect(id: ShareDestinationSelectId) {
     if (id === 'challenge') {
@@ -51,9 +58,24 @@ export function ShareDestinationSheet({
       return;
     }
 
-    await openShareDestination(id as ShareDestinationId, payload);
-    onShared?.(id as ShareDestinationId);
+    if (isOpening.current) {
+      return;
+    }
+    isOpening.current = true;
+
+    // Capture before onClose — callers often clear payload by unmounting us.
+    const nextPayload = payload;
     onClose();
+
+    try {
+      await waitUntilModalCanYield();
+      await openShareDestination(id as ShareDestinationId, nextPayload);
+      onShared?.(id as ShareDestinationId);
+    } catch {
+      // Cancel and share failures must leave the share screen usable.
+    } finally {
+      isOpening.current = false;
+    }
   }
 
   return (
@@ -72,6 +94,17 @@ export function ShareDestinationSheet({
       </View>
     </DeckSheetModal>
   );
+}
+
+/** Let the RN Modal unmount/paint before presenting another system screen. */
+function waitUntilModalCanYield(): Promise<void> {
+  return new Promise((resolve) => {
+    InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+  });
 }
 
 const createStyles = (theme: Theme) =>

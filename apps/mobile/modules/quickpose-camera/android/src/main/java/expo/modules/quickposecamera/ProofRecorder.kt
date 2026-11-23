@@ -215,7 +215,7 @@ internal class ProofRecorder(private val context: Context) {
       return
     }
 
-    ProofChrome.drawChrome(active.frame, overlay)
+    ProofChrome.drawChrome(context, active.frame, overlay)
     try {
       active.encoder.drawFrame(active.frame)
     } catch (error: Exception) {

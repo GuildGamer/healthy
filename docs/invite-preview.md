@@ -34,8 +34,8 @@ tap away on the join screen, so the card does not repeat them.
 1. **Who** — top left: the host's first name and a large photo (initials when
    there is none): "Ada challenged you". This line is prominent so a chat
    thumbnail still answers who invited you.
-2. **Brand** — top right: the Archivo wordmark, quiet. No band: the chat app
-   already prints the URL under the image.
+2. **Brand** — top right: the white Beatset lockup, quiet. No band: the chat
+   app already prints the URL under the image.
 3. **What** — bottom left, the largest type: the contest title.
 4. **Activity and when** — under the title, after a dot in the activity colour:
    "Push-ups · 3 days left". The win rule stays on the join screen.
@@ -69,8 +69,8 @@ tap away on the join screen, so the card does not repeat them.
 - **Satori renderer.** Flexbox, solid fills, rounded corners, borders (dashed
   included), simple shadows, embedded PNG/JPEG, bundled fonts. No blend modes,
   filters, blur, or CSS grid.
-- **Fonts bundled with the website:** Inter for the system-sans text, Archivo
-  Black for the wordmark.
+- **Fonts bundled with the website:** Inter for the system-sans text. The
+  brand lockup is the white PNG (`wordmark-white.png`), not Archivo type.
 - **No button shapes.** The whole preview is already the tap target.
 - **First names only.** Never a surname, handle, or the rest of the roster.
 
@@ -131,8 +131,8 @@ At thumbnail size:
 > iMessage bubble, at the size each app actually shows a square preview, not
 > only as a flat frame.
 >
-> Constraints: flexbox-buildable (Satori), Inter and Archivo Black for type,
-> Twemoji for emoji in host titles, no button shapes, first names only.
+> Constraints: flexbox-buildable (Satori), Inter for type, white lockup PNG for
+> brand, Twemoji for emoji in host titles, no button shapes, first names only.
 
 ## Build
 

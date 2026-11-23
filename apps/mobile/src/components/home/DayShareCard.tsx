@@ -6,10 +6,10 @@ import {
   SHARE_POSTER_RADIUS,
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
-import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { shareFillStyle, type ShareFillId } from '@/components/challenges/share-fill';
 import { posterValueMetrics } from '@/components/challenges/share-poster';
 import { SharePosterText } from '@/components/challenges/SharePosterText';
+import { ShareBrandLockup } from '@/components/share';
 import { useTheme } from '@/theme';
 import { TODAY_COPY } from './constants/today-copy';
 import { dayShareHero } from './day-share';
@@ -69,9 +69,7 @@ export function DayShareCard({
           {hero.unit}
         </SharePosterText>
         <View style={[styles.brand, { borderTopColor: ink.track }]}>
-          <SharePosterText style={[styles.brandName, { color: ink.text }]}>
-            {SHARE_COPY.brand}
-          </SharePosterText>
+          <ShareBrandLockup color={ink.text} />
           <SharePosterText style={[styles.label, { color: ink.subtext }]}>
             {brandMeta}
           </SharePosterText>
@@ -112,13 +110,10 @@ const styles = StyleSheet.create({
   },
   brand: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 20,
     paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  brandName: {
-    fontSize: 13,
-    fontWeight: fontWeight.semibold,
   },
 });

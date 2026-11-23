@@ -29,26 +29,35 @@ jest.mock('@/components/deck', () => {
   };
 });
 
+const linkPayload = {
+  caption: 'I did 40 push-ups. Think you can beat me?',
+  inviteUrl: 'https://beatset.tech/match/tok',
+  artifact: { kind: 'link' as const },
+};
+
 describe('ShareDestinationSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('opens WhatsApp with the invite payload and closes', async () => {
+  it('closes the sheet before opening a destination', async () => {
     const onClose = jest.fn();
+    const order: string[] = [];
+    onClose.mockImplementation(() => {
+      order.push('close');
+    });
+    (openShareDestination as jest.Mock).mockImplementation(async () => {
+      order.push('open');
+    });
+
     render(
-      <ShareDestinationSheet
-        onClose={onClose}
-        payload={{
-          caption: 'I did 40 push-ups. Think you can beat me?',
-          inviteUrl: 'https://beatset.tech/match/tok',
-          artifact: { kind: 'link' },
-        }}
-        visible
-      />,
+      <ShareDestinationSheet onClose={onClose} payload={linkPayload} visible />,
     );
 
     fireEvent.press(screen.getByTestId('share-dest-whatsapp'));
+
+    expect(onClose).toHaveBeenCalled();
+    expect(openShareDestination).not.toHaveBeenCalled();
 
     await waitFor(() => {
       expect(openShareDestination).toHaveBeenCalledWith(
@@ -58,8 +67,31 @@ describe('ShareDestinationSheet', () => {
           artifact: { kind: 'link' },
         }),
       );
-      expect(onClose).toHaveBeenCalled();
     });
+    expect(order).toEqual(['close', 'open']);
+  });
+
+  it('stays usable when the destination cancels', async () => {
+    const onClose = jest.fn();
+    const onShared = jest.fn();
+    (openShareDestination as jest.Mock).mockRejectedValueOnce(new Error('Share canceled'));
+
+    render(
+      <ShareDestinationSheet
+        onClose={onClose}
+        onShared={onShared}
+        payload={linkPayload}
+        visible
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('share-dest-whatsapp'));
+
+    await waitFor(() => {
+      expect(openShareDestination).toHaveBeenCalled();
+    });
+    expect(onClose).toHaveBeenCalled();
+    expect(onShared).not.toHaveBeenCalled();
   });
 
   it('delegates Challenge without opening a destination', async () => {

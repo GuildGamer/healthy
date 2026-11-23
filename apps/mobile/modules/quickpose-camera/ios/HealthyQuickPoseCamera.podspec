@@ -15,6 +15,9 @@ Pod::Spec.new do |s|
   s.source         = { git: 'https://github.com/nurulmasih/product.git' }
   s.static_framework = true
   s.source_files   = '**/*.{h,m,swift}'
+  s.resource_bundles = {
+    'HealthyQuickPoseCamera' => ['Resources/**/*']
+  }
 
   s.dependency 'ExpoModulesCore'
   s.dependency 'QuickPoseCore'

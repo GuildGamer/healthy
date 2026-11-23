@@ -1,10 +1,10 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { ShareBrandLockup } from '@/components/share';
 import { fitRouteToViewBox, type ShareRoutePoint } from '@/lib/share-route-path';
 import { useTheme } from '@/theme';
 import type { ShareCorners } from './GymPhotoShareCard';
-import { SHARE_COPY } from './constants/doing-copy';
 import { weekdayName } from './reading-time';
 import { shareFillStyle, type ShareFillId } from './share-fill';
 import { posterValueMetrics, posterWhen } from './share-poster';
@@ -85,9 +85,7 @@ export function SharePosterCard({
           </View>
         ) : null}
         <View style={[styles.posterBrand, { borderTopColor: ink.track }]}>
-          <SharePosterText style={[styles.posterBrandName, { color: ink.text }]}>
-            {SHARE_COPY.brand}
-          </SharePosterText>
+          <ShareBrandLockup color={ink.text} />
           {runLine ? <SharePosterText style={labelStyle}>{runLine}</SharePosterText> : null}
         </View>
       </View>
@@ -185,14 +183,11 @@ const styles = StyleSheet.create({
   },
   posterBrand: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 20,
     paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     zIndex: 1,
-  },
-  posterBrandName: {
-    fontSize: 13,
-    fontWeight: fontWeight.semibold,
   },
 });

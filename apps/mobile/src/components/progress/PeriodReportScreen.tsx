@@ -1,27 +1,21 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { DeckPushedPage, DeckSegmented } from '@/components/deck';
-import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
-import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
-import { SharePosterCard } from '@/components/challenges/SharePosterCard';
+import { DeckButton, DeckPushedPage, DeckSegmented } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
-import { ShareCapture, ShareDestinationRow, useShareDestinations } from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { PROGRESS_COPY } from './constants/progress-copy';
-import { ProgressFactRow } from './ProgressFactRow';
 import {
-  periodReportFacts,
-  periodReportPoster,
-  periodReportRunLine,
-  periodReportShareText,
-} from './period-posters';
-
-type ReportPeriod = 'week' | 'month' | 'year';
+  onDayFromParam,
+  reportPeriodFromParam,
+  reportShareHref,
+  type ReportPeriod,
+} from './period-report-route';
+import { ProgressFactRow } from './ProgressFactRow';
+import { periodReportFacts, periodReportPoster } from './period-posters';
 
 const PERIODS: { id: ReportPeriod; label: string }[] = [
   { id: 'week', label: 'Week' },
@@ -29,34 +23,14 @@ const PERIODS: { id: ReportPeriod; label: string }[] = [
   { id: 'year', label: 'Year' },
 ];
 
-const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function periodFromParam(value: string | string[] | undefined): ReportPeriod {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === 'month' || raw === 'year') {
-    return raw;
-  }
-  return 'week';
-}
-
-/** The closed day a recap email named. Absent means the member's today. */
-function onDayFromParam(value: string | string[] | undefined): string | undefined {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (raw && DAY_KEY_PATTERN.test(raw)) {
-    return raw;
-  }
-  return undefined;
-}
-
-/** Week / month / year recap: days active as the hero, destinations as the primary. */
+/** Week / month / year recap: days active as the hero. Share opens a dedicated page. */
 export function PeriodReportScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ period?: string; on?: string }>();
-  const period = periodFromParam(params.period);
+  const period = reportPeriodFromParam(params.period);
   const onDay = onDayFromParam(params.on);
   const styles = useThemedStyles(createStyles);
   const { colors, deckCards } = useTheme();
-  const [fillId, setFillId] = useState<ShareFillId | null>(null);
 
   const reportQuery = useQuery({
     queryKey: ['progress', 'period-report', period, onDay ?? 'today'],
@@ -65,15 +39,7 @@ export function PeriodReportScreen() {
 
   const report = reportQuery.data;
   const poster = report ? periodReportPoster(report) : null;
-  const runLine = report ? periodReportRunLine(report) : null;
   const facts = report ? periodReportFacts(report) : [];
-  const selectedFill = fillId ?? (poster ? defaultShareFillId(poster.kind) : 'streak');
-  const destinations = useShareDestinations({
-    buildPayload: () => ({
-      caption: report ? periodReportShareText(report) : PROGRESS_COPY.shareFallback,
-      artifact: { kind: 'image' },
-    }),
-  });
 
   return (
     <DeckPushedPage
@@ -102,27 +68,12 @@ export function PeriodReportScreen() {
             </Text>
           </View>
           <ProgressFactRow facts={facts} testID="period-report-facts" />
-          <ShareCapture shotRef={destinations.shotRef}>
-            {(corners) => (
-              <View style={styles.posterWrap}>
-                <SharePosterCard
-                  corners={corners}
-                  fillId={selectedFill}
-                  poster={poster}
-                  runLine={runLine}
-                  testID={
-                    corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'
-                  }
-                />
-              </View>
-            )}
-          </ShareCapture>
-          <View style={styles.shareBlock} testID="period-report-share">
-            <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
-            <ShareDestinationRow
-              disabled={destinations.isBusy}
-              onSelect={destinations.select}
-              showCopy={false}
+          <View style={styles.shareFoot}>
+            <DeckButton
+              glyph="share"
+              label={PROGRESS_COPY.share}
+              onPress={() => router.push(reportShareHref({ period, onDay }) as Href)}
+              testID="period-report-share"
             />
           </View>
         </>
@@ -154,13 +105,8 @@ const createStyles = (_theme: Theme) =>
       fontSize: 17,
       fontWeight: fontWeight.medium,
     },
-    posterWrap: {
-      alignSelf: 'center',
-      marginTop: spacing.lg,
-    },
-    shareBlock: {
-      marginTop: spacing.lg,
-      gap: spacing.sm,
+    shareFoot: {
+      marginTop: spacing.xl,
     },
     failed: {
       marginTop: spacing.xl,

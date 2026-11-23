@@ -1,7 +1,7 @@
 import { darkDeckCards, fontSize, fontWeight, spacing } from '@product/brand';
 import { Image, StyleSheet, View } from 'react-native';
+import { ShareBrandLockup } from '@/components/share';
 import { DEFAULT_PHOTO_ASPECT_RATIO } from '@/lib/capture-selfie';
-import { SHARE_COPY } from './constants/doing-copy';
 import { formatShareStamp } from './ChallengeShareCard';
 import {
   SHARE_POSTER_PADDING,
@@ -57,9 +57,7 @@ export function GymPhotoShareCard({
           {stamp}
         </SharePosterText>
         <View style={[styles.brand, { borderTopColor: darkDeckCards.track }]}>
-          <SharePosterText style={[styles.brandName, { color: darkDeckCards.text }]}>
-            {SHARE_COPY.brand}
-          </SharePosterText>
+          <ShareBrandLockup color={darkDeckCards.text} />
           <SharePosterText style={[styles.label, { color: darkDeckCards.subtext }]}>
             {poster.unit}
           </SharePosterText>
@@ -94,13 +92,10 @@ const styles = StyleSheet.create({
   },
   brand: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: spacing.sm,
     paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  brandName: {
-    fontSize: 13,
-    fontWeight: fontWeight.semibold,
   },
 });

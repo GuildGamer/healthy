@@ -19,7 +19,8 @@ describe('GymPhotoShareCard', () => {
       uri: 'file://gym.jpg',
     });
     expect(screen.getByText('Gym session')).toBeOnTheScreen();
-    expect(screen.getByText('Beatset')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-brand-lockup')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Beatset')).toBeOnTheScreen();
     expect(screen.getByText('at the gym')).toBeOnTheScreen();
   });
 

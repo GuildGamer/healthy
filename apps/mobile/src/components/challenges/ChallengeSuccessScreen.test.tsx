@@ -277,7 +277,8 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
     expect(screen.getByText('Take your preventer inhaler')).toBeOnTheScreen();
     expect(screen.getByText('Done')).toBeOnTheScreen();
-    expect(screen.getByText('Beatset')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-brand-lockup')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Beatset')).toBeOnTheScreen();
     expect(screen.getByText('12 days running')).toBeOnTheScreen();
     expect(screen.queryByText('+40')).toBeNull();
     expect(screen.queryByText('points')).toBeNull();
@@ -296,7 +297,8 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
     expect(screen.getAllByText('Gym session').length).toBeGreaterThan(0);
     expect(screen.getAllByText('at the gym').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Beatset').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('share-brand-lockup').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Beatset').length).toBeGreaterThan(0);
     expect(screen.queryByText('+40')).toBeNull();
     expect(await screen.findByTestId('set-share-open')).toBeOnTheScreen();
   });

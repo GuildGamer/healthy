@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { apiClient } from '@/lib/api';
 import { PeriodReportScreen } from './PeriodReportScreen';
 
@@ -57,14 +57,17 @@ beforeEach(() => {
 });
 
 describe('PeriodReportScreen', () => {
-  it('keeps the recap on the page with destinations, not a separate share route', async () => {
+  it('keeps the recap on the page and opens a share route', async () => {
     const { cleanup } = renderReport();
 
     expect(await screen.findByTestId('period-report-share')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.getByTestId('period-report-facts')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-destination-row')).toBeNull();
+    expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
+    expect(screen.queryByTestId('share-poster-image')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('period-report-share'));
+    expect(mockPush).toHaveBeenCalledWith('/share/report?period=week');
 
     await cleanup();
   });

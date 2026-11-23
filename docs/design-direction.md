@@ -81,7 +81,7 @@ week/month/year recaps all read as the **deck card** you played
 - Soft radius (~26) on the in-app preview; the PNG that destinations send has
   square corners.
 - Label and period on top; one big numeral and unit; hairline brand row
-  (`Beatset` + a short meta line). No mint band.
+  (Beatset lockup tinted to the card ink + a short meta line). No mint band.
 - Optional walk GPS path on a finish poster. A gym selfie is its own share
   page (`GymPhotoShareCard`): photo at its own aspect, caption in a footer
   under the image — not a full-bleed overlay on the deck poster. Stored for
@@ -90,8 +90,8 @@ week/month/year recaps all read as the **deck card** you played
 
 ### 2. Invite link preview
 
-Intentional exception: square, full-bleed activity-coloured deck card, wordmark
-in the corner, no band — it stands for the card the friend will play. See
+Intentional exception: square, full-bleed activity-coloured deck card, white
+lockup in the corner, no band — it stands for the card the friend will play. See
 [`invite-preview.md`](invite-preview.md).
 
 ### Retired
@@ -107,9 +107,10 @@ send it. No orphan card preview without a way to send it.
 
 | Role | Control | When |
 |---|---|---|
-| Primary | Destination row (WhatsApp, Status, Instagram, Messages, Copy link, More) | Default on finish (poster), history share, day share, activity stats, period reports, group result |
+| Primary | Destination row (WhatsApp, Status, Instagram, Messages, Copy link, More) | Default on finish (poster), history share, day share, metric share, period share, group result |
 | Primary (set with clip) | Destination row for the page in front; optional group-board switch on finish | Video ↔ poster pager (finish and `/challenge/share`) |
 | Entry to day share | Share the day on Home day-done | Opens `/share/day` (poster + colour + destinations) |
+| Entry to metric / period share | Share on activity stats or period report | Opens `/share/metric` or `/share/report` |
 | Sheet | `ShareDestinationSheet` (caption + same row) | Share glyph / secondary chrome, or post-create invite handoffs (board, create group, run it back, challenge a friend) |
 | Secondary invite | Challenge disc on the destination row | Optional; never a second solid twin of Share |
 | Group board | Default-on switch, applied on leave | Clip finish inside a group; never a solid "Post to group" button |
@@ -118,8 +119,8 @@ send it. No orphan card preview without a way to send it.
 Rules:
 
 - The **destination row** is the default primary for shareable moments. Solid
-  full-width Share is retired on those feet (Home day-done is the entry to the
-  day share screen).
+  full-width Share is the entry to a share page (Home day-done, activity
+  stats, period report), not a twin of the destination row on those feet.
 - When Share is not the screen’s foot job, a Share glyph opens
   **ShareDestinationSheet** with the same destinations.
 - Every destination sends the artifact on screen (`video`, `image`, or
@@ -131,7 +132,9 @@ Rules:
   Audience stays a settings / History concern.
 - Challenge only when friend-challenge is offered. Link-only payloads (invite
   URL + caption) are first-class.
-- Report emails use **Open in Beatset** (deep link to `/progress/report`), not
-  Share — sharing happens in-app from the report screen.
+- Report emails use **Open in Beatset** (deep link to `/progress/report`) when
+  the period had activity. Quiet periods use **Do a set** → `/open` (day deck).
+  Sharing still happens in-app from the report screen’s Share entry.
 - Activity stats and period reports live under You: week card opens the week
-  report; enrolled metrics open `/progress/metric/[metric]`.
+  report; enrolled metrics open `/progress/metric/[metric]`. Share opens
+  `/share/metric` or `/share/report`.

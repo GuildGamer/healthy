@@ -1,7 +1,15 @@
 import { darkDeckCards, lightDeckCards } from '@product/brand';
 import { render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
+import { Path } from 'react-native-svg';
 import { SharePosterCard } from './SharePosterCard';
+
+function brandLockupFills(): string[] {
+  return screen
+    .UNSAFE_getAllByType(Path)
+    .map((node) => node.props.fill)
+    .filter((fill): fill is string => fill === lightDeckCards.text || fill === darkDeckCards.text);
+}
 
 const walkPoster = {
   kind: 'walk' as const,
@@ -36,7 +44,8 @@ describe('SharePosterCard', () => {
 
     expect(screen.getByTestId('share-poster-route')).toBeTruthy();
     expect(screen.getByText('32')).toBeTruthy();
-    expect(screen.getByText('Beatset')).toBeTruthy();
+    expect(screen.getByTestId('share-brand-lockup')).toBeTruthy();
+    expect(screen.getByLabelText('Beatset')).toBeTruthy();
   });
 
   it('stays metric-only when there is no route', () => {
@@ -70,5 +79,12 @@ describe('SharePosterCard', () => {
     expect(StyleSheet.flatten(screen.getByText('32').props.style).color).toBe(
       lightDeckCards.text,
     );
+    expect(brandLockupFills()).toEqual([lightDeckCards.text, lightDeckCards.text]);
+  });
+
+  it('tints the lockup white on a night activity fill', () => {
+    render(<SharePosterCard fillId="strength" poster={walkPoster} runLine={null} />);
+
+    expect(brandLockupFills()).toEqual([darkDeckCards.text, darkDeckCards.text]);
   });
 });

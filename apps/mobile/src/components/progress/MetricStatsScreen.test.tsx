@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { apiClient } from '@/lib/api';
 import { MetricStatsScreen } from './MetricStatsScreen';
 
@@ -61,15 +61,17 @@ beforeEach(() => {
 });
 
 describe('MetricStatsScreen', () => {
-  it('keeps stats on the page with destinations, not a separate share route', async () => {
+  it('keeps stats on the page and opens a share route', async () => {
     const { cleanup } = renderStats();
 
     expect(await screen.findByTestId('metric-stats-share')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-destination-row')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-dest-challenge')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-fill-carousel')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.getByTestId('metric-stats-facts')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-destination-row')).toBeNull();
+    expect(screen.queryByTestId('share-fill-carousel')).toBeNull();
+    expect(screen.queryByTestId('share-poster-image')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('metric-stats-share'));
+    expect(mockPush).toHaveBeenCalledWith('/share/metric?metric=pushups&period=week');
 
     await cleanup();
   });

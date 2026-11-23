@@ -7,8 +7,8 @@ import {
   SHARE_POSTER_RADIUS,
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
-import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { SharePosterText } from '@/components/challenges/SharePosterText';
+import { ShareBrandLockup } from '@/components/share';
 import { GroupFace } from './GroupFace';
 import { honorCardTitle, honorChallengeTitle, honorMetaLine } from './honor-copy';
 import { honorFillFor, honorInkFor } from './honor-palettes';
@@ -65,9 +65,7 @@ export function HonorShareCard({
           {honorMetaLine(board)}
         </SharePosterText>
         <View style={[styles.brand, { borderTopColor: ink.track }]}>
-          <SharePosterText style={[styles.brandName, { color: ink.text }]}>
-            {SHARE_COPY.brand}
-          </SharePosterText>
+          <ShareBrandLockup color={ink.text} />
           <SharePosterText style={[styles.meta, { color: ink.sub }]}>
             {honor.kind === 'champion' ? 'Won' : honor.title.replace(/[!]$/, '')}
           </SharePosterText>
@@ -128,13 +126,10 @@ const styles = StyleSheet.create({
   },
   brand: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  brandName: {
-    fontSize: 13,
-    fontWeight: fontWeight.semibold,
   },
 });

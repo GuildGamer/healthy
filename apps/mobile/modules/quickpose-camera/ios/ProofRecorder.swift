@@ -479,6 +479,10 @@ final class ProofRecorder {
   /// encoding size does not shrink chips relative to the picture.
   private static let chromeBaselineHeight: CGFloat = 1280
 
+  /// Lockup height at the 1280 baseline so the word stays readable in the chip.
+  private static let brandLockupHeight: CGFloat = 56
+  private static let brandLockupAspect: CGFloat = 219 / 250
+
   private struct ChromeMetrics {
     let edgeInset: CGFloat
     let topInset: CGFloat
@@ -488,7 +492,7 @@ final class ProofRecorder {
     let lineGap: CGFloat
     let pipSize: CGFloat
     let pipGap: CGFloat
-    let brandFont: UIFont
+    let lockupSize: CGSize
     let codeFont: UIFont
     let urlFont: UIFont
     let countFont: UIFont
@@ -508,7 +512,8 @@ final class ProofRecorder {
       lineGap = 3 * scale
       pipSize = 12 * scale
       pipGap = 10 * scale
-      brandFont = UIFont.systemFont(ofSize: 20 * scale, weight: .heavy)
+      let lockupHeight = brandLockupHeight * scale
+      lockupSize = CGSize(width: lockupHeight * brandLockupAspect, height: lockupHeight)
       codeFont = UIFont.monospacedSystemFont(ofSize: 20 * scale, weight: .semibold)
       urlFont = UIFont.systemFont(ofSize: 14 * scale, weight: .medium)
       countFont = UIFont.systemFont(ofSize: 28 * scale, weight: .bold)
@@ -518,6 +523,7 @@ final class ProofRecorder {
 
   private enum Chrome {
     static let chipFill = UIColor.black.withAlphaComponent(0.55)
+    static var wordmarkImage: UIImage?
 
     static let dateFormatter: DateFormatter = {
       let formatter = DateFormatter()
@@ -534,17 +540,15 @@ final class ProofRecorder {
     drawCountChip(proof, in: rect, metrics: metrics)
   }
 
-  /// Top-left: recording pip and wordmark.
+  /// Top-left: recording pip and white lockup.
   private static func drawBrandChip(in rect: CGRect, metrics: ChromeMetrics) {
-    let brand = "Beatset" as NSString
-    let attributes = textAttributes(font: metrics.brandFont)
-    let textSize = brand.size(withAttributes: attributes)
     let padding = metrics.chipPadding
+    let lockup = metrics.lockupSize
     let chip = CGRect(
       x: metrics.edgeInset,
       y: metrics.topInset,
-      width: padding.left + metrics.pipSize + metrics.pipGap + textSize.width + padding.right,
-      height: padding.top + textSize.height + padding.bottom
+      width: padding.left + metrics.pipSize + metrics.pipGap + lockup.width + padding.right,
+      height: padding.top + lockup.height + padding.bottom
     )
     fillChip(chip, cornerRadius: metrics.chipCornerRadius)
 
@@ -557,11 +561,35 @@ final class ProofRecorder {
     UIColor.systemRed.setFill()
     UIBezierPath(ovalIn: pip).fill()
 
-    brand.draw(
-      at: CGPoint(x: pip.maxX + metrics.pipGap, y: chip.midY - textSize.height / 2),
-      withAttributes: attributes
+    let lockupRect = CGRect(
+      x: pip.maxX + metrics.pipGap,
+      y: chip.midY - lockup.height / 2,
+      width: lockup.width,
+      height: lockup.height
     )
+    brandWordmark()?.draw(in: lockupRect)
   }
+
+  private static func brandWordmark() -> UIImage? {
+    if let cached = Chrome.wordmarkImage {
+      return cached
+    }
+    let image = loadBrandWordmark()
+    Chrome.wordmarkImage = image
+    return image
+  }
+
+  private static func loadBrandWordmark() -> UIImage? {
+    let owner = Bundle(for: BundleToken.self)
+    if let url = owner.url(forResource: "HealthyQuickPoseCamera", withExtension: "bundle"),
+       let resourceBundle = Bundle(url: url),
+       let image = UIImage(named: "BeatsetWordmarkWhite", in: resourceBundle, compatibleWith: nil) {
+      return image
+    }
+    return UIImage(named: "BeatsetWordmarkWhite", in: owner, compatibleWith: nil)
+  }
+
+  private final class BundleToken {}
 
   /// Top-right: code and verify URL so anyone watching knows where to check it.
   private static func drawCodeChip(code: String, in rect: CGRect, metrics: ChromeMetrics) {

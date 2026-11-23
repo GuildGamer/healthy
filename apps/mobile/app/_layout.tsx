@@ -168,6 +168,7 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="open" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="home" options={{ headerShown: false }} />
@@ -240,6 +241,14 @@ function RootStack() {
       />
       <Stack.Screen
         name="share/day"
+        options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
+      />
+      <Stack.Screen
+        name="share/metric"
+        options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
+      />
+      <Stack.Screen
+        name="share/report"
         options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
       />
       <Stack.Screen name="challenge/success" options={{ headerShown: false, title: 'Well done' }} />

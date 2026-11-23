@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Beatset · Period recap mail preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --navy: #0b1220;
+        --leaf: #0fa36b;
+        --muted: #626c7c;
+        --page: #f5f6f8;
+        --ink: #f4f7fb;
+        --sub: rgba(244, 247, 251, 0.66);
+        --track: rgba(244, 247, 251, 0.16);
+        --poster-w: 300px;
+        --poster-h: 375px;
+        --poster-r: 26px;
+        --poster-pad: 22px;
+        --fill-streak: #4f3416;
+        --fill-walk: #164a3d;
+        --fill-water: #1c3f73;
+        --fill-strength: #2e2856;
+        --fill-gym: #57213f;
+        --fill-mobility: #14454b;
+        --fill-bp: #6e2e28;
+        --fill-night: #1a2540;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: #1a2233;
+        color: #e8eef8;
+        padding: 32px 24px 80px;
+      }
+      h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 8px;
+        letter-spacing: -0.5px;
+      }
+      .lead {
+        color: #9aa8bf;
+        font-size: 0.95rem;
+        max-width: 44rem;
+        line-height: 1.5;
+        margin-bottom: 40px;
+      }
+      .lead code {
+        font-size: 0.85em;
+        color: var(--leaf);
+      }
+      section {
+        margin-bottom: 56px;
+      }
+      section h2 {
+        font-size: 0.65rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b7a94;
+        margin: 0 0 16px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 32px;
+        align-items: flex-start;
+      }
+      .mail-frame {
+        width: 420px;
+        background: #121a2b;
+        border: 1px solid #243049;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .mail-chrome {
+        padding: 12px 14px;
+        border-bottom: 1px solid #243049;
+        font-size: 12px;
+        color: #9aa8bf;
+      }
+      .mail-chrome strong {
+        color: #e8eef8;
+        font-weight: 600;
+      }
+      .mail-body {
+        background: var(--page);
+        padding: 32px 16px;
+      }
+      .mail-card {
+        max-width: 480px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 16px;
+        overflow: hidden;
+        color: var(--navy);
+        box-shadow: 0 12px 40px rgba(11, 18, 32, 0.08);
+      }
+      .mail-rail {
+        height: 6px;
+        background: var(--rail, var(--fill-streak));
+      }
+      .mail-inner {
+        padding: 28px 24px 32px;
+      }
+      .mail-wordmark {
+        margin: 0 0 24px;
+        display: block;
+        height: 48px;
+        width: 42px;
+      }
+      .mail-eyebrow {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+      }
+      .mail-headline {
+        margin: 0 0 12px;
+        font-size: 26px;
+        line-height: 1.2;
+        font-weight: 600;
+        letter-spacing: -0.6px;
+      }
+      .mail-body-copy {
+        margin: 0 0 12px;
+        font-size: 16px;
+        line-height: 1.5;
+        color: var(--navy);
+      }
+      .mail-poster-slot {
+        margin: 24px 0 8px;
+        display: flex;
+        justify-content: center;
+      }
+      .mail-cta {
+        display: block;
+        margin-top: 28px;
+        background: var(--navy);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 14px 22px;
+        border-radius: 12px;
+        text-align: center;
+      }
+      .note {
+        margin-top: 12px;
+        font-size: 12px;
+        color: #6b7a94;
+        max-width: 420px;
+        line-height: 1.45;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--leaf);
+        background: rgba(15, 163, 107, 0.15);
+        padding: 3px 8px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+      }
+      .badge.muted {
+        color: #6b7a94;
+        background: rgba(107, 122, 148, 0.2);
+      }
+      .poster {
+        width: var(--poster-w);
+        height: var(--poster-h);
+        border-radius: var(--poster-r);
+        background: var(--fill);
+        color: var(--ink);
+        padding: var(--poster-pad);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-shadow: 0 16px 40px rgba(11, 18, 32, 0.18);
+      }
+      .poster-top {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--sub);
+      }
+      .poster-value {
+        margin-top: auto;
+        font-size: 72px;
+        font-weight: 600;
+        letter-spacing: -2px;
+        line-height: 0.95;
+      }
+      .poster-unit {
+        margin-top: 8px;
+        font-size: 17px;
+        color: var(--sub);
+      }
+      .poster-facts {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .poster-fact-value {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .poster-fact-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--sub);
+        margin-top: 2px;
+      }
+      .poster-brand {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 20px;
+        padding-top: 14px;
+        border-top: 1px solid var(--track);
+      }
+      .poster-lockup {
+        height: 40px;
+        width: auto;
+        display: block;
+      }
+      .poster-meta {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--sub);
+      }
+      .poster.empty .poster-value {
+        font-size: 40px;
+        letter-spacing: -1px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Period recap mail</h1>
+    <p class="lead">
+      Clinic shell: navy lockup, 6pt colour rail, navy CTA (white label). Tone
+      copy only in the body; numbers on the card. Quiet CTAs say
+      <code>Do a set</code> and open <code>/open</code> (day deck). Active CTAs
+      open the report. Week buckets: quiet (0), warm (1–3), hot (4–5), fire (6–7).
+    </p>
+
+    <section>
+      <h2>Tone samples · week</h2>
+      <div class="row" id="tones"></div>
+    </section>
+
+    <script>
+      const lockupWhite = '../../apps/website/public/wordmark-white.svg';
+      const lockupNavy = '../../apps/website/public/wordmark-navy.svg';
+
+      const samples = [
+        {
+          tone: 'quiet',
+          activeDays: 0,
+          fill: 'var(--fill-night)',
+          subject: 'Your week on Beatset',
+          eyebrow: 'Nov 16–22',
+          headline: 'Quiet week',
+          body: 'Nothing on the board yet. One set is enough to change that.',
+          value: '0',
+          unit: 'days active',
+          fact: null,
+          empty: true,
+        },
+        {
+          tone: 'warm · 2 days',
+          activeDays: 2,
+          fill: 'var(--fill-walk)',
+          subject: 'Your week on Beatset 👊',
+          eyebrow: 'Nov 16–22',
+          headline: 'A few days in',
+          body: 'You showed up this week. Next one’s there if you want to climb.',
+          value: '2',
+          unit: 'days active',
+          fact: { value: '40', label: 'Push-ups' },
+        },
+        {
+          tone: 'hot · 5 days',
+          activeDays: 5,
+          fill: 'var(--fill-water)',
+          subject: 'Your week on Beatset 🔥',
+          eyebrow: 'Nov 16–22',
+          headline: 'Most days covered',
+          body: 'You were around a lot this week. Keep that energy when you open the app.',
+          value: '5',
+          unit: 'days active',
+          fact: { value: '180', label: 'Push-ups' },
+        },
+        {
+          tone: 'fire · 6 days · default streak fill',
+          activeDays: 6,
+          fill: 'var(--fill-streak)',
+          subject: 'Your week on Beatset 🏆',
+          eyebrow: 'Nov 16–22',
+          headline: 'Almost every day',
+          body: 'This week was yours. Drop the card in the chat before anyone asks who won.',
+          value: '6',
+          unit: 'days active',
+          fact: { value: '240', label: 'Push-ups' },
+        },
+        {
+          tone: 'fire variant · 7 days',
+          activeDays: 7,
+          fill: 'var(--fill-gym)',
+          subject: 'Your week on Beatset 🏆',
+          eyebrow: 'Nov 16–22',
+          headline: 'You ran the table',
+          body: 'Barely missed a day. Share it while the crew still remembers.',
+          value: '7',
+          unit: 'days active',
+          fact: { value: '310', label: 'Push-ups' },
+        },
+      ];
+
+      const root = document.getElementById('tones');
+      for (const sample of samples) {
+        const factHtml = sample.fact
+          ? `<div class="poster-facts">
+              <div>
+                <div class="poster-fact-value">${sample.fact.value}</div>
+                <div class="poster-fact-label">${sample.fact.label}</div>
+              </div>
+            </div>`
+          : '';
+        const meta = sample.fact
+          ? `${sample.fact.value} ${sample.fact.label.toLowerCase()}`
+          : 'Beatset';
+        const wrap = document.createElement('div');
+        const posterBlock = sample.empty
+          ? ''
+          : `<div class="mail-poster-slot">
+                  <div class="poster" style="--fill:${sample.fill}">
+                    <div class="poster-top">
+                      <span>Week recap</span>
+                      <span>${sample.eyebrow}</span>
+                    </div>
+                    <div class="poster-value">${sample.value}</div>
+                    <div class="poster-unit">${sample.unit}</div>
+                    ${factHtml}
+                    <div class="poster-brand">
+                      <img alt="Beatset" class="poster-lockup" height="40" src="${lockupWhite}" width="35" />
+                      <span class="poster-meta">${meta}</span>
+                    </div>
+                  </div>
+                </div>`;
+        const ctaLabel = sample.empty ? 'Do a set' : 'Open in Beatset';
+        const ctaHref = sample.empty ? 'https://beatset.tech/open' : '#';
+        wrap.innerHTML = `
+          <span class="badge${sample.empty ? ' muted' : ''}">${sample.tone}</span>
+          <div class="mail-frame">
+            <div class="mail-chrome">
+              <strong>${sample.subject}</strong><br />
+              to you · today
+            </div>
+            <div class="mail-body">
+              <div class="mail-card" style="--rail:${sample.fill}">
+                <div class="mail-rail"></div>
+                <div class="mail-inner">
+                  <img alt="Beatset" class="mail-wordmark" height="48" width="42" src="${lockupNavy}" />
+                  <p class="mail-eyebrow">${sample.eyebrow}</p>
+                  <h1 class="mail-headline">${sample.headline}</h1>
+                  <p class="mail-body-copy">${sample.body}</p>
+                  ${posterBlock}
+                  <a class="mail-cta" href="${ctaHref}">${ctaLabel}</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        root.appendChild(wrap);
+      }
+    </script>
+  </body>
+</html>

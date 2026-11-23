@@ -1,6 +1,8 @@
 package expo.modules.quickposecamera
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -36,45 +38,47 @@ internal object ProofChrome {
   private const val PIP_SIZE = 12f
   private const val PIP_GAP = 10f
   private const val SECONDARY_ALPHA = 217
-  private const val BRAND = "Beatset"
+  /** Lockup height at the 1280 baseline so the word stays readable in the chip. */
+  private const val BRAND_LOCKUP_HEIGHT = 56f
+  private const val BRAND_LOCKUP_ASPECT = 219f / 250f
   private const val VERIFY_PATH = "beatset.tech/v/"
 
   private val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(140, 0, 0, 0) }
   private val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(255, 59, 48) }
+  private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
   private val dateFormat = DateFormat.getDateInstance(DateFormat.MEDIUM)
   private val monospaceBold = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
 
   private var cachedScale = Float.NaN
-  private lateinit var brandPaint: Paint
   private lateinit var codePaint: Paint
   private lateinit var urlPaint: Paint
   private lateinit var countPaint: Paint
   private lateinit var datePaint: Paint
+  private var wordmarkBitmap: Bitmap? = null
 
   /** Draws proof chrome over the camera image already present in `frame`. */
-  fun drawChrome(frame: Bitmap, overlay: ProofOverlay) {
+  fun drawChrome(context: Context, frame: Bitmap, overlay: ProofOverlay) {
     val canvas = Canvas(frame)
     val width = frame.width.toFloat()
     val height = frame.height.toFloat()
     val scale = height / CHROME_BASELINE_HEIGHT
     ensurePaints(scale)
-    drawBrandChip(canvas, scale)
+    drawBrandChip(context, canvas, scale)
     drawCodeChip(canvas, overlay.code, width, scale)
     drawCountChip(canvas, overlay, width, height, scale)
   }
 
   private fun ensurePaints(scale: Float) {
-    if (cachedScale == scale && ::brandPaint.isInitialized) return
+    if (cachedScale == scale && ::codePaint.isInitialized) return
     cachedScale = scale
-    brandPaint = scaledPaint(20f, Typeface.DEFAULT_BOLD, scale = scale)
     codePaint = scaledPaint(20f, monospaceBold, scale = scale)
     urlPaint = scaledPaint(14f, Typeface.DEFAULT, SECONDARY_ALPHA, scale)
     countPaint = scaledPaint(28f, Typeface.DEFAULT_BOLD, scale = scale)
     datePaint = scaledPaint(16f, Typeface.DEFAULT, SECONDARY_ALPHA, scale)
   }
 
-  /** Top-left: recording pip and wordmark. */
-  private fun drawBrandChip(canvas: Canvas, scale: Float) {
+  /** Top-left: recording pip and white lockup. */
+  private fun drawBrandChip(context: Context, canvas: Canvas, scale: Float) {
     val edgeInset = EDGE_INSET * scale
     val topInset = TOP_INSET * scale
     val paddingH = PADDING_HORIZONTAL * scale
@@ -82,21 +86,33 @@ internal object ProofChrome {
     val pipSize = PIP_SIZE * scale
     val pipGap = PIP_GAP * scale
     val cornerRadius = CHIP_CORNER_RADIUS * scale
+    val lockupHeight = BRAND_LOCKUP_HEIGHT * scale
+    val lockupWidth = lockupHeight * BRAND_LOCKUP_ASPECT
 
-    val textWidth = brandPaint.measureText(BRAND)
-    val textHeight = lineHeight(brandPaint)
     val chip = RectF(
       edgeInset,
       topInset,
-      edgeInset + paddingH + pipSize + pipGap + textWidth + paddingH,
-      topInset + paddingV + textHeight + paddingV,
+      edgeInset + paddingH + pipSize + pipGap + lockupWidth + paddingH,
+      topInset + paddingV + lockupHeight + paddingV,
     )
     fillChip(canvas, chip, cornerRadius)
 
     val pipLeft = chip.left + paddingH
     val pipTop = chip.centerY() - pipSize / 2
     canvas.drawOval(RectF(pipLeft, pipTop, pipLeft + pipSize, pipTop + pipSize), pipPaint)
-    drawText(canvas, BRAND, brandPaint, pipLeft + pipSize + pipGap, chip.centerY() - textHeight / 2)
+
+    val wordmark = wordmark(context) ?: return
+    val lockupLeft = pipLeft + pipSize + pipGap
+    val lockupTop = chip.centerY() - lockupHeight / 2
+    val dest = RectF(lockupLeft, lockupTop, lockupLeft + lockupWidth, lockupTop + lockupHeight)
+    canvas.drawBitmap(wordmark, null, dest, bitmapPaint)
+  }
+
+  private fun wordmark(context: Context): Bitmap? {
+    wordmarkBitmap?.let { return it }
+    val loaded = BitmapFactory.decodeResource(context.resources, R.drawable.beatset_wordmark_white)
+    wordmarkBitmap = loaded
+    return loaded
   }
 
   /** Top-right: code and verify URL so anyone watching knows where to check it. */

@@ -6,7 +6,8 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  * `www.gethealthyapp.com` stays claimed so links already sent still open the
  * app. `/match/<token>` mirrors `app/match/[token]`. `/progress/report` is the
  * recap email. `/app/progress/report` is the path older mail used; `path` is
- * exact so it does not also claim `/progress/reports`.
+ * exact so it does not also claim `/progress/reports`. `/open` is the quiet
+ * recap CTA onto today's deck.
  *
  * `associatedDomains` and `intentFilters` are native. They apply only after
  * a new dev-client build (`make ios` / `make android`), not an EAS Update.
@@ -19,6 +20,7 @@ const MATCH_INVITE_PATH_PREFIX = '/match/';
 const PROOF_VERIFY_PATH_PREFIX = '/v/';
 const REPORT_PATH = '/progress/report';
 const LEGACY_REPORT_PATH = '/app/progress/report';
+const OPEN_PATH = '/open';
 
 /**
  * Store application ids. Override either one for a disposable friend-account
@@ -156,6 +158,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
             scheme: 'https',
             host,
             path: LEGACY_REPORT_PATH,
+          },
+          {
+            scheme: 'https',
+            host,
+            path: OPEN_PATH,
           },
         ]),
       },
