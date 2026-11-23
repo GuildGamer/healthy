@@ -26,7 +26,7 @@ describe('snapshotFromQuickPose', () => {
     expect(snapshot.coachPrompt).toBe(POSE_COME_ALL_THE_WAY_UP);
   });
 
-  it('keeps form feedback ahead of the stuck mid-rep coach', () => {
+  it('prefers the lock-out coach over form while a half-rep is armed', () => {
     const snapshot = snapshotFromQuickPose({
       measure: 0.5,
       insideMeasure: 1,
@@ -36,7 +36,20 @@ describe('snapshotFromQuickPose', () => {
       counter: { type: 'poseEntered', count: 2, isEntered: true },
     });
 
-    expect(snapshot.coachPrompt).toBe('Lower your hips');
+    expect(snapshot.coachPrompt).toBe(POSE_COME_ALL_THE_WAY_UP);
+  });
+
+  it('keeps framing ahead of the lock-out coach while a half-rep is armed', () => {
+    const snapshot = snapshotFromQuickPose({
+      measure: 0.5,
+      insideMeasure: 1,
+      formFeedback: 'Lower your hips',
+      framingFeedback: 'Move into the box',
+      stanceFeedback: null,
+      counter: { type: 'poseEntered', count: 2, isEntered: true },
+    });
+
+    expect(snapshot.coachPrompt).toBe('Move into the box');
   });
 
   it('surfaces form feedback for the HUD', () => {

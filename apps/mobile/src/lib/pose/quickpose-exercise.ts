@@ -182,11 +182,11 @@ export function snapshotFromQuickPose(input: {
     insideMeasure: input.insideMeasure,
   });
   const downness = input.measure ?? 0;
-  const explicitCoach =
-    input.formFeedback ?? input.framingFeedback ?? input.stanceFeedback;
-  const coachPrompt =
-    explicitCoach ??
-    (input.counter.isEntered ? POSE_COME_ALL_THE_WAY_UP : null);
+  // While a half-rep is armed, lock-out coaching beats form/stance so a short
+  // pump is told to finish. Framing still wins — they must stay readable.
+  const coachPrompt = input.counter.isEntered
+    ? (input.framingFeedback ?? POSE_COME_ALL_THE_WAY_UP)
+    : (input.formFeedback ?? input.framingFeedback ?? input.stanceFeedback);
 
   return {
     count: input.counter.count,

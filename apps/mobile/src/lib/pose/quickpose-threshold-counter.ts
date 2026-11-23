@@ -14,10 +14,10 @@ export const QUICKPOSE_EXIT_THRESHOLD = 0.3;
 /** Push-ups: slightly softer enter so good-form dips are not missed. */
 export const QUICKPOSE_PUSHUP_ENTER_THRESHOLD = 0.7;
 /**
- * Push-ups: exit a hair above the default so a real lock-out that still
- * reads ~0.32–0.34 completes. Keep well below enter so waving cannot finish.
+ * Push-ups: same exit as other metrics so a short pump that stops ~0.32–0.35
+ * does not count. Keep well below enter so waving cannot finish.
  */
-export const QUICKPOSE_PUSHUP_EXIT_THRESHOLD = 0.35;
+export const QUICKPOSE_PUSHUP_EXIT_THRESHOLD = 0.3;
 /** Ignore a second complete that arrives too soon (waving / bounce). */
 export const QUICKPOSE_MIN_REP_INTERVAL_MS = 280;
 

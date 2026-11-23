@@ -40,7 +40,7 @@ internal class ThresholdCounter(
     const val DEFAULT_ENTER = 0.8
     const val DEFAULT_EXIT = 0.3
     const val PUSHUP_ENTER = 0.7
-    const val PUSHUP_EXIT = 0.35
+    const val PUSHUP_EXIT = 0.3
     const val MIN_REP_INTERVAL_MS = 280L
 
     fun forMetric(metric: String): ThresholdCounter =

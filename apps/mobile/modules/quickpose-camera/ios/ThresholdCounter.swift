@@ -5,7 +5,7 @@ final class ThresholdCounter {
   static let defaultEnter = 0.8
   static let defaultExit = 0.3
   static let pushupEnter = 0.7
-  static let pushupExit = 0.35
+  static let pushupExit = 0.3
   static let minRepIntervalMs: Int64 = 280
 
   let enterThreshold: Double

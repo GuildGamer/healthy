@@ -39,16 +39,16 @@ describe('QuickPoseThresholdCounter', () => {
     expect(counter.count(0.2).count).toBe(1);
   });
 
-  it('completes a push-up when lock-out drops just under 0.35, not at 0.40', () => {
+  it('completes a push-up when lock-out drops just under 0.30, not at 0.35', () => {
     const counter = new QuickPoseThresholdCounter({
       enterThreshold: QUICKPOSE_PUSHUP_ENTER_THRESHOLD,
       exitThreshold: QUICKPOSE_PUSHUP_EXIT_THRESHOLD,
     });
 
     expect(counter.count(0.75).type).toBe('poseEntered');
-    expect(counter.count(0.4).count).toBe(0);
+    expect(counter.count(0.35).count).toBe(0);
     expect(counter.state.isEntered).toBe(true);
-    expect(counter.count(0.34).type).toBe('poseComplete');
+    expect(counter.count(0.29).type).toBe('poseComplete');
     expect(counter.state.count).toBe(1);
   });
 

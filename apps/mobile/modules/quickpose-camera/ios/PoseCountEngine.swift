@@ -121,11 +121,14 @@ final class PoseCountEngine {
       counter.tick(value: measure, nowMs: nowMs)
     }
 
-    let coach =
-      formFeedback
-      ?? framingFeedback
-      ?? (stanceFeedback ?? lockFeedback)
-      ?? (counter.isEntered ? Self.comeAllTheWayUp : nil)
+    // While a half-rep is armed, lock-out coaching beats form/stance so a short
+    // pump is told to finish. Framing still wins — they must stay readable.
+    let coach: String?
+    if counter.isEntered {
+      coach = framingFeedback ?? Self.comeAllTheWayUp
+    } else {
+      coach = formFeedback ?? framingFeedback ?? (stanceFeedback ?? lockFeedback)
+    }
 
     return Snapshot(
       count: counter.count,
