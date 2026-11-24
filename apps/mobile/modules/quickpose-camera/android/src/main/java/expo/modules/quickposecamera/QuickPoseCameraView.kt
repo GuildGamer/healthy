@@ -1,6 +1,5 @@
 package expo.modules.quickposecamera
 
-import ai.quickpose.camera.QuickPoseCameraSwitchView
 import ai.quickpose.core.Feature
 import ai.quickpose.core.FeatureResult
 import ai.quickpose.core.Landmarks
@@ -17,8 +16,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
-import android.view.SurfaceView
-import android.view.View
 import android.view.ViewGroup
 import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.AppContext
@@ -30,12 +27,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import ai.quickpose.camera.QuickPoseCameraView as QuickPoseCameraSurface
 
 /**
- * Live pose counting and optional proof clips: the QuickPose camera and
- * skeleton overlay, with each frame's feature results sent to JS as
- * `onUpdate`, and recording driven by the same props and events as iOS.
+ * Live pose counting and optional proof clips: an app-owned Camera2 session
+ * feeds QuickPose and the proof recorder. Feature results go to JS as
+ * `onUpdate`; recording uses the same props and events as iOS.
  */
 class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val onUpdate by EventDispatcher<Map<String, Any>>()
@@ -123,7 +119,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     }
 
   private var quickPose: QuickPose? = null
-  private var cameraView: QuickPoseCameraSwitchView? = null
+  private var cameraSession: PoseCameraSession? = null
   private var sessionScope: CoroutineScope? = null
   private var currentFeatures: List<Pair<String, Feature>> = emptyList()
   private var isRequestingPermission = false
@@ -131,11 +127,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   private var proofRecorder: ProofRecorder? = null
   private val countEngine = PoseCountEngine()
   private val countLock = Any()
-  /**
-   * iOS taps camera buffers beside QuickPose; Android samples the camera
-   * surface on this loop with a cheap PixelCopy so pose inference keeps its
-   * full frame rate while a proof clip is recording.
-   */
+  /** Samples ImageReader frames for proof clips without coupling to the pose callback rate. */
   private val proofCaptureHandler = Handler(Looper.getMainLooper())
   private var proofCaptureTick: Runnable? = null
   private val emitHandler = Handler(Looper.getMainLooper())
@@ -175,18 +167,19 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     if (!ensureCameraPermission()) return
 
     val pose = QuickPose(appContext.currentActivity ?: context, sdkKey)
-    val camera = QuickPoseCameraSwitchView(context, pose)
+    val camera = PoseCameraSession(context, pose, useFrontCamera)
     addView(camera, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     quickPose = pose
-    cameraView = camera
+    cameraSession = camera
     currentFeatures = mapped
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     sessionScope = scope
     scope.launch {
       try {
-        camera.start(useFrontCamera)
+        camera.start()
       } catch (error: Exception) {
+        Log.e(LOG_TAG, "Camera start failed", error)
         stop()
         return@launch
       }
@@ -350,15 +343,6 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     }
   }
 
-  /** The visible camera surface inside the switch view; the skeleton draws on a separate overlay surface. */
-  private fun activeCameraSurface(): SurfaceView? {
-    val camera = cameraView ?: return null
-    val surfaces = (0 until camera.childCount)
-      .map { camera.getChildAt(it) }
-      .filterIsInstance<QuickPoseCameraSurface>()
-    return surfaces.firstOrNull { it.visibility == View.VISIBLE } ?: surfaces.firstOrNull()
-  }
-
   private fun syncProofRecording() {
     if (!isCameraRunning) return
 
@@ -423,20 +407,28 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     poseFpsWindowStartMs = nowMs
   }
 
-  /** Samples the camera surface for proof clips without coupling to the pose callback rate. */
+  /** Samples ImageReader frames for proof clips without coupling to the pose callback rate. */
   private fun startProofCaptureLoop(frameRate: Int) {
     stopProofCaptureLoop()
+    cameraSession?.isCapturingProof = true
     val intervalMs = max(PROOF_CAPTURE_MIN_INTERVAL_MS, 1_000L / frameRate.coerceAtLeast(1))
     val tick =
       object : Runnable {
         override fun run() {
           val recorder = proofRecorder
-          if (recorder == null || !recorder.isRecording || !isCameraRunning) {
+          val camera = cameraSession
+          if (recorder == null || !recorder.isRecording || !isCameraRunning || camera == null) {
             stopProofCaptureLoop()
             return
           }
           if (lastPoseStatusSuccess) {
-            activeCameraSurface()?.let { recorder.captureFrom(it) }
+            camera.takeProofFrame()?.let { frame ->
+              recorder.appendCameraFrame(
+                cameraFrame = frame,
+                sensorOrientation = camera.proofOrientationDegrees(),
+                mirror = useFrontCamera,
+              )
+            }
           }
           proofCaptureHandler.postDelayed(this, intervalMs)
         }
@@ -446,6 +438,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
   }
 
   private fun stopProofCaptureLoop() {
+    cameraSession?.isCapturingProof = false
     proofCaptureTick?.let { proofCaptureHandler.removeCallbacks(it) }
     proofCaptureTick = null
     lastPoseStatusSuccess = false
@@ -525,11 +518,11 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     isCameraRunning = false
     quickPose?.stop()
     quickPose = null
-    cameraView?.let { camera ->
+    cameraSession?.let { camera ->
       camera.stop()
       removeView(camera)
     }
-    cameraView = null
+    cameraSession = null
     currentFeatures = emptyList()
   }
 
@@ -538,7 +531,7 @@ class QuickPoseCameraView(context: Context, appContext: AppContext) : ExpoView(c
     const val LANDMARK_MIN_VISIBILITY = 0.2f
     const val START_FAILED = "Could not start proof recording."
     const val FINISH_FAILED = "Could not finish proof recording."
-    const val DEFAULT_BIT_RATE = 8_000_000
+    const val DEFAULT_BIT_RATE = 5_000_000
     const val DEFAULT_FRAME_RATE = 30
     const val DEFAULT_WIDTH = 1080
     const val DEFAULT_HEIGHT = 1920

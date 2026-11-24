@@ -19,7 +19,7 @@ export const PROOF_CLIP_ENCODING_HEIGHT_MAX = 3840;
  * can tighten via server env without shipping a new app build.
  */
 export const PROOF_CLIP_MAX_DURATION_SECONDS = 3_600;
-/** Default matches ~8 Mbps for 10 minutes with headroom (mainstream-style). */
+/** Default matches ~5 Mbps for 10 minutes with headroom (mainstream-style). */
 export const PROOF_CLIP_MAX_BYTES = 512 * 1024 * 1024;
 
 export const PROOF_CLIP_POSTER_MAX_BYTES = 5 * 1024 * 1024;
@@ -31,10 +31,10 @@ export const PROOF_CLIP_HARD_RETENTION_DAYS = 90;
 
 /**
  * Default encoder profile when the server omits `encoding` (older API) or the
- * device is offline — 1080×1920 H.264 at 30 fps, ~8 Mbps. Headroom so the
- * picture still looks sharp after Instagram / WhatsApp / X re-encode.
+ * device is offline — 1080×1920 H.264 at 30 fps, ~5 Mbps. Sized for a real
+ * 1080-wide camera frame (not an upscaled preview).
  */
-export const PROOF_CLIP_DEFAULT_BIT_RATE = 8_000_000;
+export const PROOF_CLIP_DEFAULT_BIT_RATE = 5_000_000;
 export const PROOF_CLIP_DEFAULT_FRAME_RATE = 30;
 export const PROOF_CLIP_DEFAULT_WIDTH = 1080;
 export const PROOF_CLIP_DEFAULT_HEIGHT = 1920;

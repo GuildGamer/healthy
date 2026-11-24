@@ -16,7 +16,7 @@ describe('resolveProofClipEncoding', () => {
   it('falls back when the server omits encoding', () => {
     expect(resolveProofClipEncoding(undefined)).toEqual(PROOF_CLIP_DEFAULT_ENCODING);
     expect(resolveProofClipEncoding(null)).toEqual(PROOF_CLIP_DEFAULT_ENCODING);
-    expect(PROOF_CLIP_DEFAULT_ENCODING.bitRate).toBe(8_000_000);
+    expect(PROOF_CLIP_DEFAULT_ENCODING.bitRate).toBe(5_000_000);
   });
 
   it('falls back when a dimension is odd', () => {

@@ -21,7 +21,6 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
   s.dependency 'QuickPoseCore'
-  s.dependency 'QuickPoseCamera'
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

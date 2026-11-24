@@ -1,6 +1,5 @@
 import AVFoundation
 import ExpoModulesCore
-import QuickPoseCamera
 import QuickPoseCore
 import UIKit
 
@@ -45,7 +44,15 @@ final class HealthyQuickPoseView: ExpoView {
   }
 
   var useFrontCamera = true {
-    didSet { tryStart() }
+    didSet {
+      guard oldValue != useFrontCamera else { return }
+      // Match Android: switching lens needs a new session. Tear the old
+      // capture session down synchronously so the device is free to reopen.
+      if hasStarted {
+        stop(releaseCameraSynchronously: true)
+      }
+      tryStart()
+    }
   }
 
   /// When set, frames are written to a proof clip with this overlay.
@@ -74,7 +81,7 @@ final class HealthyQuickPoseView: ExpoView {
   }
 
   private var quickPose: QuickPose?
-  private var camera: QuickPoseCamera?
+  private var camera: PoseCameraSession?
   /// Retained here: the capture output holds its delegate weakly.
   private var frameTap: CameraFrameTap?
   private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -87,7 +94,7 @@ final class HealthyQuickPoseView: ExpoView {
   private static let proofCaptureMaxFrameRate = 30.0
   private let countEngine = PoseCountEngine()
   private let countQueue = DispatchQueue(label: "healthy.quickpose.count")
-  private static let sessionTeardownQueue = DispatchQueue(label: "healthy.quickpose.session-teardown")
+  private static let sessionTeardownQueue = DispatchQueue(label: "healthy.pose-camera.teardown")
   private var pendingEmit: [String: Any]?
   private var emitWorkItem: DispatchWorkItem?
   private var lastEmitMs: Int64 = 0
@@ -142,7 +149,7 @@ final class HealthyQuickPoseView: ExpoView {
     }
 
     let qp = QuickPose(sdkKey: sdkKey)
-    let cam = QuickPoseCamera(useFrontCamera: useFrontCamera)
+    let cam = PoseCameraSession(useFrontCamera: useFrontCamera)
     let tap = CameraFrameTap(quickPose: qp)
     do {
       try cam.start(delegate: tap)
@@ -352,7 +359,7 @@ final class HealthyQuickPoseView: ExpoView {
         mirrorsCamera: useFrontCamera,
         maxDurationSeconds: maxDurationSeconds,
         encoding: ProofRecorder.Encoding(
-          bitRate: Self.intValue(config["bitRate"], fallback: 8_000_000),
+          bitRate: Self.intValue(config["bitRate"], fallback: 5_000_000),
           frameRate: frameRate,
           width: Self.intValue(config["width"], fallback: 1080),
           height: Self.intValue(config["height"], fallback: 1920)
@@ -393,7 +400,7 @@ final class HealthyQuickPoseView: ExpoView {
         self.stopProofCaptureLoop()
         return
       }
-      recorder.append(cameraFrame: self.frameTap?.newestFrame())
+      recorder.append(sampleBuffer: self.frameTap?.takeSampleBuffer())
     }
     proofCaptureTimer = timer
     timer.resume()
@@ -436,11 +443,15 @@ final class HealthyQuickPoseView: ExpoView {
     }
   }
 
-  private func attachPreview(from cam: QuickPoseCamera, attempt: Int = 0) {
+  private func attachPreview(from cam: PoseCameraSession, attempt: Int = 0) {
     if let session = cam.session {
       let layer = AVCaptureVideoPreviewLayer(session: session)
       layer.videoGravity = .resizeAspectFill
       layer.frame = bounds
+      if let connection = layer.connection, connection.isVideoMirroringSupported {
+        connection.automaticallyAdjustsVideoMirroring = false
+        connection.isVideoMirrored = useFrontCamera
+      }
       self.layer.insertSublayer(layer, at: 0)
       previewLayer = layer
       return
@@ -463,7 +474,7 @@ final class HealthyQuickPoseView: ExpoView {
     qp.update(features: mapped.map(\.1))
   }
 
-  private func stop() {
+  private func stop(releaseCameraSynchronously: Bool = false) {
     stopProofCaptureLoop()
     if proofRecorder?.isRecording == true {
       proofRecorder?.cancel()
@@ -477,7 +488,11 @@ final class HealthyQuickPoseView: ExpoView {
     quickPose?.stop()
     quickPose = nil
     if let camera {
-      Self.releaseCamera(camera, preview: previewLayer)
+      Self.releaseCamera(
+        camera,
+        preview: previewLayer,
+        synchronously: releaseCameraSynchronously
+      )
     }
     camera = nil
     frameTap?.setKeepingFrames(false)
@@ -488,25 +503,37 @@ final class HealthyQuickPoseView: ExpoView {
     currentFeatures = []
   }
 
-  /// A preview layer that deallocates commits configuration on its session, and
-  /// `stopRunning` throws if it lands inside that window. QuickPose's own `stop()`
-  /// stops the session on a private queue while the layer is released on main, so
-  /// the view owns the session: stop it on one serial queue, then release the layer.
-  private static func releaseCamera(_ camera: QuickPoseCamera, preview: AVCaptureVideoPreviewLayer?) {
+  /// Detach the preview layer before stopping the session so `stopRunning` and
+  /// layer teardown do not race on the same capture session.
+  private static func releaseCamera(
+    _ camera: PoseCameraSession,
+    preview: AVCaptureVideoPreviewLayer?,
+    synchronously: Bool
+  ) {
     preview?.removeFromSuperlayer()
+    let session = camera.detachSession()
 
-    guard let session = camera.session else {
-      // QuickPose has not published the session yet, so no layer is attached to it.
-      camera.stop()
+    guard let session else {
+      preview?.session = nil
       return
     }
-    camera.session = nil
-    camera.stop()
 
-    sessionTeardownQueue.async {
-      session.stopRunning()
+    let tearDown = {
+      if session.isRunning {
+        session.stopRunning()
+      }
       session.inputs.forEach(session.removeInput)
       session.outputs.forEach(session.removeOutput)
+    }
+
+    if synchronously {
+      tearDown()
+      preview?.session = nil
+      return
+    }
+
+    sessionTeardownQueue.async {
+      tearDown()
       DispatchQueue.main.async {
         preview?.session = nil
       }

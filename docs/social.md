@@ -516,7 +516,7 @@ card, or an invite — not only proof finish.
 - **A mate's clip** is reached from their standing: open their sets in this
   contest, and play only those posted to the group. The board itself does not
   grow a clip list or a feed.
-- **Social video.** 1080×1920, H.264, 30 fps, 8 Mbps. Stories and Status get
+- **Social video.** 1080×1920, H.264, 30 fps, 5 Mbps. Stories and Status get
   a cut of at most 15 seconds. The full clip stays what the group watches.
 
 ## Proof clips

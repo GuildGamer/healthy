@@ -15,14 +15,13 @@ import kotlin.math.max
 internal data class ProofOverlay(val code: String, val label: String, val count: Int)
 
 /**
- * Burns the wordmark, verification code, live count and date into each frame
+ * Burns the mark, verification code, live count and date into each frame
  * so the exported clip is self-evidencing. Layout matches the iOS recorder.
  * Metrics are tuned at 720×1280 and baseline-scaled to frame height so server
  * encoding size does not shrink chips relative to the picture.
  * Used only from the recorder thread.
  *
- * The camera image is already in `frame` (PixelCopy centre-crop); this only
- * draws the chips on top.
+ * The camera image is already in `frame`; this only draws the chips on top.
  */
 internal object ProofChrome {
   /** Overlay layout was tuned at 720×1280. */
@@ -38,9 +37,14 @@ internal object ProofChrome {
   private const val PIP_SIZE = 12f
   private const val PIP_GAP = 10f
   private const val SECONDARY_ALPHA = 217
-  /** Lockup height at the 1280 baseline so the word stays readable in the chip. */
-  private const val BRAND_LOCKUP_HEIGHT = 56f
-  private const val BRAND_LOCKUP_ASPECT = 219f / 250f
+  /** Mark only (no word). SVG mark is 161×167 inside a 219×250 lockup. */
+  private const val BRAND_LOCKUP_HEIGHT = 40f
+  private const val BRAND_LOCKUP_ASPECT = 161f / 167f
+  /** Fractional crop of beatset_wordmark_white matching the SVG mark region. */
+  private const val MARK_SOURCE_LEFT = 29f / 219f
+  private const val MARK_SOURCE_TOP = 0f
+  private const val MARK_SOURCE_WIDTH = 161f / 219f
+  private const val MARK_SOURCE_HEIGHT = 167f / 250f
   private const val VERIFY_PATH = "beatset.tech/v/"
 
   private val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(140, 0, 0, 0) }
@@ -54,7 +58,7 @@ internal object ProofChrome {
   private lateinit var urlPaint: Paint
   private lateinit var countPaint: Paint
   private lateinit var datePaint: Paint
-  private var wordmarkBitmap: Bitmap? = null
+  private var markBitmap: Bitmap? = null
 
   /** Draws proof chrome over the camera image already present in `frame`. */
   fun drawChrome(context: Context, frame: Bitmap, overlay: ProofOverlay) {
@@ -77,7 +81,7 @@ internal object ProofChrome {
     datePaint = scaledPaint(16f, Typeface.DEFAULT, SECONDARY_ALPHA, scale)
   }
 
-  /** Top-left: recording pip and white lockup. */
+  /** Top-left: recording pip and white mark (no word). */
   private fun drawBrandChip(context: Context, canvas: Canvas, scale: Float) {
     val edgeInset = EDGE_INSET * scale
     val topInset = TOP_INSET * scale
@@ -101,18 +105,27 @@ internal object ProofChrome {
     val pipTop = chip.centerY() - pipSize / 2
     canvas.drawOval(RectF(pipLeft, pipTop, pipLeft + pipSize, pipTop + pipSize), pipPaint)
 
-    val wordmark = wordmark(context) ?: return
+    val mark = brandMark(context) ?: return
     val lockupLeft = pipLeft + pipSize + pipGap
     val lockupTop = chip.centerY() - lockupHeight / 2
     val dest = RectF(lockupLeft, lockupTop, lockupLeft + lockupWidth, lockupTop + lockupHeight)
-    canvas.drawBitmap(wordmark, null, dest, bitmapPaint)
+    canvas.drawBitmap(mark, null, dest, bitmapPaint)
   }
 
-  private fun wordmark(context: Context): Bitmap? {
-    wordmarkBitmap?.let { return it }
-    val loaded = BitmapFactory.decodeResource(context.resources, R.drawable.beatset_wordmark_white)
-    wordmarkBitmap = loaded
-    return loaded
+  /** Crops the full lockup asset to the mark region (word left out). */
+  private fun brandMark(context: Context): Bitmap? {
+    markBitmap?.let { return it }
+    val full = BitmapFactory.decodeResource(context.resources, R.drawable.beatset_wordmark_white) ?: return null
+    val left = (MARK_SOURCE_LEFT * full.width).toInt().coerceIn(0, full.width - 1)
+    val top = (MARK_SOURCE_TOP * full.height).toInt().coerceIn(0, full.height - 1)
+    val width = (MARK_SOURCE_WIDTH * full.width).toInt().coerceAtLeast(1).coerceAtMost(full.width - left)
+    val height = (MARK_SOURCE_HEIGHT * full.height).toInt().coerceAtLeast(1).coerceAtMost(full.height - top)
+    val cropped = Bitmap.createBitmap(full, left, top, width, height)
+    if (cropped !== full) {
+      full.recycle()
+    }
+    markBitmap = cropped
+    return cropped
   }
 
   /** Top-right: code and verify URL so anyone watching knows where to check it. */

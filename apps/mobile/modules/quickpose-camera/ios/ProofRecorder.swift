@@ -2,18 +2,18 @@ import AVFoundation
 import CoreImage
 import CryptoKit
 import UIKit
-import VideoToolbox
 
 /**
- * Writes a muted HEVC clip of the plain camera image. The skeleton stays on
+ * Writes a muted H.264 clip of the plain camera image. The skeleton stays on
  * the live preview only.
  *
- * Proof chrome (wordmark, verification code, live rep count, date) is burned
+ * Proof chrome (mark, verification code, live rep count, date) is burned
  * in before encoding so the exported file is self-evidencing. A poster JPEG is
  * captured from the first written frame.
  *
  * Camera frames are not mirrored (QuickPose keeps ML input raw) but the front
  * preview is, so a front-camera frame is mirrored to match what the person saw.
+ * Frames are drawn once into the writer pixel-buffer pool — no UIImage round trip.
  */
 final class ProofRecorder {
   struct Overlay {
@@ -44,15 +44,16 @@ final class ProofRecorder {
   private var maxDurationSeconds: Double = 0
   private var overlay = Overlay(code: "", label: "", count: 0)
   private let writeQueue = DispatchQueue(label: "healthy.proof-recorder")
-  private let imageContext = CIContext()
+  private let imageContext = CIContext(options: [.useSoftwareRenderer: false])
 
   /// Defaults when JS sends an unusable value (social-safe vertical).
   private static let defaultWidth = 1080
   private static let defaultHeight = 1920
-  private static let defaultBitRate = 8_000_000
+  private static let defaultBitRate = 5_000_000
   private static let defaultFrameRate = 30.0
   private static let socialCutMaxSeconds: Double = 15
   private static let timescale: CMTimeScale = 600
+  private static let posterJpegQuality: CGFloat = 0.7
 
   private var targetWidth = ProofRecorder.defaultWidth
   private var targetHeight = ProofRecorder.defaultHeight
@@ -176,15 +177,18 @@ final class ProofRecorder {
     if let count { overlay.count = count }
   }
 
-  /// Appends one composited frame. Safe to call from the QuickPose frame callback.
-  /// A frame without a camera image is skipped rather than written as black.
-  func append(cameraFrame: CVPixelBuffer?) {
-    guard isRecording, let writer, writer.status == .writing, let cameraFrame else { return }
+  /// Appends one composited frame. Safe to call from the capture timer.
+  /// Retains `sampleBuffer` until the write finishes so the capture pool cannot
+  /// reclaim the pixel memory mid-encode. Skips when there is no camera image.
+  func append(sampleBuffer: CMSampleBuffer?) {
+    guard isRecording, let writer, writer.status == .writing, let sampleBuffer else { return }
+    guard let cameraFrame = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
     guard claimFrameSlot() else { return }
     let capturedAt = CACurrentMediaTime()
 
     writeQueue.async { [weak self] in
       guard let self else { return }
+      // `sampleBuffer` is captured by this block so the pixel memory stays valid until we finish.
       defer { self.releaseFrameSlot() }
       guard self.isRecording else { return }
       guard let input = self.input, input.isReadyForMoreMediaData else { return }
@@ -195,15 +199,16 @@ final class ProofRecorder {
       }
       let elapsedSeconds = self.firstFrameAt.map { capturedAt - $0 } ?? 0
       guard self.isDueForFrame(at: elapsedSeconds) else { return }
-      guard let camera = self.cameraImage(from: cameraFrame) else { return }
 
-      let composed = Self.compose(
-        camera: camera,
-        proof: self.overlay,
-        size: CGSize(width: self.targetWidth, height: self.targetHeight)
-      )
+      var poolBuffer: CVPixelBuffer?
+      guard let pool = adaptor.pixelBufferPool,
+            CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &poolBuffer) == kCVReturnSuccess,
+            let buffer = poolBuffer
+      else {
+        return
+      }
 
-      guard let buffer = Self.pixelBuffer(from: composed) else { return }
+      guard self.renderFrame(cameraFrame: cameraFrame, into: buffer) else { return }
       let time = CMTime(seconds: elapsedSeconds, preferredTimescale: Self.timescale)
 
       if adaptor.append(buffer, withPresentationTime: time) {
@@ -212,11 +217,8 @@ final class ProofRecorder {
           self.firstFrameWallMs = wallMs
         }
         self.lastFrameSeconds = elapsedSeconds
-        if !self.posterCaptured, let posterURL = self.posterURL,
-           let jpeg = composed.jpegData(compressionQuality: 0.7)
-        {
-          try? jpeg.write(to: posterURL, options: .atomic)
-          self.posterCaptured = true
+        if !self.posterCaptured, let posterURL = self.posterURL {
+          self.capturePoster(from: buffer, to: posterURL)
         }
       }
     }
@@ -246,13 +248,77 @@ final class ProofRecorder {
     return elapsedSeconds - lastFrameSeconds + slack >= minimumFrameGapSeconds
   }
 
-  private func cameraImage(from frame: CVPixelBuffer) -> UIImage? {
-    var image = CIImage(cvPixelBuffer: frame)
-    if mirrorsCamera {
-      image = image.oriented(.upMirrored)
+  /// Draws the camera (aspect-filled, optionally mirrored) and proof chrome into `buffer`.
+  private func renderFrame(cameraFrame: CVPixelBuffer, into buffer: CVPixelBuffer) -> Bool {
+    let target = CGSize(width: targetWidth, height: targetHeight)
+    var camera = CIImage(cvPixelBuffer: cameraFrame)
+    // Capture buffers stay sensor-landscape even when the connection is
+    // portrait. Rotate into portrait before aspect-fill so we do not upscale
+    // a centre crop of a landscape frame into 1080×1920.
+    camera = Self.portraitImage(camera, mirrored: mirrorsCamera)
+    let filled = Self.aspectFill(camera, into: target)
+    imageContext.render(filled, to: buffer)
+
+    CVPixelBufferLockBaseAddress(buffer, [])
+    defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+    guard let base = CVPixelBufferGetBaseAddress(buffer) else { return false }
+    guard let context = CGContext(
+      data: base,
+      width: targetWidth,
+      height: targetHeight,
+      bitsPerComponent: 8,
+      bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+    ) else {
+      return false
     }
-    guard let cgImage = imageContext.createCGImage(image, from: image.extent) else { return nil }
-    return UIImage(cgImage: cgImage)
+    // CGContext origin is bottom-left; flip so UIKit chrome lays out top-down.
+    context.translateBy(x: 0, y: CGFloat(targetHeight))
+    context.scaleBy(x: 1, y: -1)
+    UIGraphicsPushContext(context)
+    Self.drawProofChrome(overlay, in: CGRect(origin: .zero, size: target))
+    UIGraphicsPopContext()
+    return true
+  }
+
+  private func capturePoster(from buffer: CVPixelBuffer, to url: URL) {
+    let image = CIImage(cvPixelBuffer: buffer)
+    guard let cgImage = imageContext.createCGImage(image, from: image.extent) else { return }
+    let poster = UIImage(cgImage: cgImage)
+    guard let jpeg = poster.jpegData(compressionQuality: Self.posterJpegQuality) else { return }
+    try? jpeg.write(to: url, options: .atomic)
+    posterCaptured = true
+  }
+
+  /// Rotates a landscape sensor buffer to portrait; mirrors for the front camera.
+  private static func portraitImage(_ image: CIImage, mirrored: Bool) -> CIImage {
+    let extent = image.extent
+    guard extent.width > 0, extent.height > 0 else { return image }
+    if extent.width > extent.height {
+      // Back: 90° CW. Front: 90° CCW + mirror so the file matches the preview.
+      return image.oriented(mirrored ? .leftMirrored : .right)
+    }
+    if mirrored {
+      return image.oriented(.upMirrored)
+    }
+    return image
+  }
+
+  /// Scales `image` to cover `size`, centre-cropped.
+  private static func aspectFill(_ image: CIImage, into size: CGSize) -> CIImage {
+    let extent = image.extent
+    guard extent.width > 0, extent.height > 0 else { return image }
+    let scale = max(size.width / extent.width, size.height / extent.height)
+    let scaled = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+    let scaledExtent = scaled.extent
+    let origin = CGPoint(
+      x: scaledExtent.midX - size.width / 2,
+      y: scaledExtent.midY - size.height / 2
+    )
+    return scaled
+      .cropped(to: CGRect(origin: origin, size: size))
+      .transformed(by: CGAffineTransform(translationX: -origin.x, y: -origin.y))
   }
 
   struct FinishResult {
@@ -445,43 +511,20 @@ final class ProofRecorder {
     lastFrameSeconds = nil
   }
 
-  private static func compose(
-    camera: UIImage,
-    proof: Overlay,
-    size: CGSize
-  ) -> UIImage {
-    let format = UIGraphicsImageRendererFormat()
-    format.scale = 1
-    format.opaque = true
-    let renderer = UIGraphicsImageRenderer(size: size, format: format)
-    return renderer.image { context in
-      UIColor.black.setFill()
-      context.fill(CGRect(origin: .zero, size: size))
-
-      drawAspectFill(camera, in: CGRect(origin: .zero, size: size))
-      drawProofChrome(proof, in: CGRect(origin: .zero, size: size))
-    }
-  }
-
-  private static func drawAspectFill(_ image: UIImage, in rect: CGRect) {
-    let imageSize = image.size
-    guard imageSize.width > 0, imageSize.height > 0 else { return }
-    let scale = max(rect.width / imageSize.width, rect.height / imageSize.height)
-    let drawSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
-    let origin = CGPoint(
-      x: rect.midX - drawSize.width / 2,
-      y: rect.midY - drawSize.height / 2
-    )
-    image.draw(in: CGRect(origin: origin, size: drawSize))
-  }
-
   /// Overlay layout was tuned at 720×1280; scale from frame height so env
   /// encoding size does not shrink chips relative to the picture.
   private static let chromeBaselineHeight: CGFloat = 1280
 
-  /// Lockup height at the 1280 baseline so the word stays readable in the chip.
-  private static let brandLockupHeight: CGFloat = 56
-  private static let brandLockupAspect: CGFloat = 219 / 250
+  /// Mark only (no word). SVG mark is 161×167 inside a 219×250 lockup.
+  private static let brandLockupHeight: CGFloat = 40
+  private static let brandLockupAspect: CGFloat = 161.0 / 167.0
+  /// Fractional crop of BeatsetWordmarkWhite.png matching the SVG mark region.
+  private static let brandMarkSource = CGRect(
+    x: 29.0 / 219.0,
+    y: 0,
+    width: 161.0 / 219.0,
+    height: 167.0 / 250.0
+  )
 
   private struct ChromeMetrics {
     let edgeInset: CGFloat
@@ -523,7 +566,7 @@ final class ProofRecorder {
 
   private enum Chrome {
     static let chipFill = UIColor.black.withAlphaComponent(0.55)
-    static var wordmarkImage: UIImage?
+    static var markImage: UIImage?
 
     static let dateFormatter: DateFormatter = {
       let formatter = DateFormatter()
@@ -540,7 +583,7 @@ final class ProofRecorder {
     drawCountChip(proof, in: rect, metrics: metrics)
   }
 
-  /// Top-left: recording pip and white lockup.
+  /// Top-left: recording pip and white mark (no word).
   private static func drawBrandChip(in rect: CGRect, metrics: ChromeMetrics) {
     let padding = metrics.chipPadding
     let lockup = metrics.lockupSize
@@ -567,26 +610,40 @@ final class ProofRecorder {
       width: lockup.width,
       height: lockup.height
     )
-    brandWordmark()?.draw(in: lockupRect)
+    brandMark()?.draw(in: lockupRect)
   }
 
-  private static func brandWordmark() -> UIImage? {
-    if let cached = Chrome.wordmarkImage {
+  private static func brandMark() -> UIImage? {
+    if let cached = Chrome.markImage {
       return cached
     }
-    let image = loadBrandWordmark()
-    Chrome.wordmarkImage = image
+    let image = loadBrandMark()
+    Chrome.markImage = image
     return image
   }
 
-  private static func loadBrandWordmark() -> UIImage? {
+  /// Crops the full lockup asset to the mark region (word left out).
+  private static func loadBrandMark() -> UIImage? {
     let owner = Bundle(for: BundleToken.self)
+    let full: UIImage?
     if let url = owner.url(forResource: "HealthyQuickPoseCamera", withExtension: "bundle"),
-       let resourceBundle = Bundle(url: url),
-       let image = UIImage(named: "BeatsetWordmarkWhite", in: resourceBundle, compatibleWith: nil) {
-      return image
+       let resourceBundle = Bundle(url: url)
+    {
+      full = UIImage(named: "BeatsetWordmarkWhite", in: resourceBundle, compatibleWith: nil)
+    } else {
+      full = UIImage(named: "BeatsetWordmarkWhite", in: owner, compatibleWith: nil)
     }
-    return UIImage(named: "BeatsetWordmarkWhite", in: owner, compatibleWith: nil)
+    guard let full, let cgImage = full.cgImage else { return full }
+    let pixelWidth = CGFloat(cgImage.width)
+    let pixelHeight = CGFloat(cgImage.height)
+    let crop = CGRect(
+      x: brandMarkSource.minX * pixelWidth,
+      y: brandMarkSource.minY * pixelHeight,
+      width: brandMarkSource.width * pixelWidth,
+      height: brandMarkSource.height * pixelHeight
+    ).integral
+    guard let cropped = cgImage.cropping(to: crop) else { return full }
+    return UIImage(cgImage: cropped, scale: full.scale, orientation: full.imageOrientation)
   }
 
   private final class BundleToken {}
@@ -658,44 +715,6 @@ final class ProofRecorder {
 
   private static func textAttributes(font: UIFont, alpha: CGFloat = 1) -> [NSAttributedString.Key: Any] {
     [.font: font, .foregroundColor: UIColor.white.withAlphaComponent(alpha)]
-  }
-
-  private static func pixelBuffer(from image: UIImage) -> CVPixelBuffer? {
-    guard let cgImage = image.cgImage else { return nil }
-    let width = cgImage.width
-    let height = cgImage.height
-    var buffer: CVPixelBuffer?
-    let attrs: [CFString: Any] = [
-      kCVPixelBufferCGImageCompatibilityKey: true,
-      kCVPixelBufferCGBitmapContextCompatibilityKey: true,
-    ]
-    let status = CVPixelBufferCreate(
-      kCFAllocatorDefault,
-      width,
-      height,
-      kCVPixelFormatType_32BGRA,
-      attrs as CFDictionary,
-      &buffer
-    )
-    guard status == kCVReturnSuccess, let pixelBuffer = buffer else { return nil }
-
-    CVPixelBufferLockBaseAddress(pixelBuffer, [])
-    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
-
-    guard let context = CGContext(
-      data: CVPixelBufferGetBaseAddress(pixelBuffer),
-      width: width,
-      height: height,
-      bitsPerComponent: 8,
-      bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
-      space: CGColorSpaceCreateDeviceRGB(),
-      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
-    ) else {
-      return nil
-    }
-
-    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-    return pixelBuffer
   }
 }
 
