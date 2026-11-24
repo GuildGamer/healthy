@@ -235,6 +235,7 @@ export function SetSharePager({
                             corners={corners}
                             photoUri={photoUri}
                             poster={poster}
+                            runLine={runLine}
                             testID={
                               corners === 'round'
                                 ? 'gym-photo-share-card'

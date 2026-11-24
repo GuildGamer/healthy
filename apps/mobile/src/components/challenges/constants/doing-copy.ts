@@ -174,6 +174,8 @@ export const ACTIVITY_COPY = {
 } as const;
 
 export const GYM_COPY = {
+  /** Top-left of the selfie share, same word as the finished card. */
+  shareLabel: 'Gym',
   pill: 'Gym check-in',
   hint: 'Your face, with the gym behind you',
   retake: 'Retake',

@@ -1,3 +1,4 @@
+import { GYM_COPY } from '@/components/challenges/constants/doing-copy';
 import { poseShareCopy } from '@/components/challenges/pose-share-copy';
 import type { SharePoster } from '@/components/challenges/types/share-poster';
 import type { DeckCardKind, DoneFaceHeadline, DoneFaceProof } from '@/components/deck';
@@ -111,7 +112,7 @@ export function finishFaceContent(finish: ChallengeFinish, kind: DeckCardKind): 
     const value = clock(finish.finishedAt);
     return {
       ...wordFace(FINISH_COPY.checkedIn, joinLine([FINISH_COPY.gymChecked, points])),
-      poster: { kind, label: FINISH_COPY.gym, value, unit: FINISH_COPY.gymUnit },
+      poster: { kind, label: GYM_COPY.shareLabel, value, unit: FINISH_COPY.gymUnit },
     };
   }
 

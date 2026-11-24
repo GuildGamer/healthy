@@ -115,7 +115,7 @@ describe('LogEvidenceScreen', () => {
     });
   });
 
-  it('opens the front camera, sends the photo, and turns the card over', async () => {
+  it('opens the front camera, sends the photo, and opens the share screen', async () => {
     mockedApi.completeChallenge.mockResolvedValue({
       challenge: { ...gym, status: 'completed' },
       pointsBalance: 200,
@@ -129,7 +129,18 @@ describe('LogEvidenceScreen', () => {
     expect(await screen.findByText('Gym check-in')).toBeOnTheScreen();
     await takeAndUsePhoto();
 
-    await waitFor(() => expect(router.dismiss).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: '/challenge/share',
+        params: expect.objectContaining({
+          kind: 'gym',
+          label: 'Gym',
+          unit: 'at the gym',
+          userChallengeId: 'uc-gym',
+        }),
+      }),
+    );
+    expect(router.dismiss).not.toHaveBeenCalled();
     expect(mockedApi.completeChallenge).toHaveBeenCalledWith({
       userChallengeId: 'uc-gym',
       evidence: { mimeType: 'image/jpeg', imageBase64: 'gggg' },
@@ -171,7 +182,11 @@ describe('LogEvidenceScreen', () => {
     fireEvent.press(await screen.findByTestId('camera-retake'));
     await takeAndUsePhoto();
 
-    await waitFor(() => expect(router.dismiss).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: '/challenge/share' }),
+      ),
+    );
     expect(mockedApi.completeChallenge).toHaveBeenCalledTimes(2);
     expect(
       screen.queryByText(

@@ -4,7 +4,6 @@ export const FINISH_COPY = {
   checkedIn: 'Checked in.',
   extraSet: 'Extra set',
   walk: 'Walk',
-  gym: 'Gym',
   countedByCamera: 'Counted by your camera',
   measuredByPhone: 'Measured by your phone',
   noPoints: 'Saved to your history · no points',
