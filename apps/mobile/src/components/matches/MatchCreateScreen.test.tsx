@@ -179,4 +179,150 @@ describe('MatchCreateScreen', () => {
     share.mockRestore();
     await view.cleanup();
   });
+
+  it('offers only crews this person owns', async () => {
+    mockedApi.listCrews.mockResolvedValue({
+      crews: [
+        {
+          id: 'crew-owned',
+          name: 'Ada, Tunde',
+          memberCount: 2,
+          memberNames: ['Ada', 'Tunde'],
+          isOwner: true,
+        },
+        {
+          id: 'crew-theirs',
+          name: 'Cam’s crew',
+          memberCount: 1,
+          memberNames: ['Cam'],
+          isOwner: false,
+        },
+      ],
+    });
+    const view = renderWithClient(<MatchCreateScreen prefill={createPrefillFrom({})} />);
+
+    await waitFor(() => expect(screen.getByTestId('match-create-crew')).toBeEnabled());
+    fireEvent.press(screen.getByTestId('match-create-crew'));
+
+    expect(await screen.findByTestId('match-crew-crew-owned')).toBeOnTheScreen();
+    expect(screen.queryByTestId('match-crew-crew-theirs')).toBeNull();
+    await view.cleanup();
+  });
+
+  it('sends a prefilled crew only when the loaded list says this person owns it', async () => {
+    mockedApi.listCrews.mockResolvedValue({
+      crews: [
+        {
+          id: 'crew-owned',
+          name: 'Ada, Tunde',
+          memberCount: 2,
+          memberNames: ['Ada', 'Tunde'],
+          isOwner: true,
+        },
+      ],
+    });
+    mockedApi.createMatch.mockResolvedValue({
+      match: liveBoard({ id: 'new' }),
+      invite: { token: 't', url: 'u' },
+    });
+    const view = renderWithClient(
+      <MatchCreateScreen
+        prefill={createPrefillFrom({ metric: 'pushups', crewId: 'crew-owned' })}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('match-create-crew')).toBeEnabled());
+    fireEvent.press(screen.getByTestId('match-create-submit'));
+
+    await waitFor(() =>
+      expect(mockedApi.createMatch).toHaveBeenCalledWith(
+        expect.objectContaining({ crewId: 'crew-owned' }),
+      ),
+    );
+    await view.cleanup();
+  });
+
+  it('drops a prefilled crew that this person does not own', async () => {
+    mockedApi.listCrews.mockResolvedValue({
+      crews: [
+        {
+          id: 'crew-theirs',
+          name: 'Cam’s crew',
+          memberCount: 1,
+          memberNames: ['Cam'],
+          isOwner: false,
+        },
+      ],
+    });
+    mockedApi.createMatch.mockResolvedValue({
+      match: liveBoard({ id: 'new' }),
+      invite: { token: 't', url: 'u' },
+    });
+    const view = renderWithClient(
+      <MatchCreateScreen
+        prefill={createPrefillFrom({ metric: 'pushups', crewId: 'crew-theirs' })}
+      />,
+    );
+
+    // No owned crew means Who’s in stays disabled; wait for the link CTA instead.
+    await waitFor(() => expect(screen.getByText('Start and share link')).toBeOnTheScreen());
+    fireEvent.press(screen.getByTestId('match-create-submit'));
+
+    await waitFor(() =>
+      expect(mockedApi.createMatch).toHaveBeenCalledWith({
+        window: 'week',
+        metric: 'pushups',
+        scoringMode: 'cumulative_total',
+        dailyScope: 'any_challenge',
+      }),
+    );
+    expect(mockedApi.createMatch.mock.calls[0][0]).not.toHaveProperty('crewId');
+    await view.cleanup();
+  });
+
+  it('clears a gone crew after NOT_FOUND so the next start omits it', async () => {
+    mockedApi.listCrews.mockResolvedValue({
+      crews: [
+        {
+          id: 'crew-gone',
+          name: 'Ada, Tunde',
+          memberCount: 2,
+          memberNames: ['Ada', 'Tunde'],
+          isOwner: true,
+        },
+      ],
+    });
+    mockedApi.createMatch
+      .mockRejectedValueOnce(Object.assign(new Error('That crew was not found.'), { code: 'NOT_FOUND' }))
+      .mockResolvedValueOnce({
+        match: liveBoard({ id: 'new' }),
+        invite: { token: 't', url: 'u' },
+      });
+    const view = renderWithClient(
+      <MatchCreateScreen
+        prefill={createPrefillFrom({ metric: 'pushups', crewId: 'crew-gone' })}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('match-create-crew')).toBeEnabled());
+    fireEvent.press(screen.getByTestId('match-create-submit'));
+
+    expect(
+      await screen.findByText('That crew is gone. Start again without it, or pick another.'),
+    ).toBeOnTheScreen();
+
+    mockedApi.listCrews.mockResolvedValue({ crews: [] });
+    fireEvent.press(screen.getByTestId('match-create-submit'));
+
+    await waitFor(() =>
+      expect(mockedApi.createMatch).toHaveBeenLastCalledWith({
+        window: 'week',
+        metric: 'pushups',
+        scoringMode: 'cumulative_total',
+        dailyScope: 'any_challenge',
+      }),
+    );
+    expect(mockedApi.createMatch.mock.calls.at(-1)?.[0]).not.toHaveProperty('crewId');
+    await view.cleanup();
+  });
 });

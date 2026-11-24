@@ -1,11 +1,12 @@
-import type { MatchScoringMode } from '@product/client';
+import type { Crew, MatchScoringMode } from '@product/client';
 import { MATCH_TITLE_MAX } from '@product/contract/match-board';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api';
 import type { CreatePrefill } from './group-rerun';
 import { isOpenStreak } from './group-rule-copy';
+import { CREATE_COPY } from './match-copy';
 import { type MatchLengthChoice, legalChoiceFor, matchLengthInput } from './match-length';
 import {
   MATCH_ANY_DAILY_CHOICE,
@@ -18,6 +19,40 @@ import type { WhosInSelection } from './WhosInSheet';
 
 function emptyWhosIn(crewId: string | null, participantUserIds: string[]): WhosInSelection {
   return { crewId, participantUserIds };
+}
+
+/** Only the host can spend a crew on create. */
+function ownedCrews(crews: readonly Crew[]): Crew[] {
+  return crews.filter((crew) => crew.isOwner);
+}
+
+/**
+ * Until the list loads, keep a prefilled id so "Change something" does not drop
+ * a crew that was just saved. Once loaded, only an owned row may go on the wire.
+ */
+function seatableCrewId(
+  crewId: string | null,
+  owned: readonly Crew[],
+  crewsLoaded: boolean,
+): string | null {
+  if (!crewId) {
+    return null;
+  }
+
+  if (!crewsLoaded) {
+    return crewId;
+  }
+
+  return owned.some((crew) => crew.id === crewId) ? crewId : null;
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'NOT_FOUND'
+  );
 }
 
 /** Everything the start screen chooses, and the one call that starts the group. */
@@ -38,10 +73,29 @@ export function useCreateGroup(prefill: CreatePrefill) {
     queryKey: ['crews', 'people'],
     queryFn: () => apiClient.listAcquaintances(),
   });
+  const crews = useMemo(
+    () => ownedCrews(crewsQuery.data?.crews ?? []),
+    [crewsQuery.data?.crews],
+  );
+  const crewsLoaded = crewsQuery.isFetched;
+  const crewId = seatableCrewId(whosIn.crewId, crews, crewsLoaded);
   const { metric, dailyScope } = matchActivityInput(activityChoice, scoringMode);
-  const hasSeated =
-    whosIn.crewId !== null || whosIn.participantUserIds.length > 0;
+  const hasSeated = crewId !== null || whosIn.participantUserIds.length > 0;
   const trimmedTitle = title.trim().slice(0, MATCH_TITLE_MAX);
+
+  useEffect(() => {
+    if (!crewsLoaded || whosIn.crewId === null) {
+      return;
+    }
+
+    if (crews.some((crew) => crew.id === whosIn.crewId)) {
+      return;
+    }
+
+    setWhosIn((current) =>
+      current.crewId === null ? current : { ...current, crewId: null },
+    );
+  }, [crews, crewsLoaded, whosIn.crewId]);
 
   const create = useMutation({
     mutationFn: () =>
@@ -50,7 +104,7 @@ export function useCreateGroup(prefill: CreatePrefill) {
         metric,
         scoringMode,
         dailyScope,
-        ...(whosIn.crewId ? { crewId: whosIn.crewId } : {}),
+        ...(crewId ? { crewId } : {}),
         ...(whosIn.participantUserIds.length > 0
           ? { participantUserIds: whosIn.participantUserIds }
           : {}),
@@ -69,6 +123,16 @@ export function useCreateGroup(prefill: CreatePrefill) {
           ...(shareInvite ? { shareInvite } : {}),
         },
       });
+    },
+    onError: (error) => {
+      if (!isNotFoundError(error)) {
+        return;
+      }
+
+      setWhosIn((current) =>
+        current.crewId === null ? current : { ...current, crewId: null },
+      );
+      void queryClient.invalidateQueries({ queryKey: ['crews'] });
     },
   });
 
@@ -92,14 +156,20 @@ export function useCreateGroup(prefill: CreatePrefill) {
     chooseMode(legalScoringModeFor(next, scoringMode));
   }
 
+  const failureMessage = create.isError
+    ? isNotFoundError(create.error)
+      ? CREATE_COPY.crewGone
+      : CREATE_COPY.failed
+    : null;
+
   return {
     rules: { metric, scoringMode, dailyScope },
     activityChoice,
     length,
     title,
     setTitle,
-    whosIn,
-    crews: crewsQuery.data?.crews ?? [],
+    whosIn: { ...whosIn, crewId },
+    crews,
     people: peopleQuery.data?.people ?? [],
     hasSeated,
     chooseMode,
@@ -109,5 +179,6 @@ export function useCreateGroup(prefill: CreatePrefill) {
     start: () => create.mutate(),
     isStarting: create.isPending,
     hasFailed: create.isError,
+    failureMessage,
   };
 }

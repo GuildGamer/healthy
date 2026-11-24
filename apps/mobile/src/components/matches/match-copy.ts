@@ -46,6 +46,8 @@ export const CREATE_COPY = {
   cta: 'Start and share link',
   ctaSeated: 'Start group',
   failed: 'We couldn’t start the group. Check your connection and try again.',
+  /** Create sent a crew the host cannot spend (gone or not theirs). */
+  crewGone: 'That crew is gone. Start again without it, or pick another.',
   done: 'Done',
   howYouWinTitle: 'How do you want to win?',
   activityTitle: 'What counts?',

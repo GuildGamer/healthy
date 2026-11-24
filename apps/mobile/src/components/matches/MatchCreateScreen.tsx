@@ -107,8 +107,8 @@ export function MatchCreateScreen({ prefill }: { prefill: CreatePrefill }) {
       <GroupPage
         dock={
           <>
-            {group.hasFailed ? (
-              <DeckSheetMessage message={CREATE_COPY.failed} testID="match-create-failed" />
+            {group.failureMessage ? (
+              <DeckSheetMessage message={group.failureMessage} testID="match-create-failed" />
             ) : null}
             <DeckButton
               glyph={group.hasSeated ? undefined : 'share'}
