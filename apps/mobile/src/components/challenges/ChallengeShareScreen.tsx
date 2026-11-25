@@ -11,6 +11,7 @@ import { clearPendingShareRoute } from '@/lib/share-card-session';
 import type { ShareRoutePoint } from '@/lib/share-route-path';
 import type { SharePayload } from '@/components/matches/share-destination';
 import {
+  SHARE_PAGE_MARGIN,
   SetSharePager,
   ShareCapture,
   ShareDestinationSheet,
@@ -197,25 +198,22 @@ function PosterOnlyShare({
 
   return (
     <View style={styles.posterOnly}>
-      <View style={styles.posterSlot}>
-        <ShareCapture shotRef={destinations.shotRef}>
-          {(corners) => (
-            <View
-              style={styles.posterWrap}
-              testID={corners === 'round' ? 'share-poster' : undefined}
-            >
-              <SharePosterCard
-                corners={corners}
-                fillId={fillId}
-                poster={poster}
-                routePoints={routePoints}
-                runLine={runLine}
-                testID={corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'}
-              />
-            </View>
-          )}
-        </ShareCapture>
-      </View>
+      <ShareCapture fitToSlot shotRef={destinations.shotRef}>
+        {(corners, size) => (
+          <View testID={corners === 'round' ? 'share-poster' : undefined}>
+            <SharePosterCard
+              corners={corners}
+              fillId={fillId}
+              height={size.height}
+              poster={poster}
+              routePoints={routePoints}
+              runLine={runLine}
+              testID={corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'}
+              width={size.width}
+            />
+          </View>
+        )}
+      </ShareCapture>
       {inviteFailed ? <DeckSheetMessage message={FRIEND_CHALLENGE_COPY.failed} /> : null}
       <View style={styles.actions}>
         <ShareFillCarousel onSelect={onSelectFill} selected={fillId} />
@@ -252,7 +250,7 @@ const createStyles = (theme: Theme) =>
     screen: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      paddingHorizontal: 20,
+      paddingHorizontal: SHARE_PAGE_MARGIN,
     },
     screenPager: {
       paddingHorizontal: 0,
@@ -263,7 +261,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
     },
     navInset: {
-      paddingHorizontal: 20,
+      paddingHorizontal: SHARE_PAGE_MARGIN,
     },
     navTitle: {
       color: theme.colors.text,
@@ -282,16 +280,8 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       minHeight: 0,
     },
-    posterSlot: {
-      flex: 1,
-      minHeight: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    posterWrap: {
-      alignSelf: 'center',
-    },
     actions: {
+      marginTop: spacing.md,
       gap: spacing.sm,
       paddingBottom: spacing.sm,
     },

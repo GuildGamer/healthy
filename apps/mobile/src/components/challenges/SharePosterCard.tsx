@@ -1,7 +1,7 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { ShareBrandLockup } from '@/components/share';
+import { ShareBrandLockup } from '@/components/share/ShareBrandLockup';
 import { fitRouteToViewBox, type ShareRoutePoint } from '@/lib/share-route-path';
 import { useTheme } from '@/theme';
 import type { ShareCorners } from './GymPhotoShareCard';
@@ -67,7 +67,8 @@ export function SharePosterCard({
   ];
   const pathStroke = deckCards.tones.walk;
   const corner = poster.corner ?? weekdayName(posterWhen(poster));
-  const radius = corners === 'round' ? SHARE_POSTER_RADIUS * layoutScale : 0;
+  // Corners stay at one fixed radius at any preview size, so every card matches.
+  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
   const pad = SHARE_POSTER_PADDING * layoutScale;
   const brandHeight = Math.round(40 * layoutScale);
 

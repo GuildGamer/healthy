@@ -11,6 +11,7 @@ import { DeckButton, DeckNavButton } from '@/components/deck';
 import { ScreenLoader } from '@/components/feedback';
 import type { SharePayload } from '@/components/matches/share-destination';
 import {
+  SHARE_PAGE_MARGIN,
   ShareCapture,
   ShareDestinationSheet,
   useShareDestinations,
@@ -88,27 +89,18 @@ export function PeriodShareScreen({
         <ScreenLoader />
       ) : report && poster ? (
         <>
-          <ShareCapture shotRef={destinations.shotRef}>
-            {(corners) =>
-              corners === 'round' ? (
-                <View style={styles.posterWrap}>
-                  <SharePosterCard
-                    corners={corners}
-                    fillId={selectedFill}
-                    poster={poster}
-                    runLine={runLine}
-                  />
-                </View>
-              ) : (
-                <SharePosterCard
-                  corners={corners}
-                  fillId={selectedFill}
-                  poster={poster}
-                  runLine={runLine}
-                  testID="share-poster-image-capture"
-                />
-              )
-            }
+          <ShareCapture fitToSlot shotRef={destinations.shotRef}>
+            {(corners, size) => (
+              <SharePosterCard
+                corners={corners}
+                fillId={selectedFill}
+                height={size.height}
+                poster={poster}
+                runLine={runLine}
+                testID={corners === 'round' ? undefined : 'share-poster-image-capture'}
+                width={size.width}
+              />
+            )}
           </ShareCapture>
           <View style={styles.actions}>
             <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
@@ -140,12 +132,13 @@ const createStyles = (theme: Theme) =>
     screen: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      paddingHorizontal: 20,
+      paddingHorizontal: SHARE_PAGE_MARGIN,
     },
     nav: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      marginBottom: spacing.sm,
     },
     navTitle: {
       color: theme.colors.text,
@@ -155,12 +148,8 @@ const createStyles = (theme: Theme) =>
     navSpacer: {
       width: 40,
     },
-    posterWrap: {
-      alignSelf: 'center',
-      marginTop: 18,
-    },
     actions: {
-      marginTop: 'auto',
+      marginTop: spacing.md,
       gap: spacing.sm,
     },
     failed: {

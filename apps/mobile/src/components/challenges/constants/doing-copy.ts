@@ -192,5 +192,9 @@ export const SHARE_COPY = {
   close: 'Close',
   brand: 'Beatset',
   colour: 'Colour',
+  /** Label of the swatch row when the gym selfie is one of the choices. */
+  background: 'Background',
+  /** Accessibility label of the selfie swatch. */
+  yourPhoto: 'Your photo',
   failed: 'That didn’t share. Try again.',
 } as const;

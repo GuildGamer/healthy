@@ -1,14 +1,12 @@
-import { fontSize } from '@product/brand';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
+import { GymPhotoShareCard } from './GymPhotoShareCard';
 import {
-  GYM_PHOTO_SHARE_HEIGHT,
-  GYM_PHOTO_SHARE_WIDTH,
-  GYM_PHOTO_TYPE_PADDING,
-  GymPhotoShareCard,
-} from './GymPhotoShareCard';
-import { weekdayName } from './reading-time';
-import { SHARE_POSTER_RADIUS } from './SharePosterCard';
+  SHARE_POSTER_HEIGHT,
+  SHARE_POSTER_PADDING,
+  SHARE_POSTER_RADIUS,
+  SHARE_POSTER_WIDTH,
+} from './SharePosterCard';
 
 const gymPoster = {
   kind: 'gym' as const,
@@ -22,8 +20,31 @@ function revealPreviewPhoto() {
   fireEvent(screen.getByTestId('gym-photo-share-image'), 'load');
 }
 
+function typeLayerStyle() {
+  const typeLayer = screen.getByTestId('gym-photo-share-card').children.find(
+    (child: unknown): child is { props: { style?: unknown; pointerEvents?: string } } =>
+      typeof child !== 'string' &&
+      child != null &&
+      typeof child === 'object' &&
+      'props' in child &&
+      (child as { props: { pointerEvents?: string } }).props.pointerEvents === 'none',
+  );
+  return StyleSheet.flatten(typeLayer?.props.style);
+}
+
 describe('GymPhotoShareCard', () => {
-  it('fills a 3:4 photo card and keeps the type in the bands', () => {
+  it('is the same 4:5 card as the colour poster', () => {
+    render(<GymPhotoShareCard photoUri="file://gym.jpg" poster={gymPoster} />);
+
+    const shell = StyleSheet.flatten(screen.getByTestId('gym-photo-share-card').props.style);
+    expect(shell.width).toBe(SHARE_POSTER_WIDTH);
+    expect(shell.height).toBe(SHARE_POSTER_HEIGHT);
+    expect(shell.width / shell.height).toBeCloseTo(4 / 5);
+    expect(shell.overflow).toBeUndefined();
+    expect(shell.backgroundColor).toBe('transparent');
+  });
+
+  it('shows only the bottom block, leaving the face clear', () => {
     render(
       <GymPhotoShareCard photoUri="file://gym.jpg" poster={gymPoster} runLine="4 days running" />,
     );
@@ -32,45 +53,34 @@ describe('GymPhotoShareCard', () => {
     const image = screen.getByTestId('gym-photo-share-image');
     expect(image).toHaveProp('source', { uri: 'file://gym.jpg' });
     expect(image).toHaveProp('resizeMode', 'cover');
-    expect(screen.getByText('Gym session')).toBeOnTheScreen();
-    expect(screen.getByText(weekdayName(new Date(gymPoster.when)))).toBeOnTheScreen();
     expect(screen.getByText('08:00')).toBeOnTheScreen();
-    expect(StyleSheet.flatten(screen.getByText('08:00').props.style).fontSize).toBe(fontSize.xxl);
+    expect(screen.getByText('at the gym')).toBeOnTheScreen();
     expect(screen.getByTestId('share-brand-lockup')).toBeOnTheScreen();
     expect(screen.getByLabelText('Beatset')).toBeOnTheScreen();
-    expect(screen.getByText('at the gym')).toBeOnTheScreen();
     expect(screen.getByText('4 days running')).toBeOnTheScreen();
-
-    const shell = StyleSheet.flatten(screen.getByTestId('gym-photo-share-card').props.style);
-    expect(shell.width).toBe(GYM_PHOTO_SHARE_WIDTH);
-    expect(shell.height).toBe(GYM_PHOTO_SHARE_HEIGHT);
-    expect(shell.width / shell.height).toBeCloseTo(3 / 4);
-    expect(shell.overflow).toBeUndefined();
-    expect(shell.backgroundColor).toBe('transparent');
+    expect(screen.queryByText('Gym session')).toBeNull();
   });
 
-  it('insets type past the soft radius so corners do not clip labels', () => {
+  it('uses the tightened type sizes at design width', () => {
     render(<GymPhotoShareCard photoUri="file://gym.jpg" poster={gymPoster} />);
     revealPreviewPhoto();
 
-    expect(GYM_PHOTO_TYPE_PADDING).toBeGreaterThan(SHARE_POSTER_RADIUS);
-    const typeLayer = screen.getByTestId('gym-photo-share-card').children.find(
-      (child: unknown): child is { props: { style?: unknown; pointerEvents?: string } } =>
-        typeof child !== 'string' &&
-        child != null &&
-        typeof child === 'object' &&
-        'props' in child &&
-        (child as { props: { pointerEvents?: string } }).props.pointerEvents === 'none',
-    );
-    const typeStyle = StyleSheet.flatten(typeLayer?.props.style);
-    expect(typeStyle?.paddingHorizontal).toBe(GYM_PHOTO_TYPE_PADDING);
-    expect(typeStyle?.paddingTop).toBe(GYM_PHOTO_TYPE_PADDING);
+    expect(StyleSheet.flatten(screen.getByText('08:00').props.style).fontSize).toBe(26);
+    expect(StyleSheet.flatten(screen.getByText('at the gym').props.style).fontSize).toBe(14);
   });
 
-  it('sizes to the pager slot when width and height are passed', () => {
+  it('keeps the card padding, which sits clear of the corner radius', () => {
+    render(<GymPhotoShareCard photoUri="file://gym.jpg" poster={gymPoster} />);
+    revealPreviewPhoto();
+
+    expect(SHARE_POSTER_PADDING).toBeGreaterThan(SHARE_POSTER_RADIUS);
+    expect(typeLayerStyle().padding).toBe(SHARE_POSTER_PADDING);
+  });
+
+  it('scales type and padding with the slot but never the corner radius', () => {
     render(
       <GymPhotoShareCard
-        height={480}
+        height={450}
         photoUri="file://gym.jpg"
         poster={gymPoster}
         width={360}
@@ -78,12 +88,13 @@ describe('GymPhotoShareCard', () => {
     );
     revealPreviewPhoto();
 
+    const scale = 360 / SHARE_POSTER_WIDTH;
     const shell = StyleSheet.flatten(screen.getByTestId('gym-photo-share-card').props.style);
     expect(shell.width).toBe(360);
-    expect(shell.height).toBe(480);
-    expect(StyleSheet.flatten(screen.getByText('08:00').props.style).fontSize).toBe(
-      fontSize.xxl * (360 / GYM_PHOTO_SHARE_WIDTH),
-    );
+    expect(shell.height).toBe(450);
+    expect(shell.borderRadius).toBe(SHARE_POSTER_RADIUS);
+    expect(StyleSheet.flatten(screen.getByText('08:00').props.style).fontSize).toBe(26 * scale);
+    expect(typeLayerStyle().padding).toBe(SHARE_POSTER_PADDING * scale);
   });
 
   it('fades the photo in so the shell never flashes black', () => {
@@ -91,12 +102,12 @@ describe('GymPhotoShareCard', () => {
 
     const image = screen.getByTestId('gym-photo-share-image');
     expect(StyleSheet.flatten(image.props.style).opacity).toBe(0);
-    expect(screen.queryByText('Gym session')).toBeNull();
+    expect(screen.queryByText('08:00')).toBeNull();
     fireEvent(image, 'load');
     expect(StyleSheet.flatten(screen.getByTestId('gym-photo-share-image').props.style).opacity).toBe(
       1,
     );
-    expect(screen.getByText('Gym session')).toBeOnTheScreen();
+    expect(screen.getByText('08:00')).toBeOnTheScreen();
   });
 
   it('paints the capture twin immediately so exports are not blank', () => {
@@ -104,7 +115,7 @@ describe('GymPhotoShareCard', () => {
       <GymPhotoShareCard corners="square" photoUri="file://gym.jpg" poster={gymPoster} />,
     );
 
-    expect(screen.getByText('Gym session')).toBeOnTheScreen();
+    expect(screen.getByText('08:00')).toBeOnTheScreen();
     expect(screen.queryByTestId('gym-photo-share-image')).toBeNull();
   });
 

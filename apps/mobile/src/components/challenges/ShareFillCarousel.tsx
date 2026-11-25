@@ -1,5 +1,5 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { type Theme, useThemedStyles } from '@/theme';
 import { SHARE_COPY } from './constants/doing-copy';
 import { SHARE_FILL_OPTIONS, type ShareFillId } from './share-fill';
@@ -7,28 +7,56 @@ import { SHARE_FILL_OPTIONS, type ShareFillId } from './share-fill';
 /**
  * Horizontal swatches for recolouring a share poster before capture. Selection
  * is local to the screen — nothing is persisted.
+ *
+ * When the finish has a gym selfie it leads the row as a round thumbnail, so
+ * the card's background is either your photo or a colour.
  */
 export function ShareFillCarousel({
   selected,
   onSelect,
+  photoUri = null,
+  isPhotoSelected = false,
+  onSelectPhoto,
   testID = 'share-fill-carousel',
 }: {
   selected: ShareFillId;
   onSelect: (id: ShareFillId) => void;
+  /** The gym selfie, offered as the first background. */
+  photoUri?: string | null;
+  isPhotoSelected?: boolean;
+  onSelectPhoto?: () => void;
   testID?: string;
 }) {
   const styles = useThemedStyles(createStyles);
+  const offersPhoto = photoUri != null && onSelectPhoto != null;
 
   return (
     <View style={styles.wrap} testID={testID}>
-      <Text style={styles.label}>{SHARE_COPY.colour}</Text>
+      <Text style={styles.label}>{offersPhoto ? SHARE_COPY.background : SHARE_COPY.colour}</Text>
       <ScrollView
         contentContainerStyle={styles.row}
         horizontal
         showsHorizontalScrollIndicator={false}
       >
+        {offersPhoto ? (
+          <Pressable
+            accessibilityLabel={SHARE_COPY.yourPhoto}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isPhotoSelected }}
+            onPress={onSelectPhoto}
+            style={[styles.swatch, isPhotoSelected ? styles.selected : null]}
+            testID="share-fill-photo"
+          >
+            <Image
+              accessibilityIgnoresInvertColors
+              resizeMode="cover"
+              source={{ uri: photoUri }}
+              style={styles.thumbnail}
+            />
+          </Pressable>
+        ) : null}
         {SHARE_FILL_OPTIONS.map((option) => {
-          const isSelected = option.id === selected;
+          const isSelected = !isPhotoSelected && option.id === selected;
           return (
             <Pressable
               accessibilityLabel={option.label}
@@ -73,6 +101,11 @@ const createStyles = (theme: Theme) =>
       borderRadius: 22,
       borderWidth: 2,
       borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    thumbnail: {
+      width: '100%',
+      height: '100%',
     },
     clinic: {
       borderColor: theme.colors.border,

@@ -8,6 +8,7 @@ import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
 import { DeckButton, DeckNavButton } from '@/components/deck';
 import type { SharePayload } from '@/components/matches/share-destination';
 import {
+  SHARE_PAGE_MARGIN,
   ShareCapture,
   ShareDestinationSheet,
   useShareDestinations,
@@ -61,16 +62,16 @@ export function DayShareScreen({ content }: { content: DayShareContent }) {
         <Text style={styles.navTitle}>{SHARE_COPY.title}</Text>
         <View style={styles.navSpacer} />
       </View>
-      <ShareCapture shotRef={destinations.shotRef}>
-        {(corners) =>
-          corners === 'round' ? (
-            <View style={styles.posterWrap}>
-              <DayShareCard content={content} corners={corners} fillId={fillId} />
-            </View>
-          ) : (
-            <DayShareCard content={content} corners={corners} fillId={fillId} />
-          )
-        }
+      <ShareCapture fitToSlot shotRef={destinations.shotRef}>
+        {(corners, size) => (
+          <DayShareCard
+            content={content}
+            corners={corners}
+            fillId={fillId}
+            height={size.height}
+            width={size.width}
+          />
+        )}
       </ShareCapture>
       <View style={styles.actions}>
         <ShareFillCarousel onSelect={setFillId} selected={fillId} />
@@ -98,12 +99,13 @@ const createStyles = (theme: Theme) =>
     screen: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      paddingHorizontal: 20,
+      paddingHorizontal: SHARE_PAGE_MARGIN,
     },
     nav: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      marginBottom: spacing.sm,
     },
     navTitle: {
       color: theme.colors.text,
@@ -113,12 +115,8 @@ const createStyles = (theme: Theme) =>
     navSpacer: {
       width: 40,
     },
-    posterWrap: {
-      alignSelf: 'center',
-      marginTop: 18,
-    },
     actions: {
-      marginTop: 'auto',
+      marginTop: spacing.md,
       gap: spacing.sm,
     },
   });

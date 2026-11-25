@@ -1,46 +1,43 @@
-import { darkDeckCards, fontSize, fontWeight, spacing } from '@product/brand';
+import { darkDeckCards, fontWeight, spacing } from '@product/brand';
 import { useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import { ShareBrandLockup } from '@/components/share';
+import { ShareBrandLockup } from '@/components/share/ShareBrandLockup';
 import { PhotoFade } from './PhotoFade';
-import { SHARE_POSTER_RADIUS } from './SharePosterCard';
+import {
+  SHARE_POSTER_HEIGHT,
+  SHARE_POSTER_PADDING,
+  SHARE_POSTER_RADIUS,
+  SHARE_POSTER_WIDTH,
+} from './SharePosterCard';
 import { SharePosterText } from './SharePosterText';
-import { weekdayName } from './reading-time';
-import { posterWhen } from './share-poster';
 import type { SharePoster } from './types/share-poster';
 
 export type ShareCorners = 'round' | 'square';
 
-/**
- * Phone-selfie canvas (3:4): taller than wide, not Stories-tall. Kept separate
- * from the colour poster so a gym photo reads as a photo, not a deck slip.
- */
-export const GYM_PHOTO_SHARE_WIDTH = 300;
-export const GYM_PHOTO_SHARE_HEIGHT = 400;
-export const GYM_PHOTO_SHARE_ASPECT = GYM_PHOTO_SHARE_WIDTH / GYM_PHOTO_SHARE_HEIGHT;
+/** Design sizes of the bottom block, at the card's 300pt width. */
+const TIME_SIZE = 26;
+const UNIT_SIZE = 14;
+const RUN_SIZE = 12;
+const LOCKUP_HEIGHT = 30;
+const UNIT_GAP = 2;
+const BRAND_GAP = 10;
 
 /**
- * Type inset for the photo card. Larger than the colour poster so labels clear
- * the soft radius — overflow clips the photo only, not the type layer.
- */
-export const GYM_PHOTO_TYPE_PADDING = 44;
-
-/**
- * Gym selfie as its own share page. The photo fills a 3:4 card. The same lines
- * as the colour poster sit in the top and bottom bands, with the time at
- * caption size so it does not cover the face. Preview corners are soft; the
- * capture twin is square.
+ * The gym selfie as a background of the share card. Same 4:5 shape, margin and
+ * corners as the colour card; the photo fills it and only a small block sits at
+ * the bottom (time, unit, lockup, run) so the face stays clear. Preview corners
+ * are soft; the capture twin is square and paints immediately.
  *
- * Pass width/height to size the in-app preview to the pager slot. Capture twins
- * keep the design size so exports stay sharp and consistent.
+ * Pass width/height to size the in-app preview to the stage. Everything inside
+ * scales with the width except the corner radius, which stays fixed.
  */
 export function GymPhotoShareCard({
   photoUri,
   poster,
   runLine = null,
   corners = 'round',
-  width = GYM_PHOTO_SHARE_WIDTH,
-  height = GYM_PHOTO_SHARE_HEIGHT,
+  width = SHARE_POSTER_WIDTH,
+  height = SHARE_POSTER_HEIGHT,
   testID = 'gym-photo-share-card',
 }: {
   photoUri: string;
@@ -52,29 +49,16 @@ export function GymPhotoShareCard({
   height?: number;
   testID?: string;
 }) {
-  // Capture twin must paint immediately — a deferred reveal blanks view-shot.
+  // The capture twin must paint immediately — a deferred reveal blanks view-shot.
   const [photoReady, setPhotoReady] = useState(corners === 'square');
-  const layoutScale = width / GYM_PHOTO_SHARE_WIDTH;
-  const radius = corners === 'round' ? SHARE_POSTER_RADIUS * layoutScale : 0;
-  const pad = GYM_PHOTO_TYPE_PADDING * layoutScale;
-  const corner = poster.corner ?? weekdayName(posterWhen(poster));
+  const layoutScale = width / SHARE_POSTER_WIDTH;
+  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
   const imageTestID = corners === 'round' ? 'gym-photo-share-image' : undefined;
-  const labelSize = fontSize.sm * layoutScale;
-  const timeSize = fontSize.xxl * layoutScale;
-  const unitSize = fontSize.md * layoutScale;
-  const brandHeight = Math.round(40 * layoutScale);
 
   return (
     <View
       collapsable={false}
-      style={[
-        styles.shell,
-        {
-          width,
-          height,
-          borderRadius: radius,
-        },
-      ]}
+      style={[styles.shell, { width, height, borderRadius: radius }]}
       testID={testID}
     >
       <View style={[styles.photo, { borderRadius: radius }]}>
@@ -87,97 +71,56 @@ export function GymPhotoShareCard({
           style={[StyleSheet.absoluteFill, { opacity: photoReady ? 1 : 0 }]}
           testID={imageTestID}
         />
-        {photoReady ? (
-          <>
-            <PhotoFade edge="top" height="16%" maxOpacity={0.38} />
-            <PhotoFade edge="bottom" height="28%" maxOpacity={0.58} />
-          </>
-        ) : null}
+        {photoReady ? <PhotoFade edge="bottom" height="38%" maxOpacity={0.62} /> : null}
       </View>
       {photoReady ? (
         <View
           pointerEvents="none"
-          style={[
-            styles.type,
-            {
-              paddingTop: pad,
-              paddingHorizontal: pad,
-              paddingBottom: pad + 10 * layoutScale,
-            },
-          ]}
+          style={[styles.type, { padding: SHARE_POSTER_PADDING * layoutScale }]}
         >
-          <View style={styles.top}>
-            <SharePosterText
-              numberOfLines={1}
-              plainStyle={onPhoto}
-              style={[
-                styles.label,
-                styles.labelShrink,
-                { color: darkDeckCards.text, fontSize: labelSize },
-              ]}
-            >
-              {poster.label}
-            </SharePosterText>
-            <SharePosterText
-              numberOfLines={1}
-              plainStyle={onPhoto}
-              style={[
-                styles.label,
-                styles.labelShrink,
-                { color: darkDeckCards.text, fontSize: labelSize },
-              ]}
-            >
-              {corner}
-            </SharePosterText>
-          </View>
-          <View style={styles.caption}>
-            <SharePosterText
-              numberOfLines={1}
-              plainStyle={onPhoto}
-              style={[
-                styles.time,
-                {
-                  color: darkDeckCards.text,
-                  fontSize: timeSize,
-                  lineHeight: timeSize * 1.125,
-                  letterSpacing: -0.6 * layoutScale,
-                },
-              ]}
-            >
-              {poster.value}
-            </SharePosterText>
-            <SharePosterText
-              numberOfLines={1}
-              plainStyle={onPhoto}
-              style={[styles.unit, { color: darkDeckCards.subtext, fontSize: unitSize }]}
-            >
-              {poster.unit}
-            </SharePosterText>
-            <View
-              style={[
-                styles.brand,
-                {
-                  borderTopColor: darkDeckCards.track,
-                  marginTop: spacing.sm * layoutScale,
-                  paddingTop: 14 * layoutScale,
-                },
-              ]}
-            >
-              <ShareBrandLockup color={darkDeckCards.text} height={brandHeight} />
-              {runLine ? (
-                <SharePosterText
-                  numberOfLines={1}
-                  plainStyle={onPhoto}
-                  style={[
-                    styles.label,
-                    styles.labelShrink,
-                    { color: darkDeckCards.subtext, fontSize: labelSize },
-                  ]}
-                >
-                  {runLine}
-                </SharePosterText>
-              ) : null}
-            </View>
+          <SharePosterText
+            numberOfLines={1}
+            plainStyle={onPhoto}
+            style={[
+              styles.time,
+              {
+                fontSize: TIME_SIZE * layoutScale,
+                lineHeight: TIME_SIZE * 1.1 * layoutScale,
+                letterSpacing: -0.5 * layoutScale,
+              },
+            ]}
+          >
+            {poster.value}
+          </SharePosterText>
+          <SharePosterText
+            numberOfLines={1}
+            plainStyle={onPhoto}
+            style={[
+              styles.unit,
+              { fontSize: UNIT_SIZE * layoutScale, marginTop: UNIT_GAP * layoutScale },
+            ]}
+          >
+            {poster.unit}
+          </SharePosterText>
+          <View
+            style={[
+              styles.brand,
+              { marginTop: BRAND_GAP * layoutScale, paddingTop: BRAND_GAP * layoutScale },
+            ]}
+          >
+            <ShareBrandLockup
+              color={darkDeckCards.text}
+              height={Math.round(LOCKUP_HEIGHT * layoutScale)}
+            />
+            {runLine ? (
+              <SharePosterText
+                numberOfLines={1}
+                plainStyle={onPhoto}
+                style={[styles.run, { fontSize: RUN_SIZE * layoutScale }]}
+              >
+                {runLine}
+              </SharePosterText>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -194,8 +137,8 @@ const onPhoto = {
 
 const styles = StyleSheet.create({
   /**
-   * No overflow clip on the shell — that was cutting type into the soft
-   * radius. The photo layer clips itself; type stays fully painted.
+   * No overflow clip and no fill on the shell — the photo layer clips itself,
+   * so type is never cut by the soft corners and nothing flashes black.
    */
   shell: {
     backgroundColor: 'transparent',
@@ -207,26 +150,14 @@ const styles = StyleSheet.create({
   },
   type: {
     flex: 1,
-    justifyContent: 'space-between',
-  },
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  label: {
-    fontWeight: fontWeight.medium,
-  },
-  labelShrink: {
-    flexShrink: 1,
-  },
-  caption: {
-    gap: spacing.xs,
+    justifyContent: 'flex-end',
   },
   time: {
+    color: darkDeckCards.text,
     fontWeight: fontWeight.semibold,
   },
   unit: {
+    color: darkDeckCards.subtext,
     fontWeight: fontWeight.medium,
   },
   brand: {
@@ -234,6 +165,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: darkDeckCards.track,
     gap: spacing.md,
+  },
+  run: {
+    flexShrink: 1,
+    color: darkDeckCards.subtext,
+    fontWeight: fontWeight.medium,
   },
 });

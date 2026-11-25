@@ -285,7 +285,7 @@ describe('ChallengeSuccessScreen share card', () => {
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
   });
 
-  it('pages the gym selfie then the card, without a points poster', async () => {
+  it('uses the gym selfie as the card background, without a points poster', async () => {
     setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
 
     renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
@@ -295,12 +295,68 @@ describe('ChallengeSuccessScreen share card', () => {
       uri: 'file://gym.jpg',
     });
     expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
-    expect(screen.getAllByText('Gym session').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('share-poster-image')).toBeNull();
+    fireEvent(screen.getByTestId('gym-photo-share-image'), 'load');
     expect(screen.getAllByText('at the gym').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('share-brand-lockup').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Beatset').length).toBeGreaterThan(0);
     expect(screen.queryByText('+40')).toBeNull();
     expect(await screen.findByTestId('set-share-open')).toBeOnTheScreen();
+  });
+
+  it('leads the background swatches with the selfie, selected by default', () => {
+    setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
+
+    renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
+
+    expect(screen.getByText('Background')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-fill-photo').props.accessibilityState).toEqual(
+      expect.objectContaining({ selected: true }),
+    );
+    expect(screen.getByTestId('share-fill-gym').props.accessibilityState).toEqual(
+      expect.objectContaining({ selected: false }),
+    );
+  });
+
+  it('swaps the selfie for a colour and back again', () => {
+    setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
+    renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
+
+    fireEvent.press(screen.getByTestId('share-fill-walk'));
+
+    expect(screen.queryByTestId('gym-photo-share-image')).toBeNull();
+    expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-fill-photo').props.accessibilityState).toEqual(
+      expect.objectContaining({ selected: false }),
+    );
+    expect(screen.getByTestId('share-fill-walk').props.accessibilityState).toEqual(
+      expect.objectContaining({ selected: true }),
+    );
+
+    fireEvent.press(screen.getByTestId('share-fill-photo'));
+
+    expect(screen.getByTestId('gym-photo-share-image')).toBeOnTheScreen();
+    expect(screen.queryByTestId('share-poster-image')).toBeNull();
+  });
+
+  it('exports the selfie card, or the colour card once a colour is chosen', async () => {
+    setPendingSharePhoto({ userChallengeId: 'uc-gym', photoUri: 'file://gym.jpg' });
+    renderSuccess({ face: 'gym', title: 'Gym session', userChallengeId: 'uc-gym' });
+    const capturedHostTestID = () => {
+      const [lastHost] = (captureRef as jest.Mock).mock.calls.at(-1) as [
+        { current: { props: { testID: string } } },
+      ];
+      return lastHost.current.props.testID;
+    };
+
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    await waitFor(() => expect(captureRef).toHaveBeenCalledTimes(1));
+    expect(capturedHostTestID()).toBe('gym-photo-share-capture-host');
+
+    fireEvent.press(screen.getByTestId('share-fill-walk'));
+    fireEvent.press(screen.getByTestId('set-share-open'));
+    await waitFor(() => expect(captureRef).toHaveBeenCalledTimes(2));
+    expect(capturedHostTestID()).toBe('share-poster-capture-host');
   });
 
   it('keeps the plain card when the selfie belongs to a different finish', () => {

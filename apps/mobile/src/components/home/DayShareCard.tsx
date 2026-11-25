@@ -1,125 +1,54 @@
-import { fontSize, fontWeight, spacing } from '@product/brand';
-import { StyleSheet, View } from 'react-native';
 import {
   SHARE_POSTER_HEIGHT,
-  SHARE_POSTER_PADDING,
-  SHARE_POSTER_RADIUS,
   SHARE_POSTER_WIDTH,
+  SharePosterCard,
 } from '@/components/challenges/SharePosterCard';
-import { shareFillStyle, type ShareFillId } from '@/components/challenges/share-fill';
-import { posterValueMetrics } from '@/components/challenges/share-poster';
-import { SharePosterText } from '@/components/challenges/SharePosterText';
-import { ShareBrandLockup } from '@/components/share';
-import { useTheme } from '@/theme';
+import type { ShareCorners } from '@/components/challenges/GymPhotoShareCard';
+import type { ShareFillId } from '@/components/challenges/share-fill';
 import { TODAY_COPY } from './constants/today-copy';
 import { dayShareHero } from './day-share';
 import type { DayShareContent } from './types/day-share';
 
-/** Drawn at this width and exported at 1080, so the type scale is fixed, not fitted. */
-export const DAY_SHARE_CARD_WIDTH = SHARE_POSTER_WIDTH;
-
 /**
  * The day as a deck poster: streak (or today's tally) as one numeral, hairline
- * brand row. Same family as `SharePosterCard`, filled with the streak colour.
+ * brand row. It is the shared share card filled with the streak colour, so it
+ * can never drift from the other cards.
  */
 export function DayShareCard({
   content,
   fillId,
   corners = 'round',
+  width = SHARE_POSTER_WIDTH,
+  height = SHARE_POSTER_HEIGHT,
 }: {
   content: DayShareContent;
   /** Optional colour override from the share fill carousel. */
   fillId?: ShareFillId;
-  corners?: 'round' | 'square';
+  corners?: ShareCorners;
+  width?: number;
+  height?: number;
 }) {
-  const { deckCards } = useTheme();
-  const chosen = fillId ? shareFillStyle(fillId) : null;
-  const fill = chosen?.backgroundColor ?? deckCards.streak;
-  const ink = chosen
-    ? { text: chosen.text, subtext: chosen.subtext, track: chosen.track }
-    : deckCards;
   const hero = dayShareHero(content);
-  const valueMetrics = posterValueMetrics(hero.value);
   const brandMeta =
     content.streakDays > 1
       ? `${content.completedCount} of ${content.totalCount}`
       : `+${content.pointsToday}`;
-  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
 
   return (
-    <View
-      style={[styles.shell, corners === 'round' ? styles.shellRound : null]}
+    <SharePosterCard
+      corners={corners}
+      fillId={fillId}
+      height={height}
+      poster={{
+        kind: 'streak',
+        label: TODAY_COPY.dayDoneTitle,
+        value: hero.value,
+        unit: hero.unit,
+        corner: content.weekday,
+      }}
+      runLine={brandMeta}
       testID="home-day-share-card"
-    >
-      <View style={[styles.fill, { backgroundColor: fill, borderRadius: radius }]} />
-      <View style={styles.type}>
-        <View style={styles.top}>
-          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
-            {TODAY_COPY.dayDoneTitle}
-          </SharePosterText>
-          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
-            {content.weekday}
-          </SharePosterText>
-        </View>
-        <SharePosterText
-          adjustsFontSizeToFit
-          numberOfLines={1}
-          style={[styles.value, { color: ink.text }, valueMetrics]}
-        >
-          {hero.value}
-        </SharePosterText>
-        <SharePosterText style={[styles.unit, { color: ink.subtext }]}>
-          {hero.unit}
-        </SharePosterText>
-        <View style={[styles.brand, { borderTopColor: ink.track }]}>
-          <ShareBrandLockup color={ink.text} />
-          <SharePosterText style={[styles.label, { color: ink.subtext }]}>
-            {brandMeta}
-          </SharePosterText>
-        </View>
-      </View>
-    </View>
+      width={width}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  shell: {
-    width: SHARE_POSTER_WIDTH,
-    height: SHARE_POSTER_HEIGHT,
-  },
-  shellRound: {
-    borderRadius: SHARE_POSTER_RADIUS,
-  },
-  fill: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  type: {
-    flex: 1,
-    padding: SHARE_POSTER_PADDING,
-  },
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  value: {
-    fontWeight: fontWeight.semibold,
-    marginTop: 'auto',
-  },
-  unit: {
-    fontSize: 17,
-    marginTop: spacing.sm,
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    paddingTop: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-});

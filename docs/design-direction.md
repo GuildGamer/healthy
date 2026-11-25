@@ -78,16 +78,34 @@ week/month/year recaps all read as the **deck card** you played
 - Filled with the activity's deep colour from `deckCardPalettes` (day done uses
   streak; group results use the contest tone). Plain posters follow the
   sender's mode.
-- Soft radius (~26) on the in-app preview; the PNG destinations send is the
+- **One shape, one size.** Every card is 4:5 (design size 300×375) with a 24pt
+  side margin (`SHARE_PAGE_MARGIN`) on every share screen: clip finish, history
+  set share, day, metric, period and plain poster. On screen the card is the
+  largest 4:5 the free space allows (`fitShareCard`), so day, metric and
+  period shares match the clip-finish card. Type, padding and route scale with
+  the card width.
+- **One radius.** Soft radius 26 on the in-app preview, fixed at any card size
+  (it does not scale with width). The video in a clip share is the exception:
+  it is footage, not a card, and keeps 12. The PNG destinations send is the
   **square-cornered card only** at 1080px wide (no navy Stories letterbox).
 - Label and period on top; one big numeral and unit; hairline brand row
   (Beatset lockup tinted to the card ink + a short meta line). No mint band.
-- Optional walk GPS path on a finish poster. A gym selfie is its own share
-  page (`GymPhotoShareCard`): a 3:4 phone-photo canvas (not the colour poster
-  slip), full-bleed photo with light top/bottom fades and the poster lines
-  (name, weekday, time, unit, lockup, run) in the bands. Soft radius in-app;
-  square card PNG on export. Gym shutter is share-grade. Stored for 30 days
-  with membership, 1 day without; History falls back to the card after expiry.
+- `DayShareCard` is `SharePosterCard` filled with the streak colour, so day
+  shares cannot drift from the other posters.
+- Optional walk GPS path on a finish poster.
+- **A gym selfie is a background of the card, not a page.** It is the first
+  round thumbnail in the swatch row (labelled **Background**, your photo ahead
+  of the colours) and is selected by default. Pick a colour to swap it out and
+  the photo thumbnail to bring it back. The selfie card (`GymPhotoShareCard`)
+  is the same 4:5, 26-radius card: full-bleed photo, a soft bottom fade, and
+  only a small bottom block (time 26, unit 14, hairline, lockup, run line 12;
+  card padding 34) so faces stay clear. No top row, no name or weekday over
+  the photo. Preview corners are soft, the export is square, and type sits
+  inside the photo clip so the radius never cuts it. The preview fades the
+  photo in (no black flash) and holds the overlay until the photo has loaded;
+  the export twin paints immediately. A selfie is ignored when the share has a
+  proof clip. Gym shutter is share-grade. Stored for 30 days with membership, 1
+  day without; History falls back to the colour card after expiry.
 
 ### 2. Invite link preview
 
@@ -109,7 +127,8 @@ send it. No orphan card preview without a way to send it.
 | Role | Control | When |
 |---|---|---|
 | Primary (poster + colour) | Colour carousel, then solid **Share** → sheet | Day, metric, period, history/set poster pages |
-| Primary (set with clip) | Colour on poster page; solid **Share** opens the sheet for the page in front | Video ↔ poster pager (finish and `/challenge/share`) |
+| Primary (set with clip) | Colour on card page; solid **Share** opens the sheet for the page in front | Video ↔ card pager (finish and `/challenge/share`) |
+| Primary (gym selfie) | Background swatches (selfie first, then colours); solid **Share** | Single card, no pager (finish and `/challenge/share`) |
 | Primary (group result) | Destination row | Match / group result foot |
 | Entry to day share | Share the day on Home day-done | Opens `/share/day` |
 | Entry to metric / period share | Share on activity stats or period report | Opens `/share/metric` or `/share/report` |
@@ -127,13 +146,19 @@ Rules:
 - When Share is not the screen’s foot job, a Share glyph opens
   **ShareDestinationSheet** with the same destinations.
 - Every destination sends the artifact on screen (`video`, `image`, or
-  `link`). Colour swatches recolour a poster and render only while that poster
-  is the visible share page. In-app previews are **rounded**; exported PNGs are
-  **square** via `ShareCapture`.
-- Any set share with a clip uses the video/poster pager (finish and history
+  `link`). Colour swatches recolour a poster and belong to the card page. In-
+  app previews are **rounded**; exported PNGs are **square** via
+  `ShareCapture`.
+- Any set share with a clip uses the video ↔ card pager (finish and history
   share). Finish adds optional board switch and X. No audience toggle, Save to
   Photos, Discard, Send clip, duplicate code, or Not now on that foot.
   Audience stays a settings / History concern.
+- **The swatch row never pops in.** Its band is always reserved under the card
+  (`SHARE_SWATCH_BAND_HEIGHT`), so the card never resizes. On the video page
+  the row is hidden and untappable (and hidden from screen readers); swiping
+  to the card fades it in from halfway through the swipe, so it is complete
+  as the card settles. Share stays fixed. The video fills the whole slot (same
+  width as the card, taller); the card leaves the band free.
 - Challenge only when friend-challenge is offered. Link-only payloads (invite
   URL + caption) are first-class.
 - Report emails use **Open in Beatset** (deep link to `/progress/report`) when

@@ -207,7 +207,7 @@ describe('ChallengeShareScreen with a clip', () => {
     expect(screen.queryByTestId('clip-finish-pager')).toBeNull();
   });
 
-  it('pages gym photo then poster when a selfie is present', async () => {
+  it('puts the gym selfie on the card instead of paging to it', async () => {
     const gym: SharePoster = {
       kind: 'gym',
       label: 'Gym session',
@@ -226,6 +226,7 @@ describe('ChallengeShareScreen with a clip', () => {
       uri: 'file://gym.jpg',
     });
     expect(screen.getByTestId('clip-finish-poster')).toBeOnTheScreen();
+    expect(screen.getByTestId('share-fill-photo')).toBeOnTheScreen();
   });
 });
 
