@@ -2,12 +2,7 @@ import { darkDeckCards, fontSize, fontWeight, spacing } from '@product/brand';
 import { Image, StyleSheet, View } from 'react-native';
 import { ShareBrandLockup } from '@/components/share';
 import { PhotoFade } from './PhotoFade';
-import {
-  SHARE_POSTER_HEIGHT,
-  SHARE_POSTER_PADDING,
-  SHARE_POSTER_RADIUS,
-  SHARE_POSTER_WIDTH,
-} from './SharePosterCard';
+import { SHARE_POSTER_PADDING, SHARE_POSTER_RADIUS } from './SharePosterCard';
 import { SharePosterText } from './SharePosterText';
 import { weekdayName } from './reading-time';
 import { posterWhen } from './share-poster';
@@ -16,7 +11,15 @@ import type { SharePoster } from './types/share-poster';
 export type ShareCorners = 'round' | 'square';
 
 /**
- * Gym selfie as its own share page. The photo fills the card. The same lines
+ * Phone-selfie canvas (3:4): taller than wide, not Stories-tall. Kept separate
+ * from the colour poster so a gym photo reads as a photo, not a deck slip.
+ */
+export const GYM_PHOTO_SHARE_WIDTH = 300;
+export const GYM_PHOTO_SHARE_HEIGHT = 400;
+export const GYM_PHOTO_SHARE_ASPECT = GYM_PHOTO_SHARE_WIDTH / GYM_PHOTO_SHARE_HEIGHT;
+
+/**
+ * Gym selfie as its own share page. The photo fills a 3:4 card. The same lines
  * as the colour poster sit in the top and bottom bands, with the time at
  * caption size so it does not cover the face. Preview corners are soft; the
  * capture twin is square.
@@ -40,7 +43,11 @@ export function GymPhotoShareCard({
   const imageTestID = corners === 'round' ? 'gym-photo-share-image' : undefined;
 
   return (
-    <View style={[styles.shell, { borderRadius: radius }]} testID={testID}>
+    <View
+      collapsable={false}
+      style={[styles.shell, { borderRadius: radius }]}
+      testID={testID}
+    >
       <View style={[styles.photo, { borderRadius: radius }]}>
         <Image
           accessibilityIgnoresInvertColors
@@ -49,8 +56,8 @@ export function GymPhotoShareCard({
           style={StyleSheet.absoluteFill}
           testID={imageTestID}
         />
-        <PhotoFade edge="top" height="22%" maxOpacity={0.45} />
-        <PhotoFade edge="bottom" height="46%" maxOpacity={0.72} />
+        <PhotoFade edge="top" height="16%" maxOpacity={0.38} />
+        <PhotoFade edge="bottom" height="28%" maxOpacity={0.58} />
       </View>
       <View pointerEvents="none" style={styles.type}>
         <View style={styles.top}>
@@ -111,8 +118,8 @@ const onPhoto = {
 
 const styles = StyleSheet.create({
   shell: {
-    width: SHARE_POSTER_WIDTH,
-    height: SHARE_POSTER_HEIGHT,
+    width: GYM_PHOTO_SHARE_WIDTH,
+    height: GYM_PHOTO_SHARE_HEIGHT,
     overflow: 'hidden',
     backgroundColor: '#000',
   },

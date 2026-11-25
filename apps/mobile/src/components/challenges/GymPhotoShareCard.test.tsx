@@ -1,9 +1,13 @@
 import { fontSize } from '@product/brand';
 import { render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
-import { GymPhotoShareCard } from './GymPhotoShareCard';
+import {
+  GYM_PHOTO_SHARE_HEIGHT,
+  GYM_PHOTO_SHARE_WIDTH,
+  GymPhotoShareCard,
+} from './GymPhotoShareCard';
 import { weekdayName } from './reading-time';
-import { SHARE_POSTER_HEIGHT, SHARE_POSTER_RADIUS, SHARE_POSTER_WIDTH } from './SharePosterCard';
+import { SHARE_POSTER_RADIUS } from './SharePosterCard';
 
 const gymPoster = {
   kind: 'gym' as const,
@@ -14,7 +18,7 @@ const gymPoster = {
 };
 
 describe('GymPhotoShareCard', () => {
-  it('fills the card with the photo and keeps the type in the bands', () => {
+  it('fills a 3:4 photo card and keeps the type in the bands', () => {
     render(
       <GymPhotoShareCard photoUri="file://gym.jpg" poster={gymPoster} runLine="4 days running" />,
     );
@@ -32,8 +36,9 @@ describe('GymPhotoShareCard', () => {
     expect(screen.getByText('4 days running')).toBeOnTheScreen();
 
     const shell = StyleSheet.flatten(screen.getByTestId('gym-photo-share-card').props.style);
-    expect(shell.width).toBe(SHARE_POSTER_WIDTH);
-    expect(shell.height).toBe(SHARE_POSTER_HEIGHT);
+    expect(shell.width).toBe(GYM_PHOTO_SHARE_WIDTH);
+    expect(shell.height).toBe(GYM_PHOTO_SHARE_HEIGHT);
+    expect(shell.width / shell.height).toBeCloseTo(3 / 4);
   });
 
   it('uses square corners for the capture twin', () => {

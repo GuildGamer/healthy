@@ -83,12 +83,13 @@ week/month/year recaps all read as the **deck card** you played
 - Label and period on top; one big numeral and unit; hairline brand row
   (Beatset lockup tinted to the card ink + a short meta line). No mint band.
 - Optional walk GPS path on a finish poster. A gym selfie is its own share
-  page (`GymPhotoShareCard`): the photo full-bleed on the poster canvas, with
-  the poster lines (name, weekday, time, unit, lockup, run) in the top and
-  bottom bands. The time is caption-sized so it stays off the face. Soft
-  radius on the in-app preview; the PNG destinations send is square. Stored
-  for 30 days with membership, 1 day without; History falls back to the card
-  after expiry.
+  page (`GymPhotoShareCard`): a 3:4 phone-photo canvas (not the colour poster
+  slip, not Stories-tall), full-bleed photo with light top/bottom fades and
+  the poster lines (name, weekday, time, unit, lockup, run) in the bands. The
+  time is caption-sized so it stays off the face. Soft radius on the in-app
+  preview; the PNG destinations send is square. On the share screen it keeps
+  air above and below so it reads as a photo. Stored for 30 days with
+  membership, 1 day without; History falls back to the card after expiry.
 
 ### 2. Invite link preview
 

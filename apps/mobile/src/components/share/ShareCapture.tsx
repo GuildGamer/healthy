@@ -6,14 +6,19 @@ import type { ShareCorners } from '@/components/challenges/GymPhotoShareCard';
 /**
  * Rounded preview on screen; square twin parked off-screen for `captureRef`.
  * The twin must not sit inside a clipped rounded parent, or the PNG stays
- * rounded. `overflow: hidden` on the root keeps a mis-parked twin from
- * stacking on the preview (sharp corners + "two cards").
+ * rounded. Park with a large negative `left` (not `translateX`) and keep this
+ * root free of `overflow: 'hidden'` — clipped off-screen twins rasterize blank
+ * in react-native-view-shot. Callers that put ShareCapture inside a clipping
+ * list cell (e.g. FlatList) must render the twin outside that cell instead.
  */
 export function ShareCapture({
   shotRef,
+  captureWidth = SHARE_POSTER_WIDTH,
   children,
 }: {
   shotRef: Ref<View>;
+  /** Design width of the square twin; default matches the colour poster. */
+  captureWidth?: number;
   children: (corners: ShareCorners) => ReactNode;
 }) {
   return (
@@ -25,7 +30,7 @@ export function ShareCapture({
         importantForAccessibility="no-hide-descendants"
         pointerEvents="none"
         ref={shotRef}
-        style={styles.offscreen}
+        style={[styles.offscreen, { left: -captureWidth * 4, width: captureWidth }]}
         testID="share-capture-twin"
       >
         {children('square')}
@@ -38,14 +43,9 @@ const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   offscreen: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    width: SHARE_POSTER_WIDTH,
-    // translateX survives nested scales better than a raw negative `left`.
-    transform: [{ translateX: -SHARE_POSTER_WIDTH * 4 }],
   },
 });
