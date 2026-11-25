@@ -16,7 +16,6 @@ import type { SharePayload } from '@/components/matches/share-destination';
 import type { ShareRoutePoint } from '@/lib/share-route-path';
 import { type Theme, useThemedStyles } from '@/theme';
 import {
-  GYM_PHOTO_SHARE_ASPECT,
   GYM_PHOTO_SHARE_HEIGHT,
   GYM_PHOTO_SHARE_WIDTH,
   GymPhotoShareCard,
@@ -32,9 +31,14 @@ import type { SharePoster } from '@/components/challenges/types/share-poster';
 import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
 import { ShareDestinationSheet } from './ShareDestinationSheet';
+import {
+  designSizeForSharePage,
+  sizeForSharePage,
+  type SetSharePage,
+} from './set-share-layout';
 import { useShareDestinations } from './useShareDestinations';
 
-export type SetSharePage = 'video' | 'photo' | 'poster';
+export type { SetSharePage } from './set-share-layout';
 
 export type SetShareClipMedia = {
   /** URI shown on the video page (local file or remote). */
@@ -75,16 +79,13 @@ type SetSharePagerProps = {
   posterTestID?: string;
 };
 
-const MEDIA_ASPECT = 9 / 16;
-const POSTER_ASPECT = SHARE_POSTER_WIDTH / SHARE_POSTER_HEIGHT;
-
 /**
  * Video / photo ↔ poster pager for any set share. Colour swatches only on the
  * poster page. One Share button opens the destination sheet for the page in front.
  *
- * Square capture twins sit outside the FlatList — list cells clip off-screen
- * children, and view-shot then exports a blank white PNG. Exports are the card
- * itself (no navy Stories letterbox).
+ * Preview cards are laid out at the measured slot size (no transform scale —
+ * FlatList cells clip scaled children and blank the poster). Square capture
+ * twins sit outside the list at design size for sharp exports.
  */
 export function SetSharePager({
   clip,
@@ -203,18 +204,26 @@ export function SetSharePager({
             pagingEnabled
             testID={listTestID}
             renderItem={({ item }) => {
-              const mediaSize = sizeForPage(item, pageWidth, slot.height);
-              const design = designSizeForPage(item);
-              const scale = scaleToFit(mediaSize, design);
+              const measured = sizeForSharePage(item, pageWidth, slot.height);
+              const design = designSizeForSharePage(item);
+              // Before onLayout, measured is 0×0 — fall back to design size so
+              // the card is never missing (tests and first paint). After layout,
+              // the card fills the slot at real pixel size (no transform scale).
+              const mediaSize =
+                measured.width > 0 && measured.height > 0
+                  ? measured
+                  : design.width > 0
+                    ? design
+                    : measured;
+              const hasCardSize = mediaSize.width > 0 && mediaSize.height > 0;
               return (
                 <View style={[styles.page, { width: pageWidth }]}>
                   <View
                     style={[
                       styles.mediaFrame,
-                      {
-                        width: mediaSize.width,
-                        height: mediaSize.height,
-                      },
+                      hasCardSize
+                        ? { width: mediaSize.width, height: mediaSize.height }
+                        : null,
                       item === 'video' ? styles.mediaFrameVideo : null,
                     ]}
                   >
@@ -232,38 +241,30 @@ export function SetSharePager({
                         )}
                       </View>
                     ) : null}
-                    {item === 'photo' && photoUri ? (
-                      <ScaledCard
-                        designHeight={design.height}
-                        designWidth={design.width}
-                        scale={scale}
-                        testID="clip-finish-photo"
-                      >
-                        <GymPhotoShareCard
-                          corners="round"
-                          photoUri={photoUri}
-                          poster={poster}
-                          runLine={runLine}
-                          testID="gym-photo-share-card"
-                        />
-                      </ScaledCard>
+                    {item === 'photo' && photoUri && hasCardSize ? (
+                      <GymPhotoShareCard
+                        corners="round"
+                        height={mediaSize.height}
+                        photoUri={photoUri}
+                        poster={poster}
+                        runLine={runLine}
+                        testID="gym-photo-share-card"
+                        width={mediaSize.width}
+                      />
                     ) : null}
-                    {item === 'poster' ? (
-                      <ScaledCard
-                        designHeight={design.height}
-                        designWidth={design.width}
-                        scale={scale}
-                        testID={posterTestID}
-                      >
+                    {item === 'poster' && hasCardSize ? (
+                      <View style={styles.posterHost} testID={posterTestID}>
                         <SharePosterCard
                           corners="round"
                           fillId={fillId}
+                          height={mediaSize.height}
                           poster={poster}
                           routePoints={routePoints}
                           runLine={runLine}
                           testID="share-poster-image"
+                          width={mediaSize.width}
                         />
-                      </ScaledCard>
+                      </View>
                     ) : null}
                   </View>
                 </View>
@@ -368,47 +369,6 @@ export function SetSharePager({
   );
 }
 
-/**
- * Outer box matches the *visual* size after scale so iOS overflow clipping
- * cannot wipe a scaled card (blank poster page).
- */
-function ScaledCard({
-  scale,
-  designWidth,
-  designHeight,
-  testID,
-  children,
-}: {
-  scale: number;
-  designWidth: number;
-  designHeight: number;
-  testID?: string;
-  children: ReactNode;
-}) {
-  return (
-    <View
-      style={{
-        width: designWidth * scale,
-        height: designHeight * scale,
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'visible',
-      }}
-      testID={testID}
-    >
-      <View
-        style={{
-          width: designWidth,
-          height: designHeight,
-          transform: [{ scale }],
-        }}
-      >
-        {children}
-      </View>
-    </View>
-  );
-}
-
 function sharePages(input: {
   clip: SetShareClipMedia | null;
   isClipLoading: boolean;
@@ -424,61 +384,6 @@ function sharePages(input: {
     return ['photo', 'poster'];
   }
   return ['poster'];
-}
-
-function aspectForPage(page: SetSharePage): number {
-  if (page === 'photo') {
-    return GYM_PHOTO_SHARE_ASPECT;
-  }
-  if (page === 'poster') {
-    return POSTER_ASPECT;
-  }
-  return MEDIA_ASPECT;
-}
-
-function designSizeForPage(page: SetSharePage): { width: number; height: number } {
-  if (page === 'photo') {
-    return { width: GYM_PHOTO_SHARE_WIDTH, height: GYM_PHOTO_SHARE_HEIGHT };
-  }
-  if (page === 'poster') {
-    return { width: SHARE_POSTER_WIDTH, height: SHARE_POSTER_HEIGHT };
-  }
-  return { width: 0, height: 0 };
-}
-
-/** Fit each page to the slot using that page's own aspect — never the active page's. */
-function sizeForPage(
-  page: SetSharePage,
-  pageWidth: number,
-  slotHeight: number,
-): { width: number; height: number } {
-  return fitPortraitMedia(pageWidth, slotHeight, aspectForPage(page));
-}
-
-function scaleToFit(
-  mediaSize: { width: number; height: number },
-  design: { width: number; height: number },
-): number {
-  if (mediaSize.width <= 0 || mediaSize.height <= 0 || design.width <= 0) {
-    return 1;
-  }
-  return Math.min(mediaSize.width / design.width, mediaSize.height / design.height, 1);
-}
-
-/** Largest box of the given aspect that fits inside the measured media slot. */
-function fitPortraitMedia(
-  maxWidth: number,
-  maxHeight: number,
-  aspect: number = MEDIA_ASPECT,
-): { width: number; height: number } {
-  if (maxWidth <= 0 || maxHeight <= 0) {
-    return { width: 0, height: 0 };
-  }
-  const heightFromWidth = maxWidth / aspect;
-  if (heightFromWidth <= maxHeight) {
-    return { width: maxWidth, height: heightFromWidth };
-  }
-  return { width: maxHeight * aspect, height: maxHeight };
 }
 
 const createStyles = (theme: Theme) =>
@@ -512,6 +417,10 @@ const createStyles = (theme: Theme) =>
     },
     videoFill: {
       flex: 1,
+      width: '100%',
+      height: '100%',
+    },
+    posterHost: {
       width: '100%',
       height: '100%',
     },

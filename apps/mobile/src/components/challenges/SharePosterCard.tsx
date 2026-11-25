@@ -20,13 +20,18 @@ export const SHARE_POSTER_PADDING = 34;
 /** Padding so the path sits in the middle band and leaves room for type. */
 const ROUTE_PADDING = 44;
 
-/** The card the history Share screen shows, and the image a share sheet sends. */
+/**
+ * The card the history Share screen shows, and the image a share sheet sends.
+ * Pass width/height to fill the in-app pager slot; capture twins keep design size.
+ */
 export function SharePosterCard({
   poster,
   runLine,
   routePoints,
   fillId,
   corners = 'round',
+  width = SHARE_POSTER_WIDTH,
+  height = SHARE_POSTER_HEIGHT,
   testID = 'share-poster-image',
 }: {
   poster: SharePoster;
@@ -37,6 +42,8 @@ export function SharePosterCard({
   fillId?: ShareFillId;
   /** Preview stays rounded; the capture twin is square. */
   corners?: ShareCorners;
+  width?: number;
+  height?: number;
   testID?: string;
 }) {
   const { deckCards } = useTheme();
@@ -47,23 +54,43 @@ export function SharePosterCard({
   const ink = chosen
     ? { text: chosen.text, subtext: chosen.subtext, track: chosen.track }
     : deckCards;
-  const valueMetrics = posterValueMetrics(poster.value);
-  const labelStyle = [styles.posterLabel, { color: ink.subtext }];
+  const layoutScale = width / SHARE_POSTER_WIDTH;
+  const baseValue = posterValueMetrics(poster.value);
+  const valueMetrics = {
+    fontSize: baseValue.fontSize * layoutScale,
+    letterSpacing: baseValue.letterSpacing * layoutScale,
+    lineHeight: baseValue.lineHeight * layoutScale,
+  };
+  const labelStyle = [
+    styles.posterLabel,
+    { color: ink.subtext, fontSize: fontSize.sm * layoutScale },
+  ];
   const pathStroke = deckCards.tones.walk;
   const corner = poster.corner ?? weekdayName(posterWhen(poster));
-  const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
+  const radius = corners === 'round' ? SHARE_POSTER_RADIUS * layoutScale : 0;
+  const pad = SHARE_POSTER_PADDING * layoutScale;
+  const brandHeight = Math.round(40 * layoutScale);
 
   return (
     <View
-      style={[styles.shell, corners === 'round' ? styles.shellRound : null]}
+      style={[
+        styles.shell,
+        { width, height },
+        corners === 'round' ? { borderRadius: radius } : null,
+      ]}
       testID={testID}
     >
       <View style={[styles.fill, { backgroundColor: fill, borderRadius: radius }]}>
         {hasRoute && routePoints ? (
-          <PosterRoute pathStroke={pathStroke} points={routePoints} />
+          <PosterRoute
+            height={height}
+            pathStroke={pathStroke}
+            points={routePoints}
+            width={width}
+          />
         ) : null}
       </View>
-      <View style={styles.type}>
+      <View style={[styles.type, { padding: pad }]}>
         <View style={styles.posterTop}>
           <SharePosterText style={labelStyle}>{poster.label}</SharePosterText>
           <SharePosterText style={labelStyle}>{corner}</SharePosterText>
@@ -71,25 +98,58 @@ export function SharePosterCard({
         <SharePosterText style={[styles.posterValue, { color: ink.text }, valueMetrics]}>
           {poster.value}
         </SharePosterText>
-        <SharePosterText style={[styles.posterUnit, { color: ink.subtext }]}>
+        <SharePosterText
+          style={[
+            styles.posterUnit,
+            {
+              color: ink.subtext,
+              fontSize: 17 * layoutScale,
+              marginTop: spacing.sm * layoutScale,
+            },
+          ]}
+        >
           {poster.unit}
         </SharePosterText>
         {poster.facts && poster.facts.length > 0 ? (
-          <View style={styles.posterFacts}>
+          <View
+            style={[
+              styles.posterFacts,
+              { gap: 12 * layoutScale, marginTop: 16 * layoutScale },
+            ]}
+          >
             {poster.facts.map((fact) => (
               <View key={fact.label} style={styles.posterFact}>
-                <SharePosterText style={[styles.posterFactValue, { color: ink.text }]}>
+                <SharePosterText
+                  style={[
+                    styles.posterFactValue,
+                    { color: ink.text, fontSize: 16 * layoutScale },
+                  ]}
+                >
                   {fact.value}
                 </SharePosterText>
-                <SharePosterText style={[styles.posterFactLabel, { color: ink.subtext }]}>
+                <SharePosterText
+                  style={[
+                    styles.posterFactLabel,
+                    { color: ink.subtext, fontSize: 11 * layoutScale },
+                  ]}
+                >
                   {fact.label}
                 </SharePosterText>
               </View>
             ))}
           </View>
         ) : null}
-        <View style={[styles.posterBrand, { borderTopColor: ink.track }]}>
-          <ShareBrandLockup color={ink.text} />
+        <View
+          style={[
+            styles.posterBrand,
+            {
+              borderTopColor: ink.track,
+              marginTop: 20 * layoutScale,
+              paddingTop: 14 * layoutScale,
+            },
+          ]}
+        >
+          <ShareBrandLockup color={ink.text} height={brandHeight} />
           {runLine ? <SharePosterText style={labelStyle}>{runLine}</SharePosterText> : null}
         </View>
       </View>
@@ -101,23 +161,30 @@ export function SharePosterCard({
 function PosterRoute({
   points,
   pathStroke,
+  width,
+  height,
 }: {
   points: ShareRoutePoint[];
   pathStroke: string;
+  width: number;
+  height: number;
 }) {
-  const fitted = fitRouteToViewBox(points, SHARE_POSTER_WIDTH, SHARE_POSTER_HEIGHT, ROUTE_PADDING);
+  const routePad = ROUTE_PADDING * (width / SHARE_POSTER_WIDTH);
+  const fitted = fitRouteToViewBox(points, width, height, routePad);
   if (!fitted) {
     return null;
   }
 
+  const strokeWidth = 3.5 * (width / SHARE_POSTER_WIDTH);
+
   return (
     <Svg
-      height={SHARE_POSTER_HEIGHT}
+      height={height}
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
       testID="share-poster-route"
       viewBox={`0 0 ${fitted.viewBoxWidth} ${fitted.viewBoxHeight}`}
-      width={SHARE_POSTER_WIDTH}
+      width={width}
     >
       <Path
         d={fitted.pathD}
@@ -126,10 +193,21 @@ function PosterRoute({
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeOpacity={0.92}
-        strokeWidth={3.5}
+        strokeWidth={strokeWidth}
       />
-      <Circle cx={fitted.start.x} cy={fitted.start.y} fill={pathStroke} fillOpacity={0.45} r={5} />
-      <Circle cx={fitted.end.x} cy={fitted.end.y} fill={pathStroke} r={6} />
+      <Circle
+        cx={fitted.start.x}
+        cy={fitted.start.y}
+        fill={pathStroke}
+        fillOpacity={0.45}
+        r={5 * (width / SHARE_POSTER_WIDTH)}
+      />
+      <Circle
+        cx={fitted.end.x}
+        cy={fitted.end.y}
+        fill={pathStroke}
+        r={6 * (width / SHARE_POSTER_WIDTH)}
+      />
     </Svg>
   );
 }
@@ -139,20 +217,13 @@ const styles = StyleSheet.create({
    * Outer shell keeps type outside a hard clip so emoji paint on iOS. Round
    * preview still gets a soft silhouette via fill radius + shell radius.
    */
-  shell: {
-    width: SHARE_POSTER_WIDTH,
-    height: SHARE_POSTER_HEIGHT,
-  },
-  shellRound: {
-    borderRadius: SHARE_POSTER_RADIUS,
-  },
+  shell: {},
   fill: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
   type: {
     flex: 1,
-    padding: SHARE_POSTER_PADDING,
   },
   posterTop: {
     flexDirection: 'row',
@@ -160,7 +231,6 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   posterLabel: {
-    fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
   },
   posterValue: {
@@ -169,14 +239,10 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   posterUnit: {
-    fontSize: 17,
-    marginTop: spacing.sm,
     zIndex: 1,
   },
   posterFacts: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
     zIndex: 1,
   },
   posterFact: {
@@ -184,19 +250,15 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   posterFactValue: {
-    fontSize: 16,
     fontWeight: fontWeight.semibold,
   },
   posterFactLabel: {
-    fontSize: 11,
     fontWeight: fontWeight.medium,
   },
   posterBrand: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 20,
-    paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     zIndex: 1,
   },
