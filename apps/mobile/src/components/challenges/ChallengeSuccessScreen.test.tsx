@@ -505,6 +505,7 @@ describe('ChallengeSuccessScreen share card', () => {
         expect.objectContaining({
           format: 'png',
           quality: 1,
+          width: 1080,
         }),
       );
       expect(openShareDestination).toHaveBeenCalledWith(

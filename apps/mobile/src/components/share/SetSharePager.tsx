@@ -17,6 +17,7 @@ import type { ShareRoutePoint } from '@/lib/share-route-path';
 import { type Theme, useThemedStyles } from '@/theme';
 import {
   GYM_PHOTO_SHARE_ASPECT,
+  GYM_PHOTO_SHARE_HEIGHT,
   GYM_PHOTO_SHARE_WIDTH,
   GymPhotoShareCard,
 } from '@/components/challenges/GymPhotoShareCard';
@@ -30,7 +31,12 @@ import type { ShareFillId } from '@/components/challenges/share-fill';
 import type { SharePoster } from '@/components/challenges/types/share-poster';
 import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
+import {
+  SHARE_STORIES_FRAME_HEIGHT,
+  SHARE_STORIES_FRAME_WIDTH,
+} from '@/lib/share-export';
 import { ShareDestinationSheet } from './ShareDestinationSheet';
+import { ShareSocialFrame } from './ShareSocialFrame';
 import { useShareDestinations } from './useShareDestinations';
 
 export type SetSharePage = 'video' | 'photo' | 'poster';
@@ -280,16 +286,28 @@ export function SetSharePager({
           importantForAccessibility="no-hide-descendants"
           pointerEvents="none"
           ref={photoShotRef}
-          style={[styles.captureTwin, { left: -GYM_PHOTO_SHARE_WIDTH * 4 }]}
+          style={[
+            styles.captureTwin,
+            {
+              left: -SHARE_STORIES_FRAME_WIDTH * 4,
+              width: SHARE_STORIES_FRAME_WIDTH,
+              height: SHARE_STORIES_FRAME_HEIGHT,
+            },
+          ]}
           testID="gym-photo-share-capture-host"
         >
-          <GymPhotoShareCard
-            corners="square"
-            photoUri={photoUri}
-            poster={poster}
-            runLine={runLine}
-            testID="gym-photo-share-card-capture"
-          />
+          <ShareSocialFrame
+            cardHeight={GYM_PHOTO_SHARE_HEIGHT}
+            cardWidth={GYM_PHOTO_SHARE_WIDTH}
+          >
+            <GymPhotoShareCard
+              corners="square"
+              photoUri={photoUri}
+              poster={poster}
+              runLine={runLine}
+              testID="gym-photo-share-card-capture"
+            />
+          </ShareSocialFrame>
         </View>
       ) : null}
       <View
@@ -298,17 +316,26 @@ export function SetSharePager({
         importantForAccessibility="no-hide-descendants"
         pointerEvents="none"
         ref={posterShotRef}
-        style={[styles.captureTwin, { left: -SHARE_POSTER_WIDTH * 4 }]}
+        style={[
+          styles.captureTwin,
+          {
+            left: -SHARE_STORIES_FRAME_WIDTH * 4,
+            width: SHARE_STORIES_FRAME_WIDTH,
+            height: SHARE_STORIES_FRAME_HEIGHT,
+          },
+        ]}
         testID="share-poster-capture-host"
       >
-        <SharePosterCard
-          corners="square"
-          fillId={fillId}
-          poster={poster}
-          routePoints={routePoints}
-          runLine={runLine}
-          testID="share-poster-image-capture"
-        />
+        <ShareSocialFrame cardHeight={SHARE_POSTER_HEIGHT} cardWidth={SHARE_POSTER_WIDTH}>
+          <SharePosterCard
+            corners="square"
+            fillId={fillId}
+            poster={poster}
+            routePoints={routePoints}
+            runLine={runLine}
+            testID="share-poster-image-capture"
+          />
+        </ShareSocialFrame>
       </View>
       {pages.length > 1 ? (
         <View style={styles.dots}>

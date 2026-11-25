@@ -1,4 +1,5 @@
 import type { ChallengeEvidence } from '@product/client';
+import { compressEvidencePhotoForUpload } from './compress-evidence-photo';
 
 export const CAMERA_FAILED_MESSAGE =
   'We could not open the camera. Check permissions and try again.';
@@ -8,10 +9,10 @@ export const PHOTO_TOO_LARGE_MESSAGE =
   'That photo is too large to upload. Move closer and try again.';
 
 /**
- * JPEG quality for gym / proof captures. High enough for vision checks,
- * low enough to stay under the API JSON body limit on modern phone cameras.
+ * JPEG quality for the gym / proof shutter. High enough to look like a normal
+ * phone photo on share; upload may recompress separately for the API body.
  */
-export const EVIDENCE_CAMERA_QUALITY = 0.35;
+export const EVIDENCE_CAMERA_QUALITY = 0.9;
 
 /**
  * Soft cap under the contract max (2_000_000) so the JSON envelope still fits
@@ -40,25 +41,35 @@ export type CaptureSelfieResult =
   | { status: 'canceled' }
   | { status: 'failed'; message: string };
 
-export function photoFromCameraTake(result: {
+/**
+ * Builds a captured selfie from a shutter take. Keeps the high-res file for
+ * share; if base64 is over the upload cap, recompresses a smaller JPEG for
+ * the API while leaving `previewUri` sharp.
+ */
+export async function photoFromCameraTake(result: {
   uri: string;
   base64?: string | null;
   width?: number;
   height?: number;
-}): CaptureSelfieResult {
+}): Promise<CaptureSelfieResult> {
   if (!result.base64) {
     return { status: 'failed', message: PHOTO_MISSING_MESSAGE };
   }
 
-  if (result.base64.length > MAX_EVIDENCE_PHOTO_BASE64_LENGTH) {
-    return { status: 'failed', message: PHOTO_TOO_LARGE_MESSAGE };
+  let imageBase64 = result.base64;
+  if (imageBase64.length > MAX_EVIDENCE_PHOTO_BASE64_LENGTH) {
+    const compressed = await compressEvidencePhotoForUpload(result.uri);
+    if (!compressed) {
+      return { status: 'failed', message: PHOTO_TOO_LARGE_MESSAGE };
+    }
+    imageBase64 = compressed;
   }
 
   return {
     status: 'captured',
     photo: {
       mimeType: 'image/jpeg',
-      imageBase64: result.base64,
+      imageBase64,
       previewUri: result.uri,
       ...(result.width && result.height ? { width: result.width, height: result.height } : {}),
     },

@@ -34,6 +34,7 @@ import { usePendingSync } from '@/lib/pending-sync-store';
 import { hasDeferredOnboarding } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 import { clearPendingSharePhoto, pendingSharePhotoFor } from '@/lib/share-card-session';
+import { SHARE_CAPTURE_OPTIONS } from '@/lib/share-export';
 import { trackEvent } from '@/lib/track-event';
 import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import { POSE_COPY, SHARE_COPY } from './constants/doing-copy';
@@ -652,11 +653,7 @@ function SuccessActions({
     shareImage.setIsSharing(true);
     try {
       const posterUri = shareImage.shotRef.current
-        ? await captureRef(shareImage.shotRef, {
-            format: 'png',
-            quality: 1,
-            result: 'tmpfile',
-          }).catch(() => null)
+        ? await captureRef(shareImage.shotRef, SHARE_CAPTURE_OPTIONS).catch(() => null)
         : null;
 
       if (!posterUri) {

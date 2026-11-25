@@ -6,6 +6,7 @@ import {
   type ShareDestinationId,
   type SharePayload,
 } from '@/components/matches/share-destination';
+import { SHARE_CAPTURE_OPTIONS } from '@/lib/share-export';
 import type { ShareDestinationSelectId } from './ShareDestinationRow';
 
 type UseShareDestinationsOptions = {
@@ -43,11 +44,7 @@ export function useShareDestinations(options: UseShareDestinationsOptions) {
       return null;
     }
     try {
-      return await captureRef(ref, {
-        format: 'png',
-        quality: 1,
-        result: 'tmpfile',
-      });
+      return await captureRef(ref, SHARE_CAPTURE_OPTIONS);
     } catch {
       return null;
     }

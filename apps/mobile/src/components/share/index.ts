@@ -5,6 +5,7 @@ export {
   ShareBrandLockup,
 } from './ShareBrandLockup';
 export { ShareCapture } from './ShareCapture';
+export { ShareSocialFrame } from './ShareSocialFrame';
 export { ShareDestinationRow } from './ShareDestinationRow';
 export type { ShareDestinationSelectId } from './ShareDestinationRow';
 export { ShareDestinationSheet } from './ShareDestinationSheet';

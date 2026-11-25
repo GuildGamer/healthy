@@ -14,7 +14,8 @@ import type { SharePoster } from './types/share-poster';
 export const SHARE_POSTER_WIDTH = 300;
 export const SHARE_POSTER_HEIGHT = 375;
 export const SHARE_POSTER_RADIUS = 26;
-export const SHARE_POSTER_PADDING = 22;
+/** Inset so type survives social crop / Stories chrome (~10%+ of the card). */
+export const SHARE_POSTER_PADDING = 34;
 
 /** Padding so the path sits in the middle band and leaves room for type. */
 const ROUTE_PADDING = 44;

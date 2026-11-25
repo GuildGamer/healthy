@@ -129,7 +129,10 @@ const styles = StyleSheet.create({
   },
   type: {
     flex: 1,
-    padding: SHARE_POSTER_PADDING,
+    paddingTop: SHARE_POSTER_PADDING,
+    paddingHorizontal: SHARE_POSTER_PADDING,
+    // Extra bottom inset — Stories reply chrome eats the lower third.
+    paddingBottom: SHARE_POSTER_PADDING + 10,
     justifyContent: 'space-between',
   },
   top: {

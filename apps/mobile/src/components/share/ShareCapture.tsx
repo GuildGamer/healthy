@@ -1,24 +1,33 @@
 import type { ReactNode, Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SHARE_POSTER_WIDTH } from '@/components/challenges/SharePosterCard';
+import {
+  SHARE_POSTER_HEIGHT,
+  SHARE_POSTER_WIDTH,
+} from '@/components/challenges/SharePosterCard';
 import type { ShareCorners } from '@/components/challenges/GymPhotoShareCard';
+import {
+  SHARE_STORIES_FRAME_HEIGHT,
+  SHARE_STORIES_FRAME_WIDTH,
+} from '@/lib/share-export';
+import { ShareSocialFrame } from './ShareSocialFrame';
 
 /**
  * Rounded preview on screen; square twin parked off-screen for `captureRef`.
- * The twin must not sit inside a clipped rounded parent, or the PNG stays
- * rounded. Park with a large negative `left` (not `translateX`) and keep this
- * root free of `overflow: 'hidden'` — clipped off-screen twins rasterize blank
- * in react-native-view-shot. Callers that put ShareCapture inside a clipping
- * list cell (e.g. FlatList) must render the twin outside that cell instead.
+ * The twin is a 9:16 social frame (card in the Stories safe zone) so Instagram
+ * does not zoom-crop overlays. Explicit frame size is required — unsized hosts
+ * rasterize as blank white. Callers that put ShareCapture inside a clipping
+ * list cell must render the twin outside that cell instead.
  */
 export function ShareCapture({
   shotRef,
-  captureWidth = SHARE_POSTER_WIDTH,
+  cardWidth = SHARE_POSTER_WIDTH,
+  cardHeight = SHARE_POSTER_HEIGHT,
   children,
 }: {
   shotRef: Ref<View>;
-  /** Design width of the square twin; default matches the colour poster. */
-  captureWidth?: number;
+  /** Design size of the card inside the social frame. */
+  cardWidth?: number;
+  cardHeight?: number;
   children: (corners: ShareCorners) => ReactNode;
 }) {
   return (
@@ -30,10 +39,19 @@ export function ShareCapture({
         importantForAccessibility="no-hide-descendants"
         pointerEvents="none"
         ref={shotRef}
-        style={[styles.offscreen, { left: -captureWidth * 4, width: captureWidth }]}
+        style={[
+          styles.offscreen,
+          {
+            left: -SHARE_STORIES_FRAME_WIDTH * 4,
+            width: SHARE_STORIES_FRAME_WIDTH,
+            height: SHARE_STORIES_FRAME_HEIGHT,
+          },
+        ]}
         testID="share-capture-twin"
       >
-        {children('square')}
+        <ShareSocialFrame cardHeight={cardHeight} cardWidth={cardWidth}>
+          {children('square')}
+        </ShareSocialFrame>
       </View>
     </View>
   );
