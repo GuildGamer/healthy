@@ -5,18 +5,12 @@ import {
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import type { ShareCorners } from '@/components/challenges/GymPhotoShareCard';
-import {
-  SHARE_STORIES_FRAME_HEIGHT,
-  SHARE_STORIES_FRAME_WIDTH,
-} from '@/lib/share-export';
-import { ShareSocialFrame } from './ShareSocialFrame';
 
 /**
  * Rounded preview on screen; square twin parked off-screen for `captureRef`.
- * The twin is a 9:16 social frame (card in the Stories safe zone) so Instagram
- * does not zoom-crop overlays. Explicit frame size is required — unsized hosts
- * rasterize as blank white. Callers that put ShareCapture inside a clipping
- * list cell must render the twin outside that cell instead.
+ * Explicit twin size is required — unsized hosts rasterize as blank white.
+ * Do not wrap the twin in a Stories canvas here: WhatsApp / Messages should
+ * get the card edge-to-edge. Instagram can letterbox at the destination.
  */
 export function ShareCapture({
   shotRef,
@@ -25,7 +19,6 @@ export function ShareCapture({
   children,
 }: {
   shotRef: Ref<View>;
-  /** Design size of the card inside the social frame. */
   cardWidth?: number;
   cardHeight?: number;
   children: (corners: ShareCorners) => ReactNode;
@@ -42,16 +35,14 @@ export function ShareCapture({
         style={[
           styles.offscreen,
           {
-            left: -SHARE_STORIES_FRAME_WIDTH * 4,
-            width: SHARE_STORIES_FRAME_WIDTH,
-            height: SHARE_STORIES_FRAME_HEIGHT,
+            left: -cardWidth * 4,
+            width: cardWidth,
+            height: cardHeight,
           },
         ]}
         testID="share-capture-twin"
       >
-        <ShareSocialFrame cardHeight={cardHeight} cardWidth={cardWidth}>
-          {children('square')}
-        </ShareSocialFrame>
+        {children('square')}
       </View>
     </View>
   );
@@ -61,6 +52,7 @@ const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   offscreen: {
     position: 'absolute',

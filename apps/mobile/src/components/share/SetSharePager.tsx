@@ -31,12 +31,7 @@ import type { ShareFillId } from '@/components/challenges/share-fill';
 import type { SharePoster } from '@/components/challenges/types/share-poster';
 import { ProofVideoPlayer } from '@/components/challenges/ProofVideoPlayer';
 import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
-import {
-  SHARE_STORIES_FRAME_HEIGHT,
-  SHARE_STORIES_FRAME_WIDTH,
-} from '@/lib/share-export';
 import { ShareDestinationSheet } from './ShareDestinationSheet';
-import { ShareSocialFrame } from './ShareSocialFrame';
 import { useShareDestinations } from './useShareDestinations';
 
 export type SetSharePage = 'video' | 'photo' | 'poster';
@@ -82,15 +77,14 @@ type SetSharePagerProps = {
 
 const MEDIA_ASPECT = 9 / 16;
 const POSTER_ASPECT = SHARE_POSTER_WIDTH / SHARE_POSTER_HEIGHT;
-/** Leave air above/below so a gym photo reads as a photo, not a full-bleed reel. */
-const PHOTO_SLOT_HEIGHT_FRACTION = 0.72;
 
 /**
  * Video / photo ↔ poster pager for any set share. Colour swatches only on the
  * poster page. One Share button opens the destination sheet for the page in front.
  *
  * Square capture twins sit outside the FlatList — list cells clip off-screen
- * children, and view-shot then exports a blank white PNG.
+ * children, and view-shot then exports a blank white PNG. Exports are the card
+ * itself (no navy Stories letterbox).
  */
 export function SetSharePager({
   clip,
@@ -127,18 +121,7 @@ export function SetSharePager({
   const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
 
   const showPosterPage = activePage === 'poster';
-  const showPhotoPage = activePage === 'photo';
   const pageWidth = slot.width > 0 ? slot.width : Math.max(windowWidth - spacing.lg * 2, 1);
-  const mediaAspect = aspectForPage(activePage);
-  const fitted = fitPortraitMedia(pageWidth, slot.height, mediaAspect);
-  const mediaSize = showPhotoPage
-    ? limitHeight(fitted, slot.height * PHOTO_SLOT_HEIGHT_FRACTION)
-    : fitted;
-  const designWidth = showPhotoPage ? GYM_PHOTO_SHARE_WIDTH : SHARE_POSTER_WIDTH;
-  const cardScale =
-    mediaSize.width === 0 || mediaSize.width > designWidth
-      ? 1
-      : mediaSize.width / designWidth;
 
   const destinations = useShareDestinations({
     buildPayload: () => {
@@ -207,7 +190,7 @@ export function SetSharePager({
         ) : (
           <FlatList
             data={pages}
-            extraData={`${pageWidth}:${mediaSize.width}:${mediaSize.height}:${activePage}`}
+            extraData={`${pageWidth}:${slot.height}:${activePage}:${fillId}`}
             getItemLayout={(_, index) => ({
               length: pageWidth,
               offset: pageWidth * index,
@@ -219,61 +202,73 @@ export function SetSharePager({
             onMomentumScrollEnd={onScrollEnd}
             pagingEnabled
             testID={listTestID}
-            renderItem={({ item }) => (
-              <View style={[styles.page, { width: pageWidth }]}>
-                <View
-                  style={[
-                    styles.mediaFrame,
-                    { width: mediaSize.width, height: mediaSize.height },
-                    item === 'video' ? styles.mediaFrameVideo : null,
-                  ]}
-                >
-                  {item === 'video' && clip ? (
-                    <View style={styles.videoFill}>
-                      {renderVideo ? (
-                        renderVideo(clip)
-                      ) : (
-                        <ProofVideoPlayer
-                          contentFit="contain"
-                          fillParent
-                          posterUri={clip.posterFrameUri}
-                          uri={clip.playUri}
+            renderItem={({ item }) => {
+              const mediaSize = sizeForPage(item, pageWidth, slot.height);
+              const design = designSizeForPage(item);
+              const scale = scaleToFit(mediaSize, design);
+              return (
+                <View style={[styles.page, { width: pageWidth }]}>
+                  <View
+                    style={[
+                      styles.mediaFrame,
+                      {
+                        width: mediaSize.width,
+                        height: mediaSize.height,
+                      },
+                      item === 'video' ? styles.mediaFrameVideo : null,
+                    ]}
+                  >
+                    {item === 'video' && clip ? (
+                      <View style={styles.videoFill}>
+                        {renderVideo ? (
+                          renderVideo(clip)
+                        ) : (
+                          <ProofVideoPlayer
+                            contentFit="contain"
+                            fillParent
+                            posterUri={clip.posterFrameUri}
+                            uri={clip.playUri}
+                          />
+                        )}
+                      </View>
+                    ) : null}
+                    {item === 'photo' && photoUri ? (
+                      <ScaledCard
+                        designHeight={design.height}
+                        designWidth={design.width}
+                        scale={scale}
+                        testID="clip-finish-photo"
+                      >
+                        <GymPhotoShareCard
+                          corners="round"
+                          photoUri={photoUri}
+                          poster={poster}
+                          runLine={runLine}
+                          testID="gym-photo-share-card"
                         />
-                      )}
-                    </View>
-                  ) : null}
-                  {item === 'photo' && photoUri ? (
-                    <View
-                      style={{ transform: [{ scale: cardScale }] }}
-                      testID="clip-finish-photo"
-                    >
-                      <GymPhotoShareCard
-                        corners="round"
-                        photoUri={photoUri}
-                        poster={poster}
-                        runLine={runLine}
-                        testID="gym-photo-share-card"
-                      />
-                    </View>
-                  ) : null}
-                  {item === 'poster' ? (
-                    <View
-                      style={{ transform: [{ scale: cardScale }] }}
-                      testID={posterTestID}
-                    >
-                      <SharePosterCard
-                        corners="round"
-                        fillId={fillId}
-                        poster={poster}
-                        routePoints={routePoints}
-                        runLine={runLine}
-                        testID="share-poster-image"
-                      />
-                    </View>
-                  ) : null}
+                      </ScaledCard>
+                    ) : null}
+                    {item === 'poster' ? (
+                      <ScaledCard
+                        designHeight={design.height}
+                        designWidth={design.width}
+                        scale={scale}
+                        testID={posterTestID}
+                      >
+                        <SharePosterCard
+                          corners="round"
+                          fillId={fillId}
+                          poster={poster}
+                          routePoints={routePoints}
+                          runLine={runLine}
+                          testID="share-poster-image"
+                        />
+                      </ScaledCard>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            )}
+              );
+            }}
             showsHorizontalScrollIndicator={false}
             style={{ width: pageWidth }}
           />
@@ -289,25 +284,20 @@ export function SetSharePager({
           style={[
             styles.captureTwin,
             {
-              left: -SHARE_STORIES_FRAME_WIDTH * 4,
-              width: SHARE_STORIES_FRAME_WIDTH,
-              height: SHARE_STORIES_FRAME_HEIGHT,
+              left: -GYM_PHOTO_SHARE_WIDTH * 4,
+              width: GYM_PHOTO_SHARE_WIDTH,
+              height: GYM_PHOTO_SHARE_HEIGHT,
             },
           ]}
           testID="gym-photo-share-capture-host"
         >
-          <ShareSocialFrame
-            cardHeight={GYM_PHOTO_SHARE_HEIGHT}
-            cardWidth={GYM_PHOTO_SHARE_WIDTH}
-          >
-            <GymPhotoShareCard
-              corners="square"
-              photoUri={photoUri}
-              poster={poster}
-              runLine={runLine}
-              testID="gym-photo-share-card-capture"
-            />
-          </ShareSocialFrame>
+          <GymPhotoShareCard
+            corners="square"
+            photoUri={photoUri}
+            poster={poster}
+            runLine={runLine}
+            testID="gym-photo-share-card-capture"
+          />
         </View>
       ) : null}
       <View
@@ -319,23 +309,21 @@ export function SetSharePager({
         style={[
           styles.captureTwin,
           {
-            left: -SHARE_STORIES_FRAME_WIDTH * 4,
-            width: SHARE_STORIES_FRAME_WIDTH,
-            height: SHARE_STORIES_FRAME_HEIGHT,
+            left: -SHARE_POSTER_WIDTH * 4,
+            width: SHARE_POSTER_WIDTH,
+            height: SHARE_POSTER_HEIGHT,
           },
         ]}
         testID="share-poster-capture-host"
       >
-        <ShareSocialFrame cardHeight={SHARE_POSTER_HEIGHT} cardWidth={SHARE_POSTER_WIDTH}>
-          <SharePosterCard
-            corners="square"
-            fillId={fillId}
-            poster={poster}
-            routePoints={routePoints}
-            runLine={runLine}
-            testID="share-poster-image-capture"
-          />
-        </ShareSocialFrame>
+        <SharePosterCard
+          corners="square"
+          fillId={fillId}
+          poster={poster}
+          routePoints={routePoints}
+          runLine={runLine}
+          testID="share-poster-image-capture"
+        />
       </View>
       {pages.length > 1 ? (
         <View style={styles.dots}>
@@ -380,6 +368,47 @@ export function SetSharePager({
   );
 }
 
+/**
+ * Outer box matches the *visual* size after scale so iOS overflow clipping
+ * cannot wipe a scaled card (blank poster page).
+ */
+function ScaledCard({
+  scale,
+  designWidth,
+  designHeight,
+  testID,
+  children,
+}: {
+  scale: number;
+  designWidth: number;
+  designHeight: number;
+  testID?: string;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        width: designWidth * scale,
+        height: designHeight * scale,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'visible',
+      }}
+      testID={testID}
+    >
+      <View
+        style={{
+          width: designWidth,
+          height: designHeight,
+          transform: [{ scale }],
+        }}
+      >
+        {children}
+      </View>
+    </View>
+  );
+}
+
 function sharePages(input: {
   clip: SetShareClipMedia | null;
   isClipLoading: boolean;
@@ -407,6 +436,35 @@ function aspectForPage(page: SetSharePage): number {
   return MEDIA_ASPECT;
 }
 
+function designSizeForPage(page: SetSharePage): { width: number; height: number } {
+  if (page === 'photo') {
+    return { width: GYM_PHOTO_SHARE_WIDTH, height: GYM_PHOTO_SHARE_HEIGHT };
+  }
+  if (page === 'poster') {
+    return { width: SHARE_POSTER_WIDTH, height: SHARE_POSTER_HEIGHT };
+  }
+  return { width: 0, height: 0 };
+}
+
+/** Fit each page to the slot using that page's own aspect — never the active page's. */
+function sizeForPage(
+  page: SetSharePage,
+  pageWidth: number,
+  slotHeight: number,
+): { width: number; height: number } {
+  return fitPortraitMedia(pageWidth, slotHeight, aspectForPage(page));
+}
+
+function scaleToFit(
+  mediaSize: { width: number; height: number },
+  design: { width: number; height: number },
+): number {
+  if (mediaSize.width <= 0 || mediaSize.height <= 0 || design.width <= 0) {
+    return 1;
+  }
+  return Math.min(mediaSize.width / design.width, mediaSize.height / design.height, 1);
+}
+
 /** Largest box of the given aspect that fits inside the measured media slot. */
 function fitPortraitMedia(
   maxWidth: number,
@@ -421,17 +479,6 @@ function fitPortraitMedia(
     return { width: maxWidth, height: heightFromWidth };
   }
   return { width: maxHeight * aspect, height: maxHeight };
-}
-
-function limitHeight(
-  size: { width: number; height: number },
-  maxHeight: number,
-): { width: number; height: number } {
-  if (size.height <= 0 || maxHeight <= 0 || size.height <= maxHeight) {
-    return size;
-  }
-  const scale = maxHeight / size.height;
-  return { width: size.width * scale, height: maxHeight };
 }
 
 const createStyles = (theme: Theme) =>
@@ -455,10 +502,9 @@ const createStyles = (theme: Theme) =>
     mediaFrame: {
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'visible',
     },
     mediaFrameVideo: {
-      // Stretch the player to the fitted 9:16 box — `alignItems: center` alone
-      // collapses a flex-fill video down to the play badge.
       alignItems: 'stretch',
       justifyContent: 'flex-start',
       overflow: 'hidden',

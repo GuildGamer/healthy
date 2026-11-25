@@ -6,14 +6,10 @@ import {
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import type { ShareCorners } from '@/components/challenges/GymPhotoShareCard';
-import {
-  SHARE_STORIES_FRAME_HEIGHT,
-  SHARE_STORIES_FRAME_WIDTH,
-} from '@/lib/share-export';
 import { ShareCapture } from './ShareCapture';
 
 describe('ShareCapture', () => {
-  it('parks a sized 9:16 social twin off-screen', () => {
+  it('parks a sized square card twin off-screen (no Stories letterbox)', () => {
     const shotRef = { current: null as View | null };
 
     render(
@@ -35,16 +31,16 @@ describe('ShareCapture', () => {
 
     expect(screen.getByTestId('preview')).toBeOnTheScreen();
     expect(screen.getByText('round')).toBeOnTheScreen();
-    expect(screen.getByTestId('share-social-frame', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByTestId('share-social-frame')).toBeNull();
 
     const twinHost = screen.getByTestId('share-capture-twin', {
       includeHiddenElements: true,
     });
     const twinStyle = StyleSheet.flatten(twinHost.props.style);
     expect(twinStyle.position).toBe('absolute');
-    expect(twinStyle.left).toBe(-SHARE_STORIES_FRAME_WIDTH * 4);
-    expect(twinStyle.width).toBe(SHARE_STORIES_FRAME_WIDTH);
-    expect(twinStyle.height).toBe(SHARE_STORIES_FRAME_HEIGHT);
+    expect(twinStyle.left).toBe(-SHARE_POSTER_WIDTH * 4);
+    expect(twinStyle.width).toBe(SHARE_POSTER_WIDTH);
+    expect(twinStyle.height).toBe(SHARE_POSTER_HEIGHT);
     expect(twinHost.children.length).toBeGreaterThan(0);
   });
 });

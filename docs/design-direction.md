@@ -78,23 +78,16 @@ week/month/year recaps all read as the **deck card** you played
 - Filled with the activity's deep colour from `deckCardPalettes` (day done uses
   streak; group results use the contest tone). Plain posters follow the
   sender's mode.
-- Soft radius (~26) on the in-app preview; the PNG destinations send is a
-  9:16 social frame (square-cornered card inset in the Stories safe zone) at
-  1080px wide.
+- Soft radius (~26) on the in-app preview; the PNG destinations send is the
+  **square-cornered card only** at 1080px wide (no navy Stories letterbox).
 - Label and period on top; one big numeral and unit; hairline brand row
   (Beatset lockup tinted to the card ink + a short meta line). No mint band.
 - Optional walk GPS path on a finish poster. A gym selfie is its own share
   page (`GymPhotoShareCard`): a 3:4 phone-photo canvas (not the colour poster
-  slip, not Stories-tall), full-bleed photo with light top/bottom fades and
-  the poster lines (name, weekday, time, unit, lockup, run) in the bands. The
-  time is caption-sized so it stays off the face. Soft radius on the in-app
-  preview. Exported PNGs are a **9:16 Stories frame** (card inset in Meta’s
-  safe zone on night `#0B1220`) at **1080px** wide so Instagram does not
-  zoom-crop overlays. Type sits inset from the card edges. Gym shutter quality
-  is share-grade; upload may recompress for the API body. On the share screen
-  the preview keeps air above and below so it reads as a photo. Stored for 30
-  days with membership, 1 day without; History falls back to the card after
-  expiry.
+  slip), full-bleed photo with light top/bottom fades and the poster lines
+  (name, weekday, time, unit, lockup, run) in the bands. Soft radius in-app;
+  square card PNG on export. Gym shutter is share-grade. Stored for 30 days
+  with membership, 1 day without; History falls back to the card after expiry.
 
 ### 2. Invite link preview
 
