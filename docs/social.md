@@ -73,7 +73,7 @@ an in-app notification row (one per attempt per mate).
 
 Announce every activity. Competitive urgencies (`ahead` / `tied` / `close`)
 always push. Routine (“X scored”) pushes at most once per **actor → recipient**
-per **10 minutes**; later routine sets in that window stay inbox-only.
+per **45 minutes**; later routine sets in that window stay inbox-only.
 
 Any inbox row carrying `matchId` spends that group's daily rivalry-reminder
 slot — including inbox-only rows where the push was coalesced. Settlement and

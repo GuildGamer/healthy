@@ -55,7 +55,7 @@ type InboxRow = {
 /**
  * Tells accepted group mates that someone moved the board. Inbox rows are
  * written per attempt for every mate; lock-screen pushes announce every
- * activity, with same-actor routine coalesced for 10 minutes (competitive
+ * activity, with same-actor routine coalesced for 45 minutes (competitive
  * always breaks through). Retries are idempotent on (match, attempt, recipient);
  * a failed push never undoes the score write.
  */

@@ -73,8 +73,8 @@ describe('selectPushRecipients', () => {
 });
 
 describe('push idempotency keys', () => {
-  it('uses a ten-minute coalesce window', () => {
-    expect(BOARD_PUSH_COALESCE_MS).toBe(10 * 60 * 1000);
+  it('uses a forty-five-minute coalesce window', () => {
+    expect(BOARD_PUSH_COALESCE_MS).toBe(45 * 60 * 1000);
   });
 
   it('scopes routine coalesce by actor, recipient and day', () => {

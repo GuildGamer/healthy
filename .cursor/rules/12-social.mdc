@@ -136,7 +136,7 @@ nudges are rate-limited and idempotent on `(groupId, fromUserId, toUserId, day)`
 
 Board moves: inbox per attempt for every mate; lock-screen push announces every
 activity via `group-board-push-policy`, with same-actor routine coalesced for
-10 minutes (competitive always breaks through). See `docs/social.md` §
+45 minutes (competitive always breaks through). See `docs/social.md` §
 Notifications.
 
 ## Contract

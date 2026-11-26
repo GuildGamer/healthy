@@ -2,7 +2,7 @@
  * Same-actor routine lock-screen coalesce. Competitive urgencies ignore this.
  * Inbox rows stay per attempt.
  */
-export const BOARD_PUSH_COALESCE_MS = 10 * 60 * 1000;
+export const BOARD_PUSH_COALESCE_MS = 45 * 60 * 1000;
 
 /**
  * Stable key for same-actor routine coalesce bookkeeping. Distinct from the
