@@ -83,7 +83,7 @@ describe('CaptureCameraScreen', () => {
     expect(onUse).toHaveBeenCalledWith({
       mimeType: 'image/jpeg',
       imageBase64: 'bbbb',
-      previewUri: 'file://shot.jpg',
+      previewUri: 'file://shot.jpg?normalized',
       width: 3024,
       height: 4032,
     });

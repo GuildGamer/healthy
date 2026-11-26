@@ -1,5 +1,6 @@
 import type { ChallengeEvidence } from '@product/client';
 import { compressEvidencePhotoForUpload } from './compress-evidence-photo';
+import { renderSharePreviewPhoto } from './render-share-preview-photo';
 
 export const CAMERA_FAILED_MESSAGE =
   'We could not open the camera. Check permissions and try again.';
@@ -42,9 +43,9 @@ export type CaptureSelfieResult =
   | { status: 'failed'; message: string };
 
 /**
- * Builds a captured selfie from a shutter take. Keeps the high-res file for
- * share; if base64 is over the upload cap, recompresses a smaller JPEG for
- * the API while leaving `previewUri` sharp.
+ * Builds a captured selfie from a shutter take. The share preview is resized
+ * so the card does not wait on a full camera JPEG; upload may recompress a
+ * smaller JPEG for the API body when base64 would overflow.
  */
 export async function photoFromCameraTake(result: {
   uri: string;
@@ -65,12 +66,18 @@ export async function photoFromCameraTake(result: {
     imageBase64 = compressed;
   }
 
+  const previewUri =
+    (await renderSharePreviewPhoto(result.uri, {
+      width: result.width,
+      height: result.height,
+    })) ?? result.uri;
+
   return {
     status: 'captured',
     photo: {
       mimeType: 'image/jpeg',
       imageBase64,
-      previewUri: result.uri,
+      previewUri,
       ...(result.width && result.height ? { width: result.width, height: result.height } : {}),
     },
   };

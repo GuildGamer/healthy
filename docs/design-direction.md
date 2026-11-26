@@ -90,8 +90,17 @@ week/month/year recaps all read as the **deck card** you played
   **square-cornered card only** at 1080px wide (no navy Stories letterbox).
 - Label and period on top; one big numeral and unit; hairline brand row
   (Beatset lockup tinted to the card ink + a short meta line). No mint band.
+- **"N days running" is the activity's run**, ending on that finish — never the
+  account-wide streak. Hidden until day two. Absent on group and practice sets
+  (no single challenge to count) and on weekly finishes. Day cards stay
+  general and may show the account streak. Metric cards keep "N days on" for
+  that metric.
 - `DayShareCard` is `SharePosterCard` filled with the streak colour, so day
   shares cannot drift from the other posters.
+- **Group result cards** (`GroupRecapCard`, `HonorShareCard`,
+  `GroupHonorsBoardCard`) are the same 4:5 family: fitted to the carousel
+  width with the 24pt margin, radius 26, no transform scale. Exports stay at
+  design size, square, 1080 wide.
 - Optional walk GPS path on a finish poster.
 - **A gym selfie is a background of the card, not a page.** It is the first
   round thumbnail in the swatch row (labelled **Background**, your photo ahead
@@ -101,11 +110,13 @@ week/month/year recaps all read as the **deck card** you played
   only a small bottom block (time 26, unit 14, hairline, lockup, run line 12;
   card padding 34) so faces stay clear. No top row, no name or weekday over
   the photo. Preview corners are soft, the export is square, and type sits
-  inside the photo clip so the radius never cuts it. The preview fades the
-  photo in (no black flash) and holds the overlay until the photo has loaded;
-  the export twin paints immediately. A selfie is ignored when the share has a
-  proof clip. Gym shutter is share-grade. Stored for 30 days with membership, 1
-  day without; History falls back to the colour card after expiry.
+  inside the photo clip so the radius never cuts it.   While the photo decodes, the card shows in the gym colour with a spinner so
+  the stage is never blank; the photo then fades in and the overlay appears.
+  The capture twin paints immediately (no spinner). The local preview file is
+  resized to ~1440px on the long edge at capture so the wait is short. A selfie
+  is ignored when the share has a proof clip. Gym shutter is share-grade.
+  Stored for 30 days with membership, 1 day without; History falls back to the
+  colour card after expiry.
 
 ### 2. Invite link preview
 

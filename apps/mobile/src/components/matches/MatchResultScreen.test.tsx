@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as Sharing from 'expo-sharing';
-import { Share } from 'react-native';
+import { Share, StyleSheet } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { apiClient } from '@/lib/api';
 import { markMatchResultSeen } from '@/lib/seen-match-results';
@@ -69,6 +69,23 @@ describe('MatchResultScreen', () => {
     expect(within(screen.getByTestId('match-podium-1')).getByText('You')).toBeOnTheScreen();
     expect(screen.getByTestId('match-standing-tunde')).toBeOnTheScreen();
     expect(markMatchResultSeen).toHaveBeenCalledWith('m1');
+    await view.cleanup();
+  });
+
+  it('lays the honor cards out at the fitted 4:5 size, without a transform', async () => {
+    mockedApi.getMatch.mockResolvedValue(wonBoard());
+    const view = renderWithClient(<MatchResultScreen matchId="m1" />);
+
+    const carousel = await screen.findByTestId('match-honors-carousel');
+    fireEvent(carousel, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 342, height: 500 } },
+    });
+
+    const preview = await screen.findByTestId('match-recap-card-preview');
+    const style = StyleSheet.flatten(preview.props.style);
+    expect(style.width).toBe(342 - 48);
+    expect(style.height).toBe((342 - 48) / 0.8);
+    expect(style.transform).toBeUndefined();
     await view.cleanup();
   });
 

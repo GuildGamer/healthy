@@ -8,7 +8,7 @@ import {
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import { SharePosterText } from '@/components/challenges/SharePosterText';
-import { ShareBrandLockup } from '@/components/share';
+import { ShareBrandLockup } from '@/components/share/ShareBrandLockup';
 import { honorBoardLine, honorChallengeTitle, honorMetaLine } from './honor-copy';
 import { honorFillFor, honorInkFor } from './honor-palettes';
 
@@ -16,18 +16,28 @@ import { honorFillFor, honorInkFor } from './honor-palettes';
 export function GroupHonorsBoardCard({
   board,
   corners = 'round',
+  width = SHARE_POSTER_WIDTH,
+  height = SHARE_POSTER_HEIGHT,
 }: {
   board: MatchBoard;
   corners?: 'round' | 'square';
+  width?: number;
+  height?: number;
 }) {
   const honors = board.honors ?? [];
   const challenge = honorChallengeTitle(board);
   const ink = honorInkFor('honors_board');
   const radius = corners === 'round' ? SHARE_POSTER_RADIUS : 0;
+  const layoutScale = width / SHARE_POSTER_WIDTH;
+  const pad = SHARE_POSTER_PADDING * layoutScale;
+  const eyebrowStyle = [
+    styles.eyebrow,
+    { color: ink.sub, fontSize: (fontSize.sm - 1) * layoutScale },
+  ];
 
   return (
     <View
-      style={[styles.shell, corners === 'round' ? styles.shellRound : null]}
+      style={[styles.shell, { width, height }, corners === 'round' ? { borderRadius: radius } : null]}
       testID="match-honors-board-card"
     >
       <View
@@ -36,26 +46,55 @@ export function GroupHonorsBoardCard({
           { backgroundColor: honorFillFor('honors_board'), borderRadius: radius },
         ]}
       />
-      <View style={styles.type}>
-        <SharePosterText style={[styles.eyebrow, { color: ink.sub }]}>
+      <View style={[styles.type, { padding: pad }]}>
+        <SharePosterText style={eyebrowStyle}>
           {challenge ?? honorMetaLine(board)}
         </SharePosterText>
-        <SharePosterText style={[styles.title, { color: ink.text }]}>Honors</SharePosterText>
-        <View style={styles.list}>
+        <SharePosterText
+          style={[
+            styles.title,
+            {
+              color: ink.text,
+              fontSize: 28 * layoutScale,
+              marginTop: spacing.md * layoutScale,
+            },
+          ]}
+        >
+          Honors
+        </SharePosterText>
+        <View
+          style={[
+            styles.list,
+            { marginTop: spacing.lg * layoutScale, gap: 8 * layoutScale },
+          ]}
+        >
           {honors.slice(0, 6).map((row) => (
             <SharePosterText
               key={`${row.kind}-${row.userId}`}
-              style={[styles.line, { color: ink.sub }]}
+              style={[
+                styles.line,
+                {
+                  color: ink.sub,
+                  fontSize: 14 * layoutScale,
+                  lineHeight: 20 * layoutScale,
+                },
+              ]}
             >
               {honorBoardLine(row)}
             </SharePosterText>
           ))}
         </View>
-        <View style={[styles.brand, { borderTopColor: ink.track }]}>
-          <ShareBrandLockup color={ink.text} />
-          <SharePosterText style={[styles.eyebrow, { color: ink.sub }]}>
-            {`${board.participantCount} people`}
-          </SharePosterText>
+        <View
+          style={[
+            styles.brand,
+            {
+              borderTopColor: ink.track,
+              paddingTop: 14 * layoutScale,
+            },
+          ]}
+        >
+          <ShareBrandLockup color={ink.text} height={Math.round(40 * layoutScale)} />
+          <SharePosterText style={eyebrowStyle}>{`${board.participantCount} people`}</SharePosterText>
         </View>
       </View>
     </View>
@@ -63,45 +102,29 @@ export function GroupHonorsBoardCard({
 }
 
 const styles = StyleSheet.create({
-  shell: {
-    width: SHARE_POSTER_WIDTH,
-    height: SHARE_POSTER_HEIGHT,
-  },
-  shellRound: {
-    borderRadius: SHARE_POSTER_RADIUS,
-  },
+  shell: {},
   fill: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
   type: {
     flex: 1,
-    padding: SHARE_POSTER_PADDING,
   },
   eyebrow: {
-    fontSize: fontSize.sm - 1,
     fontWeight: fontWeight.medium,
   },
   title: {
-    fontSize: 28,
     fontWeight: fontWeight.bold,
-    marginTop: spacing.md,
   },
   list: {
-    marginTop: spacing.lg,
-    gap: 8,
     flex: 1,
   },
-  line: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
+  line: {},
   brand: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 'auto',
-    paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

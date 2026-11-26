@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { longestConsecutiveDayRun } from './day-run.js';
+import { consecutiveDayRunEndingOn, longestConsecutiveDayRun } from './day-run.js';
 
 describe('longestConsecutiveDayRun', () => {
   it('is zero without any days', () => {
@@ -23,5 +23,30 @@ describe('longestConsecutiveDayRun', () => {
     expect(longestConsecutiveDayRun(['2026-11-01', '2026-10-31', '2026-10-30', '2026-10-31'])).toBe(
       3,
     );
+  });
+});
+
+describe('consecutiveDayRunEndingOn', () => {
+  it('is zero when the anchor day is missing, even with a run before it', () => {
+    expect(consecutiveDayRunEndingOn(['2026-10-01', '2026-10-02'], '2026-10-03')).toBe(0);
+    expect(consecutiveDayRunEndingOn([], '2026-10-03')).toBe(0);
+  });
+
+  it('counts back from the anchor and stops at the first gap', () => {
+    expect(
+      consecutiveDayRunEndingOn(
+        ['2026-10-01', '2026-10-03', '2026-10-04', '2026-10-05'],
+        '2026-10-05',
+      ),
+    ).toBe(3);
+  });
+
+  it('ignores days after the anchor and repeats, and crosses a month end', () => {
+    expect(
+      consecutiveDayRunEndingOn(
+        ['2026-11-02', '2026-11-01', '2026-10-31', '2026-10-31', '2026-10-30'],
+        '2026-11-01',
+      ),
+    ).toBe(3);
   });
 });

@@ -1,6 +1,6 @@
 import { darkDeckCards, fontWeight, spacing } from '@product/brand';
 import { useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { ShareBrandLockup } from '@/components/share/ShareBrandLockup';
 import { PhotoFade } from './PhotoFade';
 import {
@@ -28,8 +28,10 @@ const BRAND_GAP = 10;
  * the bottom (time, unit, lockup, run) so the face stays clear. Preview corners
  * are soft; the capture twin is square and paints immediately.
  *
- * Pass width/height to size the in-app preview to the stage. Everything inside
- * scales with the width except the corner radius, which stays fixed.
+ * While the photo decodes, the card shows in the gym colour with a spinner so
+ * the stage is never a blank hole. Pass width/height to size the in-app preview
+ * to the stage. Everything inside scales with the width except the corner
+ * radius, which stays fixed.
  */
 export function GymPhotoShareCard({
   photoUri,
@@ -61,6 +63,17 @@ export function GymPhotoShareCard({
       style={[styles.shell, { width, height, borderRadius: radius }]}
       testID={testID}
     >
+      {!photoReady ? (
+        <View
+          style={[
+            styles.loading,
+            { borderRadius: radius, backgroundColor: darkDeckCards.gym },
+          ]}
+          testID="gym-photo-share-loading"
+        >
+          <ActivityIndicator color={darkDeckCards.text} />
+        </View>
+      ) : null}
       <View style={[styles.photo, { borderRadius: radius }]}>
         <Image
           accessibilityIgnoresInvertColors
@@ -142,6 +155,11 @@ const styles = StyleSheet.create({
    */
   shell: {
     backgroundColor: 'transparent',
+  },
+  loading: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photo: {
     ...StyleSheet.absoluteFillObject,

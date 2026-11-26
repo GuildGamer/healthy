@@ -39,6 +39,7 @@ jest.mock('@/lib/api', () => ({
     })),
     trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
     getGymSharePhoto: jest.fn(async () => ({ photoUrl: null })),
+    getActivityRun: jest.fn(async () => ({ runDays: 12 })),
   },
   apiQuery: {},
 }));
@@ -271,18 +272,66 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
 });
 
 describe('ChallengeSuccessScreen share card', () => {
-  it('shows the share card after a check-in, without the points', () => {
-    renderSuccess({ title: 'Take your preventer inhaler', face: 'done' });
+  it('shows the share card after a check-in, without the points', async () => {
+    renderSuccess({
+      title: 'Take your preventer inhaler',
+      face: 'done',
+      userChallengeId: 'uc-inhaler',
+    });
 
     expect(screen.getByTestId('share-poster-image')).toBeOnTheScreen();
     expect(screen.getByText('Take your preventer inhaler')).toBeOnTheScreen();
     expect(screen.getByText('Done')).toBeOnTheScreen();
     expect(screen.getByTestId('share-brand-lockup')).toBeOnTheScreen();
     expect(screen.getByLabelText('Beatset')).toBeOnTheScreen();
-    expect(screen.getByText('12 days running')).toBeOnTheScreen();
+    expect(await screen.findByText('12 days running')).toBeOnTheScreen();
     expect(screen.queryByText('+40')).toBeNull();
     expect(screen.queryByText('points')).toBeNull();
     expect(screen.getByTestId('challenge-success-share')).toBeOnTheScreen();
+  });
+
+  it('uses this challenge’s run, not the account-wide streak', async () => {
+    const { apiClient } = jest.requireMock('@/lib/api') as {
+      apiClient: { getActivityRun: jest.Mock; me: jest.Mock };
+    };
+    apiClient.me.mockResolvedValue({
+      hasMembership: true,
+      currentStreakDays: 40,
+      name: 'Ada',
+      countryCode: 'US',
+      categories: ['general'],
+      proofClipLimits: {
+        maxDurationSeconds: 3_600,
+        maxVideoBytes: 512 * 1024 * 1024,
+        maxPosterBytes: 5 * 1024 * 1024,
+      },
+    });
+    apiClient.getActivityRun.mockResolvedValue({ runDays: 5 });
+
+    renderSuccess({
+      title: 'Gym session',
+      face: 'gym',
+      userChallengeId: 'uc-gym',
+      currentStreakDays: 40,
+    });
+
+    expect(await screen.findByText('5 days running')).toBeOnTheScreen();
+    expect(screen.queryByText('40 days running')).toBeNull();
+    expect(apiClient.getActivityRun).toHaveBeenCalledWith({ userChallengeId: 'uc-gym' });
+  });
+
+  it('hides the run line on a group finish', async () => {
+    renderSuccess({
+      title: 'Push-ups',
+      face: 'reps',
+      matchId: 'match-1',
+      userChallengeId: 'uc-group',
+      currentStreakDays: 12,
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('12 days running')).toBeNull();
+    });
   });
 
   it('uses the gym selfie as the card background, without a points poster', async () => {

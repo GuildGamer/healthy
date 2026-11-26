@@ -133,11 +133,15 @@ export function posterValueMetrics(value: string): {
   return { fontSize: 48, letterSpacing: -0.5, lineHeight: 52 };
 }
 
-/** "7 days running" under the poster, or nothing before there is a run. */
-export function posterRunLine(streakDays: number): string | null {
-  if (streakDays <= 0) {
+/**
+ * "7 days running" under a finish card. Hidden until day two — a first finish
+ * has no run yet — and never the account-wide streak. Callers pass the days
+ * this one activity was finished in a row.
+ */
+export function posterRunLine(runDays: number): string | null {
+  if (runDays < 2) {
     return null;
   }
 
-  return streakDays === 1 ? '1 day running' : `${streakDays} days running`;
+  return `${runDays} days running`;
 }

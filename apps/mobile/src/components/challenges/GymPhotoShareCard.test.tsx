@@ -97,16 +97,27 @@ describe('GymPhotoShareCard', () => {
     expect(typeLayerStyle().padding).toBe(SHARE_POSTER_PADDING * scale);
   });
 
-  it('fades the photo in so the shell never flashes black', () => {
+  it('shows a gym-coloured loader until the photo is ready', () => {
     render(<GymPhotoShareCard photoUri="file://gym.jpg" poster={gymPoster} />);
 
+    expect(screen.getByTestId('gym-photo-share-loading')).toBeOnTheScreen();
     const image = screen.getByTestId('gym-photo-share-image');
     expect(StyleSheet.flatten(image.props.style).opacity).toBe(0);
     expect(screen.queryByText('08:00')).toBeNull();
     fireEvent(image, 'load');
+    expect(screen.queryByTestId('gym-photo-share-loading')).toBeNull();
     expect(StyleSheet.flatten(screen.getByTestId('gym-photo-share-image').props.style).opacity).toBe(
       1,
     );
+    expect(screen.getByText('08:00')).toBeOnTheScreen();
+  });
+
+  it('never shows the loader on the capture twin', () => {
+    render(
+      <GymPhotoShareCard corners="square" photoUri="file://gym.jpg" poster={gymPoster} />,
+    );
+
+    expect(screen.queryByTestId('gym-photo-share-loading')).toBeNull();
     expect(screen.getByText('08:00')).toBeOnTheScreen();
   });
 

@@ -46,10 +46,10 @@ import { poseShareCopy } from './pose-share-copy';
 import { ProofClipHero } from './ProofClipActions';
 import { posterForSuccess, type SuccessFace } from './success-poster';
 import { defaultShareFillId, type ShareFillId } from './share-fill';
-import { posterRunLine } from './share-poster';
 import { ShareFillCarousel } from './ShareFillCarousel';
 import { SharePosterCard } from './SharePosterCard';
 import type { FriendChallengeSource } from './types/friend-challenge';
+import { useActivityRunLine } from './useActivityRunLine';
 import { useFriendChallenge } from './useFriendChallenge';
 import { useUpdateEnrollment } from './useChallengeMutations';
 import { type ProofClipState, useProofClip } from './useProofClip';
@@ -241,6 +241,11 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
   const [photoUri] = useState(() => pendingSharePhotoFor(userChallengeId));
   const [ladderDismissed, setLadderDismissed] = useState(false);
   const [fillId, setFillId] = useState<ShareFillId | null>(null);
+  // Finish cards show this challenge's run, never the account streak. Group and
+  // practice sets have no single challenge to count, so they get no run line.
+  const activityRunLine = useActivityRunLine(
+    isMatch || practice ? undefined : userChallengeId,
+  );
 
   useEffect(() => {
     markSuccessWasPenalty(penaltyApplied);
@@ -281,8 +286,6 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
       metric: clipPose.metric,
     });
     const clipFill = fillId ?? defaultShareFillId(clipPoster.kind);
-    const streakForClip =
-      isMatch || practice ? (me?.currentStreakDays ?? currentStreakDays) : currentStreakDays;
 
     return (
       <ClipFinishScreen
@@ -297,9 +300,9 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
         poster={clipPoster}
         proof={proof}
         proofMaxDurationSeconds={proofMaxDurationSeconds}
+        runLine={activityRunLine}
         selectedFill={clipFill}
         showSyncLine={showSyncLine}
-        streakDays={streakForClip}
       />
     );
   }
@@ -348,7 +351,7 @@ export function ChallengeSuccessScreen(props: ChallengeSuccessScreenProps) {
                 corners={corners}
                 fillId={selectedFill}
                 poster={poster}
-                runLine={posterRunLine(streakDays)}
+                runLine={activityRunLine}
                 testID={
                   corners === 'round' ? 'share-poster-image' : 'share-poster-image-capture'
                 }
@@ -411,7 +414,7 @@ function ClipFinishScreen({
   photoUri,
   poster,
   selectedFill,
-  streakDays,
+  runLine,
   proofMaxDurationSeconds,
   isDayFinished,
   showSyncLine,
@@ -426,7 +429,7 @@ function ClipFinishScreen({
   photoUri?: string;
   poster: ReturnType<typeof posterForSuccess>;
   selectedFill: ShareFillId;
-  streakDays: number;
+  runLine: string | null;
   proofMaxDurationSeconds: number;
   isDayFinished: boolean;
   showSyncLine: boolean;
@@ -544,7 +547,7 @@ function ClipFinishScreen({
             showMeta={false}
           />
         )}
-        runLine={posterRunLine(streakDays)}
+        runLine={runLine}
         showChallenge={!isGroup && friend.isReady && friend.isOffered}
         showCopy={Boolean(inviteUrl)}
         destinationsDisabled={proof.isBusy}

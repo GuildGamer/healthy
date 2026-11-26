@@ -58,7 +58,8 @@ describe('share poster', () => {
 
   it('names the run only once there is one', () => {
     expect(posterRunLine(0)).toBeNull();
-    expect(posterRunLine(1)).toBe('1 day running');
+    expect(posterRunLine(1)).toBeNull();
+    expect(posterRunLine(2)).toBe('2 days running');
     expect(posterRunLine(7)).toBe('7 days running');
   });
 

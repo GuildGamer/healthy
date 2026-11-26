@@ -26,7 +26,13 @@ import {
   SHARE_POSTER_WIDTH,
 } from '@/components/challenges/SharePosterCard';
 import { ProfilePhotoPreviewModal } from '@/components/profile/ProfilePhotoPreviewModal';
-import { ShareDestinationRow, useShareDestinations } from '@/components/share';
+import {
+  fitShareCard,
+  SHARE_CARD_ASPECT,
+  SHARE_PAGE_MARGIN,
+  ShareDestinationRow,
+  useShareDestinations,
+} from '@/components/share';
 import { apiClient } from '@/lib/api';
 import { markMatchResultSeen } from '@/lib/seen-match-results';
 import { type Theme, useThemedStyles } from '@/theme';
@@ -111,17 +117,21 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
   const hasPodium = board.winnerUserId !== null;
   const listRef = useRef<FlatList<HonorCarouselSlide>>(null);
   const [pageWidth, setPageWidth] = useState(0);
-  const posterScale =
-    pageWidth === 0 || pageWidth > SHARE_POSTER_WIDTH
-      ? 0.92
-      : pageWidth / SHARE_POSTER_WIDTH;
+  // Same 4:5 card as every other share, laid out at real size — no transform.
+  const cardSize = (() => {
+    if (pageWidth <= 0) {
+      return { width: SHARE_POSTER_WIDTH, height: SHARE_POSTER_HEIGHT };
+    }
+    const maxWidth = Math.max(pageWidth - SHARE_PAGE_MARGIN * 2, 0);
+    return fitShareCard(maxWidth, maxWidth / SHARE_CARD_ASPECT);
+  })();
 
   const onCarouselLayout = (event: LayoutChangeEvent) => {
     const nextWidth = event.nativeEvent.layout.width;
     if (nextWidth <= 0) {
       return;
     }
-    setPageWidth((current) => (current > 0 ? current : nextWidth));
+    setPageWidth((current) => (current === nextWidth ? current : nextWidth));
   };
 
   const onScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -186,9 +196,12 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
                 pagingEnabled
                 renderItem={({ item }) => (
                   <View style={[styles.slide, { width: pageWidth }]}>
-                    <View style={[styles.slideCard, { transform: [{ scale: posterScale }] }]}>
-                      <HonorSlidePreview board={board} slide={item} />
-                    </View>
+                    <HonorSlidePreview
+                      board={board}
+                      height={cardSize.height}
+                      slide={item}
+                      width={cardSize.width}
+                    />
                   </View>
                 )}
                 showsHorizontalScrollIndicator={false}
@@ -271,7 +284,13 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
         style={styles.offscreenShot}
       >
         <View collapsable={false} ref={honorShare.shotRef}>
-          <HonorSlidePreview board={board} forCapture slide={activeSlide} />
+          <HonorSlidePreview
+            board={board}
+            forCapture
+            height={SHARE_POSTER_HEIGHT}
+            slide={activeSlide}
+            width={SHARE_POSTER_WIDTH}
+          />
         </View>
       </View>
     </>
@@ -281,10 +300,14 @@ function ResultMoment({ board, onClose }: { board: MatchBoard; onClose: () => vo
 function HonorSlidePreview({
   board,
   slide,
+  width,
+  height,
   forCapture = false,
 }: {
   board: MatchBoard;
   slide: HonorCarouselSlide;
+  width: number;
+  height: number;
   forCapture?: boolean;
 }) {
   const corners = forCapture ? 'square' : 'round';
@@ -293,19 +316,25 @@ function HonorSlidePreview({
       <HonorShareCard
         board={board}
         corners={corners}
+        height={height}
         honor={slide.honor}
         isHolder={slide.isYours}
+        width={width}
       />
     );
   }
   if (slide.type === 'board') {
-    return <GroupHonorsBoardCard board={board} corners={corners} />;
+    return (
+      <GroupHonorsBoardCard board={board} corners={corners} height={height} width={width} />
+    );
   }
   return (
     <GroupRecapCard
       board={board}
       corners={corners}
+      height={height}
       testID={forCapture ? 'match-recap-card' : 'match-recap-card-preview'}
+      width={width}
     />
   );
 }
@@ -401,10 +430,6 @@ const createStyles = (theme: Theme) =>
     slide: {
       alignItems: 'center',
       overflow: 'hidden',
-    },
-    slideCard: {
-      width: SHARE_POSTER_WIDTH,
-      height: SHARE_POSTER_HEIGHT,
     },
     dots: {
       flexDirection: 'row',

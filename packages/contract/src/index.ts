@@ -714,6 +714,19 @@ export const getGymSharePhotoOutputSchema = z.object({
   photoUrl: z.string().url().nullable(),
 });
 
+export const getActivityRunInputSchema = z.object({
+  userChallengeId: z.string().min(1),
+});
+
+export const getActivityRunOutputSchema = z.object({
+  /**
+   * Consecutive days this challenge was finished (rewarded, daily), ending on
+   * the finish asked about. Zero when there is no run to show: not yours, not
+   * finished, not a daily, or a penalised finish. Never the account-wide streak.
+   */
+  runDays: z.number().int().nonnegative(),
+});
+
 export const completeChallengeInputSchema = z.object({
   userChallengeId: z.string().min(1),
   vitals: challengeVitalsSchema.optional(),
@@ -970,6 +983,11 @@ export const getGymSharePhotoContract = oc
   .input(getGymSharePhotoInputSchema)
   .output(getGymSharePhotoOutputSchema);
 
+export const getActivityRunContract = oc
+  .route({ method: 'GET', path: '/challenges/activity-run' })
+  .input(getActivityRunInputSchema)
+  .output(getActivityRunOutputSchema);
+
 export const waitlistInputSchema = z.object({
   email: z.string().email(),
   source: z.string().max(100).optional(),
@@ -1015,6 +1033,7 @@ export const appContract = {
   listActivity: listActivityContract,
   listChallengeHistory: listChallengeHistoryContract,
   getGymSharePhoto: getGymSharePhotoContract,
+  getActivityRun: getActivityRunContract,
   waitlist: waitlistContract,
   listTips: listTipsContract,
   getMembershipOffer: getMembershipOfferContract,
@@ -1106,6 +1125,8 @@ export type ListChallengeHistoryInput = z.input<typeof listChallengeHistoryInput
 export type ListChallengeHistoryOutput = z.infer<typeof listChallengeHistoryOutputSchema>;
 export type GetGymSharePhotoInput = z.input<typeof getGymSharePhotoInputSchema>;
 export type GetGymSharePhotoOutput = z.infer<typeof getGymSharePhotoOutputSchema>;
+export type GetActivityRunInput = z.input<typeof getActivityRunInputSchema>;
+export type GetActivityRunOutput = z.infer<typeof getActivityRunOutputSchema>;
 export type WaitlistInput = z.infer<typeof waitlistInputSchema>;
 export type WaitlistOutput = z.infer<typeof waitlistOutputSchema>;
 export type ChallengeReminder = z.infer<typeof challengeReminderSchema>;

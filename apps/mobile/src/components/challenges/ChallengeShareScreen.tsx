@@ -1,11 +1,9 @@
 import { fontSize, fontWeight, spacing } from '@product/brand';
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeckButton, DeckNavButton, DeckSheetMessage } from '@/components/deck';
 import { trackEvent } from '@/lib/analytics';
-import { apiClient } from '@/lib/api';
 import { goBackOrHome } from '@/lib/go-back';
 import { clearPendingShareRoute } from '@/lib/share-card-session';
 import type { ShareRoutePoint } from '@/lib/share-route-path';
@@ -23,11 +21,12 @@ import { friendChallengeSpec } from './friend-challenge';
 import { useFriendChallenge } from './useFriendChallenge';
 import { SHARE_COPY } from './constants/doing-copy';
 import { defaultShareFillId, type ShareFillId } from './share-fill';
-import { posterRunLine, posterShareText } from './share-poster';
+import { posterShareText } from './share-poster';
 import { ShareFillCarousel } from './ShareFillCarousel';
 import { SharePosterCard } from './SharePosterCard';
 import type { ShareFriend } from './types/friend-challenge';
 import type { SharePoster } from './types/share-poster';
+import { useActivityRunLine } from './useActivityRunLine';
 import { useGymSharePhoto } from './useGymSharePhoto';
 import { useShareClipMedia } from './useShareClipMedia';
 
@@ -76,13 +75,13 @@ export function ChallengeShareScreen({
     },
     [],
   );
-  const meQuery = useQuery({ queryKey: ['me'], queryFn: () => apiClient.me() });
   const invite = useFriendChallenge({
     spec: friendChallengeSpec(friend?.source ?? { kind: 'day' }),
     isEligible: friend?.isEligible ?? false,
     userChallengeId: friend?.userChallengeId,
   });
-  const resolvedRunLine = runLine ?? posterRunLine(meQuery.data?.currentStreakDays ?? 0);
+  const activityRunLine = useActivityRunLine(userChallengeId ?? friend?.userChallengeId);
+  const resolvedRunLine = runLine ?? activityRunLine;
   const showPager = Boolean(clipId) || Boolean(photoUri) || gymPhoto.isLoading;
 
   return (

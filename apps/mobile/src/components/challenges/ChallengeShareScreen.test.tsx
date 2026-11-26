@@ -18,6 +18,7 @@ jest.mock('@/lib/api', () => ({
     createMatch: jest.fn(),
     trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
     getGymSharePhoto: jest.fn(async () => ({ photoUrl: null })),
+    getActivityRun: jest.fn(async () => ({ runDays: 3 })),
   },
   apiQuery: {},
 }));

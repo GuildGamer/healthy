@@ -6,7 +6,7 @@ export {
 } from './ShareBrandLockup';
 export { ShareCapture } from './ShareCapture';
 export type { ShareCardSize } from './types/share-card-size';
-export { SHARE_PAGE_MARGIN } from './set-share-layout';
+export { fitShareCard, SHARE_CARD_ASPECT, SHARE_PAGE_MARGIN } from './set-share-layout';
 export { ShareSocialFrame } from './ShareSocialFrame';
 export { ShareDestinationRow } from './ShareDestinationRow';
 export type { ShareDestinationSelectId } from './ShareDestinationRow';
