@@ -38,7 +38,6 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.suspendCoroutine
 
 /**
  * Owns the Camera2 session for pose counting and proof clips.
@@ -339,7 +338,7 @@ internal class PoseCameraSession(
       surfaces: List<Surface>,
       executor: Executor,
     ): CameraCaptureSession =
-      suspendCoroutine { continuation ->
+      suspendCancellableCoroutine { continuation ->
         val callback =
           object : CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) {
@@ -347,7 +346,11 @@ internal class PoseCameraSession(
             }
 
             override fun onConfigureFailed(session: CameraCaptureSession) {
-              continuation.resumeWithException(RuntimeException("Camera session configuration failed"))
+              if (continuation.isActive) {
+                continuation.resumeWithException(
+                  RuntimeException("Camera session configuration failed"),
+                )
+              }
             }
           }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
