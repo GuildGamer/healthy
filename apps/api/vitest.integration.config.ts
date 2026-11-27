@@ -2,9 +2,6 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    env: {
-      MEMBERSHIP_BYPASS: '0',
-    },
     include: ['src/**/*.integration.test.ts'],
     globalSetup: ['test/integration-setup.ts'],
     // One database, and each file truncates it — running files in parallel

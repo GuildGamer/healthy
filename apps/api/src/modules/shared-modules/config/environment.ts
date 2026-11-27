@@ -18,7 +18,6 @@ import {
   PROOF_CLIP_POSTER_MAX_BYTES,
   type ProofClipEncoding,
 } from '@product/contract';
-import { readTestingMembership } from '../../../shared/membership/testing-membership.js';
 
 /**
  * Which trigger drives reminder dispatch. The work itself is identical either
@@ -156,12 +155,6 @@ export type Environment = {
   websiteUrl: string;
   adminBootstrapEmail: string | null;
   adminBootstrapPassword: string | null;
-  /**
-   * Testing-phase grant. Every account is a member until this is turned off.
-   * Set MEMBERSHIP_BYPASS=0 before launch, then delete the testing-membership
-   * call sites.
-   */
-  testingMembership: boolean;
   /** Bitrate, frame rate, and size the phone uses when it records a proof clip. */
   proofClipEncoding: ProofClipEncodingConfig;
   /** Max recording length and upload sizes enforced by the API (env overridable). */
@@ -654,7 +647,6 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     websiteUrl: readOptional(source.WEBSITE_URL) ?? 'https://beatset.tech',
     adminBootstrapEmail: readOptional(source.ADMIN_BOOTSTRAP_EMAIL),
     adminBootstrapPassword: readOptional(source.ADMIN_BOOTSTRAP_PASSWORD),
-    testingMembership: readTestingMembership(source),
     proofClipEncoding: readProofClipEncoding(source),
     ...readProofClipContentLimits(source),
   };

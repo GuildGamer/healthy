@@ -1,7 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ChallengeFrequency, PrismaClient } from '@product/db';
 import { DISPATCH_CATCH_UP_MINUTES } from '../../../../shared/constants/reminder-defaults.js';
-import { isTestingMembershipEnabled } from '../../../../shared/membership/testing-membership.js';
 import { dayKeyFor, localMinuteOfDay } from '../../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../../shared/utils/period-key.js';
 import { PRISMA } from '../../database/prisma.tokens.js';
@@ -936,7 +935,7 @@ export class ReminderDispatcherService {
         user: {
           profile: {
             inProgressNudgeEnabled: true,
-            ...(isTestingMembershipEnabled() ? {} : { membershipActive: true as const }),
+            membershipActive: true,
           },
         },
       },

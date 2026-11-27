@@ -21,8 +21,4 @@ export {
   isStagingEnvironment,
   normalizeStagingTesterEmail,
 } from './staging-tester-membership.js';
-export {
-  effectiveMembershipActive,
-  isTestingMembershipEnabled,
-  readTestingMembership,
-} from './testing-membership.js';
+export { effectiveMembershipActive } from './membership-active.js';

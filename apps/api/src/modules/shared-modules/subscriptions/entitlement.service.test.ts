@@ -1,17 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EntitlementService } from './entitlement.service.js';
 
 const now = new Date('2026-09-16T12:00:00.000Z');
-const ORIGINAL = process.env.MEMBERSHIP_BYPASS;
-
-afterEach(() => {
-  if (ORIGINAL === undefined) {
-    delete process.env.MEMBERSHIP_BYPASS;
-    return;
-  }
-
-  process.env.MEMBERSHIP_BYPASS = ORIGINAL;
-});
 
 describe('EntitlementService', () => {
   it('treats a future-dated premium entitlement as active', async () => {
@@ -33,8 +23,6 @@ describe('EntitlementService', () => {
   });
 
   it('falls back to the profile cache when no entitlement row exists', async () => {
-    process.env.MEMBERSHIP_BYPASS = '0';
-
     const service = new EntitlementService({
       entitlement: {
         findFirst: async () => null,
@@ -51,8 +39,6 @@ describe('EntitlementService', () => {
   });
 
   it('is inactive when neither entitlement nor cache is set', async () => {
-    process.env.MEMBERSHIP_BYPASS = '0';
-
     const service = new EntitlementService({
       entitlement: {
         findFirst: async () => null,
@@ -69,8 +55,6 @@ describe('EntitlementService', () => {
   });
 
   it('treats store reviewers as premium even without a stored entitlement', async () => {
-    process.env.MEMBERSHIP_BYPASS = '0';
-
     const service = new EntitlementService({
       entitlement: {
         findFirst: async () => null,
@@ -115,8 +99,6 @@ describe('EntitlementService', () => {
   });
 
   it('creates an open-ended admin grant for store reviewers', async () => {
-    process.env.MEMBERSHIP_BYPASS = '0';
-
     const create = vi.fn().mockResolvedValue({ id: 'ent-1' });
     const upsert = vi.fn().mockResolvedValue({ membershipActive: true });
 

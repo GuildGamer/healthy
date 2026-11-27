@@ -75,7 +75,7 @@ export class EntitlementService {
 
   /**
    * Persist an open-ended admin grant for store reviewers and refresh the
-   * profile cache so membership survives MEMBERSHIP_BYPASS=0 and billing sync.
+   * profile cache so membership survives billing sync.
    */
   async ensureReviewerGrant(userId: string, email: string): Promise<void> {
     if (!isReviewerMembershipEmail(email)) {

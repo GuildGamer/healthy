@@ -2,7 +2,7 @@ import {
   isStagingEnvironment,
   normalizeStagingTesterEmail,
 } from './staging-tester-membership.js';
-import { effectiveMembershipActive } from './testing-membership.js';
+import { effectiveMembershipActive } from './membership-active.js';
 
 type MembershipLookupClient = {
   userProfile: {
