@@ -60,6 +60,16 @@ eas submit --platform ios      # TestFlight
 eas submit --platform android  # Play internal / production track
 ```
 
+Android `.aab` / `.apk` artifacts belong in **`~/Downloads`** (e.g.
+`~/Downloads/beatset-production-<id>.aab`), not under `apps/mobile/`. Root
+`.gitignore` and `scripts/sync-deploy-repo.sh` exclude those binaries so a
+local download cannot land in git or `healthy-mobile`. After `eas build`,
+download with something like:
+
+```bash
+eas build:download --platform android --latest --output ~/Downloads/beatset-production.aab
+```
+
 Smoke-test release candidates on real devices before promoting.
 
 ### Friend TestFlight invites

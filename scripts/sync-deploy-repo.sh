@@ -105,6 +105,11 @@ RSYNC_EXCLUDES=(
   --exclude .env.local
   --exclude .env.development
   --exclude .env.production
+  # Android store / sideload binaries belong in ~/Downloads, not deploy satellites
+  --exclude '*.aab'
+  --exclude '*.apk'
+  --exclude 'build-*.aab'
+  --exclude 'build-*.apk'
 )
 
 mkdir -p "${OUT}/apps" "${OUT}/packages" "${OUT}/tooling"

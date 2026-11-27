@@ -11,6 +11,11 @@ packages/db/src/generated/
 .expo/
 web-build/
 .astro/
+# Store / sideload binaries — keep in ~/Downloads, never the monorepo
+*.aab
+*.apk
+apps/mobile/build-*.aab
+apps/mobile/build-*.apk
 
 # Native (CNG — generate on demand)
 apps/mobile/ios/
