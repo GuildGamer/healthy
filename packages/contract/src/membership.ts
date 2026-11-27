@@ -22,6 +22,20 @@ export type MembershipPaymentMethodId = z.infer<
 export const membershipCurrencySchema = z.enum(['NGN', 'USD']);
 export type MembershipCurrency = z.infer<typeof membershipCurrencySchema>;
 
+export const subscriptionProviderSchema = z.enum(['apple', 'google', 'web']);
+export type SubscriptionProvider = z.infer<typeof subscriptionProviderSchema>;
+
+export const subscriptionStatusSchema = z.enum([
+  'pending',
+  'active',
+  'grace_period',
+  'billing_retry',
+  'cancelled',
+  'expired',
+  'revoked',
+]);
+export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
+
 export const membershipPlanPriceSchema = z.object({
   id: z.string().min(1),
   marketKey: z.string().min(1),
@@ -42,6 +56,8 @@ export const membershipPlanSchema = z.object({
   ctaLabel: z.string().nullable(),
   paymentMethodIds: z.array(membershipPaymentMethodIdSchema),
   prices: z.array(membershipPlanPriceSchema),
+  /** True once a live SKU or any subscription exists. Slug/interval then lock. */
+  hasLiveBilling: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -108,6 +124,34 @@ export const membershipPaymentMethodSchema = z.object({
   hint: z.string().min(1),
 });
 
+export const membershipOfferedPlanSchema = z.object({
+  planId: z.string().min(1),
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  tagline: z.string().min(1),
+  features: z.array(z.string().min(1)),
+  interval: membershipIntervalSchema,
+  headline: z.string().nullable(),
+  ctaLabel: z.string().nullable(),
+  currency: membershipCurrencySchema,
+  amountMinor: z.number().int().positive(),
+  /** App Store product id. Null until the Apple SKU is configured. */
+  appleProductId: z.string().min(1).nullable(),
+});
+
+export const membershipCurrentSubscriptionSchema = z.object({
+  id: z.string().min(1),
+  planId: z.string().min(1),
+  interval: membershipIntervalSchema,
+  provider: subscriptionProviderSchema,
+  status: subscriptionStatusSchema,
+  autoRenewing: z.boolean(),
+  currentPeriodEndsAt: z.string().datetime(),
+  cancelledAt: z.string().datetime().nullable(),
+  currency: membershipCurrencySchema,
+  amountMinor: z.number().int().positive(),
+});
+
 export const membershipOfferSchema = z.object({
   planId: z.string().min(1),
   slug: z.string().min(1),
@@ -124,11 +168,28 @@ export const membershipOfferSchema = z.object({
   paymentMethods: z.array(membershipPaymentMethodSchema).min(1),
   /** Whether the signed-in member already has paid entitlements. */
   hasMembership: z.boolean(),
+  currentSubscription: membershipCurrentSubscriptionSchema.nullable(),
+  plans: z.array(membershipOfferedPlanSchema).min(1),
+  appleProductId: z.string().min(1).nullable(),
+});
+
+export const syncApplePurchaseInputSchema = z.object({
+  signedTransactionInfo: z.string().min(1),
+});
+
+export const syncApplePurchaseOutputSchema = z.object({
+  hasMembership: z.boolean(),
+  currentPeriodEndsAt: z.string().datetime().nullable(),
 });
 
 export const getMembershipOfferContract = oc
   .route({ method: 'GET', path: '/membership/offer' })
   .output(membershipOfferSchema);
+
+export const syncApplePurchaseContract = oc
+  .route({ method: 'POST', path: '/membership/apple/sync' })
+  .input(syncApplePurchaseInputSchema)
+  .output(syncApplePurchaseOutputSchema);
 
 export type MembershipPlan = z.infer<typeof membershipPlanSchema>;
 export type UpsertMembershipPlanInput = z.infer<
@@ -137,4 +198,12 @@ export type UpsertMembershipPlanInput = z.infer<
 export type UpdateMembershipPlanInput = z.infer<
   typeof updateMembershipPlanInputSchema
 >;
+export type MembershipOfferedPlan = z.infer<typeof membershipOfferedPlanSchema>;
+export type MembershipCurrentSubscription = z.infer<
+  typeof membershipCurrentSubscriptionSchema
+>;
 export type MembershipOffer = z.infer<typeof membershipOfferSchema>;
+export type SyncApplePurchaseInput = z.infer<typeof syncApplePurchaseInputSchema>;
+export type SyncApplePurchaseOutput = z.infer<
+  typeof syncApplePurchaseOutputSchema
+>;

@@ -1,10 +1,4 @@
-import type {
-  Match,
-  MatchAttempt,
-  MatchParticipant,
-  User,
-  UserProfile,
-} from '@product/db';
+import type { Match, MatchAttempt, MatchParticipant, User, UserProfile } from '@product/db';
 
 export type LoadedParticipant = MatchParticipant & {
   user: User & { profile: UserProfile | null };

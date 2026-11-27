@@ -1,10 +1,8 @@
 import type { TodayChallenge } from '@product/client';
 import {
-  buildChallengeFocusLayout,
   buildTodayWin,
   DAILY_WIN_TARGET,
   sortOpenChallengesByFocus,
-  UP_NEXT_LIMIT,
 } from './challenge-list-layout';
 
 function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
@@ -15,6 +13,7 @@ function challenge(overrides: Partial<TodayChallenge> = {}): TodayChallenge {
     description: '',
     category: 'general',
     rewardPoints: 20,
+    sortOrder: 100,
     status: 'pending',
     frequency: 'daily',
     completionKind: 'check_in',
@@ -44,7 +43,62 @@ describe('sortOpenChallengesByFocus', () => {
     expect(sorted.map((item) => item.id)).toEqual(['b', 'c', 'a']);
   });
 
-  it('prefers easier captures when status matches', () => {
+  it('prefers marketing sort order before capture ease when status matches', () => {
+    const sorted = sortOpenChallengesByFocus([
+      challenge({
+        id: 'hard',
+        title: 'Gym',
+        status: 'pending',
+        sortOrder: 100,
+        capture: {
+          kind: 'self_report',
+          metric: null,
+          target: { durationMinutes: null, distanceMeters: null, count: null },
+        },
+      }),
+      challenge({
+        id: 'hero',
+        title: 'Push-ups',
+        status: 'pending',
+        sortOrder: 0,
+        capture: {
+          kind: 'device_session',
+          metric: 'pushups',
+          target: { durationMinutes: null, distanceMeters: null, count: 20 },
+        },
+      }),
+    ]);
+
+    expect(sorted.map((item) => item.id)).toEqual(['hero', 'hard']);
+  });
+
+  it('prefers marketing sort order before weekly cadence when status matches', () => {
+    const sorted = sortOpenChallengesByFocus([
+      challenge({
+        id: 'weekly',
+        title: 'Weekly weigh-in',
+        status: 'pending',
+        frequency: 'weekly',
+        sortOrder: 100,
+      }),
+      challenge({
+        id: 'hero',
+        title: 'Push-ups',
+        status: 'pending',
+        frequency: 'daily',
+        sortOrder: 0,
+        capture: {
+          kind: 'device_session',
+          metric: 'pushups',
+          target: { durationMinutes: null, distanceMeters: null, count: 20 },
+        },
+      }),
+    ]);
+
+    expect(sorted.map((item) => item.id)).toEqual(['hero', 'weekly']);
+  });
+
+  it('prefers easier captures when status and sort order match', () => {
     const sorted = sortOpenChallengesByFocus([
       challenge({
         id: 'hard',
@@ -105,52 +159,5 @@ describe('buildTodayWin', () => {
 
   it('shrinks the target when fewer challenges exist', () => {
     expect(buildTodayWin(0, 1).target).toBe(1);
-  });
-});
-
-describe('buildChallengeFocusLayout', () => {
-  it('surfaces one focus and parks the rest', () => {
-    const layout = buildChallengeFocusLayout([
-      challenge({
-        id: 'week',
-        title: 'Weigh in',
-        frequency: 'weekly',
-        status: 'pending',
-      }),
-      challenge({
-        id: 'pending',
-        title: 'Water',
-        status: 'pending',
-      }),
-      challenge({
-        id: 'progress',
-        title: 'Walk',
-        status: 'in_progress',
-      }),
-      challenge({
-        id: 'extra',
-        title: 'Stretch',
-        status: 'pending',
-      }),
-      challenge({
-        id: 'extra2',
-        title: 'Yoga',
-        status: 'pending',
-      }),
-      challenge({
-        id: 'done',
-        title: 'Done daily',
-        status: 'completed',
-      }),
-    ]);
-
-    expect(layout.focus?.id).toBe('progress');
-    expect(layout.upNext.map((item) => item.id)).toEqual(['extra', 'pending']);
-    expect(layout.alsoAvailable.map((item) => item.id)).toEqual(['extra2']);
-    expect(layout.weekly.map((item) => item.id)).toEqual(['week']);
-    expect(layout.done.map((item) => item.id)).toEqual(['done']);
-    expect(layout.win.label).toBe("Today's win · 1 of 2");
-    expect(layout.hasMoreBeyondPreview).toBe(true);
-    expect(UP_NEXT_LIMIT).toBe(2);
   });
 });

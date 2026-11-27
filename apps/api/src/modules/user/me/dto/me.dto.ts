@@ -1,4 +1,4 @@
-import type { HealthLinkStatus } from '@product/contract';
+import type { HealthLinkStatus, MeOutput, ProofClipAudience } from '@product/contract';
 import type { HealthCategory } from '@product/db';
 
 export type MeDto = {
@@ -8,6 +8,8 @@ export type MeDto = {
   categories: HealthCategory[];
   pointsBalance: number;
   currentStreakDays: number;
+  streakLapsedYesterday: boolean;
+  bestStreakDays: number;
   timeZone: string;
   countryCode: string | null;
   displayName: string;
@@ -16,9 +18,13 @@ export type MeDto = {
   evidenceRemindersEnabled: boolean;
   promotionalMessagesEnabled: boolean;
   showOnLeaderboard: boolean;
+  groupNotificationsEnabled: boolean;
   inProgressNudgeEnabled: boolean;
   inProgressNudgeDelayMinutes: number;
   healthLinkStatus: HealthLinkStatus;
   hasMembership: boolean;
+  freeCameraStartsRemaining: number | null;
   maxRemindersPerChallenge: number;
+  proofClipAudience: ProofClipAudience | null;
+  proofClipLimits: MeOutput['proofClipLimits'];
 };

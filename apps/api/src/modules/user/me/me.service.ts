@@ -3,33 +3,42 @@ import { ORPCError } from '@orpc/server';
 import { normalizeCountryCode } from '@product/contract';
 import type { HealthCategory, PrismaClient } from '@product/db';
 import { MINUTES_PER_DAY } from '../../../shared/constants/reminder-defaults.js';
-import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
 import {
-  type AuthenticatedUser,
-  requireUser,
-} from '../../../shared/types/authenticated-user.js';
+  freeCameraStartsRemaining,
+  maxRemindersForMembership,
+} from '../../../shared/membership/entitlements.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
+import { isReviewerMembershipEmail } from '../../../shared/membership/reviewer-membership.js';
+import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import {
   DEFAULT_TIME_ZONE,
   dayKeyFor,
   isValidTimeZone,
-  previousDayKey,
 } from '../../../shared/utils/day-key.js';
+import { longestConsecutiveDayRun } from '../../../shared/utils/day-run.js';
+import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { EntitlementService } from '../../shared-modules/subscriptions/entitlement.service.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
+import { streakStatusFor } from '../streak/index.js';
 import type { MeDto } from './dto/index.js';
 
 @Injectable()
 export class MeService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Inject(ENVIRONMENT) private readonly environment: Environment,
     private readonly enrollments: EnrollmentsService,
+    private readonly entitlements: EntitlementService,
   ) {}
 
-  async getMe(
-    currentUser: AuthenticatedUser | null | undefined,
-  ): Promise<MeDto> {
+  async getMe(currentUser: AuthenticatedUser | null | undefined): Promise<MeDto> {
     const user = requireUser(currentUser);
+
+    if (isReviewerMembershipEmail(user.email)) {
+      await this.entitlements.ensureReviewerGrant(user.id, user.email);
+    }
 
     const profile = await this.prisma.userProfile.findUnique({
       where: { userId: user.id },
@@ -37,6 +46,8 @@ export class MeService {
         healthCategories: true,
         pointsBalance: true,
         currentStreakDays: true,
+        bestStreakDays: true,
+        lastActiveDayKey: true,
         timeZone: true,
         countryCode: true,
         displayName: true,
@@ -45,15 +56,34 @@ export class MeService {
         evidenceRemindersEnabled: true,
         promotionalMessagesEnabled: true,
         showOnLeaderboard: true,
+        groupNotificationsEnabled: true,
         inProgressNudgeEnabled: true,
         inProgressNudgeDelayMinutes: true,
         healthLinkStatus: true,
         membershipActive: true,
+        proofClipAudience: true,
       },
     });
 
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
-    const membershipActive = profile?.membershipActive ?? false;
+    const membershipActive = await resolveMembershipActive(
+      this.prisma,
+      user.id,
+      user.email,
+    );
+    const cameraStartsUsed = membershipActive
+      ? 0
+      : await this.prisma.cameraCountingStart.count({ where: { userId: user.id } });
+    const streak = streakStatusFor({
+      storedStreakDays: profile?.currentStreakDays ?? 0,
+      lastActiveDayKey: profile?.lastActiveDayKey ?? null,
+      todayKey: dayKeyFor(timeZone),
+    });
+    const bestStreakDays = await this.resolvedBestStreakDays(
+      user.id,
+      profile?.bestStreakDays ?? 0,
+      streak.currentStreakDays,
+    );
 
     return {
       id: user.id,
@@ -61,26 +91,49 @@ export class MeService {
       name: user.name ?? null,
       categories: profile?.healthCategories ?? [],
       pointsBalance: profile?.pointsBalance ?? 0,
-      currentStreakDays: await this.liveStreak(
-        user.id,
-        profile?.currentStreakDays ?? 0,
-        timeZone,
-      ),
+      currentStreakDays: streak.currentStreakDays,
+      streakLapsedYesterday: streak.streakLapsedYesterday,
+      bestStreakDays,
       timeZone,
-      countryCode: normalizeCountryCode(profile?.countryCode ?? '') ,
+      countryCode: normalizeCountryCode(profile?.countryCode ?? ''),
       displayName: publicNameFor(user.id, profile?.displayName),
       reminderEnabled: profile?.reminderEnabled ?? false,
       reminderMinute: profile?.reminderMinute ?? 1140,
       evidenceRemindersEnabled: profile?.evidenceRemindersEnabled ?? true,
       promotionalMessagesEnabled: profile?.promotionalMessagesEnabled ?? false,
       showOnLeaderboard: profile?.showOnLeaderboard ?? true,
+      groupNotificationsEnabled: profile?.groupNotificationsEnabled ?? true,
       inProgressNudgeEnabled: profile?.inProgressNudgeEnabled ?? true,
-      inProgressNudgeDelayMinutes:
-        profile?.inProgressNudgeDelayMinutes ?? 30,
+      inProgressNudgeDelayMinutes: profile?.inProgressNudgeDelayMinutes ?? 30,
       healthLinkStatus: profile?.healthLinkStatus ?? 'unknown',
       hasMembership: membershipActive,
+      freeCameraStartsRemaining: freeCameraStartsRemaining(
+        membershipActive,
+        cameraStartsUsed,
+      ),
       maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
+      proofClipAudience: profile?.proofClipAudience ?? null,
+      proofClipLimits: {
+        maxDurationSeconds: this.environment.proofClipMaxDurationSeconds,
+        maxVideoBytes: this.environment.proofClipMaxBytes,
+        maxPosterBytes: this.environment.proofClipPosterMaxBytes,
+      },
     };
+  }
+
+  async updateProofClipAudience(
+    currentUser: AuthenticatedUser | null | undefined,
+    audience: 'anyone' | 'only_me',
+  ): Promise<MeDto> {
+    const user = requireUser(currentUser);
+
+    await this.prisma.userProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, proofClipAudience: audience },
+      update: { proofClipAudience: audience },
+    });
+
+    return this.getMe(user);
   }
 
   async updateHealthLink(
@@ -203,9 +256,7 @@ export class MeService {
     const user = requireUser(currentUser);
 
     const isWholeMinuteOfDay =
-      Number.isInteger(reminderMinute) &&
-      reminderMinute >= 0 &&
-      reminderMinute < MINUTES_PER_DAY;
+      Number.isInteger(reminderMinute) && reminderMinute >= 0 && reminderMinute < MINUTES_PER_DAY;
 
     if (!isWholeMinuteOfDay) {
       throw new ORPCError('BAD_REQUEST', {
@@ -229,6 +280,7 @@ export class MeService {
       evidenceRemindersEnabled: boolean;
       promotionalMessagesEnabled: boolean;
       showOnLeaderboard: boolean;
+      groupNotificationsEnabled?: boolean;
       inProgressNudgeEnabled: boolean;
       inProgressNudgeDelayMinutes: number;
     },
@@ -241,7 +293,7 @@ export class MeService {
         select: { membershipActive: true },
       });
 
-      if (!(profile?.membershipActive ?? false)) {
+      if (!(await resolveMembershipActive(this.prisma, user.id, user.email))) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Membership is required for finish-what-you-started nudges',
           data: { reason: 'membership_required' },
@@ -257,6 +309,7 @@ export class MeService {
         evidenceRemindersEnabled: settings.evidenceRemindersEnabled,
         promotionalMessagesEnabled: settings.promotionalMessagesEnabled,
         showOnLeaderboard: settings.showOnLeaderboard,
+        groupNotificationsEnabled: settings.groupNotificationsEnabled,
         inProgressNudgeEnabled: settings.inProgressNudgeEnabled,
         inProgressNudgeDelayMinutes: settings.inProgressNudgeDelayMinutes,
       },
@@ -265,6 +318,7 @@ export class MeService {
         evidenceRemindersEnabled: settings.evidenceRemindersEnabled,
         promotionalMessagesEnabled: settings.promotionalMessagesEnabled,
         showOnLeaderboard: settings.showOnLeaderboard,
+        groupNotificationsEnabled: settings.groupNotificationsEnabled,
         inProgressNudgeEnabled: settings.inProgressNudgeEnabled,
         inProgressNudgeDelayMinutes: settings.inProgressNudgeDelayMinutes,
       },
@@ -274,38 +328,48 @@ export class MeService {
   }
 
   /**
-   * `currentStreakDays` is only advanced when a challenge is completed, so a
-   * user who stops for a few days would otherwise keep seeing the streak they
-   * have already broken. Expire it on read instead of running a nightly job.
-   *
-   * Only daily completions count, matching how the streak is advanced — a
-   * weekly or monthly challenge finished yesterday says nothing about whether
-   * a daily habit is still unbroken.
+   * Prefer the persisted record. When it is still zero (pre-column installs),
+   * scan history once, store the result, and never scan again for that user.
+   * Rewarded daily completions were the only streak signal before every
+   * activity counted, so that is all the history scan needs.
    */
-  private async liveStreak(
+  private async resolvedBestStreakDays(
     userId: string,
-    storedStreakDays: number,
-    timeZone: string,
+    storedBest: number,
+    currentStreakDays: number,
   ): Promise<number> {
-    if (storedStreakDays === 0) {
-      return 0;
+    if (storedBest > 0) {
+      return Math.max(storedBest, currentStreakDays);
     }
 
-    const latestCompletion = await this.prisma.userChallenge.findFirst({
-      where: { userId, status: 'completed', frequency: 'daily' },
-      orderBy: { periodKey: 'desc' },
+    const computed = await this.longestRewardedDailyRun(userId);
+    const bestStreakDays = Math.max(computed, currentStreakDays);
+    if (bestStreakDays > 0) {
+      await this.prisma.userProfile.update({
+        where: { userId },
+        data: { bestStreakDays },
+      });
+    }
+
+    return bestStreakDays;
+  }
+
+  /**
+   * Derived from history for the one-shot backfill. A penalized day never
+   * extended a streak; legacy rows with no outcome did.
+   */
+  private async longestRewardedDailyRun(userId: string): Promise<number> {
+    const days = await this.prisma.userChallenge.findMany({
+      where: {
+        userId,
+        frequency: 'daily',
+        status: 'completed',
+        OR: [{ completionOutcome: null }, { completionOutcome: 'rewarded' }],
+      },
+      distinct: ['periodKey'],
       select: { periodKey: true },
     });
 
-    if (!latestCompletion) {
-      return 0;
-    }
-
-    const today = dayKeyFor(timeZone);
-    const isLive =
-      latestCompletion.periodKey === today ||
-      latestCompletion.periodKey === previousDayKey(today);
-
-    return isLive ? storedStreakDays : 0;
+    return longestConsecutiveDayRun(days.map((day) => day.periodKey));
   }
 }

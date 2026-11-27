@@ -1,12 +1,9 @@
-import { colors, fontSize, fontWeight, radii, spacing } from '@product/brand';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { fontSize, fontWeight, spacing } from '@product/brand';
+import { StyleSheet, Text, View } from 'react-native';
+import { DeckSheetModal } from '@/components/deck';
 import { FormButton, FormErrorBanner } from '@/components/forms';
-import { apiClient } from '@/lib/api';
-import {
-  NATIVE_MOVEMENT_UNAVAILABLE,
-  requestMovementAccess,
-} from '@/lib/device-health';
+import { type Theme, useThemedStyles } from '@/theme';
+import { useHealthLink } from './useHealthLink';
 
 export function ConnectHealthSheet({
   visible,
@@ -15,89 +12,65 @@ export function ConnectHealthSheet({
   visible: boolean;
   onClose: () => void;
 }) {
-  const queryClient = useQueryClient();
-
-  const save = useMutation({
-    mutationFn: async (status: 'connected' | 'denied') => {
-      if (status === 'connected') {
-        const result = await requestMovementAccess();
-        return apiClient.updateHealthLink({ status: result });
-      }
-
-      return apiClient.updateHealthLink({ status: 'denied' });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['me'] });
-      onClose();
-    },
-  });
+  const styles = useThemedStyles(createStyles);
+  const healthLink = useHealthLink({ onSaved: onClose });
 
   return (
-    <Modal
-      animationType="slide"
-      onRequestClose={onClose}
-      transparent
+    <DeckSheetModal
+      footer={
+        <View style={styles.actions}>
+          <FormButton
+            label="Allow access"
+            loading={healthLink.isSaving}
+            onPress={healthLink.allow}
+            testID="connect-health"
+          />
+          <FormButton
+            label="Not now"
+            onPress={healthLink.decline}
+            testID="skip-health"
+            variant="secondary"
+          />
+        </View>
+      }
+      onDismiss={healthLink.isSaving ? undefined : onClose}
+      testID="connect-health-sheet"
       visible={visible}
     >
-      <Pressable onPress={onClose} style={styles.backdrop} />
-      <View style={styles.sheet}>
-        <Text style={styles.title}>Movement & watch</Text>
+      <View style={styles.content}>
+        <Text style={styles.title}>Movement & sleep</Text>
         <Text style={styles.body}>
-          Allow motion and location so this phone can count steps and record
-          walks. If you wear a watch, keep Apple Health or Health Connect
-          connected so those workouts can appear here.
+          Allow motion, location, workouts, and sleep so this phone can count steps, offer walks
+          you already tracked on a watch or fitness app, and show last night’s sleep from Apple
+          Health or Health Connect.
         </Text>
         <Text style={styles.body}>
-          We only read workouts, steps, and the route you start in the app.
-          You confirm before anything is marked done.
+          We only read workouts, steps, sleep, and the route you start in the app. You confirm
+          before anything is marked done. Beatset never writes to the health store.
         </Text>
-        {save.isError ? (
-          <FormErrorBanner
-            message={
-              save.error instanceof Error &&
-              save.error.message === NATIVE_MOVEMENT_UNAVAILABLE
-                ? NATIVE_MOVEMENT_UNAVAILABLE
-                : 'We could not save that choice. Try again.'
-            }
-          />
-        ) : null}
-        <FormButton
-          label="Allow motion & location"
-          loading={save.isPending}
-          onPress={() => save.mutate('connected')}
-          testID="connect-health"
-        />
-        <FormButton
-          label="Not now"
-          onPress={() => save.mutate('denied')}
-          testID="skip-health"
-          variant="secondary"
-        />
+        {healthLink.errorMessage ? <FormErrorBanner message={healthLink.errorMessage} /> : null}
       </View>
-    </Modal>
+    </DeckSheetModal>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(11, 18, 32, 0.5)',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  body: {
-    color: colors.muted,
-    fontSize: fontSize.md,
-    lineHeight: 24,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    content: {
+      gap: spacing.md,
+    },
+    actions: {
+      gap: spacing.md,
+      marginTop: spacing.md,
+    },
+    title: {
+      color: theme.colors.text,
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.bold,
+    },
+    body: {
+      color: theme.colors.muted,
+      fontSize: fontSize.md,
+      lineHeight: 24,
+    },
+  });

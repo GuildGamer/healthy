@@ -48,7 +48,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm --filter @product/api build
-      - run: pnpm --filter @product/web build
+      - run: pnpm --filter @product/website build
       - run: pnpm --filter @product/db migrate:deploy
       - name: API integration tests (real Postgres)
         run: pnpm --filter @product/api test:integration

@@ -4,8 +4,12 @@ public class QuickPoseCameraModule: Module {
   public func definition() -> ModuleDefinition {
     Name("QuickPoseCamera")
 
+    Constants {
+      ["proofClipsDirectoryUri": (try? ProofRecorder.durableDirectory())?.absoluteString ?? ""]
+    }
+
     View(HealthyQuickPoseView.self) {
-      Events("onUpdate")
+      Events("onUpdate", "onProofRecorded", "onProofRecordingError")
 
       Prop("sdkKey") { (view: HealthyQuickPoseView, sdkKey: String) in
         view.sdkKey = sdkKey
@@ -21,6 +25,30 @@ public class QuickPoseCameraModule: Module {
 
       Prop("useFrontCamera") { (view: HealthyQuickPoseView, useFrontCamera: Bool) in
         view.useFrontCamera = useFrontCamera
+      }
+
+      Prop("metric") { (view: HealthyQuickPoseView, metric: String?) in
+        view.metric = metric ?? "pushups"
+      }
+
+      Prop("resetCountToken") { (view: HealthyQuickPoseView, token: Int?) in
+        view.resetCountToken = token ?? 0
+      }
+
+      Prop("proofRecording") { (view: HealthyQuickPoseView, config: [String: Any]?) in
+        view.proofRecording = config
+      }
+
+      Prop("proofCount") { (view: HealthyQuickPoseView, count: Int?) in
+        view.proofCount = count ?? 0
+      }
+
+      Prop("finishProofEndAtMs") { (view: HealthyQuickPoseView, endAtMs: Double?) in
+        view.finishProofEndAtMs = endAtMs ?? 0
+      }
+
+      Prop("finishProofToken") { (view: HealthyQuickPoseView, token: Int?) in
+        view.finishProofToken = token ?? 0
       }
     }
   }

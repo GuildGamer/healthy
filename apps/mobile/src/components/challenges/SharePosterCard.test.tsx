@@ -1,0 +1,98 @@
+import { darkDeckCards, lightDeckCards } from '@product/brand';
+import { render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
+import { Path } from 'react-native-svg';
+import { SharePosterCard } from './SharePosterCard';
+
+function brandLockupFills(): string[] {
+  return screen
+    .UNSAFE_getAllByType(Path)
+    .map((node) => node.props.fill)
+    .filter((fill): fill is string => fill === lightDeckCards.text || fill === darkDeckCards.text);
+}
+
+const walkPoster = {
+  kind: 'walk' as const,
+  label: 'Morning walk',
+  value: '32',
+  unit: 'minutes walked',
+  when: '2026-10-23T08:00:00.000Z',
+};
+
+function fillBackground(): unknown {
+  const root = screen.getByTestId('share-poster-image');
+  const fillChild = root.children.find(
+    (child: unknown): child is { props: { style?: unknown } } =>
+      typeof child !== 'string' && child != null && typeof child === 'object',
+  );
+  return StyleSheet.flatten(fillChild?.props.style)?.backgroundColor;
+}
+
+describe('SharePosterCard', () => {
+  it('draws a route silhouette when points are present', () => {
+    render(
+      <SharePosterCard
+        poster={walkPoster}
+        routePoints={[
+          { latitude: 51.5, longitude: -0.13 },
+          { latitude: 51.51, longitude: -0.12 },
+          { latitude: 51.52, longitude: -0.11 },
+        ]}
+        runLine="3 day run"
+      />,
+    );
+
+    expect(screen.getByTestId('share-poster-route')).toBeTruthy();
+    expect(screen.getByText('32')).toBeTruthy();
+    expect(screen.getByTestId('share-brand-lockup')).toBeTruthy();
+    expect(screen.getByLabelText('Beatset')).toBeTruthy();
+  });
+
+  it('stays metric-only when there is no route', () => {
+    render(<SharePosterCard poster={walkPoster} runLine={null} />);
+
+    expect(screen.queryByTestId('share-poster-route')).toBeNull();
+    expect(screen.getByText('minutes walked')).toBeTruthy();
+  });
+
+  it('keeps square corners when asked for a capture twin', () => {
+    render(<SharePosterCard corners="square" poster={walkPoster} runLine={null} />);
+
+    const root = screen.getByTestId('share-poster-image');
+    expect(StyleSheet.flatten(root.props.style).borderRadius).toBeUndefined();
+    const fillChild = root.children.find(
+      (child: unknown): child is { props: { style?: unknown } } =>
+        typeof child !== 'string' && child != null && typeof child === 'object',
+    );
+    expect(StyleSheet.flatten(fillChild?.props.style)?.borderRadius).toBe(0);
+  });
+
+  it('rounds the in-app preview shell', () => {
+    render(<SharePosterCard corners="round" poster={walkPoster} runLine={null} />);
+
+    const root = screen.getByTestId('share-poster-image');
+    expect(StyleSheet.flatten(root.props.style).borderRadius).toBe(26);
+  });
+
+  it('overrides the kind fill when fillId is set', () => {
+    render(<SharePosterCard fillId="strength" poster={walkPoster} runLine={null} />);
+
+    expect(fillBackground()).toBe(darkDeckCards.strength);
+  });
+
+  it('uses Clinic white with light ink when fillId is clinic', () => {
+    render(<SharePosterCard fillId="clinic" poster={walkPoster} runLine={null} />);
+
+    expect(fillBackground()).toBe('#FFFFFF');
+    expect(StyleSheet.flatten(screen.getByText('32').props.style).color).toBe(
+      lightDeckCards.text,
+    );
+    expect(brandLockupFills()).toEqual([lightDeckCards.text, lightDeckCards.text]);
+  });
+
+  it('tints the lockup white on a night activity fill', () => {
+    render(<SharePosterCard fillId="strength" poster={walkPoster} runLine={null} />);
+
+    expect(brandLockupFills()).toEqual([darkDeckCards.text, darkDeckCards.text]);
+  });
+});

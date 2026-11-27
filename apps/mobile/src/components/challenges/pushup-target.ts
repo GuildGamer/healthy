@@ -7,12 +7,5 @@ export function clampPushupTarget(value: number): number {
     return DEFAULT_PUSHUP_TARGET;
   }
 
-  return Math.min(
-    PUSHUP_TARGET_MAX,
-    Math.max(PUSHUP_TARGET_MIN, Math.round(value)),
-  );
-}
-
-export function stepPushupTarget(current: number, delta: number): number {
-  return clampPushupTarget(current + delta);
+  return Math.min(PUSHUP_TARGET_MAX, Math.max(PUSHUP_TARGET_MIN, Math.round(value)));
 }

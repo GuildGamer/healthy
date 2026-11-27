@@ -27,9 +27,7 @@ describe('countryName', () => {
   it('resolves a full English label for common codes', () => {
     expect(countryName('US' as CountryCode)).toBe('United States');
     expect(countryName('GB' as CountryCode)).toBe('United Kingdom');
-    expect(countryName('CD' as CountryCode)).toBe(
-      'Democratic Republic of the Congo',
-    );
+    expect(countryName('CD' as CountryCode)).toBe('Democratic Republic of the Congo');
   });
 
   it('never falls back to a bare ISO code for known regions', () => {

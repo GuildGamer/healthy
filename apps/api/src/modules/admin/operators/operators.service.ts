@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ORPCError } from '@orpc/server';
 import { hashPassword } from 'better-auth/crypto';
 import type {
@@ -11,11 +11,22 @@ import {
   type AuthenticatedAdmin,
   requireSuperadmin,
 } from '../../../shared/types/authenticated-admin.js';
+import { ENVIRONMENT } from '../../shared-modules/config/config.tokens.js';
+import type { Environment } from '../../shared-modules/config/environment.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { operatorInviteMail } from '../../shared-modules/mail/admin-mail-content.js';
+import type { Mailer } from '../../shared-modules/mail/mailer.js';
+import { MAILER } from '../../shared-modules/mail/mail.tokens.js';
 
 @Injectable()
 export class AdminOperatorsService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  private readonly logger = new Logger(AdminOperatorsService.name);
+
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Inject(MAILER) private readonly mailer: Mailer,
+    @Inject(ENVIRONMENT) private readonly environment: Environment,
+  ) {}
 
   async list(
     currentAdmin: AuthenticatedAdmin | null | undefined,
@@ -81,6 +92,22 @@ export class AdminOperatorsService {
         payload: { roles: input.roles },
       },
     });
+
+    const invite = operatorInviteMail({
+      name: created.name,
+      email: created.email,
+      adminAppUrl: this.environment.adminAppUrl,
+    });
+    try {
+      await this.mailer.sendMessage({
+        to: created.email,
+        subject: invite.subject,
+        text: invite.text,
+        html: invite.html,
+      });
+    } catch (error) {
+      this.logger.error(`Operator invite email failed for ${created.email}`, error);
+    }
 
     return { operator: this.toDto(created) };
   }

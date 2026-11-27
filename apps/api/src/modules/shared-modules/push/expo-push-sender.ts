@@ -78,6 +78,8 @@ export class ExpoPushSender implements PushSender {
           body: message.body,
           data: message.data,
           sound: 'default',
+          ...(message.threadId ? { threadId: message.threadId } : {}),
+          ...(message.channelId ? { channelId: message.channelId } : {}),
         })),
       ),
     });

@@ -1,0 +1,18 @@
+export const FINISH_COPY = {
+  done: 'Done.',
+  logged: 'Logged.',
+  checkedIn: 'Checked in.',
+  extraSet: 'Extra set',
+  walk: 'Walk',
+  countedByCamera: 'Counted by your camera',
+  measuredByPhone: 'Measured by your phone',
+  noPoints: 'Saved to your history · no points',
+  walkUnit: 'minutes walked',
+  gymUnit: 'at the gym',
+  gymChecked: 'Gym photo checked',
+  next: 'Next',
+  seeTheDay: 'See the day',
+  doneAction: 'Done',
+  saveFailed: 'That didn’t save. Try again.',
+  undo: 'Undo',
+} as const;

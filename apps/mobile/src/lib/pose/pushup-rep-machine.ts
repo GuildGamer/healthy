@@ -91,11 +91,7 @@ export class PushupRepMachine {
     };
   }
 
-  advance(
-    timestampMs: number,
-    signal: number,
-    minSwing: number,
-  ): PushupRepMachineSnapshot {
+  advance(timestampMs: number, signal: number, minSwing: number): PushupRepMachineSnapshot {
     this.expandCycle(signal);
     const descending = signal > this.lastSignal + DIRECTION_DEADZONE;
     const ascending = signal < this.lastSignal - DIRECTION_DEADZONE;
@@ -121,11 +117,7 @@ export class PushupRepMachine {
     this.armed = true;
   }
 
-  private tryComplete(
-    timestampMs: number,
-    signal: number,
-    minSwing: number,
-  ): void {
+  private tryComplete(timestampMs: number, signal: number, minSwing: number): void {
     const amplitude = this.cycleAmplitude();
     const enterNeed = this.enterNeed(minSwing);
     if (amplitude < enterNeed) {
@@ -133,10 +125,7 @@ export class PushupRepMachine {
     }
 
     const ascent = this.cycleBottom - signal;
-    const neededAscent = Math.max(
-      minSwing * 0.5,
-      amplitude * (1 - this.options.returnFraction),
-    );
+    const neededAscent = Math.max(minSwing * 0.5, amplitude * (1 - this.options.returnFraction));
     if (ascent < neededAscent) {
       return;
     }
@@ -174,10 +163,7 @@ export class PushupRepMachine {
   }
 
   private enterNeed(minSwing: number): number {
-    if (
-      this.typicalSwing == null ||
-      this.learningAmplitudes.length < this.options.learningReps
-    ) {
+    if (this.typicalSwing == null || this.learningAmplitudes.length < this.options.learningReps) {
       return minSwing;
     }
 
@@ -195,10 +181,7 @@ export class PushupRepMachine {
   }
 
   private cycleAmplitude(): number {
-    if (
-      !Number.isFinite(this.cycleTop) ||
-      !Number.isFinite(this.cycleBottom)
-    ) {
+    if (!Number.isFinite(this.cycleTop) || !Number.isFinite(this.cycleBottom)) {
       return 0;
     }
 

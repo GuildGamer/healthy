@@ -1,11 +1,36 @@
 import { ORPCError } from '@orpc/server';
 import { DEFAULT_CHALLENGE_ICON } from '@product/contract';
 import { describe, expect, it, vi } from 'vitest';
+import { StreakService } from '../streak/index.js';
 import { ChallengesService } from './challenges.service.js';
 
 const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
 
 const TIME_ZONE = 'Asia/Singapore';
+
+function createMatchesSpy() {
+  return { creditPosePractice: vi.fn(async () => [] as string[]) };
+}
+
+function createService(
+  prisma: unknown,
+  evidenceValidator?: unknown,
+  delivery?: { send: ReturnType<typeof vi.fn> },
+  matches: { creditPosePractice: ReturnType<typeof vi.fn> } = createMatchesSpy(),
+  storage?: { put: ReturnType<typeof vi.fn>; presignGet: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> },
+  environment?: { storage: { mode: 'disabled' | 's3' } },
+): ChallengesService {
+  return new ChallengesService(
+    prisma as never,
+    new StreakService(prisma as never),
+    matches as never,
+    evidenceValidator as never,
+    undefined,
+    delivery as never,
+    storage as never,
+    environment as never,
+  );
+}
 
 function localDayKey(timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -29,11 +54,13 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
     completedAt: null,
     surpriseEvidenceRequest: null,
     enrollment: null,
+    deviceActivityLog: null as null | { externalId: string },
     challenge: {
       title: 'Walk 20 minutes',
       description: 'A brisk walk after lunch.',
       category: 'general',
       rewardPoints: 20,
+      sortOrder: 100,
       completionKind: 'check_in',
       instruction: 'Step outside and walk for twenty minutes.',
       icon: 'walk',
@@ -48,8 +75,12 @@ function createAssignment(overrides: Record<string, unknown> = {}) {
 
 function createPrismaMock(
   assignment: ReturnType<typeof createAssignment> | null,
+  membershipActive = false,
 ) {
   return {
+    userProfile: {
+      findUnique: vi.fn().mockResolvedValue({ timeZone: TIME_ZONE, membershipActive }),
+    },
     userChallenge: {
       findUnique: vi.fn().mockResolvedValue(assignment),
       findUniqueOrThrow: vi.fn().mockResolvedValue(assignment),
@@ -68,10 +99,13 @@ type EnrollmentFixture = {
 function createListPrismaMock(
   enrollments: EnrollmentFixture[],
   assignments: unknown[] = [],
+  membershipActive = false,
 ) {
   return {
     userProfile: {
-      findUnique: vi.fn().mockResolvedValue({ timeZone: TIME_ZONE }),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ timeZone: TIME_ZONE, membershipActive }),
     },
     challengeEnrollment: {
       findMany: vi.fn().mockResolvedValue(enrollments),
@@ -97,7 +131,7 @@ describe('ChallengesService.listToday', () => {
       { id: 'e2', challengeId: 'c2', frequency: 'daily' },
     ]);
 
-    await new ChallengesService(prisma as never).listToday(user);
+    await createService(prisma).listToday(user);
 
     expect(createdRows(prisma.userChallenge.createMany)).toHaveLength(2);
   });
@@ -105,7 +139,7 @@ describe('ChallengesService.listToday', () => {
   it('creates nothing when the user has no enrolments', async () => {
     const prisma = createListPrismaMock([]);
 
-    const result = await new ChallengesService(prisma as never).listToday(user);
+    const result = await createService(prisma).listToday(user);
 
     expect(prisma.userChallenge.createMany).not.toHaveBeenCalled();
     expect(result.challenges).toEqual([]);
@@ -115,7 +149,7 @@ describe('ChallengesService.listToday', () => {
   it('only considers enrolments that are active on both sides', async () => {
     const prisma = createListPrismaMock([]);
 
-    await new ChallengesService(prisma as never).listToday(user);
+    await createService(prisma).listToday(user);
 
     const [argument] = prisma.challengeEnrollment.findMany.mock.calls[0] as [
       { where: Record<string, unknown> },
@@ -132,7 +166,7 @@ describe('ChallengesService.listToday', () => {
       { id: 'e1', challengeId: 'c1', frequency: 'daily' },
     ]);
 
-    await new ChallengesService(prisma as never).listToday(user);
+    await createService(prisma).listToday(user);
 
     const [argument] = prisma.userChallenge.createMany.mock.calls[0] as [
       { skipDuplicates: boolean },
@@ -145,7 +179,7 @@ describe('ChallengesService.listToday', () => {
       { id: 'e1', challengeId: 'c1', frequency: 'daily' },
     ]);
 
-    const result = await new ChallengesService(prisma as never).listToday(user);
+    const result = await createService(prisma).listToday(user);
 
     expect(result.dayKey).toBe(localDayKey(TIME_ZONE));
     expect(createdRows(prisma.userChallenge.createMany)[0]?.periodKey).toBe(
@@ -158,7 +192,7 @@ describe('ChallengesService.listToday', () => {
       { id: 'e1', challengeId: 'c1', frequency: 'weekly' },
     ]);
 
-    await new ChallengesService(prisma as never).listToday(user);
+    await createService(prisma).listToday(user);
 
     const periodKey = createdRows(prisma.userChallenge.createMany)[0]?.periodKey;
     const weekday = new Date(`${periodKey}T00:00:00.000Z`).getUTCDay();
@@ -174,7 +208,7 @@ describe('ChallengesService.listToday', () => {
       { id: 'e1', challengeId: 'c1', frequency: 'monthly' },
     ]);
 
-    await new ChallengesService(prisma as never).listToday(user);
+    await createService(prisma).listToday(user);
 
     expect(createdRows(prisma.userChallenge.createMany)[0]?.periodKey).toBe(
       `${localDayKey(TIME_ZONE).slice(0, 7)}-01`,
@@ -187,7 +221,7 @@ describe('ChallengesService.listToday', () => {
       [createAssignment({ id: 'uc-old', status: 'in_progress' })],
     );
 
-    const result = await new ChallengesService(prisma as never).listToday(user);
+    const result = await createService(prisma).listToday(user);
 
     expect(result.challenges).toHaveLength(1);
     expect(result.challenges[0]?.status).toBe('in_progress');
@@ -197,7 +231,7 @@ describe('ChallengesService.listToday', () => {
   it('scopes the read to the open period of each cadence', async () => {
     const prisma = createListPrismaMock([]);
 
-    await new ChallengesService(prisma as never).listToday(user);
+    await createService(prisma).listToday(user);
 
     const [argument] = prisma.userChallenge.findMany.mock.calls.at(-1) as [
       { where: { OR: Array<{ frequency: string }> } },
@@ -208,11 +242,116 @@ describe('ChallengesService.listToday', () => {
       'monthly',
     ]);
   });
+
+  it('never materialises a membership challenge for a lapsed member', async () => {
+    const prisma = createListPrismaMock([]);
+
+    await createService(prisma).listToday(user);
+
+    const [argument] = prisma.challengeEnrollment.findMany.mock.calls[0] as [
+      { where: { challenge: Record<string, unknown> } },
+    ];
+    expect(argument.where.challenge).toMatchObject({
+      isActive: true,
+      requiresMembership: false,
+    });
+  });
+
+  it('hides occurrences of membership challenges from a lapsed member', async () => {
+    const prisma = createListPrismaMock([]);
+
+    await createService(prisma).listToday(user);
+
+    const [argument] = prisma.userChallenge.findMany.mock.calls.at(-1) as [
+      { where: { challenge: Record<string, unknown> } },
+    ];
+    expect(argument.where.challenge).toEqual({
+      isActive: true,
+      requiresMembership: false,
+    });
+  });
+
+  it('leaves membership challenges in place for an active member', async () => {
+    const prisma = createListPrismaMock([], [], true);
+
+    await createService(prisma).listToday(user);
+
+    const [enrollmentArgument] = prisma.challengeEnrollment.findMany.mock
+      .calls[0] as [{ where: { challenge: Record<string, unknown> } }];
+    const [readArgument] = prisma.userChallenge.findMany.mock.calls.at(-1) as [
+      { where: { challenge: Record<string, unknown> } },
+    ];
+
+    expect(enrollmentArgument.where.challenge).toEqual({ isActive: true });
+    expect(readArgument.where.challenge).toEqual({ isActive: true });
+  });
+
+  it('never lists occurrences whose catalog challenge was deactivated', async () => {
+    const prisma = createListPrismaMock([]);
+
+    await createService(prisma).listToday(user);
+
+    const [argument] = prisma.userChallenge.findMany.mock.calls.at(-1) as [
+      { where: { challenge: Record<string, unknown> } },
+    ];
+    expect(argument.where.challenge).toMatchObject({ isActive: true });
+  });
+});
+
+describe('membership access to an occurrence already on the board', () => {
+  function paidAssignment() {
+    return createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        requiresMembership: true,
+      },
+    });
+  }
+
+  it('blocks starting a membership challenge once the membership lapses', async () => {
+    const prisma = createPrismaMock(paidAssignment());
+    const service = createService(prisma);
+
+    await expect(service.start(user, 'uc1')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      data: { reason: 'membership_required' },
+    });
+    expect(prisma.userChallenge.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('blocks completing a membership challenge once the membership lapses', async () => {
+    const prisma = createPrismaMock(paidAssignment());
+    const service = createService(prisma);
+
+    await expect(service.complete(user, 'uc1')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      data: { reason: 'membership_required' },
+    });
+    expect(prisma.userChallenge.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('lets an active member start the same challenge', async () => {
+    const prisma = createPrismaMock(paidAssignment(), true);
+    const service = createService(prisma);
+
+    await expect(service.start(user, 'uc1')).resolves.toMatchObject({
+      challenge: { id: 'uc1' },
+    });
+  });
+
+  it('spares free challenges the membership lookup entirely', async () => {
+    const prisma = createPrismaMock(createAssignment({ status: 'in_progress' }));
+
+    await createService(prisma).start(user, 'uc1');
+
+    expect(prisma.userProfile.findUnique).not.toHaveBeenCalled();
+  });
 });
 
 describe('ChallengesService.start', () => {
   it('rejects unauthenticated callers with ORPC UNAUTHORIZED', async () => {
-    const service = new ChallengesService(createPrismaMock(null) as never);
+    const service = createService(createPrismaMock(null));
 
     await expect(service.start(null, 'uc1')).rejects.toBeInstanceOf(ORPCError);
   });
@@ -221,7 +360,7 @@ describe('ChallengesService.start', () => {
     const prisma = createPrismaMock(
       createAssignment({ userId: 'someone-else' }),
     );
-    const service = new ChallengesService(prisma as never);
+    const service = createService(prisma);
 
     await expect(service.start(user, 'uc1')).rejects.toBeInstanceOf(ORPCError);
     expect(prisma.userChallenge.updateMany).not.toHaveBeenCalled();
@@ -232,7 +371,7 @@ describe('ChallengesService.start', () => {
     prisma.userChallenge.findUniqueOrThrow.mockResolvedValue(
       createAssignment({ status: 'in_progress', startedAt: new Date() }),
     );
-    const service = new ChallengesService(prisma as never);
+    const service = createService(prisma);
 
     const result = await service.start(user, 'uc1');
 
@@ -257,7 +396,7 @@ describe('ChallengesService.start', () => {
     });
     const prisma = createPrismaMock(completed);
     prisma.userChallenge.updateMany.mockResolvedValue({ count: 0 });
-    const service = new ChallengesService(prisma as never);
+    const service = createService(prisma);
 
     const result = await service.start(user, 'uc1');
 
@@ -277,11 +416,96 @@ describe('ChallengesService.start', () => {
         challenge: { icon: '' },
       }),
     );
-    const service = new ChallengesService(prisma as never);
+    const service = createService(prisma);
 
     const result = await service.start(user, 'uc1');
 
     expect(result.challenge.icon).toBe(DEFAULT_CHALLENGE_ICON);
+  });
+});
+
+describe('ChallengesService.creditMeasuredActivity', () => {
+  function pushupAssignment(targetCount: number) {
+    return createAssignment({
+      id: 'uc-push',
+      status: 'pending',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'check_in',
+        captureKind: 'device_session',
+        deviceMetric: 'pushups',
+        targetCount,
+      },
+    });
+  }
+
+  function creditPrisma(assignment: ReturnType<typeof createAssignment>) {
+    return {
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ timeZone: TIME_ZONE, membershipActive: true }),
+      },
+      challengeEnrollment: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      userChallenge: {
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findMany: vi.fn().mockResolvedValue([assignment]),
+        findUnique: vi.fn().mockResolvedValue(assignment),
+        findUniqueOrThrow: vi.fn().mockResolvedValue(assignment),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+  }
+
+  it('finishes an open Mine goal when the set already meets the target', async () => {
+    const assignment = pushupAssignment(30);
+    const prisma = creditPrisma(assignment);
+    const service = createService(prisma);
+    const complete = vi.spyOn(service, 'complete').mockResolvedValue({
+      challenge: { id: assignment.id } as never,
+      pointsAwarded: 20,
+      pointsBalance: 20,
+      currentStreakDays: 1,
+      evidenceRequest: null,
+      penaltyApplied: 0,
+    });
+
+    const credited = await service.creditMeasuredActivity(user, {
+      source: 'in_app_pose',
+      metric: 'pushups',
+      count: 30,
+      durationSeconds: 50,
+      externalId: 'match-attempt:a1',
+    });
+
+    expect(credited).toEqual(['uc-push']);
+    expect(complete).toHaveBeenCalledWith(
+      user,
+      'uc-push',
+      undefined,
+      undefined,
+      undefined,
+      expect.objectContaining({ metric: 'pushups', count: 30 }),
+      { creditContests: false },
+    );
+  });
+
+  it('leaves the goal open when the set is still short', async () => {
+    const assignment = pushupAssignment(30);
+    const prisma = creditPrisma(assignment);
+    const service = createService(prisma);
+    const complete = vi.spyOn(service, 'complete');
+
+    const credited = await service.creditMeasuredActivity(user, {
+      source: 'in_app_pose',
+      metric: 'pushups',
+      count: 18,
+      durationSeconds: 40,
+      externalId: 'match-attempt:a1',
+    });
+
+    expect(credited).toEqual([]);
+    expect(complete).not.toHaveBeenCalled();
   });
 });
 
@@ -295,7 +519,7 @@ describe('ChallengesService.complete', () => {
       },
     });
     const prisma = createPrismaMock(assignment);
-    const service = new ChallengesService(prisma as never);
+    const service = createService(prisma);
 
     await expect(service.complete(user, 'uc1')).rejects.toBeInstanceOf(
       ORPCError,
@@ -312,7 +536,7 @@ describe('ChallengesService.complete', () => {
       },
     });
     const prisma = createPrismaMock(assignment);
-    const service = new ChallengesService(prisma as never);
+    const service = createService(prisma);
 
     await expect(service.complete(user, 'uc1')).rejects.toBeInstanceOf(
       ORPCError,
@@ -328,7 +552,7 @@ describe('ChallengesService.complete', () => {
       },
     });
     const prisma = createPrismaMock(assignment);
-    const service = new ChallengesService(prisma as never, {
+    const service = createService(prisma, {
       validateGymPhoto: async () => ({
         accepted: false,
         reason: 'That photo does not look like a gym session.',
@@ -343,4 +567,493 @@ describe('ChallengesService.complete', () => {
       }),
     ).rejects.toBeInstanceOf(ORPCError);
   });
+
+  it('rejects a sleep entry on a challenge that is not about sleep', async () => {
+    const prisma = createPrismaMock(createAssignment({ status: 'in_progress' }));
+    const service = createService(prisma);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, {
+        sleep: {
+          wentToBedAt: '2026-10-22T23:00:00+01:00',
+          wokeUpAt: '2026-10-23T07:00:00+01:00',
+        },
+      }),
+    ).rejects.toBeInstanceOf(ORPCError);
+  });
+
+  it('lets an older app finish a sleep challenge without a sleep entry', async () => {
+    const assignment = sleepAssignment();
+    const { prisma, challengeLogUpsert } = createCompletePrismaMock(assignment);
+    const service = createService(prisma);
+
+    await expect(service.complete(user, 'uc1')).resolves.toMatchObject({
+      pointsAwarded: 20,
+    });
+    expect(challengeLogUpsert).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the completion when the push delivery throws', async () => {
+    const assignment = sleepAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const delivery = {
+      send: vi.fn().mockRejectedValue(new Error('Expo is down')),
+    };
+    const service = createService(
+      prisma,
+      undefined,
+      delivery,
+    );
+
+    await expect(service.complete(user, 'uc1')).resolves.toMatchObject({
+      pointsAwarded: 20,
+    });
+    expect(delivery.send).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'completion', audience: 'all_devices' }),
+    );
+  });
+
+  it('stores a sleep log when the new app sends bedtime and wake time', async () => {
+    const assignment = sleepAssignment();
+    const { prisma, challengeLogUpsert } = createCompletePrismaMock(assignment);
+    const service = createService(prisma);
+    const wokeUpAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const wentToBedAt = new Date(wokeUpAt.getTime() - 8 * 60 * 60 * 1000);
+    const sleep = {
+      wentToBedAt: wentToBedAt.toISOString().replace('Z', '+00:00'),
+      wokeUpAt: wokeUpAt.toISOString().replace('Z', '+00:00'),
+      rested: 4,
+    };
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, { sleep }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+    expect(challengeLogUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          payload: { kind: 'sleep', fields: sleep },
+        }),
+      }),
+    );
+  });
+
+  it('credits open contests when a fresh pose set finishes the habit', async () => {
+    const assignment = pushupHabitAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, undefined, {
+        source: 'in_app_pose',
+        metric: 'pushups',
+        count: 40,
+        durationSeconds: 90,
+        externalId: 'challenge:uc1:start',
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    expect(matches.creditPosePractice).toHaveBeenCalledTimes(1);
+    expect(matches.creditPosePractice).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({
+        metric: 'pushups',
+        count: 40,
+        durationSeconds: 90,
+        source: 'in_app_pose',
+        clientAttemptId: 'challenge:uc1:start',
+      }),
+    );
+  });
+
+  it('re-credits contests when a ledgered completion is retried with the same set', async () => {
+    const assignment = pushupHabitAssignment();
+    const { prisma } = createCompletePrismaMock(assignment, { alreadyLedgered: true });
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, undefined, {
+        source: 'in_app_pose',
+        metric: 'pushups',
+        count: 40,
+        durationSeconds: 90,
+        externalId: 'challenge:uc1:start',
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 0 });
+
+    expect(matches.creditPosePractice).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips contest credit when Mine is finished from a contest or practice set', async () => {
+    const assignment = pushupHabitAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(
+        user,
+        'uc1',
+        undefined,
+        undefined,
+        undefined,
+        {
+          source: 'in_app_pose',
+          metric: 'pushups',
+          count: 40,
+          durationSeconds: 90,
+          externalId: 'match-attempt:a1',
+        },
+        { creditContests: false },
+      ),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    expect(matches.creditPosePractice).not.toHaveBeenCalled();
+  });
+
+  it('banks a new pose set after the habit is already done and credits contests', async () => {
+    const assignment = {
+      ...pushupHabitAssignment(),
+      status: 'completed',
+      deviceActivityLog: { externalId: 'challenge:uc1:first' },
+    };
+    const base = createPrismaMock(assignment);
+    const prisma = {
+      ...base,
+      userProfile: {
+        ...base.userProfile,
+        upsert: vi.fn().mockResolvedValue({
+          userId: 'u1',
+          pointsBalance: 20,
+          currentStreakDays: 1,
+          timeZone: TIME_ZONE,
+          membershipActive: false,
+        }),
+      },
+      deviceActivityLog: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockResolvedValue({ id: 'log-extra' }),
+      },
+    };
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue(['m1']),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(
+      service.complete(user, 'uc1', undefined, undefined, undefined, {
+        source: 'in_app_pose',
+        metric: 'pushups',
+        count: 25,
+        durationSeconds: 50,
+        externalId: 'challenge:uc1:extra',
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 0 });
+
+    expect(prisma.deviceActivityLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          externalId: 'challenge:uc1:extra',
+          userChallengeId: null,
+          count: 25,
+        }),
+      }),
+    );
+    expect(matches.creditPosePractice).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not credit contests for a completion with no pose activity', async () => {
+    const assignment = sleepAssignment();
+    const { prisma } = createCompletePrismaMock(assignment);
+    const matches = {
+      creditPosePractice: vi.fn().mockResolvedValue([]),
+    };
+    const service = createService(prisma, undefined, undefined, matches);
+
+    await expect(service.complete(user, 'uc1')).resolves.toMatchObject({
+      pointsAwarded: 20,
+    });
+    expect(matches.creditPosePractice).not.toHaveBeenCalled();
+  });
+
+  it('stores an accepted gym photo with a 1-day expiry when membership is off', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+        surpriseEvidenceChancePercent: 0,
+      },
+    });
+    const { prisma, tx } = createCompletePrismaMock(assignment);
+    const put = vi.fn().mockResolvedValue(undefined);
+    const service = createService(
+      prisma,
+      { validateGymPhoto: async () => ({ accepted: true }), validatePhoto: async () => ({ accepted: true }) },
+      undefined,
+      undefined,
+      { put, presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(
+      service.complete(user, 'uc1', undefined, {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    expect(put).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'gym-photos/u1/uc1.jpg', contentType: 'image/jpeg' }),
+    );
+    expect(tx.userChallenge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          photoKey: 'gym-photos/u1/uc1.jpg',
+          photoExpiresAt: expect.any(Date),
+        }),
+      }),
+    );
+    const updateCall = tx.userChallenge.update.mock.calls[0]?.[0] as {
+      data: { photoExpiresAt: Date };
+    };
+    const expiresAt = updateCall.data.photoExpiresAt.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    expect(expiresAt).toBeGreaterThan(Date.now() + dayMs * 0.9);
+    expect(expiresAt).toBeLessThan(Date.now() + dayMs * 1.1);
+  });
+
+  it('stores an accepted gym photo with a 30-day expiry when membership is on', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+        surpriseEvidenceChancePercent: 0,
+      },
+    });
+    const { prisma, tx } = createCompletePrismaMock(assignment, { membershipActive: true });
+    const put = vi.fn().mockResolvedValue(undefined);
+    const service = createService(
+      prisma,
+      { validateGymPhoto: async () => ({ accepted: true }), validatePhoto: async () => ({ accepted: true }) },
+      undefined,
+      undefined,
+      { put, presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(
+      service.complete(user, 'uc1', undefined, {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    const updateCall = tx.userChallenge.update.mock.calls[0]?.[0] as {
+      data: { photoExpiresAt: Date };
+    };
+    const expiresAt = updateCall.data.photoExpiresAt.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    expect(expiresAt).toBeGreaterThan(Date.now() + dayMs * 29);
+    expect(expiresAt).toBeLessThan(Date.now() + dayMs * 31);
+  });
+
+  it('still rewards when gym photo storage fails', async () => {
+    const assignment = createAssignment({
+      status: 'in_progress',
+      challenge: {
+        ...createAssignment().challenge,
+        completionKind: 'evidence_photo',
+        surpriseEvidenceChancePercent: 0,
+      },
+    });
+    const { prisma, tx } = createCompletePrismaMock(assignment);
+    const service = createService(
+      prisma,
+      { validateGymPhoto: async () => ({ accepted: true }), validatePhoto: async () => ({ accepted: true }) },
+      undefined,
+      undefined,
+      { put: vi.fn().mockRejectedValue(new Error('bucket down')), presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(
+      service.complete(user, 'uc1', undefined, {
+        mimeType: 'image/jpeg',
+        imageBase64: 'a'.repeat(32),
+      }),
+    ).resolves.toMatchObject({ pointsAwarded: 20 });
+
+    expect(tx.userChallenge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ photoKey: expect.anything() }),
+      }),
+    );
+  });
 });
+
+describe('ChallengesService.getGymSharePhoto', () => {
+  it('returns a signed URL for the owner while the photo is live', async () => {
+    const prisma = {
+      userChallenge: {
+        findFirst: vi.fn().mockResolvedValue({
+          photoKey: 'gym-photos/u1/uc1.jpg',
+          photoExpiresAt: new Date(Date.now() + 60_000),
+        }),
+      },
+    };
+    const presignGet = vi.fn().mockResolvedValue('https://cdn.example/gym.jpg');
+    const service = createService(
+      prisma,
+      undefined,
+      undefined,
+      undefined,
+      { put: vi.fn(), presignGet, delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(service.getGymSharePhoto(user, 'uc1')).resolves.toEqual({
+      photoUrl: 'https://cdn.example/gym.jpg',
+    });
+  });
+
+  it('returns null when the photo has expired', async () => {
+    const prisma = {
+      userChallenge: {
+        findFirst: vi.fn().mockResolvedValue({
+          photoKey: 'gym-photos/u1/uc1.jpg',
+          photoExpiresAt: new Date(Date.now() - 1_000),
+        }),
+      },
+    };
+    const service = createService(
+      prisma,
+      undefined,
+      undefined,
+      undefined,
+      { put: vi.fn(), presignGet: vi.fn(), delete: vi.fn() },
+      { storage: { mode: 's3' } },
+    );
+
+    await expect(service.getGymSharePhoto(user, 'uc1')).resolves.toEqual({ photoUrl: null });
+  });
+
+  it('returns null for another member’s occurrence', async () => {
+    const prisma = {
+      userChallenge: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    };
+    const service = createService(prisma);
+
+    await expect(service.getGymSharePhoto(user, 'uc-other')).resolves.toEqual({ photoUrl: null });
+  });
+});
+
+function sleepAssignment() {
+  return createAssignment({
+    status: 'in_progress',
+    challenge: {
+      ...createAssignment().challenge,
+      title: "Log last night’s sleep",
+      completionKind: 'check_in',
+      captureKind: 'structured_log',
+      deviceMetric: 'sleep',
+      surpriseEvidenceChancePercent: 0,
+    },
+  });
+}
+
+function pushupHabitAssignment() {
+  return createAssignment({
+    status: 'in_progress',
+    challenge: {
+      ...createAssignment().challenge,
+      title: 'Do 20 push-ups',
+      completionKind: 'check_in',
+      captureKind: 'device_session',
+      deviceMetric: 'pushups',
+      targetCount: 20,
+      surpriseEvidenceChancePercent: 0,
+    },
+  });
+}
+
+function createCompletePrismaMock(
+  assignment: ReturnType<typeof createAssignment>,
+  options: { alreadyLedgered?: boolean; membershipActive?: boolean } = {},
+) {
+  const completed = {
+    ...assignment,
+    status: 'completed',
+    completedAt: new Date(),
+  };
+  const profile = {
+    userId: 'u1',
+    pointsBalance: 20,
+    currentStreakDays: 1,
+    bestStreakDays: 1,
+    lastActiveDayKey: null,
+    timeZone: TIME_ZONE,
+    membershipActive: options.membershipActive ?? false,
+  };
+  const challengeLogUpsert = vi.fn().mockResolvedValue({});
+  const tx = {
+    pointLedgerEntry: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(options.alreadyLedgered ? { id: 'ledger1' } : null),
+      create: vi.fn().mockResolvedValue({}),
+    },
+    userChallenge: {
+      count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue(completed),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(completed),
+    },
+    challengeLog: {
+      upsert: challengeLogUpsert,
+    },
+    deviceActivityLog: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      delete: vi.fn().mockResolvedValue({}),
+      upsert: vi.fn().mockResolvedValue({}),
+    },
+    userProfile: {
+      upsert: vi.fn().mockResolvedValue(profile),
+      update: vi.fn().mockResolvedValue(profile),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(profile),
+    },
+    notification: {
+      upsert: vi.fn().mockResolvedValue({}),
+    },
+  };
+  const base = createPrismaMock(assignment, options.membershipActive ?? false);
+  const prisma = {
+    ...base,
+    userProfile: {
+      ...base.userProfile,
+      findUnique: vi.fn().mockResolvedValue({
+        timeZone: TIME_ZONE,
+        membershipActive: options.membershipActive ?? false,
+      }),
+      upsert: vi.fn().mockResolvedValue(profile),
+    },
+    $transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
+      callback(tx),
+    ),
+    pushDevice: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+  };
+
+  return { prisma, challengeLogUpsert, tx };
+}

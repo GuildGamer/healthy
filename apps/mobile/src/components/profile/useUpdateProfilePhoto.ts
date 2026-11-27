@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { updateUser } from '@/lib/auth-client';
 import {
   PHOTO_SAVE_FAILED_MESSAGE,
@@ -11,9 +11,10 @@ export function useUpdateProfilePhoto() {
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const pendingSource = useRef<ProfilePhotoSource | null>(null);
 
   const save = useMutation({
-    mutationFn: async (image: string) => {
+    mutationFn: async (image: string | null) => {
       const { error } = await updateUser({ image });
       if (error) {
         throw new Error(PHOTO_SAVE_FAILED_MESSAGE);
@@ -21,18 +22,26 @@ export function useUpdateProfilePhoto() {
     },
     onSuccess: async () => {
       setErrorMessage(null);
-      setSheetOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['me'] });
     },
     onError: (error: unknown) => {
-      setErrorMessage(
-        error instanceof Error ? error.message : PHOTO_SAVE_FAILED_MESSAGE,
-      );
+      setErrorMessage(error instanceof Error ? error.message : PHOTO_SAVE_FAILED_MESSAGE);
     },
   });
 
-  async function pickFrom(source: ProfilePhotoSource) {
+  function pickFrom(source: ProfilePhotoSource) {
     setErrorMessage(null);
+    pendingSource.current = source;
+    setSheetOpen(false);
+  }
+
+  async function onSheetHidden() {
+    const source = pendingSource.current;
+    if (!source) {
+      return;
+    }
+
+    pendingSource.current = null;
     const picked = await pickProfilePhoto(source);
     if (picked.status === 'canceled') {
       return;
@@ -50,10 +59,21 @@ export function useUpdateProfilePhoto() {
     sheetOpen,
     openSheet: () => {
       setErrorMessage(null);
+      pendingSource.current = null;
       setSheetOpen(true);
     },
-    closeSheet: () => setSheetOpen(false),
+    closeSheet: () => {
+      pendingSource.current = null;
+      setSheetOpen(false);
+    },
+    onSheetHidden,
     pickFrom,
+    removePhoto: () => {
+      setErrorMessage(null);
+      pendingSource.current = null;
+      setSheetOpen(false);
+      save.mutate(null);
+    },
     isSaving: save.isPending,
     errorMessage,
   };

@@ -22,6 +22,10 @@ export function weekStartKey(at: Date = new Date()): string {
   return startOfUtcWeek(at).toISOString().slice(0, 10);
 }
 
+export function startOfUtcDay(at: Date = new Date()): Date {
+  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+}
+
 export function startOfUtcMonth(at: Date = new Date()): Date {
   return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
 }

@@ -1,7 +1,9 @@
-import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, radii, spacing } from '@product/brand';
+import type { BrandColors } from '@product/brand';
+import { fontSize, radii, spacing } from '@product/brand';
 import { forwardRef, useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 import type { IconName } from './types';
 
 interface TextFieldProps extends TextInputProps {
@@ -13,41 +15,37 @@ interface TextFieldProps extends TextInputProps {
   hasError?: boolean;
 }
 
-function resolveBorderColor(hasError: boolean, isFocused: boolean): string {
-  if (hasError) return colors.danger;
-  if (isFocused) return colors.accent;
+function resolveBorderColor(colors: BrandColors, hasError: boolean, isFocused: boolean): string {
+  if (hasError) {
+    return colors.danger;
+  }
+
+  if (isFocused) {
+    return colors.accent;
+  }
+
   return 'transparent';
 }
 
-function resolveFill(hasError: boolean, isFocused: boolean): string {
-  if (hasError) return colors.surface;
-  if (isFocused) return colors.accentSurface;
+function resolveFill(colors: BrandColors, hasError: boolean, isFocused: boolean): string {
+  if (isFocused && !hasError) {
+    return colors.accentSurface;
+  }
+
   return colors.surface;
 }
 
 export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
-  {
-    leading,
-    leadingIcon,
-    trailing,
-    hasError = false,
-    style,
-    onFocus,
-    onBlur,
-    ...inputProps
-  },
+  { leading, leadingIcon, trailing, hasError = false, style, onFocus, onBlur, ...inputProps },
   ref,
 ) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [isFocused, setIsFocused] = useState(false);
   const leadingContent =
     leading ??
     (leadingIcon ? (
-      <Feather
-        color={colors.muted}
-        name={leadingIcon}
-        size={20}
-        style={styles.legacyIcon}
-      />
+      <Feather color={colors.muted} name={leadingIcon} size={20} style={styles.legacyIcon} />
     ) : null);
 
   return (
@@ -55,8 +53,8 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
       style={[
         styles.container,
         {
-          backgroundColor: resolveFill(hasError, isFocused),
-          borderColor: resolveBorderColor(hasError, isFocused),
+          backgroundColor: resolveFill(colors, hasError, isFocused),
+          borderColor: resolveBorderColor(colors, hasError, isFocused),
         },
       ]}
     >
@@ -82,25 +80,26 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderRadius: radii.xl,
-    paddingHorizontal: spacing.md,
-    minHeight: 52,
-  },
-  legacyIcon: {
-    marginRight: spacing.sm,
-  },
-  input: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.sm,
-    paddingVertical: 14,
-  },
-  trailing: {
-    marginLeft: spacing.sm,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderRadius: radii.xl,
+      paddingHorizontal: spacing.md,
+      minHeight: 52,
+    },
+    legacyIcon: {
+      marginRight: spacing.sm,
+    },
+    input: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: fontSize.sm,
+      paddingVertical: 14,
+    },
+    trailing: {
+      marginLeft: spacing.sm,
+    },
+  });

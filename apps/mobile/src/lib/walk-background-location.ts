@@ -1,0 +1,108 @@
+import type { GeoPoint } from '@/lib/geo-session';
+
+/**
+ * Named so a deferred task that wakes the app can find the same registration
+ * the walk recorder started under.
+ */
+export const WALK_LOCATION_TASK = 'healthy-walk-location';
+
+export type WalkLocationFix = GeoPoint;
+
+type WalkLocationListener = (fixes: readonly WalkLocationFix[]) => void;
+
+let listener: WalkLocationListener | null = null;
+/** False on binaries without expo-task-manager — skip the foreground service. */
+let walkLocationTaskReady = false;
+
+/**
+ * The background task only delivers fixes. The recorder owns distance, the
+ * clock, and the lock-screen card.
+ */
+export function setWalkLocationListener(next: WalkLocationListener | null): void {
+  listener = next;
+}
+
+/** True once the walk location task registered in this binary. */
+export function isWalkLocationTaskReady(): boolean {
+  return walkLocationTaskReady;
+}
+
+function toFixes(
+  locations: ReadonlyArray<{
+    coords: { latitude: number; longitude: number };
+    timestamp: number;
+  }>,
+): WalkLocationFix[] {
+  return locations.map((location) => ({
+    latitude: location.coords.latitude,
+    longitude: location.coords.longitude,
+    recordedAt: location.timestamp,
+  }));
+}
+
+/**
+ * Must run at module load so a location wake can find the handler before any
+ * screen mounts. Safe to call more than once.
+ */
+export function defineWalkLocationTask(): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const TaskManager = require('expo-task-manager') as {
+      defineTask: (
+        name: string,
+        handler: (body: {
+          data?: { locations?: ReadonlyArray<{
+            coords: { latitude: number; longitude: number };
+            timestamp: number;
+          }> };
+          error?: { message: string } | null;
+        }) => void,
+      ) => void;
+      isTaskDefined: (name: string) => boolean;
+    };
+
+    if (TaskManager.isTaskDefined(WALK_LOCATION_TASK)) {
+      walkLocationTaskReady = true;
+      return;
+    }
+
+    TaskManager.defineTask(WALK_LOCATION_TASK, ({ data, error }) => {
+      if (error || !data?.locations || data.locations.length === 0) {
+        return;
+      }
+
+      listener?.(toFixes(data.locations));
+    });
+    walkLocationTaskReady = true;
+  } catch {
+    // Task Manager is missing from this binary. Foreground walks still work.
+    walkLocationTaskReady = false;
+  }
+}
+
+defineWalkLocationTask();
+
+/**
+ * Stops the walk GPS task if a previous process left it running. Call on cold
+ * start when no recorder is mounted yet.
+ */
+export async function ensureWalkLocationTaskStopped(): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Location = require('expo-location') as {
+      hasStartedLocationUpdatesAsync?: (taskName: string) => Promise<boolean>;
+      stopLocationUpdatesAsync?: (taskName: string) => Promise<void>;
+    };
+
+    if (!Location.hasStartedLocationUpdatesAsync || !Location.stopLocationUpdatesAsync) {
+      return;
+    }
+
+    const running = await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK);
+    if (running) {
+      await Location.stopLocationUpdatesAsync(WALK_LOCATION_TASK);
+    }
+  } catch {
+    // Already stopped, or this binary has no background location.
+  }
+}

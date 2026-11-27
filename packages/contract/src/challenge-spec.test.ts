@@ -66,4 +66,18 @@ describe('challengeSpecIssue', () => {
       }),
     ).toBeNull();
   });
+
+  it('lets a water challenge carry a glass goal, and nothing else', () => {
+    const water = {
+      completionKind: 'water',
+      captureKind: 'structured_log',
+      deviceMetric: null,
+      targetDurationMinutes: null,
+      targetDistanceMeters: null,
+      targetCount: 8,
+    } as const;
+
+    expect(challengeSpecIssue(water)).toBeNull();
+    expect(challengeSpecIssue({ ...water, targetDurationMinutes: 10 })).toMatch(/glasses/);
+  });
 });

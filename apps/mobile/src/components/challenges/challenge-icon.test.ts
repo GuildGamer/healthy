@@ -1,7 +1,4 @@
-import {
-  FALLBACK_CHALLENGE_ICON,
-  resolveChallengeIcon,
-} from './challenge-icon';
+import { FALLBACK_CHALLENGE_ICON, resolveChallengeIcon } from './challenge-icon';
 
 describe('resolveChallengeIcon', () => {
   it('keeps a Material Community Icons name from the catalog', () => {
@@ -11,8 +8,6 @@ describe('resolveChallengeIcon', () => {
   });
 
   it('falls back when the catalog name is not in the pack', () => {
-    expect(resolveChallengeIcon('not-a-real-glyph')).toBe(
-      FALLBACK_CHALLENGE_ICON,
-    );
+    expect(resolveChallengeIcon('not-a-real-glyph')).toBe(FALLBACK_CHALLENGE_ICON);
   });
 });

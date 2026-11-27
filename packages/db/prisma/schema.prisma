@@ -11,28 +11,62 @@ datasource db {
 
 /// Better Auth core tables
 model User {
-  id                   String                @id
-  name                 String
-  email                String                @unique
-  emailVerified        Boolean               @default(false)
-  image                String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  sessions             Session[]
-  accounts             Account[]
-  profile              UserProfile?
-  challengeAssignments UserChallenge[]
-  challengeEnrollments ChallengeEnrollment[]
-  pointLedger          PointLedgerEntry[]
-  pushDevices          PushDevice[]
-  notifications        Notification[]
-  deviceActivityLogs   DeviceActivityLog[]
-  hostedMatches        Match[]              @relation("MatchHost")
-  wonMatches           Match[]              @relation("MatchWinner")
-  matchParticipations  MatchParticipant[]
-  matchAttempts        MatchAttempt[]
+  id                     String                 @id
+  name                   String
+  email                  String                 @unique
+  emailVerified          Boolean                @default(false)
+  image                  String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  sessions               Session[]
+  accounts               Account[]
+  profile                UserProfile?
+  challengeAssignments   UserChallenge[]
+  challengeEnrollments   ChallengeEnrollment[]
+  pointLedger            PointLedgerEntry[]
+  pushDevices            PushDevice[]
+  notifications          Notification[]
+  engagementDeliveries   EngagementDelivery[]
+  periodRecapDeliveries  PeriodRecapDelivery[]
+  deviceActivityLogs     DeviceActivityLog[]
+  hostedMatches          Match[]                @relation("MatchHost")
+  wonMatches             Match[]                @relation("MatchWinner")
+  matchParticipations    MatchParticipant[]
+  matchAttempts          MatchAttempt[]
+  matchReactionsSent     MatchReaction[]        @relation("MatchReactionFrom")
+  matchReactionsReceived MatchReaction[]        @relation("MatchReactionTo")
+  ownedCrews             Crew[]                 @relation("CrewOwner")
+  crewMemberships        CrewMember[]
+  subscriptions          Subscription[]
+  entitlements           Entitlement[]
+  experimentAssignments  ExperimentAssignment[]
+  analyticsEvents        AnalyticsEvent[]
+  proofClips             ProofClip[]
+  proofClipReports       ProofClipReport[]       @relation("ProofClipReporter")
+  blocksInitiated        UserBlock[]             @relation("UserBlockBlocker")
+  blocksReceived         UserBlock[]             @relation("UserBlockBlocked")
+  cameraCountingStarts   CameraCountingStart[]
 
   @@map("user")
+}
+
+/// Lifetime record that a non-member began a camera-counted set. Walks never
+/// write here. Unique on (userId, clientStartId) so retries do not double-count.
+model CameraCountingStart {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Client-stable id for this attempt (same shape as set / match attempt ids).
+  clientStartId   String
+  context         String
+  userChallengeId String?
+  challengeId     String?
+  matchId         String?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, clientStartId])
+  @@index([userId])
+  @@map("camera_counting_starts")
 }
 
 model Session {
@@ -84,44 +118,58 @@ model Verification {
 
 /// Application profile linked to the Better Auth user.
 model UserProfile {
-  id                String           @id @default(cuid())
-  userId            String           @unique
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  displayName       String?
+  id                          String           @id @default(cuid())
+  userId                      String           @unique
+  user                        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName                 String?
   /// Redeemable currency later — minor units only, never floats.
-  balanceMinor      Int              @default(0)
+  balanceMinor                Int              @default(0)
   /// Habit-loop points — integers only; mutated via PointLedgerEntry.
-  pointsBalance     Int              @default(0)
-  currentStreakDays Int              @default(0)
+  pointsBalance               Int              @default(0)
+  currentStreakDays           Int              @default(0)
+  /// Longest unbroken rewarded daily run. Updated on complete; backfilled on first /me when 0.
+  bestStreakDays              Int              @default(0)
+  /// Last local day (`YYYY-MM-DD`) with any logged activity: a challenge
+  /// completion, a contest set, or a practice session. Drives the streak.
+  lastActiveDayKey            String?
   /// IANA zone deciding when the user's challenge day rolls over.
-  timeZone          String           @default("UTC")
+  timeZone                    String           @default("UTC")
   /// ISO 3166-1 alpha-2 country chosen at sign-up (or later in profile).
-  countryCode       String?
+  countryCode                 String?
   /// Master switch. Off silences every challenge reminder without losing the
   /// per-challenge times the user set up.
-  reminderEnabled   Boolean          @default(false)
+  reminderEnabled             Boolean          @default(false)
   /// Local wall-clock minutes past midnight, so it survives zone changes. Seeds
   /// the first reminder on a new enrolment; per-challenge times override it.
-  reminderMinute    Int              @default(1140)
+  reminderMinute              Int              @default(1140)
   /// Designed Profile toggles. Evidence and promotional have no delivery yet.
-  evidenceRemindersEnabled     Boolean @default(true)
-  promotionalMessagesEnabled   Boolean @default(false)
+  evidenceRemindersEnabled    Boolean          @default(true)
+  promotionalMessagesEnabled  Boolean          @default(false)
   /// Finish-what-you-started push after a form is opened and left incomplete.
-  inProgressNudgeEnabled       Boolean @default(true)
+  inProgressNudgeEnabled      Boolean          @default(true)
   /// Minutes after start / first draft before that nudge. Product default is 30.
-  inProgressNudgeDelayMinutes  Int     @default(30)
+  inProgressNudgeDelayMinutes Int              @default(30)
   /// Opt-out. Hidden users still see the board; others do not see them on it.
-  showOnLeaderboard Boolean          @default(true)
+  showOnLeaderboard           Boolean          @default(true)
+  /// Who may watch new proof clips by default. Null until asked once.
+  proofClipAudience           ProofClipAudience?
+  /// Pushes from groups: cheers, nudges, board moves, seats and joins. The
+  /// inbox row is still written when this is off.
+  groupNotificationsEnabled   Boolean          @default(true)
   /// Apple Health / Health Connect: unknown until they answer the prompt.
-  healthLinkStatus  HealthLinkStatus @default(unknown)
+  healthLinkStatus            HealthLinkStatus @default(unknown)
   /// Chronic-condition preferences used to tailor challenges.
-  healthCategories  HealthCategory[] @default([])
+  healthCategories            HealthCategory[] @default([])
   /// Paid membership entitlements. Set by checkout later (or support).
-  membershipActive  Boolean          @default(false)
+  membershipActive            Boolean          @default(false)
   /// Soft lock. Set by support; the member cannot sign in until it is cleared.
-  deactivatedAt     DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  deactivatedAt               DateTime?
+  /// Set when the member deleted their account. The user row stays as an
+  /// anonymous tombstone so finished group standings and the points ledger
+  /// keep adding up; everything that identified them is gone.
+  deletedAt                   DateTime?
+  createdAt                   DateTime         @default(now())
+  updatedAt                   DateTime         @updatedAt
 
   @@map("user_profiles")
 }
@@ -183,6 +231,13 @@ enum DeviceMetric {
   heart_rate
   /// On-device pose session (e.g. push-up counting from camera landmarks).
   pushups
+  squats
+  plank
+  jumping_jacks
+  burpees
+  sit_ups
+  mountain_climbers
+  lunges
 }
 
 enum DeviceActivitySource {
@@ -202,61 +257,65 @@ enum HealthLinkStatus {
 }
 
 model Challenge {
-  id               String                @id @default(cuid())
-  slug             String                @unique
-  title            String
-  description      String
-  category         HealthCategory
-  rewardPoints     Int
+  id                            String                  @id @default(cuid())
+  slug                          String                  @unique
+  title                         String
+  description                   String
+  category                      HealthCategory
+  rewardPoints                  Int
   /// Starting cadence for a new enrolment; each user may override it.
-  defaultFrequency ChallengeFrequency    @default(daily)
+  defaultFrequency              ChallengeFrequency      @default(daily)
   /// Enrolled automatically when a user picks this challenge's category.
-  isDefault        Boolean                   @default(false)
+  isDefault                     Boolean                 @default(false)
   /// Catalog challenges that need an active membership to enroll.
-  requiresMembership Boolean                 @default(false)
-  isActive         Boolean                   @default(true)
-  completionKind   ChallengeCompletionKind   @default(check_in)
-  captureKind      ChallengeCaptureKind      @default(self_report)
-  deviceMetric     DeviceMetric?
-  targetDurationMinutes Int?
-  targetDistanceMeters  Int?
-  targetCount           Int?
+  requiresMembership            Boolean                 @default(false)
+  isActive                      Boolean                 @default(true)
+  completionKind                ChallengeCompletionKind @default(check_in)
+  captureKind                   ChallengeCaptureKind    @default(self_report)
+  deviceMetric                  DeviceMetric?
+  targetDurationMinutes         Int?
+  targetDistanceMeters          Int?
+  targetCount                   Int?
   /// Designed "What to do" copy. Description stays the longer about text.
-  instruction      String                    @default("")
+  instruction                   String                  @default("")
   /// Material Community Icons glyph name. Admin-set so each challenge has its own mark.
-  icon             String                    @default("checkbox-marked-circle-outline")
+  icon                          String                  @default("checkbox-marked-circle-outline")
   /// 0–100. Chance a check-in or vitals finish asks for a surprise photo.
   /// `evidence_photo` challenges ignore this — the photo is the completion.
-  surpriseEvidenceChancePercent Int          @default(0)
+  surpriseEvidenceChancePercent Int                     @default(0)
   /// Seconds the member has to submit the surprise photo.
-  surpriseEvidenceWindowSeconds Int          @default(60)
+  surpriseEvidenceWindowSeconds Int                     @default(60)
   /// Points deducted when they skip, time out, or fail the surprise photo.
-  surpriseEvidencePenaltyPoints Int          @default(25)
-  createdAt        DateTime                  @default(now())
-  updatedAt        DateTime                  @updatedAt
-  assignments      UserChallenge[]
-  enrollments      ChallengeEnrollment[]
+  surpriseEvidencePenaltyPoints Int                     @default(25)
+  /// Lower values surface first in catalog and challenge lists.
+  sortOrder                     Int                     @default(100)
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
+  assignments                   UserChallenge[]
+  enrollments                   ChallengeEnrollment[]
 
-  @@index([isActive, category])
+  @@index([isActive, category, sortOrder])
   @@map("challenges")
 }
 
 /// A user's standing opt-in to a catalog challenge, with their own cadence.
 model ChallengeEnrollment {
-  id          String              @id @default(cuid())
-  userId      String
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  challengeId String
-  challenge   Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  frequency   ChallengeFrequency
+  id                    String              @id @default(cuid())
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId           String
+  challenge             Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  frequency             ChallengeFrequency
   /// Per-user count goal. Null means use the catalog `Challenge.targetCount`.
-  targetCount Int?
+  targetCount           Int?
+  /// Per-user minutes goal. Null means use the catalog `Challenge.targetDurationMinutes`.
+  targetDurationMinutes Int?
   /// Deactivated rather than deleted so completion history keeps its context.
-  isActive    Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  assignments UserChallenge[]
-  reminders   ChallengeReminder[]
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  assignments           UserChallenge[]
+  reminders             ChallengeReminder[]
 
   @@unique([userId, challengeId])
   @@index([userId, isActive])
@@ -314,38 +373,49 @@ model PushDevice {
 
 /// One occurrence of an enrolled challenge, scoped to the period it is due in.
 model UserChallenge {
-  id            String               @id @default(cuid())
-  userId        String
-  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  challengeId   String
-  challenge     Challenge            @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  enrollmentId  String?
-  enrollment    ChallengeEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  id                      String                          @id @default(cuid())
+  userId                  String
+  user                    User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId             String
+  challenge               Challenge                       @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  enrollmentId            String?
+  enrollment              ChallengeEnrollment?            @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
   /// First day of the period this occurrence belongs to, `YYYY-MM-DD` in the
   /// user's zone. Daily is the day itself, weekly the Monday, monthly the 1st.
-  periodKey     String
+  periodKey               String
   /// Copied from the enrolment so history survives a later cadence change, and
   /// so daily-only queries such as the streak need no join.
-  frequency     ChallengeFrequency   @default(daily)
-  status        UserChallengeStatus  @default(pending)
-  completionOutcome UserChallengeCompletionOutcome?
-  startedAt     DateTime?
-  completedAt   DateTime?
+  frequency               ChallengeFrequency              @default(daily)
+  status                  UserChallengeStatus             @default(pending)
+  completionOutcome       UserChallengeCompletionOutcome?
+  startedAt               DateTime?
+  completedAt             DateTime?
+  /// Object-storage key for the gym selfie when this finish was an evidence photo.
+  photoKey                String?
+  /// When the gym selfie object may be deleted. Null when no photo was stored.
+  photoExpiresAt          DateTime?
   /// Partial log, written as fields change. Cleared on a successful complete.
-  draft         Json?
-  draftUpdatedAt DateTime?
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  ledgerEntries PointLedgerEntry[]
-  vitalReading  VitalReading?
-  challengeLog  ChallengeLog?
-  deviceActivityLog DeviceActivityLog?
+  draft                   Json?
+  draftUpdatedAt          DateTime?
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  ledgerEntries           PointLedgerEntry[]
+  vitalReading            VitalReading?
+  challengeLog            ChallengeLog?
+  deviceActivityLog       DeviceActivityLog?
   surpriseEvidenceRequest SurpriseEvidenceRequest?
   inProgressNudgeDelivery InProgressNudgeDelivery?
+  /// Contests created from this completed occurrence (distribution flywheel).
+  sourcedMatches          Match[]
+  proofClips              ProofClip[]
 
   @@unique([userId, challengeId, periodKey])
   @@index([userId, periodKey])
   @@index([userId, frequency, status])
+  /// Serves `days_completed` group scoring, which counts the distinct days a
+  /// member finished any daily occurrence inside a contest window.
+  @@index([userId, frequency, status, completedAt])
+  @@index([photoExpiresAt])
   @@map("user_challenges")
 }
 
@@ -358,15 +428,15 @@ enum SurpriseEvidenceStatus {
 
 /// One surprise-photo window for an occurrence. Unique so retries do not re-roll.
 model SurpriseEvidenceRequest {
-  id              String                  @id @default(cuid())
-  userChallengeId String                  @unique
-  userChallenge   UserChallenge           @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  id              String                 @id @default(cuid())
+  userChallengeId String                 @unique
+  userChallenge   UserChallenge          @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
   windowSeconds   Int
   penaltyPoints   Int
   expiresAt       DateTime
-  status          SurpriseEvidenceStatus  @default(pending)
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  status          SurpriseEvidenceStatus @default(pending)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   @@index([expiresAt, status])
   @@map("surprise_evidence_requests")
@@ -377,6 +447,9 @@ enum NotificationKind {
   success
   evidence
   penalty
+  /// Someone did something involving you: seated you in a group challenge,
+  /// or accepted an invite you shared.
+  social
 }
 
 /// In-app inbox item. The Home bell opens this list, not reminder settings.
@@ -387,6 +460,8 @@ model Notification {
   kind           NotificationKind
   title          String
   body           String
+  /// Same shape as Expo push `data` so inbox taps open the same screen.
+  payload        Json?
   readAt         DateTime?
   /// Same key as the event that produced the row, so retries do not duplicate.
   idempotencyKey String           @unique
@@ -397,27 +472,65 @@ model Notification {
   @@map("notifications")
 }
 
+/// One Expo push the engagement module actually handed to the provider.
+/// Distinct from the inbox row: callers own Notification; this is the send log.
+model EngagementDelivery {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Matches EngagementSource in the API (habit_slot, invite_accepted, …).
+  source           String
+  /// `all_devices` or `group_opt_in`.
+  audience         String
+  title            String
+  body             String
+  /// Defaults to `source` until Phase 5 copy templates land.
+  templateKey      String
+  situation        String?
+  copyVersion      String    @default("v1")
+  experimentKey    String?
+  variantKey       String?
+  leadChallengeId  String?
+  notificationId   String?
+  /// Push `data` after `engagementDeliveryId` was injected.
+  payload          Json      @default("{}")
+  sentAt           DateTime  @default(now())
+  /// First tap open; later taps leave this alone.
+  openedAt         DateTime?
+
+  @@index([userId, sentAt])
+  @@index([source, sentAt])
+  @@index([experimentKey, variantKey, sentAt])
+  @@map("engagement_deliveries")
+}
+
 /// Client-attested movement sample or GPS session. One per occurrence.
 model DeviceActivityLog {
-  id               String               @id @default(cuid())
-  userId           String
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userChallengeId  String               @unique
-  userChallenge    UserChallenge        @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
-  source           DeviceActivitySource
-  metric           DeviceMetric
-  durationSeconds  Int?
-  distanceMeters   Int?
-  count            Int?
-  startedAt        DateTime?
-  endedAt          DateTime?
+  id              String               @id @default(cuid())
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Null for a free practice set, which belongs to no daily occurrence.
+  /// Postgres allows many nulls under a unique index, so the
+  /// one-log-per-occurrence guarantee survives for rows that do have one.
+  userChallengeId String?              @unique
+  userChallenge   UserChallenge?       @relation(fields: [userChallengeId], references: [id], onDelete: Cascade)
+  source          DeviceActivitySource
+  metric          DeviceMetric
+  durationSeconds Int?
+  distanceMeters  Int?
+  count           Int?
+  startedAt       DateTime?
+  endedAt         DateTime?
   /// Health workout UUID or client session id. Unique per user when present.
-  externalId       String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  externalId      String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  proofClips      ProofClip[]
 
   @@unique([userId, externalId])
   @@index([userId, metric])
+  /// Serves the practice feed and today's rep tally.
+  @@index([userId, metric, createdAt])
   @@map("device_activity_logs")
 }
 
@@ -442,6 +555,22 @@ model InProgressNudgeDelivery {
   sentAt          DateTime      @default(now())
 
   @@map("in_progress_nudge_deliveries")
+}
+
+/// Period recap email sent for a calendar window. Unique so a retry never doubles.
+model PeriodRecapDelivery {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// week | month | year
+  period    String
+  /// Local day key that identifies the window (week Monday, month first day, year Jan 1).
+  periodKey String
+  sentAt    DateTime @default(now())
+
+  @@unique([userId, period, periodKey])
+  @@index([period, periodKey])
+  @@map("period_recap_deliveries")
 }
 
 /// One blood-pressure log for a vitals occurrence. Unique on the occurrence
@@ -497,10 +626,20 @@ model Tip {
   isActive  Boolean        @default(true)
   /// Stable rotation order within a category.
   sortOrder Int            @default(0)
+  /// Prefer this tip when viewing / completing the catalog challenge with this slug.
+  challengeSlug String?
+  /// Fallback match on deviceMetric or a free activity key (e.g. water, pushups).
+  activityKey   String?
+  /// Short citation label shown with "Why it matters" copy.
+  source        String?
+  /// Optional link for the citation.
+  sourceUrl     String?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
   @@index([isActive, category, sortOrder])
+  @@index([challengeSlug])
+  @@index([activityKey])
   @@map("tips")
 }
 
@@ -514,24 +653,26 @@ enum MembershipInterval {
 /// Subscription plans editable from admin.
 /// Entitlements live on UserProfile.membershipActive (checkout later).
 model MembershipPlan {
-  id        String              @id @default(cuid())
-  slug      String              @unique
-  name      String
-  tagline   String
+  id               String                @id @default(cuid())
+  slug             String                @unique
+  name             String
+  tagline          String
   /// Short benefit lines shown on the paywall.
-  features  String[]
-  interval  MembershipInterval  @default(month)
-  isActive  Boolean             @default(true)
-  sortOrder Int                 @default(0)
+  features         String[]
+  interval         MembershipInterval    @default(month)
+  isActive         Boolean               @default(true)
+  sortOrder        Int                   @default(0)
   /// Optional paywall copy overrides.
-  headline  String?
-  ctaLabel  String?
+  headline         String?
+  ctaLabel         String?
   /// Checkout method ids in display order, e.g. ["apple_pay","card"].
   /// Empty = resolve defaults from the member's country.
-  paymentMethodIds String[]     @default([])
-  prices    MembershipPlanPrice[]
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  paymentMethodIds String[]              @default([])
+  prices           MembershipPlanPrice[]
+  products         MembershipProduct[]
+  subscriptions    Subscription[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   @@index([isActive, sortOrder])
   @@map("membership_plans")
@@ -554,6 +695,137 @@ model MembershipPlanPrice {
   @@map("membership_plan_prices")
 }
 
+enum SubscriptionProvider {
+  apple
+  google
+  web
+}
+
+enum SubscriptionStatus {
+  pending
+  active
+  grace_period
+  billing_retry
+  cancelled
+  expired
+  revoked
+}
+
+enum EntitlementSource {
+  apple
+  google
+  web
+  admin_grant
+}
+
+enum EntitlementKind {
+  premium
+}
+
+enum ProviderEventProcessingStatus {
+  received
+  processed
+  ignored
+  failed
+}
+
+/// The store SKU a plan is sold as. One plan can map to several providers and
+/// markets, which is why the provider product id does not live on the plan.
+model MembershipProduct {
+  id                String               @id @default(cuid())
+  planId            String
+  plan              MembershipPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  provider          SubscriptionProvider
+  providerProductId String
+  /// ISO 3166-1 alpha-2, or `*` for the default.
+  marketKey         String               @default("*")
+  isLive            Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  subscriptions     Subscription[]
+
+  @@unique([provider, providerProductId])
+  @@unique([planId, provider, marketKey])
+  @@index([planId, provider])
+  @@map("membership_products")
+}
+
+/// One billing relationship as the provider reports it. The provider is the
+/// source of truth; this is our mirror of it.
+model Subscription {
+  id                     String               @id @default(cuid())
+  userId                 String
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId                 String
+  plan                   MembershipPlan       @relation(fields: [planId], references: [id], onDelete: Restrict)
+  membershipProductId    String?
+  membershipProduct      MembershipProduct?   @relation(fields: [membershipProductId], references: [id], onDelete: SetNull)
+  provider               SubscriptionProvider
+  providerSubscriptionId String
+  providerProductId      String
+  status                 SubscriptionStatus
+  autoRenewing           Boolean              @default(true)
+  interval               MembershipInterval
+  currency               String
+  /// Integer minor units. Never floats.
+  amountMinor            Int
+  startedAt              DateTime
+  currentPeriodEndsAt    DateTime
+  cancelledAt            DateTime?
+  revokedAt              DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  entitlements           Entitlement[]
+
+  @@unique([provider, providerSubscriptionId])
+  @@index([userId, status])
+  @@index([currentPeriodEndsAt, status])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+/// What a member is actually allowed to use, and until when. Derived from a
+/// subscription, or granted by an admin.
+model Entitlement {
+  id                   String            @id @default(cuid())
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind                 EntitlementKind   @default(premium)
+  source               EntitlementSource
+  subscriptionId       String?
+  subscription         Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  startsAt             DateTime
+  /// Null means open-ended, which only an admin grant should be.
+  endsAt               DateTime?
+  grantedByAdminUserId String?
+  grantedByAdminUser   AdminUser?        @relation(fields: [grantedByAdminUserId], references: [id], onDelete: SetNull)
+  grantReason          String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([userId, kind, endsAt])
+  @@index([subscriptionId])
+  @@map("entitlements")
+}
+
+/// Raw provider webhook, kept so processing is idempotent and replayable.
+model SubscriptionProviderEvent {
+  id               String                        @id @default(cuid())
+  provider         SubscriptionProvider
+  providerEventId  String
+  eventType        String
+  payload          Json
+  receivedAt       DateTime                      @default(now())
+  processedAt      DateTime?
+  processingStatus ProviderEventProcessingStatus @default(received)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  @@unique([provider, providerEventId])
+  @@index([processingStatus, receivedAt])
+  @@map("subscription_provider_events")
+}
+
 enum AdminRole {
   content
   support
@@ -569,25 +841,48 @@ enum AdminAuditAction {
   admin_deactivate
   admin_reactivate
   admin_roles_update
+  notification_broadcast
+  staging_tester_upsert
+  staging_tester_toggle
+  staging_tester_delete
 }
 
 /// Better Auth tables for operators. Separate from member `user`.
 model AdminUser {
-  id            String                @id
-  name          String
-  email         String                @unique
-  emailVerified Boolean               @default(false)
-  image         String?
+  id                  String                @id
+  name                String
+  email               String                @unique
+  emailVerified       Boolean               @default(false)
+  image               String?
   /// Soft lock. Set by a superadmin; they cannot sign in until it is cleared.
-  isActive      Boolean               @default(true)
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  sessions      AdminSession[]
-  accounts      AdminAccount[]
-  roles         AdminRoleAssignment[]
-  auditEvents   AdminAuditEvent[]
+  isActive            Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  sessions            AdminSession[]
+  accounts            AdminAccount[]
+  roles               AdminRoleAssignment[]
+  auditEvents          AdminAuditEvent[]
+  grantedEntitlements  Entitlement[]
+  stagingTesterGrants  StagingTesterGrant[]
 
   @@map("admin_user")
+}
+
+/// Emails that receive free membership only while NODE_ENV is staging.
+/// Toggle `enabled` off to revoke immediately; no entitlement row is written.
+model StagingTesterGrant {
+  id                   String    @id @default(cuid())
+  /// Always stored lowercased for case-insensitive lookup.
+  email                String    @unique
+  enabled              Boolean   @default(true)
+  note                 String?
+  createdByAdminUserId String?
+  createdByAdminUser   AdminUser? @relation(fields: [createdByAdminUserId], references: [id], onDelete: SetNull)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([enabled])
+  @@map("staging_tester_grants")
 }
 
 model AdminSession {
@@ -666,10 +961,20 @@ model AdminAuditEvent {
 
 enum MatchMetric {
   pushups
+  walk
+  squats
+  plank
+  jumping_jacks
+  burpees
+  sit_ups
+  mountain_climbers
+  lunges
 }
 
 enum MatchScoringMode {
   best_single
+  cumulative_total
+  days_completed
 }
 
 enum MatchStatus {
@@ -680,43 +985,140 @@ enum MatchStatus {
 
 enum MatchAttemptSource {
   in_app_pose
+  in_app_walk
+}
+
+/// Which finished days a `days_completed` contest counts. Ignored by the
+/// attempt-driven modes, which count their own metric by definition.
+enum MatchDailyScope {
+  /// Any daily challenge the member finishes, whatever they are managing.
+  any_challenge
+  /// Only daily challenges of the contest's own activity.
+  chosen_activity
 }
 
 /// Private contest a host can send by link. Isolated from habit points.
 model Match {
-  id             String             @id @default(cuid())
-  hostUserId     String
-  hostUser       User               @relation("MatchHost", fields: [hostUserId], references: [id], onDelete: Cascade)
-  inviteToken    String             @unique
-  metric         MatchMetric        @default(pushups)
-  scoringMode    MatchScoringMode   @default(best_single)
-  startsAt       DateTime
-  endsAt         DateTime
-  status         MatchStatus        @default(open)
-  winnerUserId   String?
-  winnerUser     User?              @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
-  settledAt      DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  participants   MatchParticipant[]
-  attempts       MatchAttempt[]
+  id                    String             @id @default(cuid())
+  hostUserId            String
+  hostUser              User               @relation("MatchHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  inviteToken           String             @unique
+  /// Optional host-authored label. Null means derive title from participants.
+  title                 String?
+  metric                MatchMetric        @default(pushups)
+  scoringMode           MatchScoringMode   @default(best_single)
+  dailyScope            MatchDailyScope    @default(any_challenge)
+  startsAt              DateTime
+  endsAt                DateTime
+  status                MatchStatus        @default(open)
+  winnerUserId          String?
+  winnerUser            User?              @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
+  settledAt             DateTime?
+  /// Which saved roster seated this contest, if any. Kept for provenance so a
+  /// crew can be offered again without re-deriving it from the participants.
+  crewId                String?
+  crew                  Crew?              @relation(fields: [crewId], references: [id], onDelete: SetNull)
+  /// Prior contest in a distribution chain (A challenged B → B challenges C).
+  parentMatchId         String?
+  parentMatch           Match?             @relation("MatchDistribution", fields: [parentMatchId], references: [id], onDelete: SetNull)
+  childMatches          Match[]            @relation("MatchDistribution")
+  /// Habit occurrence that motivated this contest, when created from completion.
+  sourceUserChallengeId String?
+  sourceUserChallenge   UserChallenge?     @relation(fields: [sourceUserChallengeId], references: [id], onDelete: SetNull)
+  experimentId          String?
+  experiment            Experiment?        @relation(fields: [experimentId], references: [id], onDelete: SetNull)
+  experimentVariantKey  String?
+  /// First time any client opened the invite (web or app). Funnel H2.
+  firstOpenedAt         DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  participants          MatchParticipant[]
+  attempts              MatchAttempt[]
+  reactions             MatchReaction[]
+  proofClips            ProofClip[]
 
   @@index([hostUserId, createdAt])
   @@index([status, endsAt])
+  @@index([parentMatchId])
+  @@index([experimentId, experimentVariantKey])
   @@map("matches")
 }
 
 model MatchParticipant {
-  id       String   @id @default(cuid())
-  matchId  String
-  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  joinedAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  matchId    String
+  match      Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt   DateTime  @default(now())
+  /// Null while a crew-seated member has not opened the contest. Pending
+  /// members hold a seat but are never scored or nudged. Anyone who arrived
+  /// by link accepted by definition, so their value is their join time.
+  acceptedAt DateTime?
 
   @@unique([matchId, userId])
   @@index([userId, joinedAt])
   @@map("match_participants")
+}
+
+enum MatchReactionKind {
+  cheer
+  nudge
+}
+
+/// One tap on a group mate's face. One of each kind per pair per contest day,
+/// so a nudge in the morning can still be followed by a cheer once they are
+/// done, and a retried tap is a no-op rather than a second push.
+model MatchReaction {
+  id         String            @id @default(cuid())
+  matchId    String
+  match      Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  fromUserId String
+  fromUser   User              @relation("MatchReactionFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User              @relation("MatchReactionTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  kind       MatchReactionKind
+  /// The contest's local day, `YYYY-MM-DD`, in the zone its daily cap uses.
+  dayKey     String
+  createdAt  DateTime          @default(now())
+
+  @@unique([matchId, fromUserId, toUserId, dayKey, kind])
+  @@index([matchId, toUserId, dayKey])
+  @@map("match_reactions")
+}
+
+/// A saved roster, the way a beneficiary list is saved. Formed retroactively
+/// from a contest that already happened — there is no flow to assemble one
+/// from nothing, and deliberately no crew page, feed, or chat.
+model Crew {
+  id          String       @id @default(cuid())
+  ownerUserId String
+  ownerUser   User         @relation("CrewOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  /// Derived from member names on save so keeping one costs a single tap.
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  members     CrewMember[]
+  matches     Match[]
+
+  @@index([ownerUserId, createdAt])
+  @@map("crews")
+}
+
+model CrewMember {
+  id        String    @id @default(cuid())
+  crewId    String
+  crew      Crew      @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  /// Set when the member leaves. The row is kept rather than deleted so the
+  /// unique key structurally prevents re-adding someone who opted out.
+  leftAt    DateTime?
+
+  @@unique([crewId, userId])
+  @@index([userId])
+  @@map("crew_members")
 }
 
 model MatchAttempt {
@@ -725,11 +1127,220 @@ model MatchAttempt {
   match           Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
   userId          String
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The scored value, in the unit the match's metric implies: reps for
+  /// `pushups`, whole minutes walked for `walk`.
   count           Int
   durationSeconds Int
+  /// Checked against the match's metric on write, so a walk cannot be logged
+  /// into a push-up contest.
   source          MatchAttemptSource @default(in_app_pose)
+  /// Client-stable id for this set. Retries with the same key must not create
+  /// a second row (unique per match + member).
+  clientAttemptId String
+  /// When the set finished on the phone. Null for older rows; scoring falls
+  /// back to recordedAt.
+  performedAt     DateTime?
   recordedAt      DateTime           @default(now())
+  proofClips      ProofClip[]
 
+  @@unique([matchId, userId, clientAttemptId])
   @@index([matchId, userId, recordedAt])
   @@map("match_attempts")
+}
+
+enum ProofClipStatus {
+  reserved
+  recorded
+  ready
+  expired
+  removed
+}
+
+enum ProofClipReportReason {
+  inappropriate
+  spam
+  harassment
+  other
+}
+
+/// Legacy: where the owner posted the clip. Prefer `audience` + `postedToGroupAt`.
+enum ProofClipVisibility {
+  group
+  shared
+}
+
+/// Who may watch this clip when they look up its code.
+enum ProofClipAudience {
+  anyone
+  only_me
+}
+
+/// Camera-counted set recording. Video bytes live in object storage; this row
+/// is the durable proof record (hash, count, timestamps) that outlives them.
+model ProofClip {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Crockford base32 + check character, e.g. `7KQ4M2XD`. Displayed with a hyphen.
+  code            String           @unique
+  metric          DeviceMetric
+  count           Int              @default(0)
+  durationSeconds Int?
+  userChallengeId String?
+  userChallenge   UserChallenge?   @relation(fields: [userChallengeId], references: [id], onDelete: SetNull)
+  matchId         String?
+  match           Match?           @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  matchAttemptId  String?
+  matchAttempt    MatchAttempt?    @relation(fields: [matchAttemptId], references: [id], onDelete: SetNull)
+  /// The practice set this clip filmed. Linked when the set is saved, so History can show it.
+  deviceActivityLogId String?
+  deviceActivityLog   DeviceActivityLog? @relation(fields: [deviceActivityLogId], references: [id], onDelete: SetNull)
+  status          ProofClipStatus  @default(reserved)
+  /// Hex SHA-256 of the finished file. Null while reserved.
+  sha256          String?
+  byteSize        Int?
+  videoKey        String?
+  posterKey       String?
+  /// Legacy mirror of audience/board. Kept for one release of in-flight clients.
+  visibility      ProofClipVisibility?
+  /// Who may watch when they look up the code. Set before or at upload.
+  audience        ProofClipAudience?
+  /// The only fact that puts a clip on the group board. Distinct from audience.
+  postedToGroupAt DateTime?
+  /// Set when the owner posts to a group or lets others watch (drives retention).
+  sharedAt        DateTime?
+  lastViewedAt    DateTime?
+  expiresAt       DateTime?
+  reservedAt      DateTime         @default(now())
+  recordedAt      DateTime?
+  attested        Boolean          @default(false)
+  /// Downsampled landmark JSON for skeleton replay after the video expires.
+  skeletonTrack   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  reports         ProofClipReport[]
+
+  @@index([status, expiresAt])
+  @@index([matchId, userId])
+  @@index([userId, createdAt])
+  @@index([userChallengeId])
+  @@index([deviceActivityLogId])
+  @@index([matchId, postedToGroupAt])
+  @@map("proof_clips")
+}
+
+model ProofClipReport {
+  id             String                @id @default(cuid())
+  clipId         String
+  clip           ProofClip             @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  reporterUserId String
+  reporterUser   User                  @relation("ProofClipReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  reason         ProofClipReportReason
+  createdAt      DateTime              @default(now())
+
+  @@unique([clipId, reporterUserId])
+  @@index([clipId])
+  @@map("proof_clip_reports")
+}
+
+/// Hides another member's proof clips from the blocker's views.
+model UserBlock {
+  id            String   @id @default(cuid())
+  blockerUserId String
+  blockerUser   User     @relation("UserBlockBlocker", fields: [blockerUserId], references: [id], onDelete: Cascade)
+  blockedUserId String
+  blockedUser   User     @relation("UserBlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([blockerUserId, blockedUserId])
+  @@index([blockedUserId])
+  @@map("user_blocks")
+}
+
+enum ExperimentStatus {
+  draft
+  running
+  ended
+}
+
+/// Product experiment definition. Sticky assignment lives on ExperimentAssignment.
+model Experiment {
+  id            String                 @id @default(cuid())
+  /// Stable key used in code and analytics (`challenge_referral_v1`).
+  key           String                 @unique
+  name          String
+  description   String                 @default("")
+  status        ExperimentStatus       @default(draft)
+  /// Primary metric label for admin (e.g. activated_friend_rate).
+  primaryMetric String
+  startAt       DateTime?
+  endAt         DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  variants      ExperimentVariant[]
+  assignments   ExperimentAssignment[]
+  matches       Match[]
+
+  @@map("experiments")
+}
+
+model ExperimentVariant {
+  id            String                 @id @default(cuid())
+  experimentId  String
+  experiment    Experiment             @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  /// Stable key within the experiment (`control`, `treatment`).
+  key           String
+  name          String
+  /// Relative allocation weight. Equal weights → 50/50.
+  weight        Int                    @default(1)
+  /// UI / product config for this variant (CTA copy, etc.).
+  configuration Json?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  assignments   ExperimentAssignment[]
+
+  @@unique([experimentId, key])
+  @@index([experimentId])
+  @@map("experiment_variants")
+}
+
+model ExperimentAssignment {
+  id           String            @id @default(cuid())
+  experimentId String
+  experiment   Experiment        @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variantId    String
+  variant      ExperimentVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime          @default(now())
+
+  @@unique([experimentId, userId])
+  @@index([userId])
+  @@index([variantId])
+  @@map("experiment_assignments")
+}
+
+/// First-party product analytics. Not a warehouse — funnel events for experiments.
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  name        String
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Client-generated id before auth, or web visitor id.
+  anonymousId String?
+  properties  Json     @default("{}")
+  /// One foreground session; used for “active in the last 2 hours” push rules.
+  sessionId   String?
+  platform    String?
+  appVersion  String?
+  /// Who wrote the event: mobile, web, or server.
+  emitter     String?
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([name, occurredAt])
+  @@index([userId, occurredAt])
+  @@index([anonymousId, occurredAt])
+  @@index([sessionId, occurredAt])
+  @@map("analytics_events")
 }

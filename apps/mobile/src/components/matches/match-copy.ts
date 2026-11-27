@@ -1,37 +1,263 @@
-export const MATCH_TITLE = 'Push-ups';
-export const MATCH_RULE = 'Highest single set wins. The lead can change until time runs out.';
-export const MATCH_SCORING_LABEL = 'Best single set';
-export const MATCH_CREATE_TITLE = 'Challenge a friend';
-export const MATCH_CREATE_CTA = 'Create and share';
-export const MATCH_LIST_TITLE = 'Matches';
-export const MATCH_EMPTY = 'No matches yet. Send a link and see who can do more push-ups.';
-export const MATCH_DO_SET = 'Do a set';
-export const MATCH_SHARE_LINK = 'Share link';
-export const MATCH_ACCEPT = 'Accept';
-export const MATCH_NOT_NOW = 'Not now';
-export const MATCH_JOIN_ENDED = 'This match has ended.';
-export const MATCH_JOIN_FULL = 'This match is full.';
-export const MATCH_JOIN_IN = 'You are already in this match.';
-export const MATCH_WINDOW_TODAY = 'Today';
-export const MATCH_WINDOW_TODAY_HINT = 'Until midnight tonight';
-export const MATCH_WINDOW_WEEK = '7 days';
-export const MATCH_WINDOW_WEEK_HINT = 'Seven days from now';
-export const MATCH_KICKER = 'Private contest';
-export const MATCH_INVITE_KICKER = 'Invite';
-export const MATCH_YOUR_BEST = 'Your best';
-export const MATCH_STANDINGS = 'Standings';
-export const MATCH_HOW_LONG = 'How long';
-export const MATCH_OPEN_BOARD = 'Open match';
-export const MATCH_LIVE = 'Live';
-export const MATCH_ENDED_LABEL = 'Ended';
-export const MATCH_CANCELLED = 'Cancelled';
-export const MATCH_CANCEL = 'Cancel match';
-export const MATCH_CANCEL_KEEP = 'Keep it';
-export const MATCH_CANCEL_CONFIRM_TITLE = 'Cancel this match?';
-export const MATCH_CANCEL_CONFIRM_BODY =
-  'The contest stops. Sets already logged stay on the board.';
-export const MATCH_CANCELLED_BANNER = 'This match was cancelled.';
-export const MATCH_CREATE_HINT = 'Send a push-up contest by link';
-export const MATCH_LIVE_HINT = 'See standings and do a set';
-export const MATCH_CHALLENGE_FRIEND = 'Challenge a friend';
-export const MATCH_LIST_ENTRY = 'Matches';
+import { MATCH_PARTICIPANT_CAP, type MatchScoringMode } from '@product/contract/match-board';
+import type { WalkPhase } from '@/components/challenges/walk-session-copy';
+import { formatDuration } from '@/lib/geo-session';
+
+/**
+ * How the host chooses to win. Plain language, never the enum name — the card
+ * above the rows is what stops three options reading as configuration.
+ */
+export const MATCH_MODE_LABEL: Record<MatchScoringMode, string> = {
+  best_single: 'Best set',
+  cumulative_total: 'Total',
+  days_completed: 'Streak',
+};
+
+export const GROUPS_COPY = {
+  live: 'Live',
+  doneTodayHint: 'Done today lit up',
+  pastGroups: 'Past groups',
+  verifyClip: 'Got a code? Verify a clip',
+  todayCount: (done: number, total: number) => `${done} of ${total} today`,
+  loadFailedTitle: 'Your groups didn’t load.',
+  loadFailedBody: 'Check your connection and try again.',
+  tryAgain: 'Try again',
+  emptyTitle: 'Challenge your friends.',
+  emptyBody: 'Camera counts the reps. One link. Whoever does the most wins.',
+  emptySteps: [
+    { title: 'Pick how you win', hint: 'Best set, total, or streak' },
+    { title: 'Send one link', hint: `Up to ${MATCH_PARTICIPANT_CAP} people` },
+    { title: 'Play it out', hint: 'Then run it back' },
+  ],
+  startGroup: 'Start a contest',
+  cancelled: 'cancelled',
+  noPlace: '–',
+} as const;
+
+export const CREATE_COPY = {
+  title: 'Start a group',
+  howYouWin: 'How you win',
+  activity: 'Activity',
+  howLong: 'How long',
+  whosIn: 'Who’s in',
+  newGroupByLink: 'New group, by link',
+  contestTitle: 'Contest name',
+  contestTitlePlaceholder: 'Acme March challenge',
+  note: `Up to ${MATCH_PARTICIPANT_CAP} people. Joining a group is free. Others only see your name and score.`,
+  cta: 'Start and share link',
+  ctaSeated: 'Start group',
+  failed: 'We couldn’t start the group. Check your connection and try again.',
+  /** Create sent a crew the host cannot spend (gone or not theirs). */
+  crewGone: 'That crew is gone. Start again without it, or pick another.',
+  done: 'Done',
+  howYouWinTitle: 'How do you want to win?',
+  activityTitle: 'What counts?',
+  howLongTitle: 'How long does it run?',
+  whosInTitle: 'Who’s in?',
+  newGroup: 'New group',
+  newGroupHint: 'Send a link to anyone',
+  peopleSection: 'People you’ve competed with',
+  crewsSection: 'Saved crews',
+  crewHint: (people: number) => `${people} people`,
+  crewRenameHint: 'Hold to rename',
+  showAll: (count: number) => `Show all ${count}`,
+  showFewer: 'Show fewer',
+  peoplePicked: (count: number) =>
+    count === 1 ? '1 person' : `${count} people`,
+  peopleAndCrew: (people: number, crew: string) =>
+    people > 0 ? `${crew} + ${people === 1 ? '1 person' : `${people} people`}` : crew,
+  crewNote:
+    'Selected people get one notification and only play once they open it. You can still share the link.',
+  renameCrewTitle: 'Rename crew',
+  renameCrewPlaceholder: 'Crew name',
+  renameCrewSave: 'Save name',
+  today: 'Today',
+  todayHint: 'Ends at midnight',
+  week: '7 days',
+  month: '30 days',
+  other: 'Other',
+  otherHint: 'Up to a year',
+  fewerDays: 'Fewer days',
+  moreDays: 'More days',
+  daysUnit: 'days',
+  streakNeedsTwo: 'A streak needs two days or more',
+} as const;
+
+export const BOARD_COPY = {
+  today: 'Today',
+  standings: 'Standings',
+  you: 'You',
+  invited: 'Invited',
+  host: 'Host',
+  shareLink: 'Share link',
+  more: 'More options',
+  cancelGroup: 'Cancel group',
+  leaveGroup: 'Leave group',
+  close: 'Close',
+  cancelConfirmTitle: 'Cancel this group?',
+  cancelConfirmBody: 'The contest stops. Scores already logged stay on the board.',
+  leaveConfirmTitle: 'Leave this group?',
+  leaveConfirmBody: 'Your scores leave with you, and you can only come back by link.',
+  keep: 'Keep it',
+  cancelFailed: 'We couldn’t cancel this group. Try again.',
+  leaveFailed: 'We couldn’t take you out of this group. Try again.',
+  loadFailedTitle: 'This group didn’t load.',
+  waitingTitle: (groupNoun: string) => `Your ${groupNoun} group`,
+  waitingBody: (rule: string) =>
+    `${rule} Nobody has joined yet. Send the link and the board fills as they go.`,
+  /** Two-person group with no host-written name. */
+  versusTitle: (other: string) => `You vs ${other}`,
+  /** Larger unnamed group: "You, Ada, Tunde +2". */
+  withOthersTitle: (othersLabel: string) => `You, ${othersLabel}`,
+  groupBest: 'Group best',
+  groupBestTied: 'Tied',
+  noScoreYet: 'No score yet',
+  yourDays: 'Your days',
+  verifyClip: 'Got a code? Verify a clip',
+  proofToday: 'Proof today',
+  proofAllDays: 'Proof clips',
+  memberAttempts: 'Sets',
+  memberAttemptsEmpty: 'No sets yet in this contest.',
+  memberActivityFailed: 'Their sets didn’t load.',
+  /** Standing row → their sets in this contest. */
+  openMemberSetsHint: 'Opens their sets in this contest',
+  seats: (count: number) => `${count} of ${MATCH_PARTICIPANT_CAP}`,
+  cancelledBody: 'This group was cancelled. Scores logged before then stay here.',
+  seeResult: 'See the result',
+  honors: 'Honors',
+  cheered: (name: string) => `You cheered ${name}`,
+  cheeredAt: (name: string, time: string) => `You cheered ${name} at ${time}`,
+  nudgedAt: (time: string) => `Nudged at ${time}. Again tomorrow.`,
+  reactionFailed: 'That didn’t send. Try again.',
+  nudgeTitle: (name: string) => `Nudge ${name}?`,
+  nudgeNote: (name: string) => `This is what ${name} gets. One nudge per person a day.`,
+  nudgeSend: 'Send nudge',
+  pushApp: 'Beatset',
+} as const;
+
+export const JOIN_COPY = {
+  invitedYou: (host: string) => `${host} invited you`,
+  joined: (count: number) => `${count} of ${MATCH_PARTICIPANT_CAP} joined`,
+  join: (host: string) => `Join ${host}’s group`,
+  notNow: 'Not now',
+  joinFailed: 'We couldn’t add you to this group. Try again.',
+  endedTitle: 'This group has ended.',
+  fullTitle: 'This group is full.',
+  startOwn: (host: string) => `Start your own and send ${host} the link.`,
+  startOwnCta: 'Start a group',
+  invalidTitle: 'This link doesn’t work.',
+  invalidBody: 'It may have been cancelled. Ask for a new one.',
+  goToday: 'Go to Today',
+} as const;
+
+export const RESULT_COPY = {
+  youWon: 'You won.',
+  theyWon: (name: string) => `${name} won.`,
+  nobodyWon: 'Nobody scored.',
+  runItBack: 'Run it back',
+  saveCrew: 'Save crew',
+  nameAndSaveCrew: 'Name & save',
+  crewNamePlaceholder: 'Crew name',
+  crewSaved: 'Saved',
+  share: 'Share',
+  shareHonor: 'Share your honor',
+  swipeHonors: 'Swipe for more highlights',
+  close: 'Close',
+  sameAgain: 'Same again?',
+  startIt: 'Start it',
+  changeSomething: 'Change something',
+  runItBackFailed: 'We couldn’t start it again. Try again.',
+  crewSaveFailed: 'We couldn’t save that crew. Try again.',
+  shareDialog: 'Share your result',
+  recapEyebrow: 'Group',
+  recapFinished: 'Group finished.',
+  recapPlace: (place: string) => `You came ${place}.`,
+  recapOfGroup: (people: number) => `of ${people} in the group`,
+  recapScore: 'Your score',
+  recapLength: 'Length',
+} as const;
+
+/**
+ * The board counts whole minutes, so a thirty second lap would round to zero
+ * and read as a bug. Saying the floor up front beats logging nothing.
+ */
+export const MATCH_WALK_MIN_SECONDS = 60;
+export const MATCH_WALK_TITLE = 'Walk';
+export const MATCH_WALK_START = 'Start walk';
+export const MATCH_WALK_STOP = 'Stop';
+export const MATCH_WALK_PAUSE = 'Pause';
+export const MATCH_WALK_RESUME_LIVE = 'Resume';
+export const MATCH_WALK_LOG = 'Add to the board';
+export const MATCH_WALK_RESUME = 'Keep walking';
+export const MATCH_WALK_TOO_SHORT =
+  'A walk has to run a minute before it counts. Keep going and stop again.';
+export const MATCH_WALK_FAILED = 'We could not add that walk. Try again.';
+
+/** The floor, said while there is still time to walk past it. */
+const MATCH_WALK_MIN_READOUT = formatDuration(MATCH_WALK_MIN_SECONDS);
+
+/**
+ * The challenge walk borrows its wording from a goal it has to reach. A
+ * contest walk has none — you bank whatever you do — so the card says what is
+ * being counted rather than how far off the finish is.
+ *
+ * The one exception is the floor: a walk under a minute scores nothing, and
+ * finding that out only after stopping is how a real walk gets thrown away.
+ * So the card names the floor until the walker is past it.
+ */
+export function matchWalkStatus({
+  phase,
+  autoPaused,
+  userPaused = false,
+  countsYet,
+  saving,
+  tooShort,
+}: {
+  phase: WalkPhase;
+  autoPaused: boolean;
+  /** Walker tapped Pause — movement alone will not restart the clock. */
+  userPaused?: boolean;
+  /** Whether the clock has already passed the floor. */
+  countsYet: boolean;
+  saving: boolean;
+  tooShort: boolean;
+}): { eyebrow: string; meta: string } {
+  if (phase === 'idle') {
+    return {
+      eyebrow: 'Ready',
+      meta: `Walks count from ${MATCH_WALK_MIN_READOUT}. Stop and yours goes on the board.`,
+    };
+  }
+
+  if (phase === 'recording') {
+    if (userPaused) {
+      return {
+        eyebrow: 'Paused',
+        meta: 'Paused. Resume when you are ready to keep walking.',
+      };
+    }
+
+    if (autoPaused) {
+      return {
+        eyebrow: 'Paused',
+        meta: 'Paused while you stand still. Walk on and the clock picks up.',
+      };
+    }
+
+    return countsYet
+      ? { eyebrow: 'Walking', meta: 'Stop now and these minutes go on the board.' }
+      : {
+          eyebrow: 'Walking',
+          meta: `Nothing counts until ${MATCH_WALK_MIN_READOUT}. Keep going.`,
+        };
+  }
+
+  if (saving) {
+    return { eyebrow: 'Adding', meta: 'Putting this walk on the board.' };
+  }
+
+  if (tooShort) {
+    return { eyebrow: 'Too short', meta: MATCH_WALK_TOO_SHORT };
+  }
+
+  return { eyebrow: 'Walk done', meta: 'Add it to the board below.' };
+}

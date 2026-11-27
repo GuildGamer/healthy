@@ -12,6 +12,7 @@ import {
   MINUTES_PER_DAY,
 } from '../../../shared/constants/reminder-defaults.js';
 import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
 import type {
   ChallengeReminderDto,
   ChallengeRemindersDto,
@@ -40,7 +41,7 @@ export class RemindersService {
     this.assertMinuteOfDay(minuteOfDay);
 
     const enrollment = await this.findEnrollment(user.id, challengeId);
-    const membershipActive = await this.membershipActiveFor(user.id);
+    const membershipActive = await this.membershipActiveFor(user.id, user.email);
     const maxReminders = maxRemindersForMembership(membershipActive);
 
     const existingCount = await this.prisma.challengeReminder.count({
@@ -126,13 +127,11 @@ export class RemindersService {
     });
   }
 
-  private async membershipActiveFor(userId: string): Promise<boolean> {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-      select: { membershipActive: true },
-    });
-
-    return profile?.membershipActive ?? false;
+  private async membershipActiveFor(
+    userId: string,
+    email?: string,
+  ): Promise<boolean> {
+    return resolveMembershipActive(this.prisma, userId, email);
   }
 
   private async findEnrollment(

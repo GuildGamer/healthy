@@ -19,5 +19,5 @@ export default function MatchPoseRoute() {
     return <Redirect href="/matches" />;
   }
 
-  return <PoseSessionScreen matchId={matchId} />;
+  return <PoseSessionScreen matchId={matchId} mode="match" />;
 }

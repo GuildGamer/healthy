@@ -1,12 +1,10 @@
 import type { TodayChallenge } from '@product/client';
+import { compareChallengeSortOrder } from '@product/contract/challenge-sort';
 
 /** Free-tier cap for “today’s win” — members may finish every enrollment. */
 export const DAILY_WIN_TARGET = 2;
 
-function resolveDailyWinTarget(
-  totalCount: number,
-  hasMembership: boolean,
-): number {
+function resolveDailyWinTarget(totalCount: number, hasMembership: boolean): number {
   if (totalCount === 0) {
     return 0;
   }
@@ -17,9 +15,6 @@ function resolveDailyWinTarget(
 
   return Math.min(DAILY_WIN_TARGET, totalCount);
 }
-
-/** Peers shown under the focus card before “also available”. */
-export const UP_NEXT_LIMIT = 2;
 
 const FOCUS_STATUS_RANK: Record<string, number> = {
   awaiting_evidence: 0,
@@ -55,14 +50,17 @@ function easeRank(challenge: TodayChallenge): number {
 }
 
 /** Resume / evidence first, then daily over week/month, then easier captures. */
-export function sortOpenChallengesByFocus(
-  challenges: readonly TodayChallenge[],
-): TodayChallenge[] {
+export function sortOpenChallengesByFocus(challenges: readonly TodayChallenge[]): TodayChallenge[] {
   return [...challenges].sort((left, right) => {
     const leftStatus = FOCUS_STATUS_RANK[left.status] ?? 9;
     const rightStatus = FOCUS_STATUS_RANK[right.status] ?? 9;
     if (leftStatus !== rightStatus) {
       return leftStatus - rightStatus;
+    }
+
+    const sortCompare = compareChallengeSortOrder(left, right);
+    if (sortCompare !== 0) {
+      return sortCompare;
     }
 
     const leftFrequency = FREQUENCY_RANK[left.frequency] ?? 9;
@@ -125,70 +123,5 @@ export function buildTodayWin(
     locked: false,
     label: `Today's win · ${filled} of ${target}`,
     heroMetaSuffix: `${filled}/${target} today's win`,
-  };
-}
-
-export type ChallengeFocusLayout = {
-  focus: TodayChallenge | null;
-  upNext: TodayChallenge[];
-  /** Remaining daily opens beyond focus + up next. */
-  alsoAvailable: TodayChallenge[];
-  weekly: TodayChallenge[];
-  monthly: TodayChallenge[];
-  done: TodayChallenge[];
-  win: TodayWin;
-  /** True when Challenges has more than Home’s focus + up next. */
-  hasMoreBeyondPreview: boolean;
-};
-
-/**
- * One decision on first paint: focus + short up-next, with week/month and
- * extras parked for progressive disclosure.
- */
-export function buildChallengeFocusLayout(
-  challenges: readonly TodayChallenge[],
-  hasMembership = false,
-): ChallengeFocusLayout {
-  const done = challenges.filter((item) => item.status === 'completed');
-  const open = challenges.filter((item) => item.status !== 'completed');
-  const win = buildTodayWin(done.length, challenges.length, hasMembership);
-
-  const focus = open.length === 0 ? null : sortOpenChallengesByFocus(open)[0]!;
-  const remaining = focus
-    ? open.filter((item) => item.id !== focus.id)
-    : [];
-  const remainingSorted = sortOpenChallengesByFocus(remaining);
-  const upNext = remainingSorted.slice(0, UP_NEXT_LIMIT);
-  const upNextIds = new Set(upNext.map((item) => item.id));
-
-  const parked = remainingSorted.slice(UP_NEXT_LIMIT);
-  const alsoAvailable = parked.filter((item) => item.frequency === 'daily');
-  const weeklyCollapsed = open.filter(
-    (item) =>
-      item.frequency === 'weekly' &&
-      item.id !== focus?.id &&
-      !upNextIds.has(item.id),
-  );
-  const monthlyCollapsed = open.filter(
-    (item) =>
-      item.frequency === 'monthly' &&
-      item.id !== focus?.id &&
-      !upNextIds.has(item.id),
-  );
-
-  return {
-    focus,
-    upNext,
-    alsoAvailable,
-    weekly: sortOpenChallengesByFocus(weeklyCollapsed),
-    monthly: sortOpenChallengesByFocus(monthlyCollapsed),
-    done,
-    win,
-    hasMoreBeyondPreview:
-      alsoAvailable.length > 0 ||
-      weeklyCollapsed.length > 0 ||
-      monthlyCollapsed.length > 0 ||
-      done.length > 0 ||
-      remainingSorted.length > UP_NEXT_LIMIT,
   };
 }

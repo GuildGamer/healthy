@@ -57,4 +57,12 @@ export class AdminAnalyticsController {
       async ({ input }) => this.analytics.reminders(admin, input),
     );
   }
+
+  @Implement(adminContract.getPushDeliveriesAnalytics)
+  getPushDeliveriesAnalytics(@Req() request: RequestWithAuth) {
+    const admin = request.admin ?? null;
+    return implement(adminContract.getPushDeliveriesAnalytics).handler(
+      async ({ input }) => this.analytics.pushDeliveries(admin, input),
+    );
+  }
 }

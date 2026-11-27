@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { act, render, screen } from '@testing-library/react-native';
+import { RefreshControl, Text } from 'react-native';
 import { RefreshableScroll } from './RefreshableScroll';
 
 describe('RefreshableScroll', () => {
@@ -11,6 +11,39 @@ describe('RefreshableScroll', () => {
     );
 
     expect(screen.getByText('Today')).toBeOnTheScreen();
+    expect(screen.queryByTestId('pull-refresh-loader')).toBeNull();
+  });
+
+  it('shows a single overlay loader while refreshing', async () => {
+    let finishRefresh: (() => void) | undefined;
+    const onPullRefresh = () =>
+      new Promise<void>((resolve) => {
+        finishRefresh = resolve;
+      });
+
+    const view = render(
+      <RefreshableScroll onPullRefresh={onPullRefresh}>
+        <Text>Challenges</Text>
+      </RefreshableScroll>,
+    );
+
+    const refreshControl = view.UNSAFE_getByType(RefreshControl);
+    await act(async () => {
+      refreshControl.props.onRefresh?.();
+    });
+
+    expect(screen.getByTestId('pull-refresh-loader')).toBeOnTheScreen();
+    expect(screen.getByText('Challenges')).toBeOnTheScreen();
+
+    await act(async () => {
+      finishRefresh?.();
+    });
+
+    // usePullRefresh keeps the spinner up for a minimum dwell.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 650));
+    });
+
     expect(screen.queryByTestId('pull-refresh-loader')).toBeNull();
   });
 });

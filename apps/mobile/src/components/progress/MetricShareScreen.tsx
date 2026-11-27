@@ -1,0 +1,167 @@
+import type { DeviceMetric } from '@product/client';
+import { fontSize, fontWeight, spacing } from '@product/brand';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SHARE_COPY } from '@/components/challenges/constants/doing-copy';
+import { defaultShareFillId, type ShareFillId } from '@/components/challenges/share-fill';
+import { ShareFillCarousel } from '@/components/challenges/ShareFillCarousel';
+import { SharePosterCard } from '@/components/challenges/SharePosterCard';
+import { DeckButton, DeckNavButton } from '@/components/deck';
+import { ScreenLoader } from '@/components/feedback';
+import type { SharePayload } from '@/components/matches/share-destination';
+import {
+  SHARE_PAGE_MARGIN,
+  ShareCapture,
+  ShareDestinationSheet,
+  useShareDestinations,
+} from '@/components/share';
+import { apiClient } from '@/lib/api';
+import { goBackOrHome } from '@/lib/go-back';
+import { type Theme, useThemedStyles } from '@/theme';
+import { PROGRESS_COPY } from './constants/progress-copy';
+import { openFriendChallenge, type StatsPeriod } from './metric-stats-route';
+import {
+  metricPeriodPoster,
+  metricPeriodRunLine,
+  metricPeriodShareText,
+} from './period-posters';
+
+/** Poster + colour + Share → destination sheet for one metric period total. */
+export function MetricShareScreen({
+  metric,
+  period,
+}: {
+  metric: DeviceMetric;
+  period: StatsPeriod;
+}) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
+  const [fillId, setFillId] = useState<ShareFillId | null>(null);
+  const [sheetPayload, setSheetPayload] = useState<SharePayload | null>(null);
+
+  const statsQuery = useQuery({
+    queryKey: ['progress', 'metric-stats', metric, period],
+    queryFn: () => apiClient.getMetricPeriodStats({ metric, period }),
+  });
+
+  const stats = statsQuery.data;
+  const poster = stats ? metricPeriodPoster(stats) : null;
+  const runLine = stats ? metricPeriodRunLine(stats) : null;
+  const friendRoute = openFriendChallenge(metric);
+  const selectedFill = fillId ?? (poster ? defaultShareFillId(poster.kind) : 'walk');
+  const destinations = useShareDestinations({
+    buildPayload: () => ({
+      caption: stats ? metricPeriodShareText(stats) : PROGRESS_COPY.shareFallback,
+      artifact: { kind: 'image' },
+    }),
+    onChallenge: friendRoute ? () => router.push(friendRoute) : undefined,
+  });
+
+  async function onSharePress() {
+    if (destinations.isBusy) {
+      return;
+    }
+    const payload = await destinations.preparePayload();
+    if (!payload) {
+      return;
+    }
+    setSheetPayload(payload);
+  }
+
+  return (
+    <View
+      style={[
+        styles.screen,
+        { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.md },
+      ]}
+      testID="metric-share-screen"
+    >
+      <View style={styles.nav}>
+        <DeckNavButton
+          accessibilityLabel={SHARE_COPY.close}
+          glyph="close"
+          onPress={() => goBackOrHome()}
+          testID="metric-share-close"
+        />
+        <Text style={styles.navTitle}>{SHARE_COPY.title}</Text>
+        <View style={styles.navSpacer} />
+      </View>
+      {statsQuery.isPending && !stats ? (
+        <ScreenLoader />
+      ) : stats && poster ? (
+        <>
+          <ShareCapture fitToSlot shotRef={destinations.shotRef}>
+            {(corners, size) => (
+              <SharePosterCard
+                corners={corners}
+                fillId={selectedFill}
+                height={size.height}
+                poster={poster}
+                runLine={runLine}
+                testID={corners === 'round' ? undefined : 'share-poster-image-capture'}
+                width={size.width}
+              />
+            )}
+          </ShareCapture>
+          <View style={styles.actions}>
+            <ShareFillCarousel onSelect={setFillId} selected={selectedFill} />
+            <DeckButton
+              disabled={destinations.isBusy}
+              label={SHARE_COPY.share}
+              onPress={() => void onSharePress()}
+              testID="metric-share-open"
+            />
+          </View>
+          {sheetPayload ? (
+            <ShareDestinationSheet
+              onChallenge={friendRoute ? () => router.push(friendRoute) : undefined}
+              onClose={() => setSheetPayload(null)}
+              payload={sheetPayload}
+              showChallenge={friendRoute != null}
+              showCopy={false}
+              visible
+            />
+          ) : null}
+        </>
+      ) : (
+        <Text style={styles.failed}>{PROGRESS_COPY.statsFailed}</Text>
+      )}
+    </View>
+  );
+}
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: SHARE_PAGE_MARGIN,
+    },
+    nav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    navTitle: {
+      color: theme.colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+    },
+    navSpacer: {
+      width: 40,
+    },
+    actions: {
+      marginTop: spacing.md,
+      gap: spacing.sm,
+    },
+    failed: {
+      marginTop: spacing.xl,
+      color: theme.colors.muted,
+      fontSize: fontSize.sm,
+    },
+  });

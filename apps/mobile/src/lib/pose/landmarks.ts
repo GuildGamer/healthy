@@ -1,4 +1,4 @@
-/** MediaPipe / MoveNet-compatible body landmark indices used for push-ups. */
+/** MediaPipe / MoveNet-compatible body landmark indices used for pose stance. */
 export const PoseLandmarkIndex = {
   nose: 0,
   leftEye: 1,
@@ -13,6 +13,10 @@ export const PoseLandmarkIndex = {
   rightWrist: 10,
   leftHip: 11,
   rightHip: 12,
+  leftKnee: 13,
+  rightKnee: 14,
+  leftAnkle: 15,
+  rightAnkle: 16,
 } as const;
 
 export type PosePoint = {
@@ -26,13 +30,6 @@ export type PoseFrame = {
   /** Milliseconds since an arbitrary session epoch. */
   timestampMs: number;
   points: Partial<Record<keyof typeof PoseLandmarkIndex, PosePoint>>;
-  /**
-   * Sensor buffer size + orientation — used to map square MoveNet coords onto
-   * the Camera preview (`resizeMode="cover"`).
-   */
-  bufferWidth?: number;
-  bufferHeight?: number;
-  orientation?: import('react-native-vision-camera').Orientation;
 };
 
 export function averagePoint(

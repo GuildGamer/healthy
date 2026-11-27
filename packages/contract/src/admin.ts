@@ -6,8 +6,14 @@ import {
   getAdminGrowthAnalyticsContract,
   getAdminMarketsAnalyticsContract,
   getAdminOverviewAnalyticsContract,
+  getAdminPushDeliveriesAnalyticsContract,
   getAdminRemindersAnalyticsContract,
 } from './admin-analytics.js';
+import {
+  getAdminExperimentContract,
+  listAdminExperimentsContract,
+  updateAdminExperimentWeightsContract,
+} from './admin-experiments.js';
 import {
   challengeCaptureKindSchema,
   deviceMetricSchema,
@@ -55,6 +61,7 @@ export const adminChallengeSchema = z.object({
   surpriseEvidenceChancePercent: z.number().int().min(0).max(100),
   surpriseEvidenceWindowSeconds: z.number().int().positive().max(3_600),
   surpriseEvidencePenaltyPoints: z.number().int().min(0).max(10_000),
+  sortOrder: z.number().int().min(0).max(10_000),
   enrollmentCount: z.number().int().nonnegative(),
   updatedAt: z.string().datetime(),
 });
@@ -82,6 +89,10 @@ export const adminTipSchema = z.object({
   body: z.string().min(1).max(2_000),
   isActive: z.boolean(),
   sortOrder: z.number().int().min(0).max(10_000),
+  challengeSlug: z.string().min(1).max(80).nullable(),
+  activityKey: z.string().min(1).max(40).nullable(),
+  source: z.string().min(1).max(200).nullable(),
+  sourceUrl: z.string().url().max(500).nullable(),
   updatedAt: z.string().datetime(),
 });
 
@@ -235,6 +246,10 @@ export const publicTipSchema = z.object({
   category: healthCategorySchema,
   title: z.string(),
   body: z.string(),
+  challengeSlug: z.string().nullable().optional(),
+  activityKey: z.string().nullable().optional(),
+  source: z.string().nullable().optional(),
+  sourceUrl: z.string().nullable().optional(),
 });
 
 export const listPublicTipsOutputSchema = z.object({
@@ -353,6 +368,110 @@ export const listTipsContract = oc
   .route({ method: 'GET', path: '/tips' })
   .output(listPublicTipsOutputSchema);
 
+export const sendAdminNotificationInputSchema = z
+  .object({
+    idempotencyKey: z.string().trim().min(8).max(80),
+    title: z.string().trim().min(1).max(80),
+    body: z.string().trim().min(1).max(280),
+    sendPush: z.boolean(),
+    sendEmail: z.boolean(),
+    sendInbox: z.boolean(),
+    audience: z.enum(['reminders_on', 'member']),
+    memberUserId: z.string().trim().min(1).optional(),
+    destination: z.enum(['today', 'challenges', 'challenge']),
+    challengeId: z.string().trim().min(1).optional(),
+  })
+  .superRefine((value, context) => {
+    if (!value.sendPush && !value.sendEmail && !value.sendInbox) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Pick at least one channel',
+        path: ['sendPush'],
+      });
+    }
+
+    if (value.audience === 'member' && !value.memberUserId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Pick a member',
+        path: ['memberUserId'],
+      });
+    }
+
+    if (value.destination === 'challenge' && !value.challengeId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Pick a challenge',
+        path: ['challengeId'],
+      });
+    }
+  });
+
+export const sendAdminNotificationOutputSchema = z.object({
+  audienceCount: z.number().int().nonnegative(),
+  pushSentCount: z.number().int().nonnegative(),
+  emailSentCount: z.number().int().nonnegative(),
+  inboxWrittenCount: z.number().int().nonnegative(),
+  skippedNoDeviceCount: z.number().int().nonnegative(),
+  replayed: z.boolean(),
+});
+
+export const sendAdminNotificationContract = oc
+  .route({ method: 'POST', path: '/admin/notifications/send' })
+  .input(sendAdminNotificationInputSchema)
+  .output(sendAdminNotificationOutputSchema);
+
+export const stagingTesterGrantSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  enabled: z.boolean(),
+  note: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const listStagingTesterGrantsOutputSchema = z.object({
+  items: z.array(stagingTesterGrantSchema),
+});
+
+export const upsertStagingTesterGrantInputSchema = z.object({
+  email: z.string().email(),
+  enabled: z.boolean().default(true),
+  note: z.string().trim().max(200).nullable().optional(),
+});
+
+export const setStagingTesterGrantEnabledInputSchema = z.object({
+  id: z.string().min(1),
+  enabled: z.boolean(),
+});
+
+export const deleteStagingTesterGrantInputSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const stagingTesterGrantOutputSchema = z.object({
+  grant: stagingTesterGrantSchema,
+});
+
+export const listStagingTesterGrantsContract = oc
+  .route({ method: 'GET', path: '/admin/staging-testers' })
+  .output(listStagingTesterGrantsOutputSchema);
+
+export const upsertStagingTesterGrantContract = oc
+  .route({ method: 'POST', path: '/admin/staging-testers' })
+  .input(upsertStagingTesterGrantInputSchema)
+  .output(stagingTesterGrantOutputSchema);
+
+export const setStagingTesterGrantEnabledContract = oc
+  .route({ method: 'POST', path: '/admin/staging-testers/set-enabled' })
+  .input(setStagingTesterGrantEnabledInputSchema)
+  .output(stagingTesterGrantOutputSchema);
+
+export const deleteStagingTesterGrantContract = oc
+  .route({ method: 'POST', path: '/admin/staging-testers/delete' })
+  .input(deleteStagingTesterGrantInputSchema)
+  .output(z.object({ ok: z.literal(true) }));
+
 export const adminContract = {
   me: adminMeContract,
   listChallenges: listAdminChallengesContract,
@@ -366,6 +485,10 @@ export const adminContract = {
   lookupMember: lookupAdminMemberContract,
   adjustMemberPoints: adjustAdminMemberPointsContract,
   setMemberActive: setAdminMemberActiveContract,
+  listStagingTesterGrants: listStagingTesterGrantsContract,
+  upsertStagingTesterGrant: upsertStagingTesterGrantContract,
+  setStagingTesterGrantEnabled: setStagingTesterGrantEnabledContract,
+  deleteStagingTesterGrant: deleteStagingTesterGrantContract,
   listOperators: listAdminOperatorsContract,
   inviteOperator: inviteAdminOperatorContract,
   updateOperatorRoles: updateAdminOperatorRolesContract,
@@ -376,9 +499,14 @@ export const adminContract = {
   getEngagementAnalytics: getAdminEngagementAnalyticsContract,
   getCatalogAnalytics: getAdminCatalogAnalyticsContract,
   getRemindersAnalytics: getAdminRemindersAnalyticsContract,
+  getPushDeliveriesAnalytics: getAdminPushDeliveriesAnalyticsContract,
+  sendNotification: sendAdminNotificationContract,
   listMembershipPlans: listAdminMembershipPlansContract,
   createMembershipPlan: createAdminMembershipPlanContract,
   updateMembershipPlan: updateAdminMembershipPlanContract,
+  listExperiments: listAdminExperimentsContract,
+  getExperiment: getAdminExperimentContract,
+  updateExperimentWeights: updateAdminExperimentWeightsContract,
 };
 
 export type AdminContract = typeof adminContract;
@@ -410,7 +538,31 @@ export type AdjustAdminMemberPointsInput = z.infer<
 export type SetAdminMemberActiveInput = z.infer<
   typeof setAdminMemberActiveInputSchema
 >;
+export type StagingTesterGrant = z.infer<typeof stagingTesterGrantSchema>;
+export type ListStagingTesterGrantsOutput = z.infer<
+  typeof listStagingTesterGrantsOutputSchema
+>;
+export type UpsertStagingTesterGrantInput = z.infer<
+  typeof upsertStagingTesterGrantInputSchema
+>;
+export type SetStagingTesterGrantEnabledInput = z.infer<
+  typeof setStagingTesterGrantEnabledInputSchema
+>;
+export type DeleteStagingTesterGrantInput = z.infer<
+  typeof deleteStagingTesterGrantInputSchema
+>;
+export type SendAdminNotificationInput = z.infer<
+  typeof sendAdminNotificationInputSchema
+>;
+export type SendAdminNotificationOutput = z.infer<
+  typeof sendAdminNotificationOutputSchema
+>;
 export type AdminOperator = z.infer<typeof adminOperatorSchema>;
 export type InviteAdminInput = z.infer<typeof inviteAdminInputSchema>;
 export type PublicTip = z.infer<typeof publicTipSchema>;
 export type ListPublicTipsOutput = z.infer<typeof listPublicTipsOutputSchema>;
+export type {
+  AdminExperimentDetail,
+  AdminExperimentListItem,
+  UpdateAdminExperimentWeightsInput,
+} from './admin-experiments.js';

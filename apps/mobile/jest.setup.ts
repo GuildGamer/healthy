@@ -5,17 +5,67 @@ jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn(async () => ({
     granted: true,
     canAskAgain: true,
+    status: 'granted',
   })),
   requestPermissionsAsync: jest.fn(async () => ({ granted: true })),
   setNotificationChannelAsync: jest.fn(async () => undefined),
+  setNotificationCategoryAsync: jest.fn(async () => undefined),
   cancelAllScheduledNotificationsAsync: jest.fn(async () => undefined),
   scheduleNotificationAsync: jest.fn(async () => 'notification-id'),
   getExpoPushTokenAsync: jest.fn(async () => ({
     data: 'ExponentPushToken[test]',
   })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  addNotificationResponseReceivedListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
+  DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
   AndroidImportance: { DEFAULT: 3 },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
+
+jest.mock('expo-image-manipulator', () => {
+  const FlipType = { Horizontal: 'horizontal', Vertical: 'vertical' };
+  const SaveFormat = { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' };
+
+  function createContext(uri: string) {
+    const context: {
+      uri: string;
+      rotate: jest.Mock;
+      flip: jest.Mock;
+      resize: jest.Mock;
+      renderAsync: jest.Mock;
+      release: jest.Mock;
+    } = {
+      uri,
+      rotate: jest.fn(),
+      flip: jest.fn(),
+      resize: jest.fn(),
+      renderAsync: jest.fn(async () => ({
+        saveAsync: jest.fn(async () => ({
+          uri: `${uri}?normalized`,
+          base64: 'normalized-bytes',
+          width: 100,
+          height: 100,
+        })),
+        release: jest.fn(),
+      })),
+      release: jest.fn(),
+    };
+    context.rotate.mockReturnValue(context);
+    context.flip.mockReturnValue(context);
+    context.resize.mockReturnValue(context);
+    return context;
+  }
+
+  return {
+    FlipType,
+    SaveFormat,
+    ImageManipulator: {
+      manipulate: jest.fn((uri: string) => createContext(uri)),
+    },
+  };
+});
 
 jest.mock('expo-image-picker', () => ({
   CameraType: { front: 'front', back: 'back' },
@@ -31,12 +81,37 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 jest.mock('expo-location', () => ({
-  Accuracy: { Balanced: 3 },
+  Accuracy: { Balanced: 3, High: 4 },
+  ActivityType: { Fitness: 2 },
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
   requestForegroundPermissionsAsync: jest.fn(async () => ({
     status: 'granted',
   })),
+  requestBackgroundPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+  })),
+  hasStartedLocationUpdatesAsync: jest.fn(async () => false),
+  startLocationUpdatesAsync: jest.fn(async () => undefined),
+  stopLocationUpdatesAsync: jest.fn(async () => undefined),
   watchPositionAsync: jest.fn(async () => ({ remove: jest.fn() })),
+}));
+
+jest.mock('expo-task-manager', () => ({
+  defineTask: jest.fn(),
+  isTaskDefined: jest.fn(() => false),
+}));
+
+jest.mock('walk-live-activity', () => ({
+  startWalkLiveActivity: jest.fn(),
+  updateWalkLiveActivity: jest.fn(),
+  endWalkLiveActivity: jest.fn(),
+  clearOrphanWalkLiveActivities: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-live-activity', () => ({
+  startActivity: jest.fn(() => 'activity-1'),
+  updateActivity: jest.fn(),
+  stopActivity: jest.fn(),
 }));
 
 jest.mock('expo-sensors', () => ({
@@ -45,7 +120,28 @@ jest.mock('expo-sensors', () => ({
     getPermissionsAsync: jest.fn(async () => ({ granted: false })),
     requestPermissionsAsync: jest.fn(async () => ({ granted: false })),
     getStepCountAsync: jest.fn(async () => ({ steps: 0 })),
+    watchStepCount: jest.fn(() => ({ remove: jest.fn() })),
   },
+  Accelerometer: {
+    isAvailableAsync: jest.fn(async () => false),
+    setUpdateInterval: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+  },
+}));
+
+jest.mock('@kingstinct/react-native-healthkit', () => ({
+  isHealthDataAvailableAsync: jest.fn(async () => false),
+  requestAuthorization: jest.fn(async () => true),
+  queryCategorySamples: jest.fn(async () => []),
+  queryWorkoutSamples: jest.fn(async () => []),
+  WorkoutActivityType: { walking: 52, hiking: 24, running: 37 },
+}));
+
+jest.mock('react-native-health-connect', () => ({
+  initialize: jest.fn(async () => false),
+  requestPermission: jest.fn(async () => []),
+  readRecords: jest.fn(async () => ({ records: [] })),
+  ExerciseType: { WALKING: 79, HIKING: 37 },
 }));
 
 jest.mock('react-native-maps', () => {
@@ -57,14 +153,89 @@ jest.mock('react-native-maps', () => {
   function MockPolyline() {
     return null;
   }
+  function MockMarker() {
+    return null;
+  }
   MockMapView.Polyline = MockPolyline;
-  return { __esModule: true, default: MockMapView, Polyline: MockPolyline };
+  MockMapView.Marker = MockMarker;
+  return {
+    __esModule: true,
+    default: MockMapView,
+    Marker: MockMarker,
+    Polyline: MockPolyline,
+  };
 });
+
+jest.mock('expo-system-ui', () => ({
+  setBackgroundColorAsync: jest.fn(async () => undefined),
+  getBackgroundColorAsync: jest.fn(async () => null),
+}));
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
   deleteItemAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-background-task', () => ({
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
+  registerTaskAsync: jest.fn(async () => undefined),
+  unregisterTaskAsync: jest.fn(async () => undefined),
+  getStatusAsync: jest.fn(async () => 2),
+}));
+
+jest.mock('expo-network', () => ({
+  getNetworkStateAsync: jest.fn(async () => ({
+    type: 'WIFI',
+    isConnected: true,
+    isInternetReachable: true,
+  })),
+  addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
+  useNetworkState: jest.fn(() => ({
+    type: 'WIFI',
+    isConnected: true,
+    isInternetReachable: true,
+  })),
+}));
+
+jest.mock('expo-file-system', () => {
+  const store = new Map<string, string>();
+
+  class MockFile {
+    uri: string;
+    constructor(...parts: unknown[]) {
+      this.uri = parts.map(String).join('/');
+    }
+    get exists() {
+      return store.has(this.uri);
+    }
+    create() {
+      if (!store.has(this.uri)) {
+        store.set(this.uri, '');
+      }
+    }
+    async text() {
+      return store.get(this.uri) ?? '';
+    }
+    write(content: string) {
+      store.set(this.uri, content);
+    }
+    delete() {
+      store.delete(this.uri);
+    }
+  }
+
+  return {
+    File: MockFile,
+    Paths: { document: 'document' },
+    __walkOfferSessionStore: store,
+  };
+});
+
+jest.mock('expo-clipboard', () => ({
+  getStringAsync: jest.fn(async () => ''),
+  setStringAsync: jest.fn(async () => undefined),
 }));
 
 jest.mock('expo-sharing', () => ({
@@ -84,5 +255,87 @@ jest.mock('quickpose-camera', () => {
   }
   return {
     QuickPoseCameraView: MockQuickPoseCameraView,
+    proofClipsDirectoryUri: jest.fn(() => null),
+    isPoseCameraAvailable: jest.fn(() => true),
+    canRecordProofClips: jest.fn(() => true),
+  };
+});
+
+jest.mock('share-destination', () => ({
+  shareToInstagramStories: jest.fn(async () => false),
+  shareToWhatsApp: jest.fn(async () => false),
+}));
+
+jest.mock('expo-iap', () => ({
+  useIAP: () => ({
+    connected: true,
+    requestPurchase: jest.fn(async () => undefined),
+    finishTransaction: jest.fn(async () => undefined),
+    getAvailablePurchases: jest.fn(async () => undefined),
+    restorePurchases: jest.fn(async () => undefined),
+  }),
+  fetchProducts: jest.fn(async () => [{ id: 'com.healthyapp.app.premium.month' }]),
+  finishTransaction: jest.fn(async () => undefined),
+  getAvailablePurchases: jest.fn(async () => []),
+  requestPurchase: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-haptics', () => ({
+  notificationAsync: jest.fn(async () => undefined),
+  impactAsync: jest.fn(async () => undefined),
+  selectionAsync: jest.fn(async () => undefined),
+  NotificationFeedbackType: {
+    Success: 'success',
+    Warning: 'warning',
+    Error: 'error',
+  },
+  ImpactFeedbackStyle: {
+    Light: 'light',
+    Medium: 'medium',
+    Heavy: 'heavy',
+  },
+}));
+
+jest.mock('expo-keep-awake', () => ({
+  useKeepAwake: jest.fn(),
+}));
+
+jest.mock('expo-media-library', () => ({
+  requestPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  saveToLibraryAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-video', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    useVideoPlayer: jest.fn(() => ({ loop: false, playing: false })),
+    VideoView: function MockVideoView(props: Record<string, unknown>) {
+      return React.createElement(View, props);
+    },
+  };
+});
+
+jest.mock('expo-store-review', () => ({
+  hasAction: jest.fn(async () => true),
+  isAvailableAsync: jest.fn(async () => true),
+  requestReview: jest.fn(async () => undefined),
+  storeUrl: jest.fn(() => null),
+}));
+
+// No phone in Jest: report no 12/24-hour setting unless a test sets one.
+jest.mock('expo-localization', () => ({
+  getCalendars: jest.fn(() => [
+    { calendar: null, timeZone: 'UTC', uses24hourClock: null, firstWeekday: 2 },
+  ]),
+}));
+
+// Times follow the phone's 12/24-hour clock; pin a 24-hour locale so every machine agrees.
+jest.mock('@/lib/clock-time', () => {
+  const actual = jest.requireActual<typeof import('@/lib/clock-time')>('@/lib/clock-time');
+  return {
+    ...actual,
+    formatClockTime: (value: Date | number) => actual.formatClockTime(value, 'en-GB'),
+    usesTwentyFourHourClock: () => actual.usesTwentyFourHourClock('en-GB'),
   };
 });

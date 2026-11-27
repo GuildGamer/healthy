@@ -27,13 +27,17 @@ export function challengeSpecIssue(input: ChallengeSpecInput): string | null {
     return 'Only device capture kinds may set a metric.';
   }
 
+  if (input.completionKind === 'water') {
+    return input.targetDurationMinutes || input.targetDistanceMeters
+      ? 'A water challenge counts glasses, so it takes only a target count.'
+      : null;
+  }
+
   if (
     !isDeviceCapture(input.captureKind) &&
-    (input.targetDurationMinutes ||
-      input.targetDistanceMeters ||
-      input.targetCount)
+    (input.targetDurationMinutes || input.targetDistanceMeters || input.targetCount)
   ) {
-    return 'Targets are only valid on device challenges.';
+    return 'Targets are only valid on device and water challenges.';
   }
 
   if (input.deviceMetric === 'pushups') {

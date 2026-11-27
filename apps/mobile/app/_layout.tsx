@@ -1,121 +1,285 @@
-import { colors } from '@product/brand';
+import { HeaderBackButton } from '@react-navigation/elements';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { SplashScreen } from '@/components/auth';
+import * as Linking from 'expo-linking';
+import { hideAsync, preventAutoHideAsync, setOptions } from 'expo-splash-screen';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
+import { NATIVE_SPLASH_FADE_MS, SplashScreen } from '@/components/auth';
 import { ToastProvider } from '@/components/forms';
+import {
+  DECK_SHEET_SCREEN_OPTIONS,
+  FULL_PHONE_SCREEN_OPTIONS,
+} from '@/components/navigation/screen-options';
+import { registerCompletionBackgroundSync } from '@/lib/completion-background-sync';
+import { flushPendingCompletions } from '@/lib/completion-sync';
+import { flushPendingProofUploads } from '@/lib/flush-pending-proof-uploads';
+import { setAppQueryClient } from '@/lib/query-client-holder';
 import { useDisplayFont } from '@/lib/fonts';
+import { goBackOrHome } from '@/lib/go-back';
+import { useHasLeftLaunchRoute } from '@/lib/use-has-left-launch-route';
+import { useAnalyticsSession, useScreenAnalytics } from '@/lib/analytics';
+import { useNetworkReconnected } from '@/lib/use-network-reconnected';
+import { usePushResponse } from '@/lib/use-push-response';
+import { useUserActive } from '@/lib/use-user-active';
+import { useWalkOfferResponse } from '@/lib/use-walk-offer-response';
+import { ensureWalkLocationTaskStopped } from '@/lib/walk-background-location';
+import '@/lib/walk-background-location';
+import '@/lib/walk-offer-location';
+import { resumeWalkOfferMonitorIfNeeded } from '@/lib/walk-offer-monitor';
+import { dispatchWalkControlUrl } from '@/lib/walk-control';
+import { ThemeProvider, useTheme } from '@/theme';
+import { clearOrphanWalkLiveActivities } from 'walk-live-activity';
+
+function flushPendingOfflineWork(): void {
+  void flushPendingProofUploads();
+  void flushPendingCompletions();
+}
+
+/**
+ * The native splash holds until the display font resolves, so the first thing
+ * on screen is `SplashScreen`, already in place under the native one.
+ */
+void preventAutoHideAsync();
+setOptions({ duration: NATIVE_SPLASH_FADE_MS, fade: true });
 
 export default function RootLayout() {
   const isDisplayFontReady = useDisplayFont();
+  const hasLeftLaunchRoute = useHasLeftLaunchRoute();
+  const [hasSplashExited, setHasSplashExited] = useState(false);
+  usePushResponse(hasLeftLaunchRoute);
+  useWalkOfferResponse(hasLeftLaunchRoute);
+  useAnalyticsSession();
+  useScreenAnalytics();
+  useUserActive();
 
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            retry: 1,
-          },
+  // `index` resolves the session and redirects; a deep link that never
+  // visits it is ready as soon as the font is.
+  const isLaunchReady = isDisplayFontReady && hasLeftLaunchRoute;
+  const markSplashExited = useCallback(() => setHasSplashExited(true), []);
+
+  useEffect(() => {
+    if (!isDisplayFontReady) {
+      return;
+    }
+
+    void hideAsync();
+  }, [isDisplayFontReady]);
+
+  // Lock-screen Pause / Resume opens the app with healthy://walk-control/…
+  useEffect(() => {
+    function handleUrl(url: string | null) {
+      if (url) {
+        dispatchWalkControlUrl(url);
+      }
+    }
+
+    void Linking.getInitialURL().then(handleUrl);
+    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => subscription.remove();
+  }, []);
+
+  // Queued completions and proof uploads land once the person is back online.
+  useEffect(() => {
+    flushPendingOfflineWork();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        flushPendingOfflineWork();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+  useNetworkReconnected(flushPendingOfflineWork);
+
+  // Store / dev-client binary only — OTA cannot add the native module.
+  useEffect(() => {
+    void registerCompletionBackgroundSync();
+  }, []);
+
+  // Keep counting a same-day walk offer after a cold start, before Today mounts.
+  // Also drop any walk Live Activity / GPS task left behind by a force-quit.
+  useEffect(() => {
+    void resumeWalkOfferMonitorIfNeeded();
+    void clearOrphanWalkLiveActivities();
+    void ensureWalkLocationTaskStopped();
+  }, []);
+
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 30_000,
+          retry: 1,
         },
-      }),
-  );
-
-  if (!isDisplayFontReady) {
-    return <SplashScreen />;
-  }
+      },
+    });
+    setAppQueryClient(client);
+    return client;
+  });
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.text,
-            contentStyle: { backgroundColor: colors.background },
-            title: 'Healthy',
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="home" options={{ headerShown: false }} />
-          <Stack.Screen name="tips" options={{ title: 'Tips' }} />
-          <Stack.Screen name="points" options={{ title: 'Points' }} />
-          <Stack.Screen
-            name="membership"
-            options={{ headerShown: false, title: 'Membership' }}
+    <ThemeProvider>
+      {isDisplayFontReady ? (
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <RootStack />
+          </ToastProvider>
+        </QueryClientProvider>
+      ) : null}
+      {hasSplashExited ? null : (
+        <SplashScreen
+          hasNativeSplashHidden={isDisplayFontReady}
+          isReady={isLaunchReady}
+          onExited={markSplashExited}
+        />
+      )}
+    </ThemeProvider>
+  );
+}
+
+function RootStack() {
+  const { colors } = useTheme();
+
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        contentStyle: { backgroundColor: colors.background },
+        title: 'Beatset',
+        // iOS labels back with the previous screen's title, and the tabs
+        // screen has none of its own — so every push off a tab offered
+        // "Beatset", which names the app rather than the destination.
+        headerBackTitle: 'Back',
+        // A native pop is a no-op after a deep link or a redirect, and the
+        // system button hides when it thinks there is nowhere to go. This
+        // control is the left side of every visible root header (tab roots
+        // and auth keep headerShown off and draw their own).
+        headerBackVisible: false,
+        headerLeft: ({ tintColor }) => (
+          <HeaderBackButton
+            label="Back"
+            onPress={() => {
+              goBackOrHome();
+            }}
+            tintColor={tintColor}
           />
-          <Stack.Screen
-            name="notifications"
-            options={{ headerShown: false, title: 'Notifications' }}
-          />
-          <Stack.Screen
-            name="health-categories"
-            options={{ title: 'Health Categories' }}
-          />
-          <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
-          <Stack.Screen
-            name="change-email"
-            options={{ headerShown: false, title: 'Change email' }}
-          />
-          <Stack.Screen name="leaderboard" options={{ title: 'Leaderboard' }} />
-          <Stack.Screen
-            name="manage-challenges"
-            options={{ title: 'Manage challenges' }}
-          />
-          <Stack.Screen
-            name="challenge/[challengeId]/index"
-            options={{ title: 'Challenge' }}
-          />
-          <Stack.Screen
-            name="challenge/[challengeId]/log"
-            options={{ title: 'Log reading' }}
-          />
-          <Stack.Screen
-            name="challenge/[challengeId]/evidence"
-            options={{ title: 'Gym photo' }}
-          />
-          <Stack.Screen
-            name="challenge/[challengeId]/camera"
-            options={{ headerShown: false, title: 'Camera' }}
-          />
-          <Stack.Screen
-            name="challenge/[challengeId]/pose"
-            options={{ headerShown: false, title: 'Push-ups' }}
-          />
-          <Stack.Screen
-            name="challenge/[challengeId]/verify"
-            options={{ title: 'Photo check' }}
-          />
-          <Stack.Screen
-            name="challenge/success"
-            options={{ headerShown: false, title: 'Well done' }}
-          />
-          <Stack.Screen
-            name="matches/index"
-            options={{ title: 'Matches' }}
-          />
-          <Stack.Screen
-            name="matches/create"
-            options={{ title: 'Challenge a friend' }}
-          />
-          <Stack.Screen
-            name="matches/[matchId]"
-            options={{ title: 'Match' }}
-          />
-          <Stack.Screen
-            name="matches/[matchId]/pose"
-            options={{ headerShown: false, title: 'Push-ups' }}
-          />
-          <Stack.Screen
-            name="match/[token]"
-            options={{ title: 'Match invite' }}
-          />
-        </Stack>
-      </ToastProvider>
-    </QueryClientProvider>
+        ),
+      }}
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="open" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="home" options={{ headerShown: false }} />
+      <Stack.Screen name="tips" options={{ headerShown: false, title: 'Tips' }} />
+      <Stack.Screen name="points" options={{ headerShown: false, title: 'History' }} />
+      <Stack.Screen name="history/index" options={{ headerShown: false, title: 'History' }} />
+      <Stack.Screen name="history/[dayKey]" options={{ headerShown: false, title: 'Day' }} />
+      <Stack.Screen
+        name="history/[dayKey]/[itemId]"
+        options={{ headerShown: false, title: 'Activity' }}
+      />
+      <Stack.Screen name="membership" options={{ headerShown: false, title: 'Membership' }} />
+      <Stack.Screen name="notifications" options={{ headerShown: false, title: 'Notifications' }} />
+      <Stack.Screen name="settings" options={{ headerShown: false, title: 'Settings' }} />
+      <Stack.Screen name="leaderboard" options={{ headerShown: false, title: 'This week' }} />
+      <Stack.Screen name="progress/reports" options={{ headerShown: false, title: 'Reports' }} />
+      <Stack.Screen name="progress/report" options={{ headerShown: false, title: 'Report' }} />
+      <Stack.Screen
+        name="progress/metric/[metric]"
+        options={{ headerShown: false, title: 'Activity' }}
+      />
+
+      <Stack.Screen
+        name="manage-challenges"
+        options={{ headerShown: false, title: 'Add a challenge' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/index"
+        options={{ headerShown: false, title: 'Challenge' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/history"
+        options={{ headerShown: false, title: 'History' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/history/[entryId]"
+        options={{ headerShown: false, title: 'Activity' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/log"
+        options={{ ...DECK_SHEET_SCREEN_OPTIONS, title: 'Log reading' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/confirm"
+        options={{ ...DECK_SHEET_SCREEN_OPTIONS, title: 'Mark as done' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/verify"
+        options={{ ...DECK_SHEET_SCREEN_OPTIONS, title: 'Photo check' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/evidence"
+        options={{ ...FULL_PHONE_SCREEN_OPTIONS, title: 'Gym photo' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/pose"
+        options={{ ...FULL_PHONE_SCREEN_OPTIONS, title: 'Push-ups' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/session"
+        options={{ ...FULL_PHONE_SCREEN_OPTIONS, title: 'Walk' }}
+      />
+      <Stack.Screen
+        name="challenge/[challengeId]/practice"
+        options={{ ...FULL_PHONE_SCREEN_OPTIONS, title: 'Push-ups' }}
+      />
+      <Stack.Screen
+        name="challenge/share"
+        options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
+      />
+      <Stack.Screen
+        name="share/day"
+        options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
+      />
+      <Stack.Screen
+        name="share/metric"
+        options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
+      />
+      <Stack.Screen
+        name="share/report"
+        options={{ headerShown: false, presentation: 'fullScreenModal', title: 'Share' }}
+      />
+      <Stack.Screen name="challenge/success" options={{ headerShown: false, title: 'Well done' }} />
+      <Stack.Screen name="matches/index" options={{ headerShown: false, title: 'Groups' }} />
+      <Stack.Screen
+        name="matches/create"
+        options={{ headerShown: false, title: 'Start a group' }}
+      />
+      <Stack.Screen name="matches/past" options={{ headerShown: false, title: 'Past groups' }} />
+      <Stack.Screen name="matches/[matchId]" options={{ headerShown: false, title: 'Group' }} />
+      <Stack.Screen
+        name="matches/[matchId]/result"
+        options={{ headerShown: false, title: 'Result' }}
+      />
+      <Stack.Screen
+        name="matches/[matchId]/pose"
+        options={{ headerShown: false, title: 'Push-ups' }}
+      />
+      <Stack.Screen name="matches/[matchId]/walk" options={{ headerShown: false, title: 'Walk' }} />
+      <Stack.Screen
+        name="matches/[matchId]/member/[userId]"
+        options={{ headerShown: false, title: 'Sets' }}
+      />
+      <Stack.Screen
+        name="matches/[matchId]/member/[userId]/[attemptId]"
+        options={{ headerShown: false, title: 'Set' }}
+      />
+      <Stack.Screen name="match/[token]" options={{ headerShown: false, title: 'Group invite' }} />
+      <Stack.Screen name="proof/index" options={{ headerShown: false, title: 'Proof clips' }} />
+      <Stack.Screen name="proof/[clipId]" options={{ headerShown: false, title: 'Proof clip' }} />
+      <Stack.Screen name="v/[code]" options={{ headerShown: false, title: 'Verify a clip' }} />
+    </Stack>
   );
 }

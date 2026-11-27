@@ -35,3 +35,8 @@ edit. Do not spray speculative scaffolding.
 - Keep types strict — no `any`, no implicit `any`.
 - Do not leave dead code, unused deps, or placeholder TODOs that encode unfinished design.
 - Prefer fixing structure now if a bad pattern is easy and safe to correct.
+- Before committing, run `typecheck` and `test` for every touched package. Do
+  not commit on red, and do not treat existing failures as noise: a red check
+  hides the next real error. Fix them or say plainly which remain and why.
+- A UI change to a celebration, share, or action-heavy screen runs the
+  `design-critique` skill before it is called done.

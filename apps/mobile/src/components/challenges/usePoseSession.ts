@@ -1,0 +1,824 @@
+import type { CompleteChallengeOutput, MatchMetric, TodayChallenge } from '@product/client';
+import { isPoseMetric, MATCH_METRIC_MEASURE } from '@product/contract/match-board';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { type ComponentType, useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
+import { isPoseCameraAvailable, type ProofRecordingConfig } from 'quickpose-camera';
+import { useOptionalToastHost } from '@/components/forms/ToastProvider';
+import { MATCH_DEFAULT_METRIC, MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
+import { isMembershipRequiredError } from '@/components/profile/membership-required';
+import { apiClient } from '@/lib/api';
+import { announceChallengeFinish } from '@/lib/challenge-finish-session';
+import { getPendingCompletion } from '@/lib/completion-outbox';
+import { QUICKPOSE_SDK_KEY } from '@/lib/config';
+import { goBackOrHome } from '@/lib/go-back';
+import type { NativePoseCountUpdate } from 'quickpose-camera';
+import { submitQueuedCompletion } from '@/lib/submit-queued-completion';
+import { trackEvent } from '@/lib/track-event';
+import { SAVE_QUEUED_OFFLINE_MESSAGE } from './constants/doing-copy';
+import { finishAndLeave } from './finish-challenge';
+import { matchAttemptClientId, partialSetSession, setSessionId } from './partial-session';
+import { poseDisplayCount, poseMeetsTarget } from './pose-session-count';
+import { setEndDecision } from './set-end-decision';
+import type { PoseSessionProps } from './types/pose-session';
+import type { ProofClipStatus } from './types/proof-clip-recording';
+import { refreshAfterCompletion } from './useCompleteChallenge';
+import { usePoseSessionCounter } from './usePoseSessionCounter';
+import { useProofClipRecording } from './useProofClipRecording';
+import { useSavePartialSession } from './useSavePartialSession';
+import { useTodayOccurrence } from './useTodayOccurrence';
+
+const CAMERA_START_FAILED = 'Could not start counting. Check your connection and try again.';
+
+export type { PoseSessionProps } from './types/pose-session';
+export type PoseSessionPhase = 'setup' | 'counting' | 'review';
+
+export type QuickPoseCameraProps = {
+  sdkKey: string;
+  metric: MatchMetric;
+  resetCountToken?: number;
+  onUpdate: (update: NativePoseCountUpdate) => void;
+  proofRecording?: ProofRecordingConfig | null;
+  proofCount?: number;
+  finishProofToken?: number;
+  finishProofEndAtMs?: number;
+  onProofRecorded?: (event: {
+    fileUri: string;
+    sha256: string;
+    byteSize: number;
+    durationSeconds: number;
+    posterUri?: string;
+  }) => void;
+  onProofRecordingError?: (message: string) => void;
+};
+
+const LIVE_CAMERA_NOT_READY = 'Live camera is not ready yet. Wait a moment and try again.';
+const PHONE_ONLY = 'Camera counting needs the Beatset phone app.';
+/** Stale binary: JS would mount a stub native view and crash. */
+export const POSE_CAMERA_NEEDS_UPDATE = 'Update Beatset to count reps on this phone.';
+
+function useQuickPoseCamera() {
+  const [camera, setCamera] = useState<ComponentType<QuickPoseCameraProps> | null>(null);
+  const [detail, setDetail] = useState('Checking pose camera…');
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      setDetail(PHONE_ONLY);
+      return;
+    }
+
+    if (!QUICKPOSE_SDK_KEY) {
+      setDetail('Live counting needs a QuickPose SDK key configured for this build.');
+      return;
+    }
+
+    if (!isPoseCameraAvailable()) {
+      setDetail(POSE_CAMERA_NEEDS_UPDATE);
+      return;
+    }
+
+    let isCancelled = false;
+    void import('@/components/challenges/QuickPoseExerciseCamera')
+      .then((module) => {
+        if (!isCancelled) {
+          setCamera(() => module.QuickPoseExerciseCamera);
+          setDetail('Camera ready');
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setDetail('Pose camera needs a native rebuild with QuickPose installed.');
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  return { QuickPoseCamera: camera, isReady: camera !== null, detail };
+}
+
+function poseMetricFromCapture(metric: string | null | undefined): MatchMetric {
+  if (metric && isPoseMetric(metric)) {
+    return metric;
+  }
+
+  return MATCH_DEFAULT_METRIC;
+}
+
+type SubmitSet = { reps: number; durationSeconds: number; startedAt: string };
+
+type SubmittedSet =
+  | {
+      mode: 'match';
+      reps: number;
+      durationSeconds: number;
+      metric: MatchMetric;
+      matchId: string;
+      syncing: boolean;
+    }
+  | { mode: 'practice'; reps: number; durationSeconds: number; syncing: boolean }
+  | {
+      mode: 'challenge';
+      reps: number;
+      durationSeconds: number;
+      result: CompleteChallengeOutput;
+      syncing: boolean;
+    };
+
+function useSubmitSet(
+  props: PoseSessionProps,
+  occurrence: TodayChallenge | undefined,
+  metric: MatchMetric,
+  proofClipIdRef: { current: string | null },
+  proofFailedRef: { current: boolean },
+  proofAudienceRef: { current: string | null },
+  lastOutboxIdRef: { current: string | null },
+) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ reps, durationSeconds, startedAt }: SubmitSet): Promise<SubmittedSet> => {
+      const endedAt = new Date().toISOString();
+
+      if (props.mode === 'match') {
+        const queued = await submitQueuedCompletion({
+          kind: 'submit_match_attempt',
+          input: {
+            matchId: props.matchId,
+            count: reps,
+            durationSeconds,
+            source: 'in_app_pose',
+            clientAttemptId: matchAttemptClientId('pose', props.matchId, startedAt),
+            performedAt: endedAt,
+            ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
+          },
+        });
+        lastOutboxIdRef.current = queued.outcome === 'saved' ? null : queued.pending.id;
+        if (queued.outcome === 'failed') {
+          throw queued.error instanceof Error ? queued.error : new Error('That didn’t save.');
+        }
+        return {
+          mode: 'match',
+          reps,
+          durationSeconds,
+          metric,
+          matchId: props.matchId,
+          syncing: queued.outcome === 'syncing',
+        };
+      }
+
+      if (props.mode === 'practice') {
+        const practiceMetric = poseMetricFromCapture(occurrence?.capture.metric);
+        const queued = await submitQueuedCompletion({
+          kind: 'record_practice',
+          input: {
+            metric: practiceMetric,
+            source: 'in_app_pose',
+            count: reps,
+            durationSeconds,
+            startedAt,
+            endedAt,
+            externalId: `practice:${props.challengeId}:${startedAt}`,
+            ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
+          },
+        });
+        lastOutboxIdRef.current = queued.outcome === 'saved' ? null : queued.pending.id;
+        if (queued.outcome === 'failed') {
+          throw queued.error instanceof Error ? queued.error : new Error('That didn’t save.');
+        }
+        if (queued.outcome === 'syncing') {
+          return { mode: 'practice', reps, durationSeconds, syncing: true };
+        }
+        if (queued.executed.kind !== 'record_practice') {
+          throw new Error('Unexpected practice result.');
+        }
+        const creditedMatchId = queued.executed.result.creditedMatchIds[0];
+        if (creditedMatchId) {
+          return {
+            mode: 'match',
+            reps,
+            durationSeconds,
+            metric: practiceMetric,
+            matchId: creditedMatchId,
+            syncing: false,
+          };
+        }
+        return { mode: 'practice', reps, durationSeconds, syncing: false };
+      }
+
+      if (!occurrence) {
+        throw new Error('This challenge is not on today’s list.');
+      }
+
+      const challengeMetric = poseMetricFromCapture(occurrence.capture.metric);
+      const queued = await submitQueuedCompletion({
+        kind: 'complete_challenge',
+        userChallengeId: occurrence.id,
+        occurrenceStatus: occurrence.status,
+        payload: {
+          deviceActivity: {
+            source: 'in_app_pose',
+            metric: challengeMetric,
+            count: reps,
+            durationSeconds,
+            startedAt,
+            endedAt,
+            externalId: setSessionId(occurrence, startedAt),
+          },
+        },
+      });
+      lastOutboxIdRef.current = queued.outcome === 'saved' ? null : queued.pending.id;
+      if (queued.outcome === 'failed') {
+        throw queued.error instanceof Error ? queued.error : new Error('That didn’t save.');
+      }
+      if (queued.outcome === 'syncing') {
+        return {
+          mode: 'challenge',
+          reps,
+          durationSeconds,
+          result: {
+            challenge: occurrence,
+            pointsAwarded: 0,
+            pointsBalance: 0,
+            currentStreakDays: 0,
+            evidenceRequest: null,
+            penaltyApplied: 0,
+          },
+          syncing: true,
+        };
+      }
+      if (queued.executed.kind !== 'complete_challenge') {
+        throw new Error('Unexpected challenge result.');
+      }
+      return {
+        mode: 'challenge',
+        reps,
+        durationSeconds,
+        result: queued.executed.result,
+        syncing: false,
+      };
+    },
+    onError: () => {
+      trackEvent('client_error', { surface: 'pose_submit', code: 'submit_failed' });
+      trackEvent('activity_session_ended', {
+        metric,
+        context:
+          props.mode === 'match'
+            ? 'contest'
+            : props.mode === 'practice'
+              ? 'practice'
+              : 'challenge',
+        outcome: 'failed',
+        count: 0,
+        durationSeconds: 0,
+        ...(props.mode === 'match' ? { matchId: props.matchId } : {}),
+      });
+    },
+    onSuccess: (submitted) => {
+      const proofParams = {
+        ...(proofClipIdRef.current ? { proofClipId: proofClipIdRef.current } : {}),
+        ...(proofFailedRef.current && !proofClipIdRef.current ? { proofFailed: '1' } : {}),
+        ...(proofAudienceRef.current ? { proofAudience: proofAudienceRef.current } : {}),
+        ...(submitted.syncing ? { syncing: '1' } : {}),
+      };
+
+      if (submitted.mode === 'match') {
+        trackEvent('activity_session_ended', {
+          metric: submitted.metric,
+          context: 'contest',
+          outcome: submitted.syncing ? 'queued' : 'saved',
+          count: submitted.reps,
+          durationSeconds: submitted.durationSeconds,
+          matchId: submitted.matchId,
+        });
+        // Contest sets also bank / finish open Mine goals for that activity.
+        refreshAfterCompletion(queryClient);
+        void queryClient.invalidateQueries({ queryKey: ['matches'] });
+        void queryClient.invalidateQueries({ queryKey: ['activity'] });
+        void queryClient.invalidateQueries({ queryKey: ['practice'] });
+        router.replace({
+          pathname: '/challenge/success',
+          params: {
+            title: MATCH_METRIC_LABEL[submitted.metric],
+            count: String(submitted.reps),
+            matchId: submitted.matchId,
+            metric: submitted.metric,
+            activityKey: submitted.metric,
+            face: 'reps',
+            ...proofParams,
+          },
+        });
+        return;
+      }
+
+      if (submitted.mode === 'practice') {
+        trackEvent('activity_session_ended', {
+          metric,
+          context: 'practice',
+          outcome: submitted.syncing ? 'queued' : 'saved',
+          count: submitted.reps,
+          durationSeconds: submitted.durationSeconds,
+        });
+        // A practice set that already meets today's Mine goal finishes it.
+        refreshAfterCompletion(queryClient);
+        void queryClient.invalidateQueries({ queryKey: ['activity'] });
+        void queryClient.invalidateQueries({ queryKey: ['practice'] });
+        if (occurrence) {
+          announceChallengeFinish({
+            challenge: occurrence,
+            outcome: { kind: 'extraSet', count: submitted.reps },
+            pointsAwarded: 0,
+            penaltyApplied: 0,
+            currentStreakDays: 0,
+          });
+        }
+
+        if (proofClipIdRef.current || proofFailedRef.current || submitted.syncing) {
+          router.replace({
+            pathname: '/challenge/success',
+            params: {
+              title: occurrence?.title ?? MATCH_METRIC_LABEL[metric],
+              count: String(submitted.reps),
+              challengeId: props.mode === 'practice' ? props.challengeId : undefined,
+              practice: '1',
+              metric,
+              activityKey: metric,
+              face: 'reps',
+              ...proofParams,
+            },
+          });
+          return;
+        }
+
+        goBackOrHome();
+        return;
+      }
+
+      if (submitted.mode !== 'challenge') {
+        return;
+      }
+
+      refreshAfterCompletion(queryClient);
+      trackEvent('activity_session_ended', {
+        metric,
+        context: 'challenge',
+        outcome: submitted.syncing ? 'queued' : 'saved',
+        count: submitted.reps,
+        durationSeconds: submitted.durationSeconds,
+      });
+      trackEvent('challenge_completed', {
+        user_challenge_id: occurrence?.id,
+        challenge_goal: submitted.reps,
+        challenge_type: poseMetricFromCapture(occurrence?.capture.metric),
+      });
+
+      if (proofClipIdRef.current || proofFailedRef.current || submitted.syncing) {
+        router.replace({
+          pathname: '/challenge/success',
+          params: {
+            title: occurrence?.title ?? MATCH_METRIC_LABEL[metric],
+            count: String(submitted.reps),
+            points: String(submitted.result.pointsAwarded),
+            streak: String(submitted.result.currentStreakDays),
+            penalty: String(submitted.result.penaltyApplied),
+            userChallengeId: occurrence?.id,
+            challengeId: occurrence?.challengeId,
+            metric,
+            activityKey: metric,
+            face: 'reps',
+            ...proofParams,
+          },
+        });
+        return;
+      }
+
+      finishAndLeave(submitted.result, {
+        kind: 'reps',
+        count: submitted.reps,
+        durationSeconds: submitted.durationSeconds,
+      });
+    },
+  });
+}
+
+/**
+ * A camera-counted set from setup to saved. Counting starts by itself once the
+ * first rep is seen; stopping on or past the goal saves straight away — after
+ * any proof clip has finished writing.
+ */
+export function usePoseSession(props: PoseSessionProps) {
+  const isMatch = props.mode === 'match';
+  const isUnscored = props.mode !== 'challenge';
+  const { occurrence, isPending } = useTodayOccurrence(isMatch ? undefined : props.challengeId);
+  const matchId = props.mode === 'match' ? props.matchId : null;
+  const matchQuery = useQuery({
+    queryKey: ['matches', 'detail', matchId],
+    queryFn: () => apiClient.getMatch({ matchId: matchId! }),
+    enabled: Boolean(matchId),
+  });
+  const metric: MatchMetric = isMatch
+    ? (matchQuery.data?.metric ?? MATCH_DEFAULT_METRIC)
+    : poseMetricFromCapture(occurrence?.capture.metric);
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const camera = useQuickPoseCamera();
+  const { snapshot, elapsedSeconds, start, stop, applyNativeUpdate, resetCountToken } =
+    usePoseSessionCounter({
+      metric,
+    });
+  const [phase, setPhase] = useState<PoseSessionPhase>('setup');
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [cameraSessionKey, setCameraSessionKey] = useState(0);
+  const [isReservingStart, setIsReservingStart] = useState(false);
+  const phaseRef = useRef<PoseSessionPhase>('setup');
+  const startedAtRef = useRef<string | null>(null);
+  const clientStartIdRef = useRef<string | null>(null);
+  const autoStartLockRef = useRef(false);
+  const countRef = useRef(0);
+  countRef.current = snapshot.count;
+  const frozenCountRef = useRef<number | null>(null);
+  const frozenElapsedRef = useRef<number | null>(null);
+  const [frozenCount, setFrozenCount] = useState<number | null>(null);
+  const lastRepAtRef = useRef<number | null>(null);
+  const lastSeenCountRef = useRef(0);
+  const [finishCountdown, setFinishCountdown] = useState<number | null>(null);
+  const keepGoingRef = useRef(false);
+
+  const proof = useProofClipRecording(
+    {
+      props,
+      metric,
+      userChallengeId: occurrence?.id ?? null,
+      matchId,
+      isReady: isMatch ? matchQuery.isSuccess : !isPending,
+    },
+    () => frozenCountRef.current ?? countRef.current,
+  );
+  const proofFailedRef = useRef(false);
+  proofFailedRef.current = proof.proofFailed;
+  const proofAudienceRef = useRef<string | null>(null);
+  proofAudienceRef.current = proof.audience;
+  const lastOutboxIdRef = useRef<string | null>(null);
+  const toast = useOptionalToastHost();
+
+  const submitSet = useSubmitSet(
+    props,
+    occurrence,
+    metric,
+    proof.clipIdRef,
+    proofFailedRef,
+    proofAudienceRef,
+    lastOutboxIdRef,
+  );
+  const { savePartial } = useSavePartialSession();
+  const target = isUnscored ? 0 : (occurrence?.capture.target.count ?? 0);
+  const count = poseDisplayCount(frozenCount, snapshot.count);
+  const meetsTarget = poseMeetsTarget({ count, target, isUnscored });
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  const handleQuickPoseUpdate = useCallback(
+    (update: NativePoseCountUpdate) => {
+      if (phaseRef.current === 'setup' || phaseRef.current === 'counting') {
+        applyNativeUpdate(update);
+      }
+    },
+    [applyNativeUpdate],
+  );
+
+  const startOccurrence = useMutation({
+    mutationFn: async () => {
+      if (props.mode === 'challenge' && occurrence?.status === 'pending') {
+        await apiClient.startChallenge({ userChallengeId: occurrence.id });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['challenges', 'today'] }),
+  });
+
+  /**
+   * Counting shows on the first rep. The server must accept the camera start
+   * (lifetime free quota or membership) before native counting begins. The
+   * daily occurrence start and proof clip arm after that succeeds.
+   */
+  const beginCounting = useCallback(
+    async (options?: { preserveCounter?: boolean }) => {
+      if (props.mode === 'challenge' && !occurrence) {
+        return;
+      }
+
+      setSessionError(null);
+      if (!camera.isReady) {
+        setSessionError(LIVE_CAMERA_NOT_READY);
+        autoStartLockRef.current = false;
+        return;
+      }
+
+      const preserveCounter = options?.preserveCounter === true;
+      autoStartLockRef.current = true;
+      if (!startedAtRef.current) {
+        startedAtRef.current = new Date().toISOString();
+      }
+      const startedAt = startedAtRef.current;
+
+      if (!clientStartIdRef.current) {
+        if (props.mode === 'challenge' && occurrence) {
+          clientStartIdRef.current = setSessionId(occurrence, startedAt);
+        } else if (props.mode === 'match') {
+          clientStartIdRef.current = matchAttemptClientId('pose', props.matchId, startedAt);
+        } else {
+          clientStartIdRef.current = `in-app-pose:practice:${props.challengeId}:${startedAt}`;
+        }
+      }
+
+      const clientStartId = clientStartIdRef.current;
+      setIsReservingStart(true);
+      try {
+        const startInput =
+          props.mode === 'challenge' && occurrence
+            ? {
+                context: 'challenge' as const,
+                clientStartId,
+                userChallengeId: occurrence.id,
+              }
+            : props.mode === 'match'
+              ? {
+                  context: 'match' as const,
+                  clientStartId,
+                  matchId: props.matchId,
+                }
+              : {
+                  context: 'practice' as const,
+                  clientStartId,
+                  challengeId: props.challengeId,
+                };
+        await apiClient.startCameraCounting(startInput);
+        void queryClient.invalidateQueries({ queryKey: ['me'] });
+      } catch (error) {
+        autoStartLockRef.current = false;
+        if (isMembershipRequiredError(error)) {
+          clientStartIdRef.current = null;
+          startedAtRef.current = null;
+          router.push({ pathname: '/membership', params: { source: 'other' } });
+          return;
+        }
+
+        setSessionError(CAMERA_START_FAILED);
+        return;
+      } finally {
+        setIsReservingStart(false);
+      }
+
+      frozenCountRef.current = null;
+      frozenElapsedRef.current = null;
+      setFrozenCount(null);
+      // Remounting the camera mid-rep drops landmarks — only reset on manual start.
+      if (!preserveCounter) {
+        setCameraSessionKey((current) => current + 1);
+      }
+
+      phaseRef.current = 'counting';
+      start({ preserveCounter });
+      setPhase('counting');
+      proof.armForCounting();
+      trackEvent('activity_session_started', {
+        metric,
+        context:
+          props.mode === 'match'
+            ? 'contest'
+            : props.mode === 'practice'
+              ? 'practice'
+              : 'challenge',
+        ...(props.mode === 'match' ? { matchId: props.matchId } : {}),
+      });
+      startOccurrence.mutate();
+    },
+    [
+      camera.isReady,
+      metric,
+      occurrence,
+      proof,
+      props,
+      queryClient,
+      router,
+      start,
+      startOccurrence,
+    ],
+  );
+
+  useEffect(() => {
+    if (phase !== 'setup' || !camera.isReady || autoStartLockRef.current) {
+      return;
+    }
+
+    const startedPushup = snapshot.bodyInFrame && (snapshot.phase === 'down' || snapshot.count > 0);
+    if (!startedPushup) {
+      return;
+    }
+
+    autoStartLockRef.current = true;
+    void beginCounting({ preserveCounter: true });
+  }, [beginCounting, camera.isReady, phase, snapshot.bodyInFrame, snapshot.count, snapshot.phase]);
+
+  function save() {
+    submitSet.mutate({
+      reps: poseDisplayCount(frozenCountRef.current, countRef.current),
+      durationSeconds: frozenElapsedRef.current ?? elapsedSeconds,
+      startedAt: startedAtRef.current ?? new Date().toISOString(),
+    });
+  }
+
+  /** A daily set that fell short still counts as progress on Today's card. */
+  function keepShortSet(result: { count: number; elapsedSeconds: number }) {
+    if (props.mode !== 'challenge' || !occurrence) {
+      return;
+    }
+
+    const partial = partialSetSession(occurrence, {
+      count: result.count,
+      durationSeconds: result.elapsedSeconds,
+      startedAt: startedAtRef.current ?? new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      metric: poseMetricFromCapture(occurrence.capture.metric),
+    });
+    if (partial) {
+      const proofClipId = proof.clipIdRef.current;
+      savePartial(proofClipId ? { ...partial, proofClipId } : partial);
+    }
+  }
+
+  async function stopCounting() {
+    setFinishCountdown(null);
+    // Match beginCounting: sync the ref before any await so late frames are ignored.
+    phaseRef.current = 'review';
+    const stopped = {
+      count: countRef.current,
+      elapsedSeconds,
+    };
+    frozenCountRef.current = stopped.count;
+    frozenElapsedRef.current = stopped.elapsedSeconds;
+    setFrozenCount(stopped.count);
+    stop();
+    proof.requestFinish({ lastRepAtMs: lastRepAtRef.current });
+    setPhase('review');
+
+    await proof.waitUntilSettled();
+
+    if (poseMeetsTarget({ count: stopped.count, target, isUnscored })) {
+      submitSet.mutate({
+        reps: stopped.count,
+        durationSeconds: stopped.elapsedSeconds,
+        startedAt: startedAtRef.current ?? new Date().toISOString(),
+      });
+      return;
+    }
+
+    keepShortSet(stopped);
+  }
+
+  const stopCountingRef = useRef(stopCounting);
+  stopCountingRef.current = stopCounting;
+
+  useEffect(() => {
+    if (phase !== 'counting') {
+      lastRepAtRef.current = null;
+      lastSeenCountRef.current = 0;
+      setFinishCountdown(null);
+      return;
+    }
+
+    if (snapshot.count > lastSeenCountRef.current) {
+      lastRepAtRef.current = Date.now();
+      lastSeenCountRef.current = snapshot.count;
+      keepGoingRef.current = false;
+      setFinishCountdown(null);
+    }
+  }, [phase, snapshot.count]);
+
+  useEffect(() => {
+    if (phase !== 'counting' || MATCH_METRIC_MEASURE[metric] === 'seconds') {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      if (keepGoingRef.current) {
+        lastRepAtRef.current = Date.now();
+        keepGoingRef.current = false;
+        setFinishCountdown(null);
+        return;
+      }
+
+      const decision = setEndDecision({
+        count: countRef.current,
+        lastRepAtMs: lastRepAtRef.current,
+        nowMs: Date.now(),
+        bodyInFrame: snapshot.bodyInFrame,
+      });
+
+      if (decision.kind === 'none') {
+        setFinishCountdown(null);
+        return;
+      }
+      if (decision.kind === 'countdown') {
+        setFinishCountdown(decision.seconds);
+        return;
+      }
+      void stopCountingRef.current();
+    }, 250);
+
+    return () => clearInterval(timer);
+  }, [metric, phase, snapshot.bodyInFrame]);
+
+  function keepGoing() {
+    keepGoingRef.current = true;
+    lastRepAtRef.current = Date.now();
+    setFinishCountdown(null);
+  }
+
+  return {
+    occurrence,
+    metric,
+    isLoading:
+      (props.mode === 'challenge' && (isPending || !occurrence)) ||
+      (isMatch && matchQuery.isPending),
+    camera,
+    cameraSessionKey,
+    handleQuickPoseUpdate,
+    resetCountToken,
+    snapshot,
+    count,
+    phase,
+    target,
+    meetsTarget,
+    sessionError,
+    isStarting: isReservingStart || startOccurrence.isPending,
+    isSaving: submitSet.isPending,
+    saveFailed: submitSet.isError,
+    saveError: submitSet.error,
+    canRecordProof: proof.isSupported,
+    recordProof: proof.recordProof,
+    showProofExplainer: proof.showProofExplainer,
+    proofRecording: proof.proofRecording,
+    proofClipId: proof.proofClipId,
+    proofStatus: proof.status as ProofClipStatus,
+    proofFailed: proof.proofFailed,
+    proofAudience: proof.audience,
+    showAudienceSheet: proof.showAudienceSheet,
+    openAudienceSheet: proof.openAudienceSheet,
+    closeAudienceSheet: proof.closeAudienceSheet,
+    setProofAudience: proof.setAudience,
+    confirmAudienceSheet: proof.confirmAudienceSheet,
+    proofCount: count,
+    finishProofToken: proof.finishProofToken,
+    finishProofEndAtMs: proof.finishProofEndAtMs,
+    toggleRecordProof: proof.toggleRecordProof,
+    handleProofRecorded: proof.handleProofRecorded,
+    handleProofRecordingError: proof.handleProofRecordingError,
+    finishCountdown,
+    startNow: () => {
+      void beginCounting();
+    },
+    retry: () => {
+      void beginCounting();
+    },
+    stopCounting: () => void stopCounting(),
+    keepGoing,
+    save,
+    leave: () => {
+      if (phaseRef.current === 'counting' || phaseRef.current === 'review') {
+        trackEvent('activity_session_ended', {
+          metric,
+          context:
+            props.mode === 'match'
+              ? 'contest'
+              : props.mode === 'practice'
+                ? 'practice'
+                : 'challenge',
+          outcome: 'abandoned',
+          count: countRef.current,
+          durationSeconds: frozenElapsedRef.current ?? elapsedSeconds,
+          ...(props.mode === 'match' ? { matchId: props.matchId } : {}),
+        });
+      }
+      stop();
+      const queuedId = lastOutboxIdRef.current;
+      void (async () => {
+        if (queuedId) {
+          const stillQueued = await getPendingCompletion(queuedId);
+          if (stillQueued) {
+            toast?.show({ message: SAVE_QUEUED_OFFLINE_MESSAGE });
+          }
+        }
+        await proof.discardReservation();
+        goBackOrHome(props.mode === 'match' ? `/matches/${props.matchId}` : '/(tabs)');
+      })();
+    },
+  };
+}
+
+export type PoseSession = ReturnType<typeof usePoseSession>;

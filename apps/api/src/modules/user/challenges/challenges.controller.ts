@@ -3,12 +3,16 @@ import { Implement, implement } from '@orpc/nest';
 import { Public } from '@thallesp/nestjs-better-auth';
 import { appContract } from '@product/contract';
 import type { RequestWithAuth } from '../../../shared/types/request-with-auth.js';
+import { ActivityRunService } from './activity-run.service.js';
 import { ChallengesService } from './challenges.service.js';
 
 @Controller()
 @Public()
 export class ChallengesController {
-  constructor(private readonly challengesService: ChallengesService) {}
+  constructor(
+    private readonly challengesService: ChallengesService,
+    private readonly activityRunService: ActivityRunService,
+  ) {}
 
   @Implement(appContract.listTodayChallenges)
   listTodayChallenges(@Req() request: RequestWithAuth) {
@@ -40,6 +44,7 @@ export class ChallengesController {
           peakFlow: input.peakFlow,
           water: input.water,
           carbs: input.carbs,
+          sleep: input.sleep,
         },
         input.deviceActivity,
       );
@@ -79,6 +84,22 @@ export class ChallengesController {
     const user = request.user ?? null;
     return implement(appContract.listChallengeHistory).handler(async ({ input }) => {
       return this.challengesService.listHistory(user, input.challengeId);
+    });
+  }
+
+  @Implement(appContract.getGymSharePhoto)
+  getGymSharePhoto(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.getGymSharePhoto).handler(async ({ input }) => {
+      return this.challengesService.getGymSharePhoto(user, input.userChallengeId);
+    });
+  }
+
+  @Implement(appContract.getActivityRun)
+  getActivityRun(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.getActivityRun).handler(async ({ input }) => {
+      return this.activityRunService.getActivityRun(user, input.userChallengeId);
     });
   }
 }

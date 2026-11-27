@@ -32,7 +32,7 @@ export function useAdvanceChallenge() {
       ]);
 
       if ('evidenceRequest' in result && result.evidenceRequest) {
-        router.push(`/challenge/${result.challenge.challengeId}/verify`);
+        router.replace(`/challenge/${result.challenge.challengeId}/verify`);
       }
     },
   });

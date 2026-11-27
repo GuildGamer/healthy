@@ -24,6 +24,52 @@ alwaysApply: false
 - Shared visual tokens come from `@product/brand` where applicable — do not fork a second palette.
 - Avoid premature `useMemo` / `useCallback` unless profiling or repo convention requires it.
 
+## Visual consistency
+
+A feature folder must not grow its own look. Before adding chrome, find the
+screen that already solves the same shape and match it.
+
+- **Display face is rare.** `displayFontFamily` is for one hero numeral or one
+  celebration/auth title per screen — the role `streakValue` plays on Home and
+  `balanceValue` on Points. Never on a repeating list row, never on every
+  screen title in a folder.
+- **Lists are divider lists.** Rows sit on `colors.background` separated by a
+  `StyleSheet.hairlineWidth` rule in `colors.border`, as in `LeaderboardScreen`
+  and `ChallengesScreen`. A `colors.surface` card is for a single emphasised
+  block per screen, not the default row container.
+- **Row type scale:** `fontSize.sm` title, `fontSize.xs` muted meta.
+- **Section labels** are uppercase `fontSize.xs` with `letterSpacing: 0.6`,
+  accent for the active step and muted otherwise.
+- Do not alias brand tokens behind local constants (`MATCH_CARD_RADIUS` for
+  `radii.md`). Use the token.
+- Shared chrome lives in a shared folder. If two features need the same row,
+  promote it rather than importing across feature folders or copying it.
+
+## Routes
+
+- Every new `app/` route is registered in the root `Stack` in `app/_layout.tsx`
+  with `headerShown: false`, and draws its own `DeckPageNav` that leaves via
+  `goBackOrHome`. `root-stack-routes.test.ts` fails otherwise; a missing entry
+  shows the native "Back / Beatset" header on top of the page's own.
+- `router.back()` is a no-op after a deep link; leave a page with `goBackOrHome`.
+- Colours come from `theme.colors` keys that exist (`text`, `muted`, …). An
+  unknown key is `undefined`, which renders black in dark mode.
+
+## Native camera
+
+- Beatset owns the capture session; QuickPose only receives frames. Never
+  snapshot `AVCaptureVideoPreviewLayer` (`render(in:)` draws black). iOS
+  records via `CameraFrameTap`; Android via Camera2 `ImageReader`.
+- Proof clips are plain camera footage plus the proof chrome (mark, code,
+  count, date). The QuickPose skeleton belongs to the live preview, never
+  the file.
+- The server can refuse a publish (limits, ownership, missing context). Check
+  every refusal before any bytes upload, and show the person why in their
+  words; a raw or generic error is not done.
+- Recording changes are not done until seen on a real device: the clip shows
+  the person, plays at real speed, and stays under the contract's size and
+  duration caps.
+
 ## Release lanes
 
 - JS-only: EAS Update.

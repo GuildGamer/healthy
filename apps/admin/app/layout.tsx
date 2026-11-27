@@ -3,7 +3,7 @@ import { Providers } from '@/lib/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Healthy admin',
+  title: 'Beatset admin',
   description: 'Catalog, tips, and member support',
 };
 

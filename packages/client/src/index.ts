@@ -13,15 +13,12 @@ import {
 } from '@product/contract';
 
 export type ApiClient = JsonifiedClient<ContractRouterClient<AppContract>>;
-export type AdminApiClient = JsonifiedClient<
-  ContractRouterClient<AdminContract>
->;
+export type AdminApiClient = JsonifiedClient<ContractRouterClient<AdminContract>>;
 
 export type CreateApiClientOptions = {
   baseUrl: string;
   headers?:
-    | Record<string, string>
-    | (() => Record<string, string> | Promise<Record<string, string>>);
+    Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
   fetch?: typeof fetch;
 };
 
@@ -39,9 +36,7 @@ export function createApiQueryUtils(client: ApiClient) {
   return createTanstackQueryUtils(client);
 }
 
-export function createAdminApiClient(
-  options: CreateApiClientOptions,
-): AdminApiClient {
+export function createAdminApiClient(options: CreateApiClientOptions): AdminApiClient {
   const link = new OpenAPILink(adminContract, {
     url: options.baseUrl.replace(/\/$/, ''),
     headers: options.headers,
@@ -57,15 +52,36 @@ export function createAdminApiQueryUtils(client: AdminApiClient) {
 
 export {
   activityMeetsTarget,
+  compareChallengeCatalogOrder,
+  compareChallengeSortOrder,
   isDeviceCapture,
   selfReportCapture,
   ISO_COUNTRY_CODES,
   isValidCountryCode,
   normalizeCountryCode,
-  MATCH_INVITE_SCHEME,
+  MATCH_ATTEMPT_MAX_BY_METRIC,
+  MATCH_ATTEMPT_SOURCE_BY_METRIC,
+  MATCH_LENGTH_MAX_DAYS,
+  MATCH_LENGTH_MIN_DAYS,
+  MATCH_MIN_DAYS_BY_SCORING_MODE,
+  MATCH_MODES_BY_METRIC,
   MATCH_PARTICIPANT_CAP,
+  MATCH_PRESET_DAYS,
+  MATCH_WINDOWS_BY_SCORING_MODE,
+  isLengthAllowedForScoringMode,
+  isScoringModeAllowedForMetric,
+  isWindowAllowedForScoringMode,
   matchContestTitle,
   matchInviteUrl,
+  matchLengthDays,
+  matchScoreUnit,
+  matchWindowLength,
+  resolveMatchLength,
+  formatProofCode,
+  isValidProofCode,
+  mintProofCode,
+  normaliseProofCode,
+  toDisplayProofCode,
 } from '@product/contract';
 export {
   adminCanManageAdmins,
@@ -79,6 +95,7 @@ export type {
   AddChallengeReminderInput,
   AppContract,
   CatalogChallenge,
+  StarterChallenge,
   ChallengeReminder,
   ChallengeRemindersOutput,
   ChallengeCatalogOutput,
@@ -99,6 +116,8 @@ export type {
   ChallengeVitals,
   ChallengeWater,
   CountryCode,
+  Acquaintance,
+  Crew,
   GlucoseContext,
   SaveChallengeDraftInput,
   WaterUnit,
@@ -106,16 +125,23 @@ export type {
   CompleteChallengeOutput,
   SkipChallengeEvidenceInput,
   SurpriseEvidenceRequest,
+  RecordPracticeSessionInput,
   HealthCategory,
   HealthOutput,
   InboxNotification,
+  NotificationPayload,
   SetChallengeEnrollmentInput,
   ChallengeHistoryEntry,
   ChallengeHistoryLog,
   ListActivityOutput,
+  GetActivityRunInput,
+  GetActivityRunOutput,
+  GetGymSharePhotoInput,
+  GetGymSharePhotoOutput,
   ListChallengeHistoryInput,
   ListChallengeHistoryOutput,
   ListNotificationsOutput,
+  HomeBootstrapOutput,
   ListTodayChallengesOutput,
   MeOutput,
   NotificationKind,
@@ -124,6 +150,28 @@ export type {
   StartChallengeInput,
   StartChallengeOutput,
   TodayChallenge,
+  TodayDetails,
+  TodayOccurrenceDetail,
+  GetMetricPeriodStatsInput,
+  GetPeriodReportInput,
+  GetProgressDayInput,
+  MetricPeriod,
+  MetricPeriodStats,
+  PeriodReport,
+  PeriodReportPeriod,
+  PhotoCheckResolution,
+  ProgressAdjustment,
+  ProgressDay,
+  ProgressDayChallenge,
+  ProgressContestSetItem,
+  ProgressDayDetail,
+  ProgressDays,
+  ProgressDoneItem,
+  ProgressMissedPhotoCheck,
+  ProgressPracticeItem,
+  ProgressShareResult,
+  ActivityProofClip,
+  ProofClipAudience,
   LeaderboardEntry,
   LeaderboardPeriod,
   ListLeaderboardInput,
@@ -140,15 +188,28 @@ export type {
   CreateMatchInput,
   CreateMatchOutput,
   ListMyMatchesOutput,
+  MatchAttemptSource,
   MatchBoard,
+  MatchDailyScope,
+  MatchDayStrip,
+  MatchDurationDays,
+  MatchHonor,
+  MatchHonorKind,
   MatchInviteLink,
+  MatchLength,
   MatchListItem,
+  ListMatchMemberActivityOutput,
+  MatchMemberAttempt,
   MatchMetric,
+  MatchMove,
   MatchPreview,
+  MatchReactionKind,
+  MatchReactionSent,
   MatchScoringMode,
   MatchStanding,
   MatchStatus,
   MatchWindow,
+  ReactToMatchMemberInput,
   SubmitMatchAttemptInput,
   AdminChallenge,
   AdminContract,

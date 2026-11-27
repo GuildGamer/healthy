@@ -1,43 +1,38 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { LoginScreen } from '@/components/auth';
+import { WelcomeBackScreen } from '@/components/auth';
 import { ScreenLoader } from '@/components/feedback';
 import { useSession } from '@/lib/auth-client';
+import { goBackOrHome } from '@/lib/go-back';
 import type { PostAuthHref } from '@/lib/post-auth-route';
 import { resolvePostAuthHref } from '@/lib/resolve-post-auth';
 
 export default function Login() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  const sessionUserId = session?.user.id;
   const [sessionHref, setSessionHref] = useState<PostAuthHref | null>(null);
-  const [isResolving, setIsResolving] = useState(false);
 
   useEffect(() => {
-    if (!session) {
+    if (!sessionUserId) {
       setSessionHref(null);
       return;
     }
 
     let cancelled = false;
-    setIsResolving(true);
-    void resolvePostAuthHref()
-      .then((href) => {
-        if (!cancelled) {
-          setSessionHref(href);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsResolving(false);
-        }
-      });
+    void resolvePostAuthHref().then((href) => {
+      if (!cancelled) {
+        setSessionHref(href);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [sessionUserId]);
 
-  if (isPending || (session && (isResolving || !sessionHref))) {
+  // First signed-in resolve only — keep Login / prior redirect during refetch.
+  if ((isPending && !session) || (session && !sessionHref)) {
     return <ScreenLoader />;
   }
 
@@ -46,14 +41,14 @@ export default function Login() {
   }
 
   return (
-    <LoginScreen
-      onAuthenticated={async () => {
+    <WelcomeBackScreen
+      onBackPress={() => goBackOrHome('/onboarding')}
+      onEmailPress={() => router.push('/login-email')}
+      onNewHerePress={() => router.replace('/onboarding')}
+      onSignedIn={async () => {
         const href = await resolvePostAuthHref();
         router.replace(href ?? '/complete-country');
       }}
-      onBackPress={() => router.back()}
-      onForgotPasswordPress={() => router.push('/forgot-password')}
-      onSignUpPress={() => router.push('/sign-up')}
     />
   );
 }

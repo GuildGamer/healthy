@@ -54,6 +54,7 @@ export default function EditMembershipPlanPage() {
                 amountMinor: price.amountMinor,
               })),
             }}
+            lockIdentity={plan.hasLiveBilling}
             onSubmit={(input) => update.mutate(input)}
             pending={update.isPending}
           />

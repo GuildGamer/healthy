@@ -1,10 +1,23 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { EngagementModule } from '../../shared-modules/engagement/index.js';
+import { StorageModule } from '../../shared-modules/storage/index.js';
+import { MatchesModule } from '../matches/matches.module.js';
+import { StreakModule } from '../streak/index.js';
+import { ActivityRunService } from './activity-run.service.js';
 import { ChallengesController } from './challenges.controller.js';
 import { ChallengesService } from './challenges.service.js';
+import { GymPhotoRetentionController } from './gym-photo-retention.controller.js';
+import { GymPhotoRetentionService } from './gym-photo-retention.service.js';
 
 @Module({
-  controllers: [ChallengesController],
-  providers: [ChallengesService],
+  imports: [
+    EngagementModule,
+    StreakModule,
+    StorageModule,
+    forwardRef(() => MatchesModule),
+  ],
+  controllers: [ChallengesController, GymPhotoRetentionController],
+  providers: [ChallengesService, ActivityRunService, GymPhotoRetentionService],
   exports: [ChallengesService],
 })
 export class ChallengesModule {}

@@ -16,14 +16,10 @@ describe('initialsFor', () => {
 
 describe('avatarNameFor', () => {
   it('prefers the username over the legal name', () => {
-    expect(
-      avatarNameFor({ displayName: 'Ada', name: 'Ada Lovelace' }),
-    ).toBe('Ada');
+    expect(avatarNameFor({ displayName: 'Ada', name: 'Ada Lovelace' })).toBe('Ada');
   });
 
   it('falls back to the legal name when no username is set', () => {
-    expect(avatarNameFor({ displayName: '  ', name: 'Ada Lovelace' })).toBe(
-      'Ada Lovelace',
-    );
+    expect(avatarNameFor({ displayName: '  ', name: 'Ada Lovelace' })).toBe('Ada Lovelace');
   });
 });

@@ -1,0 +1,57 @@
+import { darkDeckCards, lightDeckCards } from '@product/brand';
+import { render, screen } from '@testing-library/react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
+import { DayShareCard } from '@/components/home/DayShareCard';
+import { GroupRecapCard } from '@/components/matches/GroupRecapCard';
+import { liveBoard } from '@/components/matches/testing/match-fixtures';
+import { ThemeProvider } from '@/theme';
+import type { DayShareContent } from './types/day-share';
+
+const day: DayShareContent = {
+  weekday: 'Thursday',
+  dateLabel: '22 October',
+  completedCount: 4,
+  totalCount: 4,
+  pointsToday: 500,
+  streakDays: 7,
+};
+
+function fill(testID: string): unknown {
+  const root = screen.getByTestId(testID);
+  const own = StyleSheet.flatten(root.props.style)?.backgroundColor;
+  if (own != null) {
+    return own;
+  }
+  const fillChild = root.children.find(
+    (child: unknown): child is { props: { style?: unknown } } =>
+      typeof child !== 'string' && child != null && typeof child === 'object',
+  );
+  return StyleSheet.flatten(fillChild?.props.style)?.backgroundColor;
+}
+
+/** Day and group shares use the activity/streak deck fill, not a night slip. */
+describe('exported share cards', () => {
+  it('use the streak deck fill on Beatset night', () => {
+    jest.mocked(useColorScheme).mockReturnValue('dark');
+    render(
+      <ThemeProvider>
+        <DayShareCard content={day} />
+      </ThemeProvider>,
+    );
+
+    expect(fill('home-day-share-card')).toBe(darkDeckCards.streak);
+  });
+
+  it('follow Clinic white on a light phone', () => {
+    jest.mocked(useColorScheme).mockReturnValue('light');
+    render(
+      <ThemeProvider>
+        <DayShareCard content={day} />
+        <GroupRecapCard board={liveBoard()} />
+      </ThemeProvider>,
+    );
+
+    expect(fill('home-day-share-card')).toBe(lightDeckCards.streak);
+    expect(fill('match-recap-card')).toBe(lightDeckCards.walk);
+  });
+});

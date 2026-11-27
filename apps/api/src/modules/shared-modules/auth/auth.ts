@@ -2,10 +2,12 @@ import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { emailOTP } from 'better-auth/plugins';
-import { prisma } from '@product/db';
+import { getPrisma } from '@product/db';
 import { readEnvironment } from '../config/environment.js';
 import { createMailer } from '../mail/index.js';
 import { localDevOtp } from './password-reset-otp.js';
+
+const prisma = getPrisma();
 
 const baseURL = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
 const secret = process.env.BETTER_AUTH_SECRET ?? 'dev-only-change-me-before-production';
@@ -31,6 +33,11 @@ export const auth = betterAuth({
   }),
   secret,
   baseURL,
+  // iOS drops the state cookie set while redirecting to Google. The single-use
+  // verification row is still required, so a missing cookie is not a mismatch.
+  account: {
+    skipStateCookieCheck: true,
+  },
   emailAndPassword: {
     enabled: true,
   },
@@ -38,6 +45,7 @@ export const auth = betterAuth({
     google: {
       clientId: googleClientId,
       clientSecret: googleClientSecret,
+      prompt: 'select_account',
     },
   },
   databaseHooks: {
@@ -49,6 +57,17 @@ export const auth = betterAuth({
             create: { userId: user.id },
             update: {},
           });
+          // Fire-and-forget: sign-up must not wait on analytics.
+          void prisma.analyticsEvent
+            .create({
+              data: {
+                name: 'sign_up_completed',
+                userId: user.id,
+                properties: {},
+                emitter: 'server',
+              },
+            })
+            .catch(() => undefined);
         },
       },
     },

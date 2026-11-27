@@ -4,6 +4,8 @@ import type {
   ChallengeHistoryLog,
   TodayChallenge,
 } from '@product/client';
+import { formatClockTime } from '@/lib/clock-time';
+import { sleepDurationLabel } from './sleep-window';
 
 const GLUCOSE_CONTEXT: Record<string, string> = {
   fasting: 'Fasting',
@@ -20,6 +22,13 @@ const DEVICE_METRIC: Record<string, string> = {
   weight: 'Weight',
   heart_rate: 'Heart rate',
   pushups: 'Push-ups',
+  squats: 'Squats',
+  plank: 'Plank',
+  jumping_jacks: 'Jumping jacks',
+  burpees: 'Burpees',
+  sit_ups: 'Sit-ups',
+  mountain_climbers: 'Mountain climbers',
+  lunges: 'Lunges',
 };
 
 export function formatHistoryWhen(completedAt: string): string {
@@ -60,6 +69,12 @@ export function historyLogCopy(log: ChallengeHistoryLog | null): string {
     return log.note ?? 'Carbs logged';
   }
 
+  if (log.kind === 'sleep') {
+    const from = formatClockTime(new Date(log.wentToBedAt));
+    const to = formatClockTime(new Date(log.wokeUpAt));
+    return `${sleepDurationLabel(log.durationMinutes)} · ${from} to ${to}`;
+  }
+
   if (log.kind === 'evidence_photo') {
     return 'Gym selfie';
   }
@@ -71,9 +86,7 @@ export function historyLogCopy(log: ChallengeHistoryLog | null): string {
   return 'Checked in';
 }
 
-export function historyEvidenceCopy(
-  evidence: ChallengeHistoryEntry['evidence'],
-): string | null {
+export function historyEvidenceCopy(evidence: ChallengeHistoryEntry['evidence']): string | null {
   if (evidence === 'submitted') {
     return 'Photo sent';
   }
@@ -89,9 +102,14 @@ export function historyEvidenceCopy(
   return null;
 }
 
+/**
+ * The occurrence finished this period, when history has not caught up with it.
+ * Without the real finish time it is placed at midday of its period.
+ */
 export function mergeTodayIntoHistory(
   entries: ChallengeHistoryEntry[],
   occurrence: TodayChallenge | null | undefined,
+  completedAt: string | null = null,
 ): ChallengeHistoryEntry[] {
   if (!occurrence || occurrence.status !== 'completed') {
     return entries;
@@ -105,19 +123,18 @@ export function mergeTodayIntoHistory(
     {
       id: occurrence.id,
       periodKey: occurrence.periodKey,
-      completedAt: `${occurrence.periodKey}T12:00:00.000Z`,
+      completedAt: completedAt ?? `${occurrence.periodKey}T12:00:00.000Z`,
       outcome: 'rewarded',
       pointsDelta: occurrence.rewardPoints,
       log: historyLogFromKind(occurrence.completionKind),
       evidence: null,
+      proofClip: null,
     },
     ...entries,
   ];
 }
 
-function historyLogFromKind(
-  kind: ChallengeCompletionKind,
-): ChallengeHistoryLog | null {
+function historyLogFromKind(kind: ChallengeCompletionKind): ChallengeHistoryLog | null {
   if (kind === 'evidence_photo') {
     return { kind: 'evidence_photo' };
   }
@@ -129,10 +146,9 @@ function historyLogFromKind(
   return null;
 }
 
-function deviceLogCopy(
-  log: Extract<ChallengeHistoryLog, { kind: 'device' }>,
-): string {
-  const metric = DEVICE_METRIC[log.metric] ?? log.metric;
+function deviceLogCopy(log: Extract<ChallengeHistoryLog, { kind: 'device' }>): string {
+  const knownMetric: string | undefined = DEVICE_METRIC[log.metric];
+  const metric = knownMetric ?? log.metric;
 
   if (log.durationSeconds != null) {
     const minutes = Math.max(1, Math.round(log.durationSeconds / 60));
@@ -144,11 +160,12 @@ function deviceLogCopy(
   }
 
   if (log.count != null) {
-    if (log.metric === 'pushups') {
-      return `${log.count} push-ups`;
+    if (!knownMetric) {
+      return `${log.count} · ${metric}`;
     }
 
-    return `${log.count} · ${metric}`;
+    const unit = log.metric === 'plank' ? 'seconds' : knownMetric.toLowerCase();
+    return `${log.count} ${unit}`;
   }
 
   return metric;

@@ -23,11 +23,14 @@ const NAV: NavItem[] = [
   { href: '/analytics/engagement', label: 'Engagement', access: 'any' },
   { href: '/analytics/catalog', label: 'Catalog insights', access: 'any' },
   { href: '/analytics/reminders', label: 'Reminders', access: 'any' },
+  { href: '/experiments', label: 'Experiments', access: 'any' },
   { href: '/catalog', label: 'Catalog', access: 'content' },
   { href: '/membership', label: 'Membership', access: 'content' },
   { href: '/tips', label: 'Tips', access: 'content' },
   { href: '/waitlist', label: 'Waitlist', access: 'content' },
   { href: '/members', label: 'Members', access: 'support' },
+  { href: '/staging-testers', label: 'Staging testers', access: 'support' },
+  { href: '/notifications', label: 'Send notification', access: 'support' },
   { href: '/admins', label: 'Admins', access: 'superadmin' },
 ];
 
@@ -86,9 +89,11 @@ export function Shell({ children }: { children: ReactNode }) {
           background: 'var(--surface)',
         }}
       >
-        <p style={{ fontFamily: 'Fraunces, Georgia, serif', fontSize: 22, margin: '0 0 24px' }}>
-          Healthy
-        </p>
+        <img
+          alt="Beatset"
+          src="/wordmark-navy.svg"
+          style={{ display: 'block', height: 56, width: 'auto', margin: '0 0 24px' }}
+        />
         <nav className="stack">
           {NAV.filter((item) => canSee(roles, item)).map((item) => (
             <Link

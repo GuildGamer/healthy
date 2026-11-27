@@ -1,7 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontSize, spacing } from '@product/brand';
+import { fontSize, spacing } from '@product/brand';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { type Theme, useTheme, useThemedStyles } from '@/theme';
 
 interface FormFieldProps {
   label?: string;
@@ -17,6 +18,9 @@ interface FieldMessageProps {
 }
 
 function FieldMessage({ hint, error }: FieldMessageProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   if (error) {
     return (
       <View style={styles.errorRow}>
@@ -34,6 +38,8 @@ function FieldMessage({ hint, error }: FieldMessageProps) {
 }
 
 export function FormField({ label, hint, error, required = false, children }: FormFieldProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View>
       {label ? (
@@ -50,29 +56,30 @@ export function FormField({ label, hint, error, required = false, children }: Fo
   );
 }
 
-const styles = StyleSheet.create({
-  label: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    marginBottom: 6,
-  },
-  requiredMark: {
-    color: colors.danger,
-  },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: 6,
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: fontSize.xs,
-    flexShrink: 1,
-  },
-  hintText: {
-    color: colors.muted,
-    fontSize: fontSize.xs,
-    marginTop: 6,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    label: {
+      color: theme.colors.text,
+      fontSize: fontSize.sm,
+      marginBottom: 6,
+    },
+    requiredMark: {
+      color: theme.colors.danger,
+    },
+    errorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      marginTop: 6,
+    },
+    errorText: {
+      color: theme.colors.danger,
+      fontSize: fontSize.xs,
+      flexShrink: 1,
+    },
+    hintText: {
+      color: theme.colors.muted,
+      fontSize: fontSize.xs,
+      marginTop: 6,
+    },
+  });

@@ -31,6 +31,17 @@ describe('completionRoute', () => {
     ).toBe('/challenge/c-walk/confirm');
   });
 
+  it('opens the log screen for a sleep challenge, not the Done button', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-sleep',
+        status: 'pending',
+        completionKind: 'check_in',
+        capture: { kind: 'structured_log', metric: 'sleep' },
+      }),
+    ).toBe('/challenge/c-sleep/log');
+  });
+
   it('opens the session screen for a walk or step challenge', () => {
     expect(
       completionRoute({
@@ -66,6 +77,27 @@ describe('completionRoute', () => {
         },
       }),
     ).toBe('/challenge/c-push/pose');
+  });
+
+  it('offers a free set once the push-up challenge is done', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-push',
+        status: 'completed',
+        completionKind: 'check_in',
+        capture: { kind: 'device_session', metric: 'pushups' },
+      }),
+    ).toBe('/challenge/c-push/practice');
+  });
+
+  it('leaves every other finished challenge closed', () => {
+    expect(
+      completionRoute({
+        challengeId: 'c-walk',
+        status: 'completed',
+        completionKind: 'check_in',
+      }),
+    ).toBeNull();
   });
 
   it('opens the photo check when a surprise window is open', () => {

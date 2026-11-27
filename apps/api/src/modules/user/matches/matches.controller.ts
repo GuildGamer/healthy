@@ -14,7 +14,7 @@ export class MatchesController {
   createMatch(@Req() request: RequestWithAuth) {
     const user = request.user ?? null;
     return implement(appContract.createMatch).handler(async ({ input }) => {
-      return this.matchesService.create(user, input.window);
+      return this.matchesService.create(user, input);
     });
   }
 
@@ -31,6 +31,13 @@ export class MatchesController {
     const user = request.user ?? null;
     return implement(appContract.previewMatch).handler(async ({ input }) => {
       return this.matchesService.preview(user, input.token);
+    });
+  }
+
+  @Implement(appContract.publicPreviewMatch)
+  publicPreviewMatch() {
+    return implement(appContract.publicPreviewMatch).handler(async ({ input }) => {
+      return this.matchesService.publicPreview(input.token, input.purpose ?? 'open');
     });
   }
 
@@ -63,6 +70,30 @@ export class MatchesController {
     const user = request.user ?? null;
     return implement(appContract.cancelMatch).handler(async ({ input }) => {
       return this.matchesService.cancel(user, input.matchId);
+    });
+  }
+
+  @Implement(appContract.reactToMatchMember)
+  reactToMatchMember(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.reactToMatchMember).handler(async ({ input }) => {
+      return this.matchesService.react(user, input);
+    });
+  }
+
+  @Implement(appContract.leaveMatch)
+  leaveMatch(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.leaveMatch).handler(async ({ input }) => {
+      return this.matchesService.leave(user, input.matchId);
+    });
+  }
+
+  @Implement(appContract.listMatchMemberActivity)
+  listMatchMemberActivity(@Req() request: RequestWithAuth) {
+    const user = request.user ?? null;
+    return implement(appContract.listMatchMemberActivity).handler(async ({ input }) => {
+      return this.matchesService.listMemberActivity(user, input.matchId, input.userId);
     });
   }
 }

@@ -11,3 +11,4 @@ export type {
 export { ChallengesModule } from './challenges.module.js';
 export { ChallengesController } from './challenges.controller.js';
 export { ChallengesService } from './challenges.service.js';
+export { ActivityRunService } from './activity-run.service.js';

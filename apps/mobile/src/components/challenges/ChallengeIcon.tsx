@@ -2,10 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { radii } from '@product/brand';
 import type { HealthCategory } from '@product/client';
 import { StyleSheet, View } from 'react-native';
-import {
-  categoryIconTint,
-  resolveChallengeIcon,
-} from './challenge-icon';
+import { useTheme, withAlpha } from '@/theme';
+import { resolveChallengeIcon } from './challenge-icon';
 
 const sizes = {
   sm: { box: 28, glyph: 14 },
@@ -23,8 +21,9 @@ export function ChallengeIcon({
   name: string;
   size?: keyof typeof sizes;
 }) {
-  const visual = categoryIconTint[category];
-  const iconColor = completed ? visual.iconColor : `${visual.iconColor}B3`;
+  const { conditionTones } = useTheme();
+  const tone = conditionTones[category];
+  const iconColor = completed ? tone : withAlpha(tone, 0.7);
   const dimensions = sizes[size];
 
   return (
@@ -32,7 +31,7 @@ export function ChallengeIcon({
       style={[
         styles.badge,
         {
-          backgroundColor: visual.tint,
+          backgroundColor: withAlpha(tone, 0.16),
           height: dimensions.box,
           opacity: completed ? 1 : 0.7,
           width: dimensions.box,

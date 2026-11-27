@@ -33,16 +33,19 @@ describe('historyLogCopy', () => {
         context: 'fasting',
       }),
     ).toBe('5.4 mmol/L · Fasting');
-    expect(
-      historyLogCopy({ kind: 'peak_flow', bestLitresPerMinute: 420 }),
-    ).toBe('420 L/min');
-    expect(historyLogCopy({ kind: 'water', amount: 3, unit: 'glasses' })).toBe(
-      '3 glasses',
-    );
+    expect(historyLogCopy({ kind: 'peak_flow', bestLitresPerMinute: 420 })).toBe('420 L/min');
+    expect(historyLogCopy({ kind: 'water', amount: 3, unit: 'glasses' })).toBe('3 glasses');
     expect(historyLogCopy({ kind: 'carbs', grams: 45, note: null })).toBe('45 g');
-    expect(historyLogCopy({ kind: 'carbs', grams: null, note: 'Rice' })).toBe(
-      'Rice',
-    );
+    expect(historyLogCopy({ kind: 'carbs', grams: null, note: 'Rice' })).toBe('Rice');
+    expect(
+      historyLogCopy({
+        kind: 'sleep',
+        wentToBedAt: '2026-10-22T22:40:00.000Z',
+        wokeUpAt: '2026-10-23T06:05:00.000Z',
+        durationMinutes: 445,
+        rested: 4,
+      }),
+    ).toMatch(/^7h 25m · .+ to .+$/);
     expect(
       historyLogCopy({
         kind: 'device',
@@ -61,6 +64,7 @@ describe('mergeTodayIntoHistory', () => {
     periodKey: '2026-08-30',
     status: 'completed',
     rewardPoints: 20,
+    sortOrder: 100,
     completionKind: 'check_in',
   } as TodayChallenge;
 
@@ -84,15 +88,14 @@ describe('mergeTodayIntoHistory', () => {
       pointsDelta: 20,
       log: { kind: 'check_in' as const },
       evidence: null,
+      proofClip: null,
     };
 
     expect(mergeTodayIntoHistory([existing], occurrence)).toEqual([existing]);
   });
 
   it('leaves an unfinished occurrence off the list', () => {
-    expect(
-      mergeTodayIntoHistory([], { ...occurrence, status: 'pending' }),
-    ).toEqual([]);
+    expect(mergeTodayIntoHistory([], { ...occurrence, status: 'pending' })).toEqual([]);
   });
 });
 
