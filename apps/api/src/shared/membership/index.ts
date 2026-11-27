@@ -1,7 +1,10 @@
 export {
+  FREE_CAMERA_COUNTING_STARTS,
   MAX_REMINDERS_FREE_TIER,
   canAccessChallenge,
   canEnrollInChallenge,
+  canStartCameraCounting,
+  freeCameraStartsRemaining,
   isCatalogChallengeLocked,
   maxRemindersForMembership,
 } from './entitlements.js';

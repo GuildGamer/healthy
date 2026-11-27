@@ -32,6 +32,7 @@ function deckFor(
   return buildTodayDeck({
     challenges,
     hasMembership: true,
+    freeCameraStartsRemaining: null,
     liveGroups: [],
     todayTip: null,
     details: null,

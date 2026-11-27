@@ -147,6 +147,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -209,6 +220,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -357,6 +369,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -419,6 +442,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -558,6 +582,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -620,6 +655,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -759,6 +795,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -821,6 +868,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -964,6 +1012,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -1026,6 +1085,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -1188,6 +1248,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -1250,6 +1321,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -1391,6 +1463,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -1453,6 +1536,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -1594,6 +1678,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -1656,6 +1751,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -1821,6 +1917,17 @@
                     "hasMembership": {
                       "type": "boolean"
                     },
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxRemindersPerChallenge": {
                       "type": "integer",
                       "minimum": 0
@@ -1883,6 +1990,7 @@
                     "inProgressNudgeDelayMinutes",
                     "healthLinkStatus",
                     "hasMembership",
+                    "freeCameraStartsRemaining",
                     "maxRemindersPerChallenge",
                     "proofClipAudience",
                     "proofClipLimits"
@@ -4008,6 +4116,116 @@
                   },
                   "required": [
                     "challenge"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/camera-counting/start": {
+      "post": {
+        "operationId": "startCameraCounting",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "context": {
+                        "const": "challenge"
+                      },
+                      "clientStartId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "userChallengeId": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "context",
+                      "clientStartId",
+                      "userChallengeId"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "context": {
+                        "const": "practice"
+                      },
+                      "clientStartId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "challengeId": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "context",
+                      "clientStartId",
+                      "challengeId"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "context": {
+                        "const": "match"
+                      },
+                      "clientStartId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "matchId": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "context",
+                      "clientStartId",
+                      "matchId"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "freeCameraStartsRemaining": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "freeCameraStartsRemaining"
                   ]
                 }
               }
@@ -12010,6 +12228,17 @@
                         "hasMembership": {
                           "type": "boolean"
                         },
+                        "freeCameraStartsRemaining": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "maxRemindersPerChallenge": {
                           "type": "integer",
                           "minimum": 0
@@ -12072,6 +12301,7 @@
                         "inProgressNudgeDelayMinutes",
                         "healthLinkStatus",
                         "hasMembership",
+                        "freeCameraStartsRemaining",
                         "maxRemindersPerChallenge",
                         "proofClipAudience",
                         "proofClipLimits"

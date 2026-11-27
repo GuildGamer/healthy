@@ -1,12 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FREE_CAMERA_COUNTING_STARTS,
   MAX_REMINDERS_FREE_TIER,
   canAccessChallenge,
   canEnrollInChallenge,
+  canStartCameraCounting,
+  freeCameraStartsRemaining,
   isCatalogChallengeLocked,
   maxRemindersForMembership,
 } from './entitlements.js';
 import { MAX_REMINDERS_PER_CHALLENGE } from '../constants/reminder-defaults.js';
+
+describe('freeCameraStartsRemaining', () => {
+  it('is null for members', () => {
+    expect(freeCameraStartsRemaining(true, 0)).toBeNull();
+    expect(freeCameraStartsRemaining(true, 99)).toBeNull();
+  });
+
+  it('counts down from the free lifetime quota', () => {
+    expect(freeCameraStartsRemaining(false, 0)).toBe(FREE_CAMERA_COUNTING_STARTS);
+    expect(freeCameraStartsRemaining(false, 1)).toBe(1);
+    expect(freeCameraStartsRemaining(false, 2)).toBe(0);
+    expect(freeCameraStartsRemaining(false, 5)).toBe(0);
+  });
+});
+
+describe('canStartCameraCounting', () => {
+  it('always allows members', () => {
+    expect(canStartCameraCounting(true, 0)).toBe(true);
+    expect(canStartCameraCounting(true, 100)).toBe(true);
+  });
+
+  it('allows non-members until the lifetime quota is used', () => {
+    expect(canStartCameraCounting(false, 0)).toBe(true);
+    expect(canStartCameraCounting(false, 1)).toBe(true);
+    expect(canStartCameraCounting(false, 2)).toBe(false);
+  });
+});
 
 describe('maxRemindersForMembership', () => {
   it('allows one reminder on the free tier', () => {

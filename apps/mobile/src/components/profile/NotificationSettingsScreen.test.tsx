@@ -26,6 +26,7 @@ jest.mock('@/lib/api', () => ({
       ],
       enrolledCount: 1,
       hasMembership: false,
+    freeCameraStartsRemaining: 2,
       maxRemindersPerChallenge: 1,
     })),
     updateNotificationSettings: jest.fn(async () => ({})),

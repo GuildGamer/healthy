@@ -49,6 +49,7 @@ export function catalogOutput(
     challenges,
     enrolledCount: challenges.filter((challenge) => challenge.isEnrolled).length,
     hasMembership: false,
+    freeCameraStartsRemaining: 2,
     maxRemindersPerChallenge: 1,
     ...overrides,
   };

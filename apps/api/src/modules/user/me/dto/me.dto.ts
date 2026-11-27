@@ -23,6 +23,7 @@ export type MeDto = {
   inProgressNudgeDelayMinutes: number;
   healthLinkStatus: HealthLinkStatus;
   hasMembership: boolean;
+  freeCameraStartsRemaining: number | null;
   maxRemindersPerChallenge: number;
   proofClipAudience: ProofClipAudience | null;
   proofClipLimits: MeOutput['proofClipLimits'];

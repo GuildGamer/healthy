@@ -122,6 +122,7 @@ export function me(overrides: Partial<MeOutput> = {}): MeOutput {
     groupNotificationsEnabled: true,
     healthLinkStatus: 'unknown',
     hasMembership: false,
+    freeCameraStartsRemaining: 2,
     maxRemindersPerChallenge: 1,
     proofClipAudience: null,
     proofClipLimits: {

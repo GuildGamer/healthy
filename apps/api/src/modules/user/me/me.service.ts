@@ -3,7 +3,10 @@ import { ORPCError } from '@orpc/server';
 import { normalizeCountryCode } from '@product/contract';
 import type { HealthCategory, PrismaClient } from '@product/db';
 import { MINUTES_PER_DAY } from '../../../shared/constants/reminder-defaults.js';
-import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
+import {
+  freeCameraStartsRemaining,
+  maxRemindersForMembership,
+} from '../../../shared/membership/entitlements.js';
 import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
 import { isReviewerMembershipEmail } from '../../../shared/membership/reviewer-membership.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
@@ -68,6 +71,9 @@ export class MeService {
       user.id,
       user.email,
     );
+    const cameraStartsUsed = membershipActive
+      ? 0
+      : await this.prisma.cameraCountingStart.count({ where: { userId: user.id } });
     const streak = streakStatusFor({
       storedStreakDays: profile?.currentStreakDays ?? 0,
       lastActiveDayKey: profile?.lastActiveDayKey ?? null,
@@ -101,6 +107,10 @@ export class MeService {
       inProgressNudgeDelayMinutes: profile?.inProgressNudgeDelayMinutes ?? 30,
       healthLinkStatus: profile?.healthLinkStatus ?? 'unknown',
       hasMembership: membershipActive,
+      freeCameraStartsRemaining: freeCameraStartsRemaining(
+        membershipActive,
+        cameraStartsUsed,
+      ),
       maxRemindersPerChallenge: maxRemindersForMembership(membershipActive),
       proofClipAudience: profile?.proofClipAudience ?? null,
       proofClipLimits: {

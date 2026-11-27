@@ -37,6 +37,7 @@ const offer = {
   amountMinor: 100_000,
   paymentMethods: [{ id: 'card' as const, label: 'Card', hint: 'Visa or Mastercard' }],
   hasMembership: false,
+    freeCameraStartsRemaining: 2,
   currentSubscription: null,
   appleProductId: 'com.healthyapp.app.premium.month',
   plans: [
@@ -95,15 +96,17 @@ describe('PricingScreen Apple IAP', () => {
     expect(screen.queryByTestId('pricing-method-card')).toBeNull();
   });
 
-  it('keeps method chips and the checkout stub on Android', async () => {
+  it('hides non-store payment methods on Android and explains checkout is not ready', async () => {
     renderPricing('android');
 
-    expect(await screen.findByTestId('pricing-method-card')).toBeOnTheScreen();
+    expect(await screen.findByTestId('pricing-pay')).toBeOnTheScreen();
+    expect(screen.getByText('Coming soon on Android')).toBeOnTheScreen();
+    expect(screen.queryByTestId('pricing-method-card')).toBeNull();
     expect(screen.queryByTestId('pricing-restore')).toBeNull();
     fireEvent.press(screen.getByTestId('pricing-pay'));
     expect(
       screen.getByText(
-        'Payments are almost ready. Your plan and methods are saved. Checkout lands next.',
+        'Membership checkout on Android is not available yet. Walks stay free. Two free camera-counted sets, then membership.',
       ),
     ).toBeOnTheScreen();
   });

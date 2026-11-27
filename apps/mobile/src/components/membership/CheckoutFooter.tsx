@@ -6,7 +6,7 @@ import { APPLE_IAP_REBUILD_MESSAGE, isAppleIapNativeAvailable } from '@/lib/appl
 import { useAppleMembership } from '@/lib/use-apple-membership';
 
 const ANDROID_CHECKOUT_PENDING_MESSAGE =
-  'Payments are almost ready. Your plan and methods are saved. Checkout lands next.';
+  'Membership checkout on Android is not available yet. Walks stay free. Two free camera-counted sets, then membership.';
 
 export function AppleCheckoutFooter({
   ctaLabel,

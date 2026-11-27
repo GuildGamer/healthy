@@ -431,6 +431,8 @@ link.
 
 Group creation and joining stay free. The invite link is the acquisition loop;
 gating it behind an entitlement would trade growth for a small amount of revenue.
+Camera-counted sets inside a group share the same lifetime free quota as solo
+and practice (two starts for non-members); walks in a group stay free.
 
 Extend the existing challenge share card to group results — the end-of-season
 recap is the most shareable artifact the app produces.

@@ -1,4 +1,4 @@
-import type { MembershipOffer, MembershipPaymentMethodId } from '@product/contract';
+import type { MembershipOffer } from '@product/contract';
 import { formatMembershipAmount } from '@product/contract';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -18,7 +18,6 @@ import {
   punctuateMembershipCopy,
 } from './membership-copy';
 import { MembershipHero } from './MembershipHero';
-import { PaymentMethodChips } from './PaymentMethodChips';
 import { PlanChoice } from './PlanChoice';
 import { PricingShell } from './PricingShell';
 
@@ -106,7 +105,6 @@ function OfferView({
   source: PricingSource;
 }) {
   const [selectedPlanId, setSelectedPlanId] = useState(offer.planId);
-  const [selectedMethod, setSelectedMethod] = useState<MembershipPaymentMethodId | null>(null);
   const isAppleCheckout = Platform.OS === 'ios';
   const plan =
     offer.plans.find((candidate) => candidate.planId === selectedPlanId) ?? offer.plans[0];
@@ -121,8 +119,9 @@ function OfferView({
 
   const amountLabel = formatMembershipAmount(plan.currency, plan.amountMinor);
   const intervalUnit = MEMBERSHIP_INTERVAL_UNIT[plan.interval];
-  const verb = isAppleCheckout ? 'Subscribe for' : 'Pay';
-  const ctaLabel = plan.ctaLabel?.trim() || `${verb} ${amountLabel} ${intervalUnit}`;
+  const ctaLabel = isAppleCheckout
+    ? plan.ctaLabel?.trim() || `Subscribe for ${amountLabel} ${intervalUnit}`
+    : 'Coming soon on Android';
   const fallbackHeadline = source === 'success' ? WIN_HEADLINE : DEFAULT_HEADLINE;
 
   return (
@@ -150,7 +149,7 @@ function OfferView({
         perks={plan.features.map(punctuateMembershipCopy)}
         title={punctuateMembershipCopy(plan.headline?.trim() || fallbackHeadline)}
       />
-      {offer.plans.length > 1 ? (
+      {isAppleCheckout && offer.plans.length > 1 ? (
         <PlanChoice
           onSelect={(planId) => {
             setSelectedPlanId(planId);
@@ -163,17 +162,10 @@ function OfferView({
           selectedPlanId={plan.planId}
         />
       ) : null}
-      {isAppleCheckout ? null : (
-        <PaymentMethodChips
-          activeMethod={selectedMethod ?? offer.paymentMethods[0]?.id ?? null}
-          methods={offer.paymentMethods}
-          onSelect={setSelectedMethod}
-        />
-      )}
       <SettingsNote centered>
         {isAppleCheckout
-          ? 'Cancel any time in the App Store. Groups and the leaderboard stay free.'
-          : 'Groups and the leaderboard stay free.'}
+          ? 'Cancel any time in the App Store. Walks stay free. Two free camera-counted sets, then membership.'
+          : 'Android membership will use Google Play Billing when it ships. Walks stay free. Two free camera-counted sets, then membership.'}
       </SettingsNote>
     </PricingShell>
   );

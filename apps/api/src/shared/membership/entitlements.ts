@@ -2,6 +2,12 @@ import {
   MAX_REMINDERS_PER_CHALLENGE,
 } from '../constants/reminder-defaults.js';
 
+/**
+ * Lifetime free camera-counting starts for non-members. Keep in sync with
+ * `FREE_CAMERA_COUNTING_STARTS` in `@product/contract`.
+ */
+export const FREE_CAMERA_COUNTING_STARTS = 2;
+
 /** Free tier: one nudge time per challenge. */
 export const MAX_REMINDERS_FREE_TIER = 1;
 
@@ -11,6 +17,33 @@ export function maxRemindersForMembership(membershipActive: boolean): number {
   }
 
   return MAX_REMINDERS_FREE_TIER;
+}
+
+/**
+ * Remaining free camera starts. Null means membership is active (unlimited).
+ * `startsUsed` is the lifetime count of recorded camera-counting starts.
+ */
+export function freeCameraStartsRemaining(
+  membershipActive: boolean,
+  startsUsed: number,
+): number | null {
+  if (membershipActive) {
+    return null;
+  }
+
+  return Math.max(0, FREE_CAMERA_COUNTING_STARTS - startsUsed);
+}
+
+/** Whether a non-member may begin another camera-counted set. */
+export function canStartCameraCounting(
+  membershipActive: boolean,
+  startsUsed: number,
+): boolean {
+  if (membershipActive) {
+    return true;
+  }
+
+  return startsUsed < FREE_CAMERA_COUNTING_STARTS;
 }
 
 /**

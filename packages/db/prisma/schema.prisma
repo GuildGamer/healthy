@@ -45,8 +45,28 @@ model User {
   proofClipReports       ProofClipReport[]       @relation("ProofClipReporter")
   blocksInitiated        UserBlock[]             @relation("UserBlockBlocker")
   blocksReceived         UserBlock[]             @relation("UserBlockBlocked")
+  cameraCountingStarts   CameraCountingStart[]
 
   @@map("user")
+}
+
+/// Lifetime record that a non-member began a camera-counted set. Walks never
+/// write here. Unique on (userId, clientStartId) so retries do not double-count.
+model CameraCountingStart {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Client-stable id for this attempt (same shape as set / match attempt ids).
+  clientStartId   String
+  context         String
+  userChallengeId String?
+  challengeId     String?
+  matchId         String?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, clientStartId])
+  @@index([userId])
+  @@map("camera_counting_starts")
 }
 
 model Session {

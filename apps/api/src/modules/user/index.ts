@@ -1,5 +1,6 @@
 import { AccountModule } from './account/index.js';
 import { AnalyticsModule } from './analytics/index.js';
+import { CameraCountingModule } from './camera-counting/index.js';
 import { ChallengesModule } from './challenges/index.js';
 import { CrewsModule } from './crews/index.js';
 import { EnrollmentsModule } from './enrollments/index.js';
@@ -26,6 +27,7 @@ export default [
   MeModule,
   AccountModule,
   MembershipModule,
+  CameraCountingModule,
   ChallengesModule,
   TodayModule,
   ProgressModule,

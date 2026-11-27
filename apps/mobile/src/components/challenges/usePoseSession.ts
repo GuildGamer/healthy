@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import { isPoseCameraAvailable, type ProofRecordingConfig } from 'quickpose-camera';
 import { useOptionalToastHost } from '@/components/forms/ToastProvider';
 import { MATCH_DEFAULT_METRIC, MATCH_METRIC_LABEL } from '@/components/matches/match-metric';
+import { isMembershipRequiredError } from '@/components/profile/membership-required';
 import { apiClient } from '@/lib/api';
 import { announceChallengeFinish } from '@/lib/challenge-finish-session';
 import { getPendingCompletion } from '@/lib/completion-outbox';
@@ -27,6 +28,8 @@ import { usePoseSessionCounter } from './usePoseSessionCounter';
 import { useProofClipRecording } from './useProofClipRecording';
 import { useSavePartialSession } from './useSavePartialSession';
 import { useTodayOccurrence } from './useTodayOccurrence';
+
+const CAMERA_START_FAILED = 'Could not start counting. Check your connection and try again.';
 
 export type { PoseSessionProps } from './types/pose-session';
 export type PoseSessionPhase = 'setup' | 'counting' | 'review';
@@ -421,6 +424,7 @@ export function usePoseSession(props: PoseSessionProps) {
     ? (matchQuery.data?.metric ?? MATCH_DEFAULT_METRIC)
     : poseMetricFromCapture(occurrence?.capture.metric);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const camera = useQuickPoseCamera();
   const { snapshot, elapsedSeconds, start, stop, applyNativeUpdate, resetCountToken } =
     usePoseSessionCounter({
@@ -429,8 +433,10 @@ export function usePoseSession(props: PoseSessionProps) {
   const [phase, setPhase] = useState<PoseSessionPhase>('setup');
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [cameraSessionKey, setCameraSessionKey] = useState(0);
+  const [isReservingStart, setIsReservingStart] = useState(false);
   const phaseRef = useRef<PoseSessionPhase>('setup');
   const startedAtRef = useRef<string | null>(null);
+  const clientStartIdRef = useRef<string | null>(null);
   const autoStartLockRef = useRef(false);
   const countRef = useRef(0);
   countRef.current = snapshot.count;
@@ -496,11 +502,12 @@ export function usePoseSession(props: PoseSessionProps) {
   });
 
   /**
-   * Counting shows on the first rep. Starting the occurrence and the proof
-   * clip run behind it: saving retries the start, and the clip catches up.
+   * Counting shows on the first rep. The server must accept the camera start
+   * (lifetime free quota or membership) before native counting begins. The
+   * daily occurrence start and proof clip arm after that succeeds.
    */
   const beginCounting = useCallback(
-    (options?: { preserveCounter?: boolean }) => {
+    async (options?: { preserveCounter?: boolean }) => {
       if (props.mode === 'challenge' && !occurrence) {
         return;
       }
@@ -514,7 +521,59 @@ export function usePoseSession(props: PoseSessionProps) {
 
       const preserveCounter = options?.preserveCounter === true;
       autoStartLockRef.current = true;
-      startedAtRef.current = new Date().toISOString();
+      if (!startedAtRef.current) {
+        startedAtRef.current = new Date().toISOString();
+      }
+      const startedAt = startedAtRef.current;
+
+      if (!clientStartIdRef.current) {
+        if (props.mode === 'challenge' && occurrence) {
+          clientStartIdRef.current = setSessionId(occurrence, startedAt);
+        } else if (props.mode === 'match') {
+          clientStartIdRef.current = matchAttemptClientId('pose', props.matchId, startedAt);
+        } else {
+          clientStartIdRef.current = `in-app-pose:practice:${props.challengeId}:${startedAt}`;
+        }
+      }
+
+      const clientStartId = clientStartIdRef.current;
+      setIsReservingStart(true);
+      try {
+        const startInput =
+          props.mode === 'challenge' && occurrence
+            ? {
+                context: 'challenge' as const,
+                clientStartId,
+                userChallengeId: occurrence.id,
+              }
+            : props.mode === 'match'
+              ? {
+                  context: 'match' as const,
+                  clientStartId,
+                  matchId: props.matchId,
+                }
+              : {
+                  context: 'practice' as const,
+                  clientStartId,
+                  challengeId: props.challengeId,
+                };
+        await apiClient.startCameraCounting(startInput);
+        void queryClient.invalidateQueries({ queryKey: ['me'] });
+      } catch (error) {
+        autoStartLockRef.current = false;
+        if (isMembershipRequiredError(error)) {
+          clientStartIdRef.current = null;
+          startedAtRef.current = null;
+          router.push({ pathname: '/membership', params: { source: 'other' } });
+          return;
+        }
+
+        setSessionError(CAMERA_START_FAILED);
+        return;
+      } finally {
+        setIsReservingStart(false);
+      }
+
       frozenCountRef.current = null;
       frozenElapsedRef.current = null;
       setFrozenCount(null);
@@ -539,7 +598,17 @@ export function usePoseSession(props: PoseSessionProps) {
       });
       startOccurrence.mutate();
     },
-    [camera.isReady, metric, occurrence, proof, props, start, startOccurrence],
+    [
+      camera.isReady,
+      metric,
+      occurrence,
+      proof,
+      props,
+      queryClient,
+      router,
+      start,
+      startOccurrence,
+    ],
   );
 
   useEffect(() => {
@@ -553,7 +622,7 @@ export function usePoseSession(props: PoseSessionProps) {
     }
 
     autoStartLockRef.current = true;
-    beginCounting({ preserveCounter: true });
+    void beginCounting({ preserveCounter: true });
   }, [beginCounting, camera.isReady, phase, snapshot.bodyInFrame, snapshot.count, snapshot.phase]);
 
   function save() {
@@ -687,7 +756,7 @@ export function usePoseSession(props: PoseSessionProps) {
     target,
     meetsTarget,
     sessionError,
-    isStarting: startOccurrence.isPending,
+    isStarting: isReservingStart || startOccurrence.isPending,
     isSaving: submitSet.isPending,
     saveFailed: submitSet.isError,
     saveError: submitSet.error,
@@ -711,8 +780,12 @@ export function usePoseSession(props: PoseSessionProps) {
     handleProofRecorded: proof.handleProofRecorded,
     handleProofRecordingError: proof.handleProofRecordingError,
     finishCountdown,
-    startNow: () => beginCounting(),
-    retry: () => beginCounting(),
+    startNow: () => {
+      void beginCounting();
+    },
+    retry: () => {
+      void beginCounting();
+    },
     stopCounting: () => void stopCounting(),
     keepGoing,
     save,

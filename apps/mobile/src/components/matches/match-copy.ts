@@ -42,7 +42,7 @@ export const CREATE_COPY = {
   newGroupByLink: 'New group, by link',
   contestTitle: 'Contest name',
   contestTitlePlaceholder: 'Acme March challenge',
-  note: `Up to ${MATCH_PARTICIPANT_CAP} people. Groups are free for everyone, and others only see your name and score.`,
+  note: `Up to ${MATCH_PARTICIPANT_CAP} people. Joining a group is free. Others only see your name and score.`,
   cta: 'Start and share link',
   ctaSeated: 'Start group',
   failed: 'We couldn’t start the group. Check your connection and try again.',

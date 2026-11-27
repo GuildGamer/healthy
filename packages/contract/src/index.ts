@@ -41,6 +41,7 @@ import {
   trackAnalyticsEventContract,
   trackAnalyticsEventsBatchContract,
 } from './analytics-events.js';
+import { startCameraCountingContract } from './camera-counting.js';
 import { getExperimentAssignmentContract } from './experiments.js';
 import {
   cancelMatchContract,
@@ -323,6 +324,18 @@ export {
   subscriptionStatusSchema,
 } from './membership.js';
 export { formatMembershipAmount, resolveMembershipMarketKey } from './membership-format.js';
+export {
+  FREE_CAMERA_COUNTING_STARTS,
+  cameraCountingContextSchema,
+  startCameraCountingContract,
+  startCameraCountingInputSchema,
+  startCameraCountingOutputSchema,
+} from './camera-counting.js';
+export type {
+  CameraCountingContext,
+  StartCameraCountingInput,
+  StartCameraCountingOutput,
+} from './camera-counting.js';
 export type {
   MembershipCurrency,
   MembershipCurrentSubscription,
@@ -385,6 +398,11 @@ export const meOutputSchema = z.object({
   healthLinkStatus: healthLinkStatusSchema,
   /** Paid membership entitlements. Derived from the subscription domain. */
   hasMembership: z.boolean(),
+  /**
+   * Free camera-counting starts left for non-members. Null when membership is
+   * active (unlimited). Walks do not consume these.
+   */
+  freeCameraStartsRemaining: z.number().int().nonnegative().nullable(),
   /** Reminder slots allowed per challenge for this member. */
   maxRemindersPerChallenge: z.number().int().positive(),
   /**
@@ -1032,6 +1050,7 @@ export const appContract = {
   registerPushDevice: registerPushDeviceContract,
   unregisterPushDevice: unregisterPushDeviceContract,
   startChallenge: startChallengeContract,
+  startCameraCounting: startCameraCountingContract,
   completeChallenge: completeChallengeContract,
   skipChallengeEvidence: skipChallengeEvidenceContract,
   saveChallengeDraft: saveChallengeDraftContract,

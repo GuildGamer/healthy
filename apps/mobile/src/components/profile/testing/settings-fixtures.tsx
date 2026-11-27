@@ -32,6 +32,7 @@ export function meFixture(overrides: Partial<MeOutput> = {}): MeOutput {
     inProgressNudgeDelayMinutes: 30,
     healthLinkStatus: 'connected',
     hasMembership: false,
+    freeCameraStartsRemaining: 2,
     maxRemindersPerChallenge: 1,
     proofClipAudience: null,
     proofClipLimits: {

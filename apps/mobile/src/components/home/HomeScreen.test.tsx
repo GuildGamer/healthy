@@ -98,6 +98,7 @@ function me(overrides: Partial<MeOutput> = {}): MeOutput {
     inProgressNudgeDelayMinutes: 30,
     healthLinkStatus: 'unknown',
     hasMembership: true,
+    freeCameraStartsRemaining: null,
     maxRemindersPerChallenge: 1,
     proofClipAudience: null,
     proofClipLimits: {

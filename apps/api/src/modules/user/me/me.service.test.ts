@@ -52,6 +52,9 @@ function createPrismaMock(
     userChallenge: {
       findMany: vi.fn().mockResolvedValue(rewardedDailyDayKeys.map((periodKey) => ({ periodKey }))),
     },
+    cameraCountingStart: {
+      count: vi.fn().mockResolvedValue(0),
+    },
   };
 }
 
@@ -104,6 +107,7 @@ describe('MeService', () => {
       inProgressNudgeDelayMinutes: 30,
       healthLinkStatus: 'unknown',
       hasMembership: false,
+      freeCameraStartsRemaining: 2,
       maxRemindersPerChallenge: 1,
       proofClipAudience: null,
       proofClipLimits: {
@@ -126,6 +130,7 @@ describe('MeService', () => {
     await expect(service.getMe(reviewer)).resolves.toMatchObject({
       email: 'roosterdotcom@gmail.com',
       hasMembership: true,
+      freeCameraStartsRemaining: null,
       maxRemindersPerChallenge: 5,
     });
 
@@ -172,6 +177,7 @@ describe('MeService', () => {
       inProgressNudgeDelayMinutes: 30,
       healthLinkStatus: 'unknown',
       hasMembership: false,
+      freeCameraStartsRemaining: 2,
       maxRemindersPerChallenge: 1,
       proofClipAudience: null,
       proofClipLimits: {

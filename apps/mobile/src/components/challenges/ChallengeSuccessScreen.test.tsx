@@ -13,6 +13,7 @@ jest.mock('@/lib/api', () => ({
   apiClient: {
     me: jest.fn(async () => ({
       hasMembership: true,
+    freeCameraStartsRemaining: null,
       name: 'Ada',
       countryCode: 'US',
       categories: ['general'],
@@ -27,6 +28,7 @@ jest.mock('@/lib/api', () => ({
       challenges: [],
       enrolledCount: 0,
       hasMembership: true,
+    freeCameraStartsRemaining: null,
       maxRemindersPerChallenge: 3,
     })),
     getExperimentAssignment: jest.fn(async () => null),
@@ -35,6 +37,7 @@ jest.mock('@/lib/api', () => ({
       challenges: [],
       enrolledCount: 0,
       hasMembership: true,
+    freeCameraStartsRemaining: null,
       maxRemindersPerChallenge: 3,
     })),
     trackAnalyticsEvent: jest.fn(async () => ({ ok: true })),
@@ -246,6 +249,7 @@ describe('ChallengeSuccessScreen with a proof clip', () => {
     apiClient.me = jest.fn(async () => ({
       id: 'me-1',
       hasMembership: true,
+    freeCameraStartsRemaining: null,
       name: 'Ada',
       countryCode: 'US',
       categories: ['general'],
@@ -296,6 +300,7 @@ describe('ChallengeSuccessScreen share card', () => {
     };
     apiClient.me.mockResolvedValue({
       hasMembership: true,
+    freeCameraStartsRemaining: null,
       currentStreakDays: 40,
       name: 'Ada',
       countryCode: 'US',
@@ -539,6 +544,7 @@ describe('ChallengeSuccessScreen share card', () => {
     };
     apiClient.me.mockResolvedValueOnce({
       hasMembership: false,
+    freeCameraStartsRemaining: 2,
       name: 'Ada',
       countryCode: 'US',
       categories: ['general'],

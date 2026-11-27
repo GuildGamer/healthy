@@ -25,6 +25,15 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 | `10-typescript` | `*.ts` / `*.tsx` |
 | `12-social` | Groups, matches, invites, leaderboard-facing surfaces |
 
+## Project skills
+
+| Skill | When |
+|-------|------|
+| `design-critique` | After celebration / share / action-hierarchy UI work |
+| `product-ui-designer` | Redesigning Beatset mobile screens |
+| `respect-conventions` | Starting features or changing contracts |
+| `store-compliance` | Before App Store / Play submit; permission, UGC, IAP, health, deletion, or legal changes |
+
 ## Human docs
 
 - `README.md` — quick start
@@ -34,6 +43,7 @@ This repository is steered by Cursor rules in `.cursor/rules/`. Read them before
 - `docs/invite-preview.md` — invite link preview image spec and designer brief
 - `docs/testing.md` — device + CI testing loop
 - `docs/releases.md` — EAS Update vs store
+- `docs/store-compliance.md` — App Store / Play pre-submit gate (Console + device)
 - `docs/splitting-repos.md` — optional later split
 
 ## Locked stack (do not casually replace)

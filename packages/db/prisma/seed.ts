@@ -779,8 +779,9 @@ async function main(): Promise<void> {
       name: 'Beatset',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
+        'Unlimited camera-counted sets after two free starts',
+        'Walks stay free for everyone',
         'Full fitness challenge catalog',
-        'Pose, steps, and gym challenges',
         'Up to five reminders per challenge',
         'Finish-what-you-started nudges',
       ],
@@ -801,8 +802,9 @@ async function main(): Promise<void> {
       name: 'Beatset',
       tagline: 'Keep the streak honest. One clear membership.',
       features: [
+        'Unlimited camera-counted sets after two free starts',
+        'Walks stay free for everyone',
         'Full fitness challenge catalog',
-        'Pose, steps, and gym challenges',
         'Up to five reminders per challenge',
         'Finish-what-you-started nudges',
       ],
