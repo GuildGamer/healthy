@@ -421,6 +421,57 @@ export const sendAdminNotificationContract = oc
   .input(sendAdminNotificationInputSchema)
   .output(sendAdminNotificationOutputSchema);
 
+export const stagingTesterGrantSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  enabled: z.boolean(),
+  note: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const listStagingTesterGrantsOutputSchema = z.object({
+  items: z.array(stagingTesterGrantSchema),
+});
+
+export const upsertStagingTesterGrantInputSchema = z.object({
+  email: z.string().email(),
+  enabled: z.boolean().default(true),
+  note: z.string().trim().max(200).nullable().optional(),
+});
+
+export const setStagingTesterGrantEnabledInputSchema = z.object({
+  id: z.string().min(1),
+  enabled: z.boolean(),
+});
+
+export const deleteStagingTesterGrantInputSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const stagingTesterGrantOutputSchema = z.object({
+  grant: stagingTesterGrantSchema,
+});
+
+export const listStagingTesterGrantsContract = oc
+  .route({ method: 'GET', path: '/admin/staging-testers' })
+  .output(listStagingTesterGrantsOutputSchema);
+
+export const upsertStagingTesterGrantContract = oc
+  .route({ method: 'POST', path: '/admin/staging-testers' })
+  .input(upsertStagingTesterGrantInputSchema)
+  .output(stagingTesterGrantOutputSchema);
+
+export const setStagingTesterGrantEnabledContract = oc
+  .route({ method: 'POST', path: '/admin/staging-testers/set-enabled' })
+  .input(setStagingTesterGrantEnabledInputSchema)
+  .output(stagingTesterGrantOutputSchema);
+
+export const deleteStagingTesterGrantContract = oc
+  .route({ method: 'POST', path: '/admin/staging-testers/delete' })
+  .input(deleteStagingTesterGrantInputSchema)
+  .output(z.object({ ok: z.literal(true) }));
+
 export const adminContract = {
   me: adminMeContract,
   listChallenges: listAdminChallengesContract,
@@ -434,6 +485,10 @@ export const adminContract = {
   lookupMember: lookupAdminMemberContract,
   adjustMemberPoints: adjustAdminMemberPointsContract,
   setMemberActive: setAdminMemberActiveContract,
+  listStagingTesterGrants: listStagingTesterGrantsContract,
+  upsertStagingTesterGrant: upsertStagingTesterGrantContract,
+  setStagingTesterGrantEnabled: setStagingTesterGrantEnabledContract,
+  deleteStagingTesterGrant: deleteStagingTesterGrantContract,
   listOperators: listAdminOperatorsContract,
   inviteOperator: inviteAdminOperatorContract,
   updateOperatorRoles: updateAdminOperatorRolesContract,
@@ -482,6 +537,19 @@ export type AdjustAdminMemberPointsInput = z.infer<
 >;
 export type SetAdminMemberActiveInput = z.infer<
   typeof setAdminMemberActiveInputSchema
+>;
+export type StagingTesterGrant = z.infer<typeof stagingTesterGrantSchema>;
+export type ListStagingTesterGrantsOutput = z.infer<
+  typeof listStagingTesterGrantsOutputSchema
+>;
+export type UpsertStagingTesterGrantInput = z.infer<
+  typeof upsertStagingTesterGrantInputSchema
+>;
+export type SetStagingTesterGrantEnabledInput = z.infer<
+  typeof setStagingTesterGrantEnabledInputSchema
+>;
+export type DeleteStagingTesterGrantInput = z.infer<
+  typeof deleteStagingTesterGrantInputSchema
 >;
 export type SendAdminNotificationInput = z.infer<
   typeof sendAdminNotificationInputSchema

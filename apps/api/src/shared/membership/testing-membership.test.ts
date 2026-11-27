@@ -26,4 +26,16 @@ describe('effectiveMembershipActive', () => {
     expect(effectiveMembershipActive(false)).toBe(false);
     expect(effectiveMembershipActive(true)).toBe(true);
   });
+
+  it('keeps store reviewers as members after the testing grant is off', () => {
+    process.env.MEMBERSHIP_BYPASS = '0';
+
+    expect(
+      effectiveMembershipActive(false, 'roosterdotcom@gmail.com'),
+    ).toBe(true);
+    expect(
+      effectiveMembershipActive(false, ' RoosterDotCom@gmail.com '),
+    ).toBe(true);
+    expect(effectiveMembershipActive(false, 'someone@else.com')).toBe(false);
+  });
 });

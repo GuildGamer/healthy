@@ -136,6 +136,8 @@ export type ProofClipEncodingConfig = ProofClipEncoding;
 export type Environment = {
   isProd: boolean;
   isLocal: boolean;
+  /** True only when NODE_ENV is exactly `staging`. */
+  isStaging: boolean;
   schedulerMode: SchedulerMode;
   /** Shared secret for the internal dispatch endpoint. */
   reminderDispatchSecret: string | null;
@@ -620,6 +622,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
   const nodeEnv = readOptional(source.NODE_ENV);
   const isProd = nodeEnv === 'production';
   const isLocal = isLocalNodeEnv(nodeEnv);
+  const isStaging = nodeEnv === 'staging';
   const mailPolicy: MailPolicy = { isProd, requiresMailbox: !isLocal };
   const schedulerMode = readSchedulerMode(source.REMINDER_SCHEDULER_MODE);
   const reminderDispatchSecret = readOptional(source.REMINDER_DISPATCH_SECRET);
@@ -635,6 +638,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
   return {
     isProd,
     isLocal,
+    isStaging,
     schedulerMode,
     reminderDispatchSecret,
     expoAccessToken: readOptional(source.EXPO_ACCESS_TOKEN),

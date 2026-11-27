@@ -4,6 +4,7 @@ import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { dayKeyFor, previousDayKey } from '../../../shared/utils/day-key.js';
 import { readEnvironment } from '../../shared-modules/config/environment.js';
+import { EntitlementService } from '../../shared-modules/subscriptions/entitlement.service.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { RemindersService } from '../reminders/reminders.service.js';
 import { MeService } from './me.service.js';
@@ -45,6 +46,7 @@ beforeAll(() => {
     prisma,
     readEnvironment(process.env as NodeJS.ProcessEnv),
     new EnrollmentsService(prisma, new RemindersService(prisma)),
+    new EntitlementService(prisma),
   );
 });
 

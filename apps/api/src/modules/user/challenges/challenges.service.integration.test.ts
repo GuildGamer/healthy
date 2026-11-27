@@ -4,6 +4,7 @@ import '../../../load-env.js';
 import { createTestPrismaClient, resetDatabase } from '../../../../test/integration-db.js';
 import { previousDayKey } from '../../../shared/utils/day-key.js';
 import { readEnvironment } from '../../shared-modules/config/environment.js';
+import { EntitlementService } from '../../shared-modules/subscriptions/entitlement.service.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { MeService } from '../me/me.service.js';
@@ -83,7 +84,12 @@ beforeAll(() => {
     creditPosePractice: async () => [],
   });
   enrollments = new EnrollmentsService(prisma, new RemindersService(prisma));
-  me = new MeService(prisma, readEnvironment(process.env as NodeJS.ProcessEnv), enrollments);
+  me = new MeService(
+    prisma,
+    readEnvironment(process.env as NodeJS.ProcessEnv),
+    enrollments,
+    new EntitlementService(prisma),
+  );
   todayDetails = new TodayService(prisma);
 });
 

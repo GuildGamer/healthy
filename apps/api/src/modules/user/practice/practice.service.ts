@@ -4,7 +4,7 @@ import { isPoseMetric } from '@product/contract';
 import type { DeviceMetric, PrismaClient } from '@product/db';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import { challengeAccessFilter } from '../../../shared/membership/entitlements.js';
-import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
 import { DEFAULT_TIME_ZONE, dayKeyFor } from '../../../shared/utils/day-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { ChallengesService } from '../challenges/index.js';
@@ -246,12 +246,7 @@ export class PracticeService {
   }
 
   private async membershipActiveFor(userId: string): Promise<boolean> {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-      select: { membershipActive: true },
-    });
-
-    return effectiveMembershipActive(profile?.membershipActive);
+    return resolveMembershipActive(this.prisma, userId);
   }
 
   private async timeZoneFor(userId: string): Promise<string> {

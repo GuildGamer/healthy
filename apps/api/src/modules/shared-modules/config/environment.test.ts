@@ -7,6 +7,7 @@ describe('readEnvironment', () => {
 
     expect(environment.isProd).toBe(false);
     expect(environment.isLocal).toBe(true);
+    expect(environment.isStaging).toBe(false);
     expect(environment.schedulerMode).toBe('in_process');
     expect(environment.reminderDispatchSecret).toBeNull();
     expect(environment.mail).toEqual({ mode: 'log' });
@@ -77,6 +78,7 @@ describe('readEnvironment', () => {
 
     expect(production.isProd).toBe(true);
     expect(production.isLocal).toBe(false);
+    expect(production.isStaging).toBe(false);
     expect(production.storage.mode).toBe('s3');
     expect(readEnvironment({ NODE_ENV: 'development' }).isLocal).toBe(true);
     expect(readEnvironment({ NODE_ENV: 'test' }).isLocal).toBe(true);
@@ -94,6 +96,7 @@ describe('readEnvironment', () => {
 
     expect(staging.isProd).toBe(false);
     expect(staging.isLocal).toBe(false);
+    expect(staging.isStaging).toBe(true);
     expect(staging.mail).toEqual({
       mode: 'sendbyte',
       apiKey: 'sk_live_test',

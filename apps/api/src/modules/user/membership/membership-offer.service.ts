@@ -13,7 +13,7 @@ import {
   paymentMethodsForOffer,
   pickPlanPrice,
 } from '../../../shared/membership/membership-pricing.js';
-import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
 import { EntitlementService } from '../../shared-modules/subscriptions/entitlement.service.js';
 
@@ -82,7 +82,8 @@ export class MembershipOfferService {
       await this.entitlements.findCurrentSubscription(user.id),
     );
     const hasMembership =
-      effectiveMembershipActive(profile?.membershipActive) || currentSubscription !== null;
+      (await resolveMembershipActive(this.prisma, user.id, user.email)) ||
+      currentSubscription !== null;
     const methodSource = plans.find((plan) => plan.prices.length > 0)?.paymentMethodIds ?? [];
     const { marketKey, ...defaultOffer } = defaultPlan;
 

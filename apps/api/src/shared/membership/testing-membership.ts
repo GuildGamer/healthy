@@ -4,7 +4,12 @@
  *
  * This does not write a subscription. Set MEMBERSHIP_BYPASS=0 before launch,
  * then delete this file and every call to `effectiveMembershipActive`.
+ *
+ * Store-reviewer emails stay members after the testing grant is off — see
+ * `isReviewerMembershipEmail`.
  */
+
+import { isReviewerMembershipEmail } from './reviewer-membership.js';
 
 function readFlag(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -39,9 +44,19 @@ export function isTestingMembershipEnabled(): boolean {
   return readTestingMembership();
 }
 
-/** Stored membership, or every account while the testing grant is on. */
-export function effectiveMembershipActive(stored: boolean | null | undefined): boolean {
+/**
+ * Stored membership, every account while the testing grant is on, or a
+ * store-reviewer allowlisted email.
+ */
+export function effectiveMembershipActive(
+  stored: boolean | null | undefined,
+  email?: string | null,
+): boolean {
   if (isTestingMembershipEnabled()) {
+    return true;
+  }
+
+  if (isReviewerMembershipEmail(email)) {
     return true;
   }
 

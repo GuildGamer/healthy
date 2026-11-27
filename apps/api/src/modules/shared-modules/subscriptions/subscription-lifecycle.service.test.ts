@@ -133,9 +133,16 @@ function createHarness() {
         return { count: 1 };
       },
     },
+    user: {
+      findUnique: async ({ where }: { where: { id: string } }) => ({
+        email: `${where.id}@example.com`,
+      }),
+    },
     userProfile: {
-      findUnique: async ({ where }: { where: { userId: string } }) =>
-        profiles.get(where.userId) ?? { membershipActive: false },
+      findUnique: async ({ where }: { where: { userId: string } }) => ({
+        ...(profiles.get(where.userId) ?? { membershipActive: false }),
+        user: { email: `${where.userId}@example.com` },
+      }),
       upsert: async ({
         where,
         create,

@@ -4,7 +4,8 @@ import { normalizeCountryCode } from '@product/contract';
 import type { HealthCategory, PrismaClient } from '@product/db';
 import { MINUTES_PER_DAY } from '../../../shared/constants/reminder-defaults.js';
 import { maxRemindersForMembership } from '../../../shared/membership/entitlements.js';
-import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
+import { isReviewerMembershipEmail } from '../../../shared/membership/reviewer-membership.js';
 import { type AuthenticatedUser, requireUser } from '../../../shared/types/authenticated-user.js';
 import {
   DEFAULT_TIME_ZONE,
@@ -14,6 +15,7 @@ import {
 import { longestConsecutiveDayRun } from '../../../shared/utils/day-run.js';
 import { ENVIRONMENT, type Environment } from '../../shared-modules/config/index.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
+import { EntitlementService } from '../../shared-modules/subscriptions/entitlement.service.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { publicNameFor } from '../leaderboard/pseudonym.js';
 import { streakStatusFor } from '../streak/index.js';
@@ -25,10 +27,15 @@ export class MeService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     @Inject(ENVIRONMENT) private readonly environment: Environment,
     private readonly enrollments: EnrollmentsService,
+    private readonly entitlements: EntitlementService,
   ) {}
 
   async getMe(currentUser: AuthenticatedUser | null | undefined): Promise<MeDto> {
     const user = requireUser(currentUser);
+
+    if (isReviewerMembershipEmail(user.email)) {
+      await this.entitlements.ensureReviewerGrant(user.id, user.email);
+    }
 
     const profile = await this.prisma.userProfile.findUnique({
       where: { userId: user.id },
@@ -56,7 +63,11 @@ export class MeService {
     });
 
     const timeZone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
-    const membershipActive = effectiveMembershipActive(profile?.membershipActive);
+    const membershipActive = await resolveMembershipActive(
+      this.prisma,
+      user.id,
+      user.email,
+    );
     const streak = streakStatusFor({
       storedStreakDays: profile?.currentStreakDays ?? 0,
       lastActiveDayKey: profile?.lastActiveDayKey ?? null,
@@ -272,7 +283,7 @@ export class MeService {
         select: { membershipActive: true },
       });
 
-      if (!effectiveMembershipActive(profile?.membershipActive)) {
+      if (!(await resolveMembershipActive(this.prisma, user.id, user.email))) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Membership is required for finish-what-you-started nudges',
           data: { reason: 'membership_required' },

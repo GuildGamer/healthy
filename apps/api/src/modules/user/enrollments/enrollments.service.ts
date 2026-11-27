@@ -16,7 +16,7 @@ import {
   maxRemindersForMembership,
 } from '../../../shared/membership/entitlements.js';
 import { CONDITION_FEATURES_ENABLED } from '../../../shared/constants/product-scope.js';
-import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
 import { DEFAULT_TIME_ZONE } from '../../../shared/utils/day-key.js';
 import { periodKeyFor } from '../../../shared/utils/period-key.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
@@ -57,7 +57,7 @@ export class EnrollmentsService {
     const user = requireUser(currentUser);
     const [categories, membershipActive] = await Promise.all([
       this.categoriesFor(user.id),
-      this.membershipActiveFor(user.id),
+      this.membershipActiveFor(user.id, user.email),
     ]);
 
     const [catalog, enrollments] = await Promise.all([
@@ -163,7 +163,7 @@ export class EnrollmentsService {
     }
 
     const [membershipActive, existing] = await Promise.all([
-      this.membershipActiveFor(user.id),
+      this.membershipActiveFor(user.id, user.email),
       this.prisma.challengeEnrollment.findUnique({
         where: {
           userId_challengeId: { userId: user.id, challengeId: challenge.id },
@@ -427,13 +427,8 @@ export class EnrollmentsService {
     );
   }
 
-  private async membershipActiveFor(userId: string): Promise<boolean> {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-      select: { membershipActive: true },
-    });
-
-    return effectiveMembershipActive(profile?.membershipActive);
+  private async membershipActiveFor(userId: string, email?: string): Promise<boolean> {
+    return resolveMembershipActive(this.prisma, userId, email);
   }
 
   private async categoriesFor(userId: string): Promise<HealthCategory[]> {

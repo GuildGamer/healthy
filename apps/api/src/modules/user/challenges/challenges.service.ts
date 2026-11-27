@@ -36,7 +36,7 @@ import {
   canAccessChallenge,
   challengeAccessFilter,
 } from '../../../shared/membership/entitlements.js';
-import { effectiveMembershipActive } from '../../../shared/membership/testing-membership.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
 import { ENVIRONMENT } from '../../shared-modules/config/config.tokens.js';
 import type { Environment } from '../../shared-modules/config/environment.js';
 import { PRISMA } from '../../shared-modules/database/prisma.tokens.js';
@@ -1263,14 +1263,17 @@ export class ChallengesService {
     timeZone: string;
     membershipActive: boolean;
   }> {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-      select: { timeZone: true, membershipActive: true },
-    });
+    const [profile, membershipActive] = await Promise.all([
+      this.prisma.userProfile.findUnique({
+        where: { userId },
+        select: { timeZone: true },
+      }),
+      resolveMembershipActive(this.prisma, userId),
+    ]);
 
     return {
       timeZone: profile?.timeZone ?? DEFAULT_TIME_ZONE,
-      membershipActive: effectiveMembershipActive(profile?.membershipActive),
+      membershipActive,
     };
   }
 
@@ -1317,12 +1320,7 @@ export class ChallengesService {
   }
 
   private async membershipActiveFor(userId: string): Promise<boolean> {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-      select: { membershipActive: true },
-    });
-
-    return effectiveMembershipActive(profile?.membershipActive);
+    return resolveMembershipActive(this.prisma, userId);
   }
 
   /**

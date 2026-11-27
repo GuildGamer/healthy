@@ -822,6 +822,9 @@ enum AdminAuditAction {
   admin_reactivate
   admin_roles_update
   notification_broadcast
+  staging_tester_upsert
+  staging_tester_toggle
+  staging_tester_delete
 }
 
 /// Better Auth tables for operators. Separate from member `user`.
@@ -838,10 +841,28 @@ model AdminUser {
   sessions            AdminSession[]
   accounts            AdminAccount[]
   roles               AdminRoleAssignment[]
-  auditEvents         AdminAuditEvent[]
-  grantedEntitlements Entitlement[]
+  auditEvents          AdminAuditEvent[]
+  grantedEntitlements  Entitlement[]
+  stagingTesterGrants  StagingTesterGrant[]
 
   @@map("admin_user")
+}
+
+/// Emails that receive free membership only while NODE_ENV is staging.
+/// Toggle `enabled` off to revoke immediately; no entitlement row is written.
+model StagingTesterGrant {
+  id                   String    @id @default(cuid())
+  /// Always stored lowercased for case-insensitive lookup.
+  email                String    @unique
+  enabled              Boolean   @default(true)
+  note                 String?
+  createdByAdminUserId String?
+  createdByAdminUser   AdminUser? @relation(fields: [createdByAdminUserId], references: [id], onDelete: SetNull)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([enabled])
+  @@map("staging_tester_grants")
 }
 
 model AdminSession {

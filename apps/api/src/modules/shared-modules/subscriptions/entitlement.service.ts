@@ -1,9 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@product/db';
-import { PRISMA } from '../database/prisma.tokens.js';
 import { isEntitlementActive } from '../../../shared/membership/period.js';
+import { resolveMembershipActive } from '../../../shared/membership/resolve-membership-active.js';
+import { isReviewerMembershipEmail } from '../../../shared/membership/reviewer-membership.js';
+import { PRISMA } from '../database/prisma.tokens.js';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
+
+const REVIEWER_GRANT_REASON = 'Store reviewer permanent access';
 
 @Injectable()
 export class EntitlementService {
@@ -18,12 +22,12 @@ export class EntitlementService {
       return true;
     }
 
-    const profile = await client.userProfile.findUnique({
-      where: { userId },
-      select: { membershipActive: true },
+    const user = await client.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
     });
 
-    return profile?.membershipActive ?? false;
+    return resolveMembershipActive(client, userId, user?.email);
   }
 
   async hasActiveEntitlement(
@@ -69,16 +73,58 @@ export class EntitlementService {
     });
   }
 
+  /**
+   * Persist an open-ended admin grant for store reviewers and refresh the
+   * profile cache so membership survives MEMBERSHIP_BYPASS=0 and billing sync.
+   */
+  async ensureReviewerGrant(userId: string, email: string): Promise<void> {
+    if (!isReviewerMembershipEmail(email)) {
+      return;
+    }
+
+    const existing = await this.prisma.entitlement.findFirst({
+      where: {
+        userId,
+        kind: 'premium',
+        source: 'admin_grant',
+        endsAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      await this.prisma.entitlement.create({
+        data: {
+          userId,
+          kind: 'premium',
+          source: 'admin_grant',
+          startsAt: new Date(),
+          endsAt: null,
+          grantReason: REVIEWER_GRANT_REASON,
+        },
+      });
+    }
+
+    await this.syncMembershipCache(userId);
+  }
+
   async syncMembershipCache(
     userId: string,
     now: Date = new Date(),
     client: DbClient = this.prisma,
   ): Promise<boolean> {
-    const membershipActive = await this.hasActiveEntitlement(
-      userId,
-      now,
-      client,
-    );
+    const entitled = await this.hasActiveEntitlement(userId, now, client);
+
+    let membershipActive = entitled;
+
+    if (!membershipActive) {
+      const profile = await client.userProfile.findUnique({
+        where: { userId },
+        select: { user: { select: { email: true } } },
+      });
+
+      membershipActive = isReviewerMembershipEmail(profile?.user?.email);
+    }
 
     await client.userProfile.upsert({
       where: { userId },

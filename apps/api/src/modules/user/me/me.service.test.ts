@@ -60,15 +60,27 @@ function createEnrollmentsMock() {
   return { enrollDefaultsFor: vi.fn().mockResolvedValue(undefined) };
 }
 
+function createEntitlementsMock() {
+  return { ensureReviewerGrant: vi.fn().mockResolvedValue(undefined) };
+}
+
+function createMeService(
+  prisma: ReturnType<typeof createPrismaMock> = createPrismaMock(),
+  entitlements: ReturnType<typeof createEntitlementsMock> = createEntitlementsMock(),
+) {
+  return new MeService(
+    prisma as never,
+    mockEnvironment as never,
+    createEnrollmentsMock() as never,
+    entitlements as never,
+  );
+}
+
 const user = { id: 'u1', email: 'a@b.co', name: 'Ada' };
 
 describe('MeService', () => {
   it('returns the authenticated user with zeros when no profile exists', async () => {
-    const service = new MeService(
-      createPrismaMock(null) as never,
-      mockEnvironment as never,
-      createEnrollmentsMock() as never,
-    );
+    const service = createMeService(createPrismaMock(null));
 
     await expect(service.getMe(user)).resolves.toEqual({
       id: 'u1',
@@ -102,6 +114,27 @@ describe('MeService', () => {
     });
   });
 
+  it('grants permanent membership to the store reviewer on /me', async () => {
+    const entitlements = createEntitlementsMock();
+    const reviewer = {
+      id: 'reviewer-1',
+      email: 'roosterdotcom@gmail.com',
+      name: 'Reviewer',
+    };
+    const service = createMeService(createPrismaMock(null), entitlements);
+
+    await expect(service.getMe(reviewer)).resolves.toMatchObject({
+      email: 'roosterdotcom@gmail.com',
+      hasMembership: true,
+      maxRemindersPerChallenge: 5,
+    });
+
+    expect(entitlements.ensureReviewerGrant).toHaveBeenCalledWith(
+      'reviewer-1',
+      'roosterdotcom@gmail.com',
+    );
+  });
+
   it('returns stored categories, points and time zone from the profile', async () => {
     const prisma = createPrismaMock(
       {
@@ -115,11 +148,7 @@ describe('MeService', () => {
       },
       todayKey('Asia/Singapore'),
     );
-    const service = new MeService(
-      prisma as never,
-      mockEnvironment as never,
-      createEnrollmentsMock() as never,
-    );
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toEqual({
       id: 'u1',
@@ -163,7 +192,7 @@ describe('MeService', () => {
       },
       daysAgoKey(1),
     );
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toMatchObject({
       currentStreakDays: 6,
@@ -180,7 +209,7 @@ describe('MeService', () => {
       },
       daysAgoKey(3),
     );
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toMatchObject({
       pointsBalance: 900,
@@ -199,7 +228,7 @@ describe('MeService', () => {
       },
       daysAgoKey(2),
     );
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toMatchObject({
       currentStreakDays: 0,
@@ -213,7 +242,7 @@ describe('MeService', () => {
       daysAgoKey(2),
       [daysAgoKey(5), daysAgoKey(4), daysAgoKey(3), daysAgoKey(2), daysAgoKey(9)],
     );
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toMatchObject({
       currentStreakDays: 0,
@@ -246,7 +275,7 @@ describe('MeService', () => {
       },
       todayKey(),
     );
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toMatchObject({
       currentStreakDays: 2,
@@ -261,7 +290,7 @@ describe('MeService', () => {
       todayKey(),
       [todayKey(), daysAgoKey(1)],
     );
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toMatchObject({
       currentStreakDays: 6,
@@ -279,7 +308,7 @@ describe('MeService', () => {
       },
       todayKey(),
     );
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.getMe(user)).resolves.toMatchObject({
       currentStreakDays: 3,
@@ -288,11 +317,7 @@ describe('MeService', () => {
   });
 
   it('rejects unauthenticated callers with ORPC UNAUTHORIZED', async () => {
-    const service = new MeService(
-      createPrismaMock() as never,
-      mockEnvironment as never,
-      createEnrollmentsMock() as never,
-    );
+    const service = createMeService(createPrismaMock());
 
     await expect(service.getMe(null)).rejects.toBeInstanceOf(ORPCError);
   });
@@ -305,7 +330,7 @@ describe('MeService', () => {
       timeZone: 'UTC',
     };
     const prisma = createPrismaMock(profile);
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.updateCategories(user, ['asthma'])).resolves.toMatchObject({
       categories: ['asthma'],
@@ -324,11 +349,7 @@ describe('MeService', () => {
   });
 
   it('rejects empty category updates', async () => {
-    const service = new MeService(
-      createPrismaMock() as never,
-      mockEnvironment as never,
-      createEnrollmentsMock() as never,
-    );
+    const service = createMeService(createPrismaMock());
 
     await expect(
       service.updateCategories({ id: 'u1', email: 'a@b.co' }, []),
@@ -343,7 +364,7 @@ describe('MeService', () => {
       timeZone: 'Europe/London',
     };
     const prisma = createPrismaMock(profile);
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.updateTimeZone(user, 'Europe/London')).resolves.toMatchObject({
       timeZone: 'Europe/London',
@@ -358,7 +379,7 @@ describe('MeService', () => {
 
   it('rejects an unrecognised time zone without writing', async () => {
     const prisma = createPrismaMock();
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.updateTimeZone(user, 'Mars/Olympus_Mons')).rejects.toBeInstanceOf(
       ORPCError,
@@ -375,7 +396,7 @@ describe('MeService', () => {
       countryCode: 'KE',
     };
     const prisma = createPrismaMock(profile);
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.updateCountry(user, 'ke')).resolves.toMatchObject({
       countryCode: 'KE',
@@ -390,7 +411,7 @@ describe('MeService', () => {
 
   it('rejects an unrecognised country without writing', async () => {
     const prisma = createPrismaMock();
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.updateCountry(user, 'XX')).rejects.toBeInstanceOf(ORPCError);
     expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
@@ -405,7 +426,7 @@ describe('MeService', () => {
       reminderEnabled: true,
       reminderMinute: 450,
     });
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.updateReminder(user, true, 450)).resolves.toMatchObject({
       reminderEnabled: true,
@@ -421,7 +442,7 @@ describe('MeService', () => {
 
   it.each([-1, 1440, 12.5])('rejects reminder minute %p without writing', async (minute) => {
     const prisma = createPrismaMock();
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(service.updateReminder(user, true, minute)).rejects.toBeInstanceOf(ORPCError);
     expect(prisma.userProfile.upsert).not.toHaveBeenCalled();
@@ -439,7 +460,7 @@ describe('MeService', () => {
       showOnLeaderboard: false,
       membershipActive: true,
     });
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await expect(
       service.updateNotificationSettings(user, {
@@ -488,7 +509,7 @@ describe('MeService', () => {
       currentStreakDays: 0,
       timeZone: 'UTC',
     });
-    const service = new MeService(prisma as never, mockEnvironment as never, createEnrollmentsMock() as never);
+    const service = createMeService(prisma);
 
     await service.updateNotificationSettings(user, {
       reminderEnabled: true,
